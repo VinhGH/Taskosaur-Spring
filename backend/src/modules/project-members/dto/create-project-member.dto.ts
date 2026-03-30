@@ -1,30 +1,59 @@
-import { IsString, IsNotEmpty, IsEnum, IsOptional } from 'class-validator';
-import { Role as ProjectRole } from '@prisma/client';
+import { IsNotEmpty, IsEnum, IsOptional, IsUUID, IsEmail } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { Role } from '@prisma/client';
 
 export class CreateProjectMemberDto {
-  @IsString()
+  @ApiProperty({
+    description: 'User ID to add to the project',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsUUID()
   @IsNotEmpty()
   userId: string;
 
-  @IsString()
+  @ApiProperty({
+    description: 'Project ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsUUID()
   @IsNotEmpty()
   projectId: string;
 
-  @IsEnum(ProjectRole)
+  @ApiProperty({
+    description: 'Role to assign (default: MEMBER)',
+    enum: Role,
+    required: false,
+    example: Role.MEMBER,
+  })
+  @IsEnum(Role)
   @IsOptional()
-  role?: ProjectRole;
+  role?: Role;
 }
 
 export class InviteProjectMemberDto {
-  @IsString()
+  @ApiProperty({
+    description: 'Email of the user to invite',
+    example: 'user@example.com',
+  })
+  @IsEmail()
   @IsNotEmpty()
   email: string;
 
-  @IsString()
+  @ApiProperty({
+    description: 'Project ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsUUID()
   @IsNotEmpty()
   projectId: string;
 
-  @IsEnum(ProjectRole)
+  @ApiProperty({
+    description: 'Role to assign (default: MEMBER)',
+    enum: Role,
+    required: false,
+    example: Role.MEMBER,
+  })
+  @IsEnum(Role)
   @IsOptional()
-  role?: ProjectRole;
+  role?: Role;
 }

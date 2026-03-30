@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import {
   ProjectMember,
+  Role,
   Role as ProjectRole,
   Role as WorkspaceRole,
   Role as OrganizationRole,
@@ -904,13 +905,161 @@ export class ProjectMembersService {
   }
 
   async getUserProjects(userId: string, requestUserId: string): Promise<ProjectMember[]> {
-    // Users can view their own projects, or admins might view others (for now restrict to self)
-    if (userId !== requestUserId) {
-      // Potentially allow org owners/admins to see other user's projects if they share an org
-      // For simplicity and maximum security, we'll restrict to self for now.
-      throw new ForbiddenException('You can only view your own projects');
+    // Users can always view their own projects
+    if (userId === requestUserId) {
+      return this.prisma.projectMember.findMany({
+        where: { userId },
+        include: {
+          project: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              description: true,
+              avatar: true,
+              color: true,
+              status: true,
+              priority: true,
+              workspace: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                  organization: {
+                    select: {
+                      id: true,
+                      name: true,
+                      slug: true,
+                    },
+                  },
+                },
+              },
+              _count: {
+                select: {
+                  members: true,
+                  tasks: true,
+                  sprints: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          joinedAt: 'asc',
+        },
+      });
     }
 
+    // For viewing other users' projects, check if requester has admin access
+    const actor = await this.prisma.user.findUnique({
+      where: { id: requestUserId },
+      select: { role: true },
+    });
+
+    const isSuperAdmin = actor?.role === Role.SUPER_ADMIN;
+
+    if (isSuperAdmin) {
+      // SUPER_ADMIN can view any user's projects
+      return this.prisma.projectMember.findMany({
+        where: { userId },
+        include: {
+          project: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              description: true,
+              avatar: true,
+              color: true,
+              status: true,
+              priority: true,
+              workspace: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                  organization: {
+                    select: {
+                      id: true,
+                      name: true,
+                      slug: true,
+                    },
+                  },
+                },
+              },
+              _count: {
+                select: {
+                  members: true,
+                  tasks: true,
+                  sprints: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          joinedAt: 'asc',
+        },
+      });
+    }
+
+    // Check if requester is org admin or workspace admin
+    // First, get the target user's organization/workspace memberships
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        organizationMembers: {
+          select: { organizationId: true, role: true },
+        },
+        workspaceMembers: {
+          select: { workspaceId: true, role: true },
+        },
+      },
+    });
+
+    if (!targetUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Get requester's memberships
+    const [requesterOrgMembers, requesterWorkspaceMembers] = await Promise.all([
+      this.prisma.organizationMember.findMany({
+        where: { userId: requestUserId },
+        select: { organizationId: true, role: true },
+      }),
+      this.prisma.workspaceMember.findMany({
+        where: { userId: requestUserId },
+        select: { workspaceId: true, role: true },
+      }),
+    ]);
+
+    // Build sets of org/workspace IDs where requester is admin
+    const requesterOrgAdminIds = new Set(
+      requesterOrgMembers.filter((m) => m.role === Role.OWNER).map((m) => m.organizationId),
+    );
+
+    const requesterWorkspaceAdminIds = new Set(
+      requesterWorkspaceMembers
+        .filter((m) => m.role === Role.OWNER || m.role === Role.MANAGER)
+        .map((m) => m.workspaceId),
+    );
+
+    // Check if requester has admin access to any org/workspace the target user belongs to
+    const targetOrgIds = targetUser.organizationMembers.map((m) => m.organizationId);
+    const targetWorkspaceIds = targetUser.workspaceMembers.map((m) => m.workspaceId);
+
+    const hasOrgAdminAccess = targetOrgIds.some((orgId) => requesterOrgAdminIds.has(orgId));
+    const hasWorkspaceAdminAccess = targetWorkspaceIds.some((wsId) =>
+      requesterWorkspaceAdminIds.has(wsId),
+    );
+
+    if (!hasOrgAdminAccess && !hasWorkspaceAdminAccess) {
+      throw new ForbiddenException(
+        'You can only view your own projects or projects of users in your organization/workspace',
+      );
+    }
+
+    // Requester has admin access, return the target user's projects
     return this.prisma.projectMember.findMany({
       where: { userId },
       include: {
