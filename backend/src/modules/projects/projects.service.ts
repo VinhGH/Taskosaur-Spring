@@ -4,6 +4,7 @@ import {
   ConflictException,
   ForbiddenException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { Project, Role, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -27,6 +28,8 @@ type ProjectFilters = {
 
 @Injectable()
 export class ProjectsService {
+  private readonly logger = new Logger(ProjectsService.name);
+
   constructor(
     private prisma: PrismaService,
     private accessControl: AccessControlService,
@@ -53,7 +56,8 @@ export class ProjectsService {
 
     if (!workspace) throw new NotFoundException('Workspace not found');
 
-    // Check if user can create projects in this workspace
+    // Consolidated permission check: Verify user can create projects in this workspace
+    // Skip membership check if user is the organization owner
     if (workspace.organization.ownerId !== userId) {
       const wsMember = await this.prisma.workspaceMember.findUnique({
         where: {
@@ -85,8 +89,11 @@ export class ProjectsService {
 
     if (existing.length > 0) {
       let maxSuffix = 0;
+      // Escape special regex characters to prevent ReDoS vulnerability
+      const escapedBaseSlug = baseSlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const slugRegex = new RegExp(`^${escapedBaseSlug}-(\\d+)$`);
       existing.forEach((p) => {
-        const match = p.slug.match(new RegExp(`^${baseSlug}-(\\d+)$`));
+        const match = p.slug.match(slugRegex);
         if (match) {
           const num = parseInt(match[1], 10);
           if (num > maxSuffix) maxSuffix = num;
@@ -103,6 +110,28 @@ export class ProjectsService {
     if (!defaultWorkflow) {
       throw new NotFoundException('Default workflow not found for organization');
     }
+
+    // Validate workflowId if provided - ensure it belongs to the same organization
+    let workflowIdToUse = createProjectDto.workflowId || defaultWorkflow.id;
+    if (createProjectDto.workflowId) {
+      const customWorkflow = await this.prisma.workflow.findUnique({
+        where: { id: createProjectDto.workflowId },
+        select: { id: true, organizationId: true },
+      });
+
+      if (!customWorkflow) {
+        throw new NotFoundException('Custom workflow not found');
+      }
+
+      if (customWorkflow.organizationId !== workspace.organizationId) {
+        throw new ForbiddenException(
+          'Custom workflow must belong to the same organization as the workspace',
+        );
+      }
+
+      workflowIdToUse = customWorkflow.id;
+    }
+
     const workspaceOwners = workspace.members.map((member) => ({
       userId: member.userId,
       role: member.role,
@@ -118,7 +147,7 @@ export class ProjectsService {
             data: {
               ...createProjectDto,
               slug,
-              workflowId: createProjectDto.workflowId || defaultWorkflow.id,
+              workflowId: workflowIdToUse,
               createdBy: userId,
               updatedBy: userId,
               sprints: {
@@ -230,8 +259,11 @@ export class ProjectsService {
             select: { slug: true },
           });
           let maxSuffix = 0;
+          // Escape special regex characters to prevent ReDoS vulnerability
+          const escapedBaseSlug = baseSlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const slugRegex = new RegExp(`^${escapedBaseSlug}-(\\d+)$`);
           existing.forEach((p) => {
-            const match = p.slug.match(new RegExp(`^${baseSlug}-(\\d+)$`));
+            const match = p.slug.match(slugRegex);
             if (match) {
               const num = parseInt(match[1], 10);
               if (num > maxSuffix) maxSuffix = num;
@@ -240,7 +272,9 @@ export class ProjectsService {
           slug = `${baseSlug}-${maxSuffix + 1}`;
           continue;
         }
-        console.error(error);
+        this.logger.error(
+          `Error creating project: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
           throw new ConflictException('Project with this key already exists in this workspace');
         }
@@ -703,7 +737,9 @@ export class ProjectsService {
         },
       });
     } catch (error: any) {
-      console.error(error);
+      this.logger.error(
+        `Error updating project: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
       if (error.code === 'P2002') {
         throw new ConflictException('Project with this key already exists in this workspace');
       }
@@ -722,7 +758,9 @@ export class ProjectsService {
     try {
       await this.prisma.project.delete({ where: { id } });
     } catch (error: any) {
-      console.error(error);
+      this.logger.error(
+        `Error deleting project: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
       if (error.code === 'P2025') {
         throw new NotFoundException('Project not found');
       }
@@ -791,7 +829,9 @@ export class ProjectsService {
         newValue: { archived: true },
       });
     } catch (error: any) {
-      console.error(error);
+      this.logger.error(
+        `Error archiving project: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
       if (error.code === 'P2025') {
         throw new NotFoundException('Project not found');
       }
@@ -866,7 +906,9 @@ export class ProjectsService {
         newValue: { archived: false },
       });
     } catch (error: any) {
-      console.error(error);
+      this.logger.error(
+        `Error unarchiving project: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
       if (error.code === 'P2025') {
         throw new NotFoundException('Project not found');
       }
