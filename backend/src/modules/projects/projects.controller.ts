@@ -168,8 +168,8 @@ export class ProjectsController {
   @Roles(Role.VIEWER, Role.MEMBER, Role.MANAGER, Role.OWNER)
   searchProjects(
     @CurrentUser() user: AuthenticatedUser,
-    @Query('workspaceId', ParseUUIDPipe) workspaceId?: string,
-    @Query('organizationId', ParseUUIDPipe) organizationId?: string,
+    @Query('workspaceId', new ParseUUIDPipe({ optional: true })) workspaceId?: string,
+    @Query('organizationId', new ParseUUIDPipe({ optional: true })) organizationId?: string,
     @Query('search') search?: string,
   ) {
     return this.projectsService.findBySearch(workspaceId, organizationId, search, user.id);
@@ -181,8 +181,8 @@ export class ProjectsController {
   @Roles(Role.VIEWER, Role.MEMBER, Role.MANAGER, Role.OWNER)
   searchProjectsWithPagination(
     @CurrentUser() user: AuthenticatedUser,
-    @Query('workspaceId', ParseUUIDPipe) workspaceId?: string,
-    @Query('organizationId', ParseUUIDPipe) organizationId?: string,
+    @Query('workspaceId', new ParseUUIDPipe({ optional: true })) workspaceId?: string,
+    @Query('organizationId', new ParseUUIDPipe({ optional: true })) organizationId?: string,
     @Query('search') search?: string,
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '10',
