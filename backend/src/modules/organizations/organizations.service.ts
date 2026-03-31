@@ -3,13 +3,16 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
+  BadRequestException,
+  Logger,
 } from '@nestjs/common';
-import { Organization, ActivityType, Role } from '@prisma/client';
+import { Organization, ActivityType, Role, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { AccessControlService } from 'src/common/access-control.utils';
+import { isUUID } from 'class-validator';
 import {
   DEFAULT_WORKFLOW,
   DEFAULT_TASK_STATUSES,
@@ -22,6 +25,8 @@ import slugify from 'slugify';
 
 @Injectable()
 export class OrganizationsService {
+  private readonly logger = new Logger(OrganizationsService.name);
+
   constructor(
     private prisma: PrismaService,
     private activityLog: ActivityLogService,
@@ -37,6 +42,14 @@ export class OrganizationsService {
     userId: string,
     minimumRole?: Role,
   ): Promise<Role> {
+    // Validate UUIDs using same logic as ParseUUIDPipe
+    if (!isUUID(organizationId)) {
+      throw new BadRequestException('Invalid organization ID format');
+    }
+    if (!isUUID(userId)) {
+      throw new BadRequestException('Invalid user ID format');
+    }
+
     const access = await this.accessControl.getOrgAccess(organizationId, userId);
 
     if (minimumRole) {
@@ -65,8 +78,9 @@ export class OrganizationsService {
 
     let slug = baseSlug;
     let counter = 1;
+    const MAX_ITERATIONS = 100; // Prevent DoS attacks
 
-    while (true) {
+    while (counter <= MAX_ITERATIONS) {
       const exists = await this.prisma.organization.findFirst({
         where: {
           slug,
@@ -75,9 +89,16 @@ export class OrganizationsService {
         select: { id: true },
       });
 
-      if (!exists) break; // ✅ slug is available
+      if (!exists) break; // slug is available
       slug = `${baseSlug}-${counter}`;
       counter++;
+    }
+
+    if (counter > MAX_ITERATIONS) {
+      this.logger.warn(
+        `Failed to generate unique slug for "${name}" after ${MAX_ITERATIONS} attempts`,
+      );
+      throw new ConflictException(`Unable to generate unique slug. Please try a different name.`);
     }
 
     return slug;
@@ -88,192 +109,203 @@ export class OrganizationsService {
     userId: string,
   ): Promise<Organization> {
     try {
-      const slug = await this.generateUniqueSlug(createOrganizationDto.name);
+      // Use Prisma transaction to ensure atomicity of all operations
+      const result = await this.prisma.$transaction(async (tx) => {
+        const slug = await this.generateUniqueSlug(createOrganizationDto.name);
 
-      const organization = await this.prisma.organization.create({
-        data: {
-          name: createOrganizationDto.name,
-          description: createOrganizationDto.description,
-          avatar: createOrganizationDto.avatar,
-          website: createOrganizationDto.website,
-          settings: createOrganizationDto.settings,
-          ownerId: createOrganizationDto.ownerId,
-          slug,
-          createdBy: userId,
-          updatedBy: userId,
-          workflows: {
-            create: {
-              name: DEFAULT_WORKFLOW.name,
-              description: DEFAULT_WORKFLOW.description,
-              isDefault: true,
-              createdBy: userId,
-              updatedBy: userId,
-              statuses: {
-                create: DEFAULT_TASK_STATUSES.map((status) => ({
-                  name: status.name,
-                  color: status.color,
-                  category: status.category,
-                  position: status.position,
-                  isDefault: status.isDefault,
-                  createdBy: userId,
-                  updatedBy: userId,
-                })),
-              },
-            },
-          },
-        },
-        include: {
-          workflows: {
-            where: { isDefault: true },
-            include: { statuses: true },
-          },
-        },
-      });
-
-      // Add org member as OWNER
-      await this.prisma.organizationMember.create({
-        data: {
-          userId,
-          organizationId: organization.id,
-          role: 'OWNER',
-          createdBy: userId,
-          updatedBy: userId,
-        },
-      });
-
-      // Create default status transitions
-      const defaultWorkflow = organization.workflows[0];
-      if (defaultWorkflow) {
-        await this.createDefaultStatusTransitions(
-          defaultWorkflow.id,
-          defaultWorkflow.statuses,
-          userId,
-        );
-      }
-
-      // Conditionally create workspace if provided
-      let workspace;
-      if (createOrganizationDto.defaultWorkspace) {
-        const workspaceSlug = await this.generateUniqueWorkspaceSlug(
-          createOrganizationDto.defaultWorkspace.name,
-          organization.id,
-        );
-
-        workspace = await this.prisma.workspace.create({
+        // Create organization with default workflow and statuses
+        const organization = await tx.organization.create({
           data: {
-            name: createOrganizationDto.defaultWorkspace.name,
-            description: 'Default workspace',
-            slug: workspaceSlug,
-            organizationId: organization.id,
+            name: createOrganizationDto.name,
+            description: createOrganizationDto.description,
+            avatar: createOrganizationDto.avatar,
+            website: createOrganizationDto.website,
+            settings: createOrganizationDto.settings,
+            ownerId: createOrganizationDto.ownerId,
+            slug,
             createdBy: userId,
             updatedBy: userId,
-            members: {
+            workflows: {
               create: {
-                userId,
-                role: 'OWNER',
-                createdBy: userId,
-                updatedBy: userId,
-              },
-            },
-          },
-        });
-      }
-      // Conditionally create project if provided
-      let project:
-        | {
-            id: string;
-            slug: string;
-            sprints: Array<{ isDefault: boolean; id: string }>;
-            workflow: { statuses: Array<{ id: string; name: string }> } | null;
-          }
-        | undefined;
-      if (createOrganizationDto.defaultProject && workspace) {
-        const projectSlug = await this.generateUniqueProjectSlug(
-          createOrganizationDto.defaultProject.name,
-          workspace.id as string,
-        );
-
-        project = await this.prisma.project.create({
-          data: {
-            name: createOrganizationDto.defaultProject.name,
-            description: 'Default project',
-            slug: projectSlug,
-            workspaceId: workspace.id,
-            workflowId: defaultWorkflow.id,
-            createdBy: userId,
-            updatedBy: userId,
-            color: DEFAULT_PROJECT.color,
-            sprints: {
-              create: {
-                name: DEFAULT_SPRINT.name,
-                goal: DEFAULT_SPRINT.goal,
-                status: DEFAULT_SPRINT.status,
-                isDefault: DEFAULT_SPRINT.isDefault,
-                createdBy: userId,
-                updatedBy: userId,
-              },
-            },
-            members: {
-              create: {
-                userId,
-                role: 'MANAGER',
-                createdBy: userId,
-                updatedBy: userId,
-              },
-            },
-          },
-          select: {
-            id: true,
-            slug: true,
-            sprints: {
-              select: {
-                id: true,
+                name: DEFAULT_WORKFLOW.name,
+                description: DEFAULT_WORKFLOW.description,
                 isDefault: true,
-              },
-            },
-            workflow: {
-              select: {
+                createdBy: userId,
+                updatedBy: userId,
                 statuses: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                  orderBy: { position: 'asc' },
+                  create: DEFAULT_TASK_STATUSES.map((status) => ({
+                    name: status.name,
+                    color: status.color,
+                    category: status.category,
+                    position: status.position,
+                    isDefault: status.isDefault,
+                    createdBy: userId,
+                    updatedBy: userId,
+                  })),
                 },
               },
             },
           },
+          include: {
+            workflows: {
+              where: { isDefault: true },
+              include: { statuses: true },
+            },
+          },
         });
-      }
-      // Create default tasks if project was created
-      if (project) {
-        const defaultSprint = project.sprints.find((s: { isDefault: boolean }) => s.isDefault);
-        if (!project.workflow || project.workflow.statuses.length === 0) {
-          throw new NotFoundException('Default workflow or statuses not found for the project');
+
+        // Add org member as OWNER
+        await tx.organizationMember.create({
+          data: {
+            userId,
+            organizationId: organization.id,
+            role: 'OWNER',
+            createdBy: userId,
+            updatedBy: userId,
+          },
+        });
+
+        // Create default status transitions
+        const defaultWorkflow = organization.workflows[0];
+        if (defaultWorkflow) {
+          await this.createDefaultStatusTransitions(
+            defaultWorkflow.id,
+            defaultWorkflow.statuses,
+            userId,
+            tx,
+          );
         }
-        const workflowStatuses = project.workflow.statuses;
-        await this.prisma.task.createMany({
-          data: DEFAULT_TASKS.map((task, index) => {
-            const status =
-              workflowStatuses.find((s: { name: string }) => s.name === task.status) ??
-              workflowStatuses[0];
-            return {
-              title: task.title,
-              description: task.description,
-              priority: task.priority,
-              statusId: status.id,
-              projectId: project.id,
-              sprintId: defaultSprint?.id || null,
-              taskNumber: index + 1,
-              slug: `${project.slug}-${index + 1}`,
+
+        // Conditionally create workspace if provided
+        let workspace;
+        if (createOrganizationDto.defaultWorkspace) {
+          const workspaceSlug = await this.generateUniqueWorkspaceSlug(
+            createOrganizationDto.defaultWorkspace.name,
+            organization.id,
+          );
+
+          workspace = await tx.workspace.create({
+            data: {
+              name: createOrganizationDto.defaultWorkspace.name,
+              description: 'Default workspace',
+              slug: workspaceSlug,
+              organizationId: organization.id,
               createdBy: userId,
               updatedBy: userId,
-            };
-          }),
-        });
-      }
+              members: {
+                create: {
+                  userId,
+                  role: 'OWNER',
+                  createdBy: userId,
+                  updatedBy: userId,
+                },
+              },
+            },
+          });
+        }
 
-      // Log organization creation activity
+        // Conditionally create project if provided
+        let project:
+          | {
+              id: string;
+              slug: string;
+              sprints: Array<{ isDefault: boolean; id: string }>;
+              workflow: { statuses: Array<{ id: string; name: string }> } | null;
+            }
+          | undefined;
+        if (createOrganizationDto.defaultProject && workspace) {
+          const projectSlug = await this.generateUniqueProjectSlug(
+            createOrganizationDto.defaultProject.name,
+            workspace.id as string,
+          );
+
+          project = await tx.project.create({
+            data: {
+              name: createOrganizationDto.defaultProject.name,
+              description: 'Default project',
+              slug: projectSlug,
+              workspaceId: workspace.id,
+              workflowId: defaultWorkflow.id,
+              createdBy: userId,
+              updatedBy: userId,
+              color: DEFAULT_PROJECT.color,
+              sprints: {
+                create: {
+                  name: DEFAULT_SPRINT.name,
+                  goal: DEFAULT_SPRINT.goal,
+                  status: DEFAULT_SPRINT.status,
+                  isDefault: DEFAULT_SPRINT.isDefault,
+                  createdBy: userId,
+                  updatedBy: userId,
+                },
+              },
+              members: {
+                create: {
+                  userId,
+                  role: 'MANAGER',
+                  createdBy: userId,
+                  updatedBy: userId,
+                },
+              },
+            },
+            select: {
+              id: true,
+              slug: true,
+              sprints: {
+                select: {
+                  id: true,
+                  isDefault: true,
+                },
+              },
+              workflow: {
+                select: {
+                  statuses: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                    orderBy: { position: 'asc' },
+                  },
+                },
+              },
+            },
+          });
+        }
+
+        // Create default tasks if project was created
+        if (project) {
+          const defaultSprint = project.sprints.find((s: { isDefault: boolean }) => s.isDefault);
+          if (!project.workflow || project.workflow.statuses.length === 0) {
+            throw new NotFoundException('Default workflow or statuses not found for the project');
+          }
+          const workflowStatuses = project.workflow.statuses;
+          await tx.task.createMany({
+            data: DEFAULT_TASKS.map((task, index) => {
+              const status =
+                workflowStatuses.find((s: { name: string }) => s.name === task.status) ??
+                workflowStatuses[0];
+              return {
+                title: task.title,
+                description: task.description,
+                priority: task.priority,
+                statusId: status.id,
+                projectId: project.id,
+                sprintId: defaultSprint?.id || null,
+                taskNumber: index + 1,
+                slug: `${project.slug}-${index + 1}`,
+                createdBy: userId,
+                updatedBy: userId,
+              };
+            }),
+          });
+        }
+
+        return { organization, workspace, project };
+      });
+
+      const { organization } = result;
+
+      // Log organization creation activity (outside transaction)
       await this.activityLog.logActivity({
         type: ActivityType.ORGANIZATION_CREATED,
         description: `Created organization "${organization.name}" (${organization.slug})`,
@@ -290,10 +322,11 @@ export class OrganizationsService {
 
       return organization;
     } catch (error) {
-      console.error(error);
+      this.logger.error(`Error creating organization: ${error.message}`, error.stack);
       if (error.code === 'P2002') {
         throw new ConflictException('Organization with this slug already exists');
       }
+      // Transaction automatically rolls back on error
       throw error;
     }
   }
@@ -309,14 +342,25 @@ export class OrganizationsService {
 
     let slug = baseSlug;
     let counter = 1;
+    const MAX_ITERATIONS = 100; // Prevent DoS attacks
 
-    while (
-      await this.prisma.workspace.findFirst({
+    while (counter <= MAX_ITERATIONS) {
+      const exists = await this.prisma.workspace.findFirst({
         where: { slug, organizationId },
-      })
-    ) {
+      });
+
+      if (!exists) break; // slug is available
       slug = `${baseSlug}-${counter}`;
       counter++;
+    }
+
+    if (counter > MAX_ITERATIONS) {
+      this.logger.warn(
+        `Failed to generate unique workspace slug for "${name}" after ${MAX_ITERATIONS} attempts`,
+      );
+      throw new ConflictException(
+        `Unable to generate unique workspace slug. Please try a different name.`,
+      );
     }
 
     return slug;
@@ -333,14 +377,25 @@ export class OrganizationsService {
 
     let slug = baseSlug;
     let counter = 1;
+    const MAX_ITERATIONS = 100; // Prevent DoS attacks
 
-    while (
-      await this.prisma.project.findFirst({
+    while (counter <= MAX_ITERATIONS) {
+      const exists = await this.prisma.project.findFirst({
         where: { slug, workspaceId },
-      })
-    ) {
+      });
+
+      if (!exists) break; // slug is available
       slug = `${baseSlug}-${counter}`;
       counter++;
+    }
+
+    if (counter > MAX_ITERATIONS) {
+      this.logger.warn(
+        `Failed to generate unique project slug for "${name}" after ${MAX_ITERATIONS} attempts`,
+      );
+      throw new ConflictException(
+        `Unable to generate unique project slug. Please try a different name.`,
+      );
     }
 
     return slug;
@@ -350,6 +405,7 @@ export class OrganizationsService {
     workflowId: string,
     statuses: any[],
     userId: string,
+    tx?: Prisma.TransactionClient,
   ) {
     // Create a map of status names to IDs
     const statusMap = new Map(statuses.map((status) => [status.name, status.id]));
@@ -366,7 +422,8 @@ export class OrganizationsService {
     }));
 
     if (transitionsToCreate.length > 0) {
-      await this.prisma.statusTransition.createMany({
+      const prisma = tx || this.prisma;
+      await prisma.statusTransition.createMany({
         data: transitionsToCreate,
       });
     }
@@ -678,7 +735,7 @@ export class OrganizationsService {
 
       return organization;
     } catch (error) {
-      console.error(error);
+      this.logger.error(`Error updating organization: ${error.message}`, error.stack);
       if (error.code === 'P2002') {
         throw new ConflictException('Organization with this slug already exists');
       }
@@ -724,7 +781,7 @@ export class OrganizationsService {
 
       return deletedOrg;
     } catch (error: any) {
-      console.error(error);
+      this.logger.error(`Error removing organization: ${error.message}`, error.stack);
       if (error.code === 'P2025') {
         throw new NotFoundException('Organization not found');
       }
@@ -903,7 +960,7 @@ export class OrganizationsService {
         newValue: { archived: true },
       });
     } catch (error) {
-      console.error(error);
+      this.logger.error(`Error archiving organization: ${error.message}`, error.stack);
       if (error.code === 'P2025') {
         throw new NotFoundException('Organization not found');
       }
