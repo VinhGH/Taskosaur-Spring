@@ -53,8 +53,9 @@ export class OrganizationsController {
   // List organizations the user can see; rely on service-level filtering.
   @Get()
   @ApiOperation({ summary: 'List organizations' })
-  findAll() {
-    return this.organizationsService.findAll();
+  @Roles(Role.MEMBER, Role.MANAGER, Role.OWNER)
+  findAll(@CurrentUser() user: User) {
+    return this.organizationsService.findAll(user.id);
   }
 
   @Get('universal-search')
@@ -120,8 +121,9 @@ export class OrganizationsController {
   @Roles(Role.OWNER)
   @Scope('ORGANIZATION', 'id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  archiveOrganization(@Param('id', ParseUUIDPipe) id: string) {
-    return this.organizationsService.archiveOrganization(id);
+  @ApiOperation({ summary: 'Archive organization' })
+  archiveOrganization(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+    return this.organizationsService.archiveOrganization(id, user.id);
   }
 
   @Patch(':id')
@@ -138,30 +140,32 @@ export class OrganizationsController {
   @Delete(':id')
   @Roles(Role.OWNER)
   @Scope('ORGANIZATION', 'id')
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.organizationsService.remove(id);
+  @ApiOperation({ summary: 'Delete organization' })
+  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+    return this.organizationsService.remove(id, user.id);
   }
 
   // Read endpoints (commonly MEMBER+); adjust if stricter is desired
   @Get(':id')
   @Scope('ORGANIZATION', 'id')
   @Roles(Role.MEMBER, Role.MANAGER, Role.OWNER)
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.organizationsService.findOne(id);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+    return this.organizationsService.findOne(id, user.id);
   }
 
   @Get('slug/:slug')
   @Scope('ORGANIZATION', 'slug')
-  findBySlug(@Param('slug') slug: string) {
-    return this.organizationsService.findBySlug(slug);
+  @Roles(Role.MEMBER, Role.MANAGER, Role.OWNER)
+  findBySlug(@Param('slug') slug: string, @CurrentUser() user: User) {
+    return this.organizationsService.findBySlug(slug, user.id);
   }
 
   @Get(':id/stats')
   @ApiOperation({ summary: 'Get organization statistics' })
   @Scope('ORGANIZATION', 'id')
   @Roles(Role.MEMBER, Role.MANAGER, Role.OWNER, Role.VIEWER)
-  getOrganizationStats(@Param('id', ParseUUIDPipe) id: string) {
-    return this.organizationsService.getOrganizationStats(id);
+  getOrganizationStats(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
+    return this.organizationsService.getOrganizationStats(id, user.id);
   }
 
   @Get(':id/charts')

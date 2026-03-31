@@ -1,8 +1,15 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { Organization } from '@prisma/client';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
+import { Organization, ActivityType, Role } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
+import { ActivityLogService } from '../activity-log/activity-log.service';
+import { AccessControlService } from 'src/common/access-control.utils';
 import {
   DEFAULT_WORKFLOW,
   DEFAULT_TASK_STATUSES,
@@ -15,7 +22,40 @@ import slugify from 'slugify';
 
 @Injectable()
 export class OrganizationsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private activityLog: ActivityLogService,
+    private accessControl: AccessControlService,
+  ) {}
+
+  /**
+   * Verify user has access to organization and return their role
+   * Throws ForbiddenException if user doesn't have access
+   */
+  private async verifyOrganizationAccess(
+    organizationId: string,
+    userId: string,
+    minimumRole?: Role,
+  ): Promise<Role> {
+    const access = await this.accessControl.getOrgAccess(organizationId, userId);
+
+    if (minimumRole) {
+      const roleRank = {
+        VIEWER: 0,
+        MEMBER: 1,
+        MANAGER: 2,
+        OWNER: 3,
+      };
+
+      if (roleRank[access.role] < roleRank[minimumRole]) {
+        throw new ForbiddenException(
+          `Insufficient privileges. Required: ${minimumRole}, Your role: ${access.role}`,
+        );
+      }
+    }
+
+    return access.role;
+  }
 
   private async generateUniqueSlug(name: string, excludeId?: string): Promise<string> {
     const baseSlug = slugify(name, {
@@ -233,6 +273,21 @@ export class OrganizationsService {
         });
       }
 
+      // Log organization creation activity
+      await this.activityLog.logActivity({
+        type: ActivityType.ORGANIZATION_CREATED,
+        description: `Created organization "${organization.name}" (${organization.slug})`,
+        entityType: 'Organization',
+        entityId: organization.id,
+        userId,
+        organizationId: organization.id,
+        newValue: {
+          name: organization.name,
+          slug: organization.slug,
+          description: organization.description,
+        },
+      });
+
       return organization;
     } catch (error) {
       console.error(error);
@@ -317,9 +372,21 @@ export class OrganizationsService {
     }
   }
   // ... rest of your methods remain the same
-  findAll(): Promise<Organization[]> {
+  async findAll(userId: string): Promise<Organization[]> {
+    // Get all organizations the user is a member of
+    const userMemberships = await this.prisma.organizationMember.findMany({
+      where: { userId },
+      select: { organizationId: true },
+    });
+
+    const organizationIds = userMemberships.map((m) => m.organizationId);
+
+    // Return only organizations the user belongs to
     return this.prisma.organization.findMany({
-      where: { archive: false },
+      where: {
+        archive: false,
+        id: { in: organizationIds },
+      },
       include: {
         owner: {
           select: {
@@ -343,7 +410,10 @@ export class OrganizationsService {
     });
   }
 
-  async findOne(id: string): Promise<Organization> {
+  async findOne(id: string, userId: string): Promise<Organization> {
+    // Verify user has access to this organization
+    await this.verifyOrganizationAccess(id, userId);
+
     const organization = await this.prisma.organization.findUnique({
       where: { id },
       include: {
@@ -401,8 +471,19 @@ export class OrganizationsService {
     return organization;
   }
 
-  async findBySlug(slug: string): Promise<Organization> {
+  async findBySlug(slug: string, userId: string): Promise<Organization> {
     const organization = await this.prisma.organization.findUnique({
+      where: { slug },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    // Verify user has access to this organization
+    await this.verifyOrganizationAccess(organization.id, userId);
+
+    const orgWithDetails = await this.prisma.organization.findUnique({
       where: { slug },
       include: {
         owner: {
@@ -452,11 +533,11 @@ export class OrganizationsService {
       },
     });
 
-    if (!organization) {
+    if (!orgWithDetails) {
       throw new NotFoundException('Organization not found');
     }
 
-    return organization;
+    return orgWithDetails;
   }
 
   async update(
@@ -465,10 +546,20 @@ export class OrganizationsService {
     userId: string,
   ): Promise<Organization> {
     try {
+      // Verify user has MANAGER or OWNER role to update organization
+      await this.verifyOrganizationAccess(id, userId, Role.MANAGER);
+
       // Get current organization to check what's changing
       const currentOrg = await this.prisma.organization.findUnique({
         where: { id },
-        select: { name: true, slug: true },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          description: true,
+          website: true,
+          avatar: true,
+        },
       });
 
       if (!currentOrg) {
@@ -551,6 +642,40 @@ export class OrganizationsService {
         },
       });
 
+      // Build change summary for audit log
+      const changes: Record<string, any> = {};
+      if (updateOrganizationDto.name && updateOrganizationDto.name !== currentOrg.name) {
+        changes.name = { old: currentOrg.name, new: updateOrganizationDto.name };
+      }
+      if (finalSlug && finalSlug !== currentOrg.slug) {
+        changes.slug = { old: currentOrg.slug, new: finalSlug };
+      }
+      if (updateOrganizationDto.description !== undefined) {
+        changes.description = {
+          old: currentOrg.description,
+          new: updateOrganizationDto.description,
+        };
+      }
+      if (updateOrganizationDto.website !== undefined) {
+        changes.website = { old: currentOrg.website, new: updateOrganizationDto.website };
+      }
+      if (updateOrganizationDto.avatar !== undefined) {
+        changes.avatar = { old: currentOrg.avatar, new: updateOrganizationDto.avatar };
+      }
+
+      // Log organization update activity if there were changes
+      if (Object.keys(changes).length > 0) {
+        await this.activityLog.logActivity({
+          type: ActivityType.ORGANIZATION_UPDATED,
+          description: `Updated organization "${organization.name}"`,
+          entityType: 'Organization',
+          entityId: organization.id,
+          userId,
+          organizationId: organization.id,
+          oldValue: changes,
+        });
+      }
+
       return organization;
     } catch (error) {
       console.error(error);
@@ -564,11 +689,40 @@ export class OrganizationsService {
     }
   }
 
-  async remove(id: string): Promise<Organization> {
+  async remove(id: string, userId: string): Promise<Organization> {
     try {
-      return await this.prisma.organization.delete({
+      // Verify user has OWNER role to delete organization
+      await this.verifyOrganizationAccess(id, userId, Role.OWNER);
+
+      // Get organization details before deletion for audit log
+      const organization = await this.prisma.organization.findUnique({
+        where: { id },
+        select: { id: true, name: true, slug: true },
+      });
+
+      if (!organization) {
+        throw new NotFoundException('Organization not found');
+      }
+
+      const deletedOrg = await this.prisma.organization.delete({
         where: { id },
       });
+
+      // Log organization deletion activity
+      await this.activityLog.logActivity({
+        type: ActivityType.ORGANIZATION_UPDATED,
+        description: `Deleted organization "${organization.name}" (${organization.slug})`,
+        entityType: 'Organization',
+        entityId: organization.id,
+        userId,
+        oldValue: {
+          name: organization.name,
+          slug: organization.slug,
+          deleted: true,
+        },
+      });
+
+      return deletedOrg;
     } catch (error: any) {
       console.error(error);
       if (error.code === 'P2025') {
@@ -578,7 +732,10 @@ export class OrganizationsService {
     }
   }
 
-  async getOrganizationStats(organizationId: string) {
+  async getOrganizationStats(organizationId: string, userId: string) {
+    // Verify user has at least VIEWER role to see organization stats
+    await this.verifyOrganizationAccess(organizationId, userId, Role.VIEWER);
+
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
       select: { id: true, name: true, slug: true },
@@ -710,11 +867,40 @@ export class OrganizationsService {
     });
   }
 
-  async archiveOrganization(id: string): Promise<void> {
+  async archiveOrganization(id: string, userId: string): Promise<void> {
     try {
+      // Verify user has OWNER role to archive organization
+      await this.verifyOrganizationAccess(id, userId, Role.OWNER);
+
+      // Get organization details before archiving for audit log
+      const organization = await this.prisma.organization.findUnique({
+        where: { id },
+        select: { id: true, name: true, slug: true, archive: true },
+      });
+
+      if (!organization) {
+        throw new NotFoundException('Organization not found');
+      }
+
+      if (organization.archive) {
+        throw new ConflictException('Organization is already archived');
+      }
+
       await this.prisma.organization.update({
         where: { id },
         data: { archive: true },
+      });
+
+      // Log organization archive activity
+      await this.activityLog.logActivity({
+        type: ActivityType.ORGANIZATION_UPDATED,
+        description: `Archived organization "${organization.name}" (${organization.slug})`,
+        entityType: 'Organization',
+        entityId: organization.id,
+        userId,
+        organizationId: id,
+        oldValue: { archived: false },
+        newValue: { archived: true },
       });
     } catch (error) {
       console.error(error);

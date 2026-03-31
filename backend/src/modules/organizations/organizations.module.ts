@@ -6,9 +6,10 @@ import { OrganizationChartsService } from './organizations-charts.service';
 import { AuthModule } from '../auth/auth.module';
 import { AccessControlService } from 'src/common/access-control.utils';
 import { UniversalSearchService } from './universal-search.service';
+import { ActivityLogModule } from '../activity-log/activity-log.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, ActivityLogModule],
   controllers: [OrganizationsController],
   providers: [
     OrganizationsService,
