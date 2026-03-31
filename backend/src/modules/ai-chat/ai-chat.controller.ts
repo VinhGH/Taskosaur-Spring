@@ -7,6 +7,8 @@ import {
   ChatResponseDto,
   TestConnectionDto,
   TestConnectionResponseDto,
+  GenerateDescriptionDto,
+  GenerateDescriptionResponseDto,
 } from './dto/chat.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '@prisma/client';
@@ -34,6 +36,16 @@ export class AiChatController {
     @Body() testConnectionDto: TestConnectionDto,
   ): Promise<TestConnectionResponseDto> {
     return this.aiChatService.testConnection(testConnectionDto);
+  }
+
+  @Post('generate-description')
+  @ApiOperation({ summary: 'Generate a task description from a title using AI' })
+  @ApiResponse({ status: 200, type: GenerateDescriptionResponseDto })
+  async generateDescription(
+    @CurrentUser() user: User,
+    @Body() dto: GenerateDescriptionDto,
+  ): Promise<GenerateDescriptionResponseDto> {
+    return this.aiChatService.generateDescription(dto, user.id);
   }
 
   @Delete('context/:sessionId')

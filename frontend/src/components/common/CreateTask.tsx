@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -10,7 +10,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import RecurrenceSelector, { RecurrenceConfig } from "./RecurrenceSelector";
-import { HiDocumentText, HiCog, HiUsers, HiPaperClip, HiTrash, HiLink, HiCheck, HiChevronDown } from "react-icons/hi2";
+import { HiDocumentText, HiCog, HiUsers, HiPaperClip, HiTrash, HiLink, HiCheck, HiChevronDown, HiSparkles } from "react-icons/hi2";
+import api from "@/lib/api";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -73,6 +74,9 @@ export default function CreateTask({ projectSlug, workspace, projects }: CreateT
   const [recurrenceConfig, setRecurrenceConfig] = useState<RecurrenceConfig | null>(null);
   const [parentTasks, setParentTasks] = useState<any[]>([]);
   const [loadingParentTasks, setLoadingParentTasks] = useState(false);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const descriptionGeneratedRef = useRef(false);
+  const aiDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Multi-select & preview state for attachments
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -310,6 +314,60 @@ export default function CreateTask({ projectSlug, workspace, projects }: CreateT
       setSelectedProject(projects[0]);
     }
   }, [projectSlug, projects, selectedProject?.id]);
+
+  useEffect(() => {
+    const aiEnabled = localStorage.getItem("aiEnabled") === "true";
+    if (!aiEnabled) return;
+
+    const title = formData.title.trim();
+
+    if (title.length < 5 || formData.description.trim().length > 0 || descriptionGeneratedRef.current) {
+      return;
+    }
+
+    if (aiDebounceRef.current) {
+      clearTimeout(aiDebounceRef.current);
+    }
+
+    aiDebounceRef.current = setTimeout(async () => {
+      setFormData((prev) => {
+        if (prev.description.trim().length > 0 || prev.title.trim() !== title) {
+          return prev;
+        }
+        generateAiDescription(title, prev.type);
+        return prev;
+      });
+    }, 1500);
+
+    return () => {
+      if (aiDebounceRef.current) {
+        clearTimeout(aiDebounceRef.current);
+      }
+    };
+  }, [formData.title]);
+
+  const generateAiDescription = async (title: string, taskType: string) => {
+    setIsGeneratingDescription(true);
+    try {
+      const response = await api.post("/ai-chat/generate-description", {
+        title,
+        taskType,
+      });
+      if (response.data.success && response.data.description) {
+        setFormData((prev) => {
+          if (prev.description.trim().length === 0) {
+            descriptionGeneratedRef.current = true;
+            return { ...prev, description: response.data.description };
+          }
+          return prev;
+        });
+      }
+    } catch (error) {
+      console.error("AI description generation failed:", error);
+    } finally {
+      setIsGeneratingDescription(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -568,8 +626,13 @@ export default function CreateTask({ projectSlug, workspace, projects }: CreateT
             )}
 
             <Card className="border-none bg-[var(--card)] gap-0 rounded-md">
-              <CardHeader className="pb-0">
+              <CardHeader className="pb-0 flex flex-row items-center justify-between">
                 <TaskSectionHeader icon={HiDocumentText} title="Description" />
+                {isGeneratingDescription && (
+                  <div className="flex items-center gap-1.5 text-xs text-[var(--primary)] animate-pulse">
+                    <HiSparkles className="w-3.5 h-3.5" />
+                 </div>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
                 <TaskDescription

@@ -5,6 +5,8 @@ import {
   ChatMessageDto,
   TestConnectionDto,
   TestConnectionResponseDto,
+  GenerateDescriptionDto,
+  GenerateDescriptionResponseDto,
 } from './dto/chat.dto';
 import { SettingsService } from '../settings/settings.service';
 import { enhancePromptWithContext } from './app-guide';
@@ -400,6 +402,183 @@ FILTER RULES (VERY IMPORTANT - for filtering tasks by priority, status, type, et
         message: errorMessage || 'Failed to process chat request',
         success: false,
         error: errorMessage || 'Failed to process chat request',
+      };
+    }
+  }
+
+  async generateDescription(
+    dto: GenerateDescriptionDto,
+    userId: string,
+  ): Promise<GenerateDescriptionResponseDto> {
+    try {
+      // Check if AI is enabled
+      const isEnabled = await this.settingsService.get('ai_enabled', userId);
+      if (isEnabled !== 'true') {
+        return {
+          description: '',
+          success: false,
+          error: 'AI is not enabled.',
+        };
+      }
+      const [apiKey, model, rawApiUrl] = await Promise.all([
+        this.settingsService.get('ai_api_key', userId),
+        this.settingsService.get('ai_model', userId),
+        this.settingsService.get('ai_api_url', userId),
+      ]);
+
+      if (!rawApiUrl || !model) {
+        throw new Error('AI not configured');
+      }
+
+      const apiUrl = this.validateApiUrl(rawApiUrl);
+      const provider = this.detectProvider(apiUrl);
+      if (!apiKey && provider !== 'ollama') {
+        return {
+          description: '',
+          success: false,
+          error: 'AI API key not configured.',
+        };
+      }
+
+      if (!apiKey && provider !== 'ollama') {
+        return {
+          description: '',
+          success: false,
+          error: 'AI API key not configured.',
+        };
+      }
+
+      const taskType = dto.taskType || 'TASK';
+
+      const systemPrompt = `You are a helpful assistant that generates concise task descriptions for a project management tool.
+Given a task title and type, generate a clear, actionable description in Markdown format.
+Keep it brief (2-4 sentences). Include:
+- A summary of what needs to be done
+- Key acceptance criteria or steps if applicable
+Do NOT include the title itself in the description.
+Do NOT wrap the response in code blocks.
+Respond ONLY with the description text, nothing else.`;
+
+      const userMessage = `Generate a description for this ${taskType.toLowerCase()}:\nTitle: "${dto.title}"`;
+
+      const messages: ChatMessageDto[] = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage },
+      ];
+
+      const isGpt5Model = typeof model === 'string' && model.startsWith('gpt-5');
+
+      let requestUrl = apiUrl;
+      const requestHeaders: any = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      };
+      let requestBody: any = {
+        model,
+        messages,
+        temperature: 0.7,
+        max_tokens: 300,
+        stream: false,
+      };
+
+      switch (provider) {
+        case 'openrouter':
+          requestUrl = `${apiUrl}/chat/completions`;
+          requestHeaders['HTTP-Referer'] = process.env.APP_URL || 'http://localhost:3000';
+          requestHeaders['X-Title'] = 'Taskosaur AI Assistant';
+          break;
+        case 'openai':
+          requestUrl = `${apiUrl}/chat/completions`;
+          delete requestBody.max_tokens;
+          requestBody.max_completion_tokens = 300;
+          if (isGpt5Model) {
+            delete requestBody.temperature;
+          }
+          break;
+        case 'ollama':
+          if (apiUrl.includes('/v1')) {
+            requestUrl = apiUrl.endsWith('/chat/completions')
+              ? apiUrl
+              : `${apiUrl}/chat/completions`;
+          } else if (apiUrl.includes('/api')) {
+            requestUrl = apiUrl.endsWith('/chat') ? apiUrl : `${apiUrl}/chat`;
+          } else {
+            requestUrl = `${apiUrl}/v1/chat/completions`;
+          }
+          delete requestHeaders['Authorization'];
+          break;
+        case 'anthropic':
+          requestUrl = `${apiUrl}/messages`;
+          requestHeaders['x-api-key'] = apiKey;
+          requestHeaders['anthropic-version'] = '2023-06-01';
+          delete requestHeaders['Authorization'];
+          requestBody = {
+            model,
+            messages: messages.filter((m) => m.role !== 'system'),
+            system: messages.find((m) => m.role === 'system')?.content,
+            max_tokens: 300,
+            temperature: 0.7,
+          };
+          break;
+        case 'google':
+          this.validateModelName(model);
+          requestUrl = `${apiUrl}/models/${encodeURIComponent(String(model))}:generateContent?key=${encodeURIComponent(apiKey || '')}`;
+          delete requestHeaders['Authorization'];
+          requestBody = {
+            contents: messages.map((m) => ({
+              role: m.role === 'assistant' ? 'model' : m.role === 'system' ? 'model' : m.role,
+              parts: [{ text: m.content }],
+            })),
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 300,
+            },
+          };
+          break;
+        default:
+          requestUrl = `${apiUrl}/chat/completions`;
+          break;
+      }
+
+      const response = await fetch(requestUrl, {
+        method: 'POST',
+        headers: requestHeaders,
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        return {
+          description: '',
+          success: false,
+          error: `AI request failed with status ${response.status}`,
+        };
+      }
+
+      const data = await response.json();
+      let aiMessage = '';
+
+      switch (provider) {
+        case 'anthropic':
+          aiMessage = data.content?.[0]?.text || '';
+          break;
+        case 'google':
+          aiMessage = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          break;
+        default:
+          aiMessage = data.choices?.[0]?.message?.content || '';
+          break;
+      }
+
+      return {
+        description: aiMessage.trim(),
+        success: true,
+      };
+    } catch (error: any) {
+      console.error('Generate description failed:', error);
+      return {
+        description: '',
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to generate description',
       };
     }
   }

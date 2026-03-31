@@ -123,3 +123,36 @@ export class TestConnectionResponseDto {
   })
   error?: string;
 }
+
+export class GenerateDescriptionDto {
+  @ApiProperty({
+    description: 'Task title to generate description for',
+  })
+  @IsString()
+  @IsNotEmpty()
+  title: string;
+
+  @ApiPropertyOptional({
+    description: 'Task type (TASK, BUG, EPIC, STORY, SUBTASK)',
+  })
+  @IsOptional()
+  @IsString()
+  taskType?: string;
+}
+
+export class GenerateDescriptionResponseDto {
+  @ApiProperty({
+    description: 'Generated description',
+  })
+  description: string;
+
+  @ApiProperty({
+    description: 'Success status',
+  })
+  success: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Error message if any',
+  })
+  error?: string;
+}
