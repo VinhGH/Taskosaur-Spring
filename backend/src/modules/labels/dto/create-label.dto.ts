@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsHexColor } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsHexColor, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateLabelDto {
@@ -40,7 +40,7 @@ export class CreateLabelDto {
     format: 'uuid',
     required: true,
   })
-  @IsString()
+  @IsUUID('4')
   @IsNotEmpty()
   projectId: string;
 }

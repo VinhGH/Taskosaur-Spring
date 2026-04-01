@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { Label } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateLabelDto } from './dto/create-label.dto';
@@ -10,14 +16,28 @@ export class LabelsService {
   constructor(private prisma: PrismaService) {}
 
   async create(createLabelDto: CreateLabelDto, userId: string): Promise<Label> {
-    // Check if project exists
+    // Check if project exists and user has access
     const project = await this.prisma.project.findUnique({
       where: { id: createLabelDto.projectId },
-      select: { id: true, name: true },
+      include: {
+        workspace: {
+          include: {
+            members: {
+              where: { userId },
+              select: { role: true },
+            },
+          },
+        },
+      },
     });
 
     if (!project) {
       throw new NotFoundException('Project not found');
+    }
+
+    // Check if user has access to the workspace
+    if (project.workspace.members.length === 0) {
+      throw new ForbiddenException('You do not have permission to create labels in this project');
     }
 
     try {
@@ -73,7 +93,6 @@ export class LabelsService {
         },
       });
     } catch (error) {
-      console.error(error);
       if (error.code === 'P2002') {
         throw new ConflictException('Label with this name already exists in this project');
       }
@@ -81,8 +100,50 @@ export class LabelsService {
     }
   }
 
-  findAll(projectId?: string): Promise<Label[]> {
-    const whereClause = projectId ? { projectId } : {};
+  async findAll(projectId: string | undefined, userId: string): Promise<Label[]> {
+    const whereClause: any = {};
+
+    if (projectId) {
+      // Verify user has access to the project
+      const project = await this.prisma.project.findUnique({
+        where: { id: projectId },
+        include: {
+          workspace: {
+            include: {
+              members: {
+                where: { userId },
+                select: { role: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (!project) {
+        throw new NotFoundException('Project not found');
+      }
+
+      // Check if user has access to the workspace
+      if (project.workspace.members.length === 0) {
+        throw new ForbiddenException('You do not have permission to view labels in this project');
+      }
+
+      whereClause.projectId = projectId;
+    } else {
+      // If no projectId, get all labels from projects user has access to
+      const accessibleProjects = await this.prisma.project.findMany({
+        where: {
+          workspace: {
+            members: {
+              some: { userId },
+            },
+          },
+        },
+        select: { id: true },
+      });
+
+      whereClause.projectId = { in: accessibleProjects.map((p) => p.id) };
+    }
 
     return this.prisma.label.findMany({
       where: whereClause,
@@ -113,26 +174,17 @@ export class LabelsService {
     });
   }
 
-  async findOne(id: string): Promise<Label> {
+  async findOne(id: string, userId: string): Promise<Label> {
     const label = await this.prisma.label.findUnique({
       where: { id },
       include: {
         project: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
+          include: {
             workspace: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-                organization: {
-                  select: {
-                    id: true,
-                    name: true,
-                    slug: true,
-                  },
+              include: {
+                members: {
+                  where: { userId },
+                  select: { role: true },
                 },
               },
             },
@@ -179,12 +231,45 @@ export class LabelsService {
       throw new NotFoundException('Label not found');
     }
 
+    // Check if user has access to the workspace
+    if (label.project.workspace.members.length === 0) {
+      throw new ForbiddenException('You do not have permission to view this label');
+    }
+
     return label;
   }
 
   async update(id: string, updateLabelDto: UpdateLabelDto, userId: string): Promise<Label> {
+    // Verify label exists and user has access
+    const label = await this.prisma.label.findUnique({
+      where: { id },
+      include: {
+        project: {
+          include: {
+            workspace: {
+              include: {
+                members: {
+                  where: { userId },
+                  select: { role: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!label) {
+      throw new NotFoundException('Label not found');
+    }
+
+    // Check if user has access to the workspace
+    if (label.project.workspace.members.length === 0) {
+      throw new ForbiddenException('You do not have permission to update labels in this project');
+    }
+
     try {
-      const label = await this.prisma.label.update({
+      const updatedLabel = await this.prisma.label.update({
         where: { id },
         data: {
           ...updateLabelDto,
@@ -229,9 +314,8 @@ export class LabelsService {
         },
       });
 
-      return label;
+      return updatedLabel;
     } catch (error) {
-      console.error(error);
       if (error.code === 'P2002') {
         throw new ConflictException('Label with this name already exists in this project');
       }
@@ -242,13 +326,40 @@ export class LabelsService {
     }
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, userId: string): Promise<void> {
+    // Verify label exists and user has access
+    const label = await this.prisma.label.findUnique({
+      where: { id },
+      include: {
+        project: {
+          include: {
+            workspace: {
+              include: {
+                members: {
+                  where: { userId },
+                  select: { role: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!label) {
+      throw new NotFoundException('Label not found');
+    }
+
+    // Check if user has access to the workspace
+    if (label.project.workspace.members.length === 0) {
+      throw new ForbiddenException('You do not have permission to delete labels in this project');
+    }
+
     try {
       await this.prisma.label.delete({
         where: { id },
       });
     } catch (error) {
-      console.error(error);
       if (error.code === 'P2025') {
         throw new NotFoundException('Label not found');
       }
@@ -257,17 +368,35 @@ export class LabelsService {
   }
 
   // Task Label Management
-  async assignLabelToTask(assignLabelDto: AssignLabelDto): Promise<void> {
+  async assignLabelToTask(assignLabelDto: AssignLabelDto, userId: string): Promise<void> {
     const { taskId, labelId } = assignLabelDto;
 
-    // Verify task and label exist and belong to the same project
+    // Verify task and label exist and user has access
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
-      select: { projectId: true },
+      include: {
+        project: {
+          include: {
+            workspace: {
+              include: {
+                members: {
+                  where: { userId },
+                  select: { role: true },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!task) {
       throw new NotFoundException('Task not found');
+    }
+
+    // Check if user has access to the workspace
+    if (task.project.workspace.members.length === 0) {
+      throw new ForbiddenException('You do not have permission to modify labels in this project');
     }
 
     const label = await this.prisma.label.findUnique({
@@ -291,7 +420,6 @@ export class LabelsService {
         },
       });
     } catch (error) {
-      console.error(error);
       if (error.code === 'P2002') {
         throw new ConflictException('Label is already assigned to this task');
       }
@@ -299,7 +427,35 @@ export class LabelsService {
     }
   }
 
-  async removeLabelFromTask(taskId: string, labelId: string): Promise<void> {
+  async removeLabelFromTask(taskId: string, labelId: string, userId: string): Promise<void> {
+    // Verify task exists and user has access
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        project: {
+          include: {
+            workspace: {
+              include: {
+                members: {
+                  where: { userId },
+                  select: { role: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    // Check if user has access to the workspace
+    if (task.project.workspace.members.length === 0) {
+      throw new ForbiddenException('You do not have permission to modify labels in this project');
+    }
+
     try {
       await this.prisma.taskLabel.delete({
         where: {
@@ -310,7 +466,6 @@ export class LabelsService {
         },
       });
     } catch (error) {
-      console.error(error);
       if (error.code === 'P2025') {
         throw new NotFoundException('Label assignment not found');
       }
@@ -320,17 +475,41 @@ export class LabelsService {
 
   async assignMultipleLabelsToTask(
     assignMultipleLabelsDto: AssignMultipleLabelsDto,
+    userId: string,
   ): Promise<void> {
     const { taskId, labelIds } = assignMultipleLabelsDto;
 
-    // Verify task exists
+    // Validate labelIds array is not empty
+    if (!labelIds || labelIds.length === 0) {
+      throw new BadRequestException('labelIds array cannot be empty');
+    }
+
+    // Verify task exists and user has access
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
-      select: { projectId: true },
+      include: {
+        project: {
+          include: {
+            workspace: {
+              include: {
+                members: {
+                  where: { userId },
+                  select: { role: true },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!task) {
       throw new NotFoundException('Task not found');
+    }
+
+    // Check if user has access to the workspace
+    if (task.project.workspace.members.length === 0) {
+      throw new ForbiddenException('You do not have permission to modify labels in this project');
     }
 
     // Verify all labels exist and belong to the same project
@@ -367,7 +546,35 @@ export class LabelsService {
     });
   }
 
-  async getTaskLabels(taskId: string): Promise<Label[]> {
+  async getTaskLabels(taskId: string, userId: string): Promise<Label[]> {
+    // Verify task exists and user has access
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        project: {
+          include: {
+            workspace: {
+              include: {
+                members: {
+                  where: { userId },
+                  select: { role: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    // Check if user has access to the workspace
+    if (task.project.workspace.members.length === 0) {
+      throw new ForbiddenException('You do not have permission to view labels in this project');
+    }
+
     const taskLabels = await this.prisma.taskLabel.findMany({
       where: { taskId },
       include: {
