@@ -215,7 +215,6 @@ export interface UpdateLabelRequest {
 export interface AssignLabelRequest {
   taskId: string;
   labelId: string;
-  userId: string;
 }
 
 export interface AssignMultipleLabelsRequest {

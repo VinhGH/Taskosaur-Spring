@@ -697,7 +697,6 @@ export default function TaskDetailClient({
       await assignLabelToTask({
         taskId: taskId,
         labelId: newLabel.id,
-        userId: currentUser?.id || "",
       });
 
       setLabels([...labels, newLabel]);
@@ -730,7 +729,6 @@ export default function TaskDetailClient({
       await assignLabelToTask({
         taskId: taskId,
         labelId: label.id,
-        userId: currentUser?.id || "",
       });
 
       setLabels([...labels, label]);
