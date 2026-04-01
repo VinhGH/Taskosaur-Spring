@@ -14,7 +14,9 @@ describe('LabelsController (e2e)', () => {
   let jwtService: JwtService;
 
   let user: any;
+  let unauthorizedUser: any;
   let accessToken: string;
+  let unauthorizedToken: string;
   let organizationId: string;
   let workspaceId: string;
   let projectId: string;
@@ -46,6 +48,22 @@ describe('LabelsController (e2e)', () => {
     const payload = { sub: user.id, email: user.email, role: user.role };
     accessToken = jwtService.sign(payload);
 
+    // Create an unauthorized user (not a member of the workspace)
+    unauthorizedUser = await prismaService.user.create({
+      data: {
+        email: `unauthorized-user-${Date.now()}@example.com`,
+        password: 'StrongPassword123!',
+        firstName: 'Unauthorized',
+        lastName: 'User',
+        username: `unauthorized_user_${Date.now()}`,
+        role: Role.MEMBER,
+      },
+    });
+
+    // Generate token for unauthorized user
+    const unauthorizedPayload = { sub: unauthorizedUser.id, email: unauthorizedUser.email, role: unauthorizedUser.role };
+    unauthorizedToken = jwtService.sign(unauthorizedPayload);
+
     // Create Organization
     const organization = await prismaService.organization.create({
         data: {
@@ -76,6 +94,15 @@ describe('LabelsController (e2e)', () => {
     });
     workspaceId = workspace.id;
 
+    // Add user as workspace member
+    await prismaService.workspaceMember.create({
+      data: {
+        workspaceId: workspace.id,
+        userId: user.id,
+        role: 'MEMBER',
+      },
+    });
+
     // Create Project
     const project = await prismaService.project.create({
       data: {
@@ -102,6 +129,7 @@ describe('LabelsController (e2e)', () => {
       await prismaService.workflow.delete({ where: { id: workflowId } });
       await prismaService.organization.delete({ where: { id: organizationId } });
       await prismaService.user.delete({ where: { id: user.id } });
+      await prismaService.user.delete({ where: { id: unauthorizedUser.id } });
     }
     await app.close();
   });
@@ -189,6 +217,129 @@ describe('LabelsController (e2e)', () => {
         .get(`/api/labels/${labelId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(HttpStatus.NOT_FOUND);
+    });
+  });
+
+  describe('Authorization Tests', () => {
+    describe('Workspace Membership Tests', () => {
+      it('should return 403 when creating label without workspace membership', () => {
+        const createLabelDto: CreateLabelDto = {
+          name: 'Unauthorized Label',
+          color: '#FF0000',
+          description: 'Should fail',
+          projectId: projectId,
+        };
+
+        return request(app.getHttpServer())
+          .post('/api/labels')
+          .set('Authorization', `Bearer ${unauthorizedToken}`)
+          .send(createLabelDto)
+          .expect(HttpStatus.FORBIDDEN);
+      });
+
+      it('should return 403 when viewing labels without workspace membership', () => {
+        return request(app.getHttpServer())
+          .get('/api/labels')
+          .query({ projectId })
+          .set('Authorization', `Bearer ${unauthorizedToken}`)
+          .expect(HttpStatus.FORBIDDEN);
+      });
+
+      it('should return 403 when viewing single label without workspace membership', () => {
+        // Create a label first with authorized user
+        return request(app.getHttpServer())
+          .post('/api/labels')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
+            name: `Test Label ${Date.now()}`,
+            color: '#FF0000',
+            projectId: projectId,
+          })
+          .then((res) => {
+            const newLabelId = res.body.id;
+            return request(app.getHttpServer())
+              .get(`/api/labels/${newLabelId}`)
+              .set('Authorization', `Bearer ${unauthorizedToken}`)
+              .expect(HttpStatus.FORBIDDEN);
+          });
+      });
+
+      it('should return 403 when updating label without workspace membership', () => {
+        // Create a label first with authorized user
+        return request(app.getHttpServer())
+          .post('/api/labels')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
+            name: `Test Label for Update ${Date.now()}`,
+            color: '#FF0000',
+            projectId: projectId,
+          })
+          .then((res) => {
+            const newLabelId = res.body.id;
+            return request(app.getHttpServer())
+              .patch(`/api/labels/${newLabelId}`)
+              .set('Authorization', `Bearer ${unauthorizedToken}`)
+              .send({ name: 'Updated Name' })
+              .expect(HttpStatus.FORBIDDEN);
+          });
+      });
+
+      it('should return 403 when deleting label without workspace membership', () => {
+        // Create a label first with authorized user
+        return request(app.getHttpServer())
+          .post('/api/labels')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({
+            name: `Test Label for Delete ${Date.now()}`,
+            color: '#FF0000',
+            projectId: projectId,
+          })
+          .then((res) => {
+            const newLabelId = res.body.id;
+            return request(app.getHttpServer())
+              .delete(`/api/labels/${newLabelId}`)
+              .set('Authorization', `Bearer ${unauthorizedToken}`)
+              .expect(HttpStatus.FORBIDDEN);
+          });
+      });
+    });
+
+    describe('UUID Validation Tests', () => {
+      it('should return 400 when getting label with invalid UUID format', () => {
+        return request(app.getHttpServer())
+          .get('/api/labels/invalid-uuid')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(HttpStatus.BAD_REQUEST);
+      });
+
+      it('should return 400 when updating label with invalid UUID format', () => {
+        return request(app.getHttpServer())
+          .patch('/api/labels/not-a-uuid')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ name: 'Test' })
+          .expect(HttpStatus.BAD_REQUEST);
+      });
+
+      it('should return 400 when deleting label with invalid UUID format', () => {
+        return request(app.getHttpServer())
+          .delete('/api/labels/123-invalid')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(HttpStatus.BAD_REQUEST);
+      });
+
+      it('should return 400 when creating label with invalid UUID in projectId', () => {
+        const createLabelDto: CreateLabelDto = {
+          name: 'Test Label',
+          color: '#FF0000',
+          projectId: 'not-a-valid-uuid',
+        };
+
+        return request(app.getHttpServer())
+          .post('/api/labels')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send(createLabelDto)
+          .expect(HttpStatus.BAD_REQUEST);
+      });
     });
   });
 });

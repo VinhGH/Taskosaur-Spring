@@ -13,7 +13,9 @@ describe('TaskLabelsController (e2e)', () => {
   let jwtService: JwtService;
 
   let user: any;
+  let unauthorizedUser: any;
   let accessToken: string;
+  let unauthorizedToken: string;
   let organizationId: string;
   let workspaceId: string;
   let projectId: string;
@@ -21,6 +23,7 @@ describe('TaskLabelsController (e2e)', () => {
   let statusId: string;
   let taskId: string;
   let labelId: string;
+  let labelForUnauthorizedTest: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -47,6 +50,22 @@ describe('TaskLabelsController (e2e)', () => {
     // Generate token
     const payload = { sub: user.id, email: user.email, role: user.role };
     accessToken = jwtService.sign(payload);
+
+    // Create an unauthorized user (not a member of the workspace)
+    unauthorizedUser = await prismaService.user.create({
+      data: {
+        email: `unauthorized-tlabel-user-${Date.now()}@example.com`,
+        password: 'StrongPassword123!',
+        firstName: 'Unauthorized',
+        lastName: 'User',
+        username: `unauthorized_tlabel_user_${Date.now()}`,
+        role: Role.MEMBER,
+      },
+    });
+
+    // Generate token for unauthorized user
+    const unauthorizedPayload = { sub: unauthorizedUser.id, email: unauthorizedUser.email, role: unauthorizedUser.role };
+    unauthorizedToken = jwtService.sign(unauthorizedPayload);
 
     // Create Organization
     const organization = await prismaService.organization.create({
@@ -140,6 +159,24 @@ describe('TaskLabelsController (e2e)', () => {
       },
     });
     labelId = label.id;
+
+    // Create another label for unauthorized test
+    const labelForTest = await prismaService.label.create({
+      data: {
+        name: 'Label for Unauthorized Test',
+        color: '#ff00ff',
+        projectId: projectId,
+      },
+    });
+    labelForUnauthorizedTest = labelForTest.id;
+
+    // Assign the label to the task for unauthorized test
+    await prismaService.taskLabel.create({
+      data: {
+        taskId: taskId,
+        labelId: labelForUnauthorizedTest,
+      },
+    });
   });
 
   afterAll(async () => {
@@ -147,6 +184,7 @@ describe('TaskLabelsController (e2e)', () => {
       // Cleanup
       await prismaService.taskLabel.deleteMany({ where: { taskId } });
       await prismaService.label.delete({ where: { id: labelId } });
+      await prismaService.label.delete({ where: { id: labelForUnauthorizedTest } });
       await prismaService.task.delete({ where: { id: taskId } });
       await prismaService.taskStatus.delete({ where: { id: statusId } });
       await prismaService.project.delete({ where: { id: projectId } });
@@ -154,6 +192,7 @@ describe('TaskLabelsController (e2e)', () => {
       await prismaService.workflow.delete({ where: { id: workflowId } });
       await prismaService.organization.delete({ where: { id: organizationId } });
       await prismaService.user.delete({ where: { id: user.id } });
+      await prismaService.user.delete({ where: { id: unauthorizedUser.id } });
     }
     await app.close();
   });
@@ -163,7 +202,6 @@ describe('TaskLabelsController (e2e)', () => {
       const assignDto: AssignTaskLabelDto = {
         taskId: taskId,
         labelId: labelId,
-        userId: user.id,
       };
 
       return request(app.getHttpServer())
@@ -205,6 +243,79 @@ describe('TaskLabelsController (e2e)', () => {
             expect(res.body.taskId).toBe(taskId);
             expect(res.body.labelId).toBe(labelId);
         });
+    });
+  });
+
+  describe('Authorization Tests', () => {
+    describe('Workspace Membership Tests', () => {
+      it('should return 403 when assigning label without workspace membership', () => {
+        const assignDto: AssignTaskLabelDto = {
+          taskId: taskId,
+          labelId: labelId,
+        };
+
+        return request(app.getHttpServer())
+          .post('/api/task-labels')
+          .set('Authorization', `Bearer ${unauthorizedToken}`)
+          .send(assignDto)
+          .expect(HttpStatus.FORBIDDEN);
+      });
+
+      it('should return 403 when viewing task labels without workspace membership', () => {
+        return request(app.getHttpServer())
+          .get('/api/task-labels')
+          .set('Authorization', `Bearer ${unauthorizedToken}`)
+          .expect(HttpStatus.FORBIDDEN);
+      });
+
+      it('should return 403 when removing label without workspace membership', () => {
+        return request(app.getHttpServer())
+          .delete(`/api/task-labels/${taskId}/${labelForUnauthorizedTest}`)
+          .set('Authorization', `Bearer ${unauthorizedToken}`)
+          .expect(HttpStatus.FORBIDDEN);
+      });
+    });
+
+    describe('UUID Validation Tests', () => {
+      it('should return 400 when assigning label with invalid taskId UUID', () => {
+        const assignDto: AssignTaskLabelDto = {
+          taskId: 'invalid-uuid',
+          labelId: labelId,
+        };
+
+        return request(app.getHttpServer())
+          .post('/api/task-labels')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send(assignDto)
+          .expect(HttpStatus.BAD_REQUEST);
+      });
+
+      it('should return 400 when assigning label with invalid labelId UUID', () => {
+        const assignDto: AssignTaskLabelDto = {
+          taskId: taskId,
+          labelId: 'not-a-uuid',
+        };
+
+        return request(app.getHttpServer())
+          .post('/api/task-labels')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send(assignDto)
+          .expect(HttpStatus.BAD_REQUEST);
+      });
+
+      it('should return 400 when removing label with invalid taskId UUID', () => {
+        return request(app.getHttpServer())
+          .delete('/api/task-labels/invalid-uuid/123456')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(HttpStatus.BAD_REQUEST);
+      });
+
+      it('should return 400 when removing label with invalid labelId UUID', () => {
+        return request(app.getHttpServer())
+          .delete(`/api/task-labels/${taskId}/not-valid`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(HttpStatus.BAD_REQUEST);
+      });
     });
   });
 });
