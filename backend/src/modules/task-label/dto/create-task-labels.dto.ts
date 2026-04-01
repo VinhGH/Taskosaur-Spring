@@ -7,7 +7,7 @@ export class AssignTaskLabelDto {
     example: '123e4567-e89b-12d3-a456-426614174999',
     format: 'uuid',
   })
-  @IsUUID()
+  @IsUUID('4')
   @IsNotEmpty()
   taskId: string;
 
@@ -16,16 +16,7 @@ export class AssignTaskLabelDto {
     example: '123e4567-e89b-12d3-a456-426614174000',
     format: 'uuid',
   })
-  @IsUUID()
+  @IsUUID('4')
   @IsNotEmpty()
   labelId: string;
-
-  @ApiProperty({
-    description: 'ID of the user performing the label assignment',
-    example: '123e4567-e89b-12d3-a456-426614174001',
-    format: 'uuid',
-  })
-  @IsUUID()
-  @IsNotEmpty()
-  userId: string;
 }

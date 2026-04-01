@@ -1,24 +1,46 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { TaskLabel } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AssignTaskLabelDto } from './dto/create-task-labels.dto';
-import { UpdateTaskLabelDto } from './dto/update-task-lables.dto';
-
 @Injectable()
 export class TaskLabelsService {
   constructor(private prisma: PrismaService) {}
 
-  async assignLabel(assignTaskLabelDto: AssignTaskLabelDto): Promise<TaskLabel> {
-    const { taskId, labelId, userId } = assignTaskLabelDto;
+  async assignLabel(assignTaskLabelDto: AssignTaskLabelDto, userId: string): Promise<TaskLabel> {
+    const { taskId, labelId } = assignTaskLabelDto;
 
-    // Verify task exists
+    // Verify task exists and user has access to it
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
-      include: { project: true },
+      include: {
+        project: {
+          include: {
+            workspace: {
+              include: {
+                members: {
+                  where: { userId },
+                  select: { role: true },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!task) {
       throw new NotFoundException('Task not found');
+    }
+
+    // Check if user has access to the project's workspace
+    const workspaceAccess = task.project.workspace.members;
+    if (workspaceAccess.length === 0) {
+      throw new ForbiddenException('You do not have permission to modify labels in this project');
     }
 
     if (task.project.archive) {
@@ -79,11 +101,27 @@ export class TaskLabelsService {
     });
   }
 
-  findAll(taskId?: string): Promise<TaskLabel[]> {
-    const whereClause: any = {};
-    if (taskId) {
-      whereClause.taskId = taskId;
+  async findAll(userId: string): Promise<TaskLabel[]> {
+    // Get all task labels from projects user has access to
+    const accessibleProjects = await this.prisma.project.findMany({
+      where: {
+        workspace: {
+          members: {
+            some: { userId },
+          },
+        },
+      },
+      select: { id: true },
+    });
+
+    if (accessibleProjects.length === 0) {
+      throw new ForbiddenException('You do not have permission to view task labels');
     }
+
+    const whereClause: any = {};
+    whereClause.task = {
+      projectId: { in: accessibleProjects.map((p) => p.id) },
+    };
 
     return this.prisma.taskLabel.findMany({
       where: whereClause,
@@ -110,14 +148,8 @@ export class TaskLabelsService {
     });
   }
 
-  async update(
-    taskId: string,
-    labelId: string,
-    updateTaskLabelDto: UpdateTaskLabelDto,
-  ): Promise<TaskLabel> {
-    const { userId } = updateTaskLabelDto;
-
-    // Verify task label assignment exists
+  async update(taskId: string, labelId: string, userId: string): Promise<TaskLabel> {
+    // Verify task label assignment exists and user has access
     const taskLabel = await this.prisma.taskLabel.findUnique({
       where: {
         taskId_labelId: {
@@ -125,10 +157,39 @@ export class TaskLabelsService {
           labelId,
         },
       },
+      include: {
+        task: {
+          include: {
+            project: {
+              include: {
+                workspace: {
+                  include: {
+                    members: {
+                      where: { userId },
+                      select: { role: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!taskLabel) {
       throw new NotFoundException('Task label assignment not found');
+    }
+
+    // Check if user has access to the project's workspace
+    const workspaceAccess = taskLabel.task.project.workspace.members;
+    if (workspaceAccess.length === 0) {
+      throw new ForbiddenException('You do not have permission to modify labels in this project');
+    }
+
+    // Check if project is archived
+    if (taskLabel.task.project.archive) {
+      throw new BadRequestException('Cannot update label assignment in archived project');
     }
 
     const updatedTaskLabel = await this.prisma.taskLabel.update({
@@ -164,8 +225,8 @@ export class TaskLabelsService {
     return updatedTaskLabel;
   }
 
-  async remove(taskId: string, labelId: string): Promise<TaskLabel> {
-    // Verify task label assignment exists
+  async remove(taskId: string, labelId: string, userId: string): Promise<TaskLabel> {
+    // Verify task label assignment exists and user has access
     const taskLabel = await this.prisma.taskLabel.findUnique({
       where: {
         taskId_labelId: {
@@ -173,10 +234,39 @@ export class TaskLabelsService {
           labelId,
         },
       },
+      include: {
+        task: {
+          include: {
+            project: {
+              include: {
+                workspace: {
+                  include: {
+                    members: {
+                      where: { userId },
+                      select: { role: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!taskLabel) {
       throw new NotFoundException('Task label assignment not found');
+    }
+
+    // Check if user has access to the project's workspace
+    const workspaceAccess = taskLabel.task.project.workspace.members;
+    if (workspaceAccess.length === 0) {
+      throw new ForbiddenException('You do not have permission to modify labels in this project');
+    }
+
+    // Check if project is archived
+    if (taskLabel.task.project.archive) {
+      throw new BadRequestException('Cannot remove label from task in archived project');
     }
 
     // Remove the assignment
