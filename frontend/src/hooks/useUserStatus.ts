@@ -168,7 +168,7 @@ export const useUsersStatus = (userIds: string[]) => {
  * Utility function to format last seen time
  */
 export const formatLastSeen = (lastSeen?: string | null): string => {
-  if (!lastSeen) return "Last seen unknown";
+  if (!lastSeen) return "Offline";
 
   const date = new Date(lastSeen);
   const now = new Date();
@@ -177,10 +177,10 @@ export const formatLastSeen = (lastSeen?: string | null): string => {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return "Just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffMins < 1) return "Offline · just now";
+  if (diffMins < 60) return `Offline · ${diffMins}m ago`;
+  if (diffHours < 24) return `Offline · ${diffHours}h ago`;
+  if (diffDays < 7) return `Offline · ${diffDays}d ago`;
 
-  return date.toLocaleDateString();
+  return `Offline · ${date.toLocaleDateString()}`;
 };

@@ -31,6 +31,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private readonly logger = new Logger(EventsGateway.name);
   private connectedUsers = new Map<string, string[]>(); // userId -> socketIds[]
+  private userLastSeen = new Map<string, string>();
 
   constructor(private jwtService: JwtService) {}
 
@@ -107,11 +108,14 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         if (updatedSockets.length === 0) {
           this.connectedUsers.delete(client.userId);
 
+          const lastSeen = new Date().toISOString();
+          this.userLastSeen.set(client.userId, lastSeen);
+
           // Broadcast user:offline event when user has no more connections
           this.server.emit('user:offline', {
             userId: client.userId,
             isOnline: false,
-            lastSeen: new Date().toISOString(),
+            lastSeen,
           });
         } else {
           this.connectedUsers.set(client.userId, updatedSockets);
@@ -463,6 +467,9 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Check if user is online
   isUserOnline(userId: string): boolean {
     return this.connectedUsers.has(userId);
+  }
+  getUserLastSeen(userId: string): string | undefined {
+    return this.userLastSeen.get(userId);
   }
 
   // Get all online users in a room

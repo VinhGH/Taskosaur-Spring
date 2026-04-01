@@ -21,8 +21,9 @@ class SocketService {
       },
       transports: ["websocket", "polling"],
       reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 30000,
+      reconnectionAttempts: Infinity,
     });
 
     this.socket.on("connect", () => {
@@ -36,7 +37,7 @@ class SocketService {
     });
 
     this.socket.on("connect_error", (error) => {
-      console.error("[SocketService] Connection error:", error);
+      console.warn("[SocketService] Connection error — backend may be offline. Will retry automatically.");
       this.connected = false;
     });
 

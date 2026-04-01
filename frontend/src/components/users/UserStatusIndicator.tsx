@@ -1,8 +1,6 @@
 import React from "react";
 import { useUserStatus } from "@/hooks/useUserStatus";
 import { formatLastSeen } from "@/hooks/useUserStatus";
-import { FiAlertCircle, FiCircle } from "react-icons/fi";
-
 export interface UserStatusIndicatorProps {
   userId: string;
   showTooltip?: boolean;
@@ -34,40 +32,37 @@ export const UserStatusIndicator: React.FC<UserStatusIndicatorProps> = ({
 }) => {
   const { isOnline, lastSeen, loading } = useUserStatus(userId);
 
-  const sizeClasses = {
-    sm: "w-3 h-3",
-    md: "w-3.5 h-3.5",
-    lg: "w-4 h-4",
+  const dotSizes = {
+    sm: { dot: "w-2 h-2", ping: "w-2 h-2", container: "w-4 h-4" },
+    md: { dot: "w-2.5 h-2.5", ping: "w-2.5 h-2.5", container: "w-5 h-5" },
+    lg: { dot: "w-3 h-3", ping: "w-3 h-3", container: "w-6 h-6" },
   };
 
-  const statusBg = isOnline
-    ? "bg-green-500"
-    : "bg-gray-400";
-  const statusRing = isOnline
-    ? "ring-green-300 dark:ring-green-700"
-    : "ring-gray-300 dark:ring-gray-600";
+  const s = dotSizes[size];
 
   if (loading) {
     return (
       <span
-        className={`${sizeClasses[size]} rounded-full bg-gray-300 animate-pulse ${className}`}
+        className={`${s.dot} rounded-full bg-gray-300 dark:bg-gray-600 animate-pulse ${className}`}
         aria-label="Loading status"
       />
     );
   }
 
-  const indicator = (
-    <span>
-      <FiCircle
-        className={`${className} ${sizeClasses[size]} ${statusBg} green rounded-full ring-2 ${statusRing}`}
-        aria-label={isOnline ? "Online" : "Offline"}
-      />
+  const indicator = isOnline ? (
+    <span className={`relative inline-flex items-center justify-center ${s.container} ${className}`}>
+      <span className={`animate-ping absolute ${s.ping} rounded-full bg-green-400 opacity-50`} />
+      <span className={`relative ${s.dot} rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]`} />
+    </span>
+  ) : (
+    <span className={`relative inline-flex items-center justify-center ${s.container} ${className}`}>
+      <span className={`${s.dot} rounded-full border-2 border-gray-400 dark:border-gray-500 bg-transparent`} />
     </span>
   );
 
   if (showTooltip) {
     return (
-      <div className="relative group inline-block">
+      <div className="relative group inline-flex items-center">
         {indicator}
         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
           {isOnline ? "Online" : formatLastSeen(lastSeen)}
@@ -103,7 +98,7 @@ export const UserStatusBadge: React.FC<{ userId: string; className?: string }> =
 
   return (
     <span
-     
+
     >
       {isOnline ? "Online" : formatLastSeen(lastSeen)}
     </span>
@@ -168,12 +163,9 @@ export const UserAvatarWithStatus: React.FC<{
       />
       {showStatus && (
         <span
-          className={`absolute ${statusPosition[size]} ${
-            statusSizes[size]
-          } ${
-            isOnline ? "bg-green-500" : "bg-gray-400"
-          } rounded-full ring-2 ${
-            isOnline ? "ring-green-300 dark:ring-green-700" : "ring-gray-300 dark:ring-gray-600"
+          className={`absolute ${statusPosition[size]} ${statusSizes[size]
+              } ${isOnline ? "bg-green-500" : "bg-gray-400"
+          } rounded-full ring-2 ${isOnline ? "ring-green-300 dark:ring-green-700" : "ring-gray-300 dark:ring-gray-600"
           }`}
           aria-label={isOnline ? "Online" : "Offline"}
         />

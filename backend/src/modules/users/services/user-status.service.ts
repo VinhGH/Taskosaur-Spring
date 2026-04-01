@@ -41,7 +41,7 @@ export class UserStatusService implements OnModuleInit {
    */
   getUserStatus(userId: string): UserStatusInfo {
     const isOnline = this.isUserOnline(userId);
-    const lastSeen = this.userLastSeen.get(userId) || new Date().toISOString();
+    const lastSeen = this.eventsGateway.getUserLastSeen(userId) || undefined;
 
     return {
       isOnline,
