@@ -26,6 +26,18 @@ type ProjectFilters = {
   search?: string;
 };
 
+function generateTaskPrefix(name: string): string {
+  const words = name.split(/[\s-]+/).filter(Boolean);
+  let prefix = '';
+  if (words.length > 1) {
+    prefix = words.map((w) => w.charAt(0)).join('');
+  } else {
+    const consonants = name.replace(/[aeiou\s-]/gi, '');
+    prefix = consonants.length >= 2 ? consonants : name;
+  }
+  return prefix.substring(0, 4).toUpperCase();
+}
+
 @Injectable()
 export class ProjectsService {
   private readonly logger = new Logger(ProjectsService.name);
@@ -140,6 +152,14 @@ export class ProjectsService {
     let retryCount = 0;
     const maxRetries = 5;
 
+    let taskPrefix = createProjectDto.taskPrefix
+      ? createProjectDto.taskPrefix.toUpperCase()
+      : generateTaskPrefix(createProjectDto.name);
+    if (!/^[A-Z0-9]+$/.test(taskPrefix)) {
+      taskPrefix = 'PROJ';
+    }
+    taskPrefix = taskPrefix.substring(0, 8);
+
     while (retryCount < maxRetries) {
       try {
         return await this.prisma.$transaction(async (tx) => {
@@ -147,6 +167,7 @@ export class ProjectsService {
             data: {
               ...createProjectDto,
               slug,
+              taskPrefix,
               workflowId: workflowIdToUse,
               createdBy: userId,
               updatedBy: userId,

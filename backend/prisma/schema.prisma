@@ -213,6 +213,7 @@ model Project {
   id              String            @id @default(uuid()) @db.Uuid
   name            String
   slug            String            @unique
+  taskPrefix      String?           @map("task_prefix") @db.VarChar(8)
   description     String?
   avatar          String? // Made required (removed ?)
   color           String // Made required (removed ?)

@@ -62,6 +62,7 @@ function ProjectSettingsContent() {
     name: "",
     description: "",
     slug: "",
+    taskPrefix: "",
     status: "ACTIVE",
     visibility: "PRIVATE",
   });
@@ -98,6 +99,7 @@ function ProjectSettingsContent() {
           name: projectData.name || "",
           description: projectData.description || "",
           slug: projectData.slug || "",
+          taskPrefix: projectData.taskPrefix || "",
           status: projectData.status || "ACTIVE",
           visibility: projectData.visibility || "PRIVATE",
         });
@@ -240,6 +242,7 @@ function ProjectSettingsContent() {
           name: projectData.name || "",
           description: projectData.description || "",
           slug: projectData.slug || "",
+          taskPrefix: projectData.taskPrefix || "",
           status: projectData.status || "ACTIVE",
           visibility: projectData.visibility || "PRIVATE",
         });
@@ -304,6 +307,7 @@ function ProjectSettingsContent() {
       const updatedProject = await updateProject(project.id, {
         name: formData.name.trim(),
         slug: formData.slug.trim(),
+        taskPrefix: formData.taskPrefix.trim().toUpperCase(),
         description: formData.description.trim(),
         status: formData.status,
         visibility: formData.visibility,
@@ -347,6 +351,9 @@ function ProjectSettingsContent() {
         name: value,
         slug: generateSlug(value),
       }));
+    } else if (field === "taskPrefix") {
+      const upperValue = value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+      setFormData((prev) => ({ ...prev, [field]: upperValue }));
     } else {
       setFormData((prev) => ({ ...prev, [field]: value }));
     }
@@ -466,6 +473,20 @@ function ProjectSettingsContent() {
                       />
                       <p className="text-xs text-[var(--muted-foreground)]">
                         {t("general.slug_description")}
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="taskPrefix">Task Prefix</Label>
+                      <Input
+                        id="taskPrefix"
+                        value={formData.taskPrefix}
+                        onChange={(e) => handleInputChange("taskPrefix", e.target.value)}
+                        placeholder="e.g. PROJ"
+                        disabled={saving || !hasAccess}
+                      />
+                      <p className="text-xs text-[var(--muted-foreground)]">
+                        Short identifier used for tasks (e.g. PROJ-1). Up to 8 chars, letters and numbers only.
                       </p>
                     </div>
 

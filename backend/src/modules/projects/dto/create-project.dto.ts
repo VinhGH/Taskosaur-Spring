@@ -37,6 +37,19 @@ export class CreateProjectDto {
   slug: string;
 
   @ApiProperty({
+    description: 'Custom prefix for tasks in this project',
+    example: 'PROJ',
+    required: false,
+    maxLength: 8,
+  })
+  @IsString()
+  @IsOptional()
+  @Matches(/^[a-zA-Z0-9]{1,8}$/, {
+    message: 'Task prefix can only contain letters and numbers, up to 8 characters',
+  })
+  taskPrefix?: string;
+
+  @ApiProperty({
     description: 'Project color theme (hex code)',
     example: '#3498db',
     pattern: '^#[0-9A-Fa-f]{6}$',
