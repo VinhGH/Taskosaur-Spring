@@ -117,6 +117,18 @@ export class PublicTasksController {
   async getTask(@Param('taskId') taskId: string): Promise<any> {
     return this.publicTasksService.getPublicTask(taskId);
   }
+
+  @Get('key/:slug')
+  @ApiOperation({
+    summary: 'Get public task by slug',
+    description: 'Get detailed information about a specific public task by its slug',
+  })
+  @ApiParam({ name: 'slug', description: 'Task slug' })
+  @ApiResponse({ type: PublicTaskDto })
+  async getTaskBySlug(@Param('slug') slug: string): Promise<any> {
+    return this.publicTasksService.findBySlug(slug);
+  }
+
   @Get('activities/:taskId')
   @ApiOperation({
     summary: 'Get public task activities',

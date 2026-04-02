@@ -117,9 +117,9 @@ const SearchManager = () => {
         if (result.context.workspace && result.context.project) {
           const workspaceSlug = getWorkspaceSlug(result.context.workspace.name);
           const projectSlug = result.context.project.slug;
-          navigationUrl = `/${workspaceSlug}/${projectSlug}/tasks/${result.id}`;
+          navigationUrl = `/${workspaceSlug}/${projectSlug}/tasks/${result.slug}`;
         } else {
-          navigationUrl = `/tasks/${result.id}`;
+          navigationUrl = `/tasks/${result.slug}`;
         }
         router.push(navigationUrl);
         closeSearch();

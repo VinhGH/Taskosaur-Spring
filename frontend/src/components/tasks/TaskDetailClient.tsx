@@ -989,16 +989,16 @@ export default function TaskDetailClient({
     const safeProjectSlug = sanitizeSlug(projectSlug);
 
     if (safeWorkspaceSlug && safeProjectSlug) {
-      return `/${safeWorkspaceSlug}/${safeProjectSlug}/tasks/${task.id}`;
+      return `/${safeWorkspaceSlug}/${safeProjectSlug}/tasks/${task.slug}`;
     } else if (safeWorkspaceSlug) {
-      return `/${safeWorkspaceSlug}/tasks/${task.id}`;
+      return `/${safeWorkspaceSlug}/tasks/${task.slug}`;
     } else {
-      return `/tasks/${task.id}`;
+      return `/tasks/${task.slug}`;
     }
   })();
 
   const parentDetailUrl = (() => {
-    if (!task.parentTask?.id || !validator.isUUID(task.parentTask.id, 4)) {
+    if (!task.parentTask?.slug) {
       return '';
     }
 
@@ -1006,11 +1006,11 @@ export default function TaskDetailClient({
     const safeProjectSlug = sanitizeSlug(projectSlug);
 
     if (safeWorkspaceSlug && safeProjectSlug) {
-      return `/${safeWorkspaceSlug}/${safeProjectSlug}/tasks/${task.parentTask.id}`;
+      return `/${safeWorkspaceSlug}/${safeProjectSlug}/tasks/${task.parentTask.slug}`;
     } else if (safeWorkspaceSlug) {
-      return `/${safeWorkspaceSlug}/tasks/${task.parentTask.id}`;
+      return `/${safeWorkspaceSlug}/tasks/${task.parentTask.slug}`;
     } else {
-      return `/tasks/${task.parentTask.id}`;
+      return `/tasks/${task.parentTask.slug}`;
     }
   })();
 

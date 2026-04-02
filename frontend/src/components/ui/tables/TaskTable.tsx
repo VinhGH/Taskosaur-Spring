@@ -894,15 +894,13 @@ const TaskTable: React.FC<TaskTableProps> = ({
   };
 
   const handleRowClick = async (task: Task) => {
-    // Update URL to include task ID and slug without navigation
+    // Update URL to include only task slug (not UUID)
     const currentPath = window.location.pathname;
     const slug = task.slug || "";
-    // Ensure we don't duplicate the ID if it's already there (rare in list view) or malformed
-    const idWithSlug = slug ? `${task.id}-${slug}` : task.id;
-    const newUrl = `${currentPath.replace(/\/$/, "")}/${idWithSlug}`;
-    
+    const newUrl = `${currentPath.replace(/\/$/, "")}/${slug}`;
+
     // Check if URL is already correct to avoid duplicate pushes
-    if (!window.location.pathname.endsWith(idWithSlug)) {
+    if (!window.location.pathname.endsWith(slug)) {
        window.history.pushState({ taskOpen: true }, "", newUrl);
     }
 

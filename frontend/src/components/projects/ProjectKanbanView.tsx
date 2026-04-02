@@ -16,6 +16,7 @@ interface SimpleTask {
   assigneeId?: string;
   reporterId?: string;
   statusId: string;
+  slug: string;
 }
 
 interface TaskStatus {
@@ -53,7 +54,7 @@ const SimpleTaskCard: React.FC<SimpleTaskCardProps> = ({ task, workspaceSlug, pr
 
   return (
     <Link
-      href={`/${workspaceSlug}/${projectSlug}/tasks/${task.id}`}
+      href={`/${workspaceSlug}/${projectSlug}/tasks/${task.slug}`}
       className="projects-task-card-link"
     >
       <Card className="projects-task-card">

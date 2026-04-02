@@ -670,7 +670,7 @@ export class PublicTasksService {
                 id: true,
                 name: true,
                 slug: true,
-                visibility: true, // optional, in case you want to confirm it’s public
+                visibility: true, // optional, in case you want to confirm it's public
               },
             },
           },
@@ -680,5 +680,62 @@ export class PublicTasksService {
         createdAt: 'desc',
       },
     });
+  }
+
+  async findBySlug(slug: string): Promise<PublicTaskDto> {
+    const task = await this.prisma.task.findFirst({
+      where: {
+        slug: slug,
+        project: {
+          visibility: 'PUBLIC',
+        },
+      },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            visibility: true,
+            workspace: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+        status: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+          },
+        },
+        assignees: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+          },
+        },
+        reporters: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatar: true,
+          },
+        },
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    return this.dataFilter.filterTaskData(task);
   }
 }

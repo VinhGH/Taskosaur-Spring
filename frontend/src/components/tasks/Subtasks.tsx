@@ -510,8 +510,8 @@ export default function Subtasks({
 
                   const subtaskUrl =
                     safeWorkspaceSlug && safeProjectSlug
-                      ? `/${safeWorkspaceSlug}/${safeProjectSlug}/tasks/${subtask.id}`
-                      : `/tasks/${subtask.id}`;
+                      ? `/${safeWorkspaceSlug}/${safeProjectSlug}/tasks/${subtask.slug}`
+                      : `/tasks/${subtask.slug}`;
 
                   if (editingSubtaskId !== subtask.id) {
                     router.push(subtaskUrl);
