@@ -26,6 +26,7 @@ export interface Project {
   workspaceId?: string;
   organizationId?: string;
   slug?: string;
+  taskPrefix?: string;
   settings?: ProjectSettings;
   createdAt?: string;
   createdBy?: string;
@@ -54,6 +55,7 @@ export interface Project {
 export interface ProjectData {
   name: string;
   slug: string;
+  taskPrefix?: string;
   color: string;
   avatar?: string;
   description: string;

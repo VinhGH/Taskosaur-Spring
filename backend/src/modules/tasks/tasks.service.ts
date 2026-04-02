@@ -65,15 +65,15 @@ export class TasksService {
     projectId: string,
   ): Promise<{ taskNumber: number; taskSlug: string }> {
     // 1. Lock the project row for this creation request
-    const projects = await tx.$queryRaw<{ slug: string }[]>`
-      SELECT slug FROM projects WHERE id = ${projectId}::uuid FOR UPDATE
+    const projects = await tx.$queryRaw<{ slug: string; task_prefix: string | null }[]>`
+      SELECT slug, task_prefix FROM projects WHERE id = ${projectId}::uuid FOR UPDATE
     `;
 
     if (!projects || projects.length === 0) {
       throw new NotFoundException('Project not found');
     }
 
-    const projectSlug = projects[0].slug;
+    const taskPrefix = projects[0].task_prefix || projects[0].slug;
 
     // 2. Safely find the last task number now that we hold the lock
     const lastTask = await tx.task.findFirst({
@@ -86,7 +86,7 @@ export class TasksService {
 
     return {
       taskNumber,
-      taskSlug: `${projectSlug}-${taskNumber}`,
+      taskSlug: `${taskPrefix}-${taskNumber}`,
     };
   }
 
@@ -420,15 +420,15 @@ export class TasksService {
 
     return this.prisma.$transaction(
       async (tx) => {
-        const projects = await tx.$queryRaw<{ slug: string }[]>`
-          SELECT slug FROM projects WHERE id = ${dto.projectId}::uuid FOR UPDATE
+        const projects = await tx.$queryRaw<{ slug: string; task_prefix: string | null }[]>`
+          SELECT slug, task_prefix FROM projects WHERE id = ${dto.projectId}::uuid FOR UPDATE
         `;
 
         if (!projects || projects.length === 0) {
           throw new NotFoundException('Project not found');
         }
 
-        const projectSlug = projects[0].slug;
+        const taskPrefix = projects[0].task_prefix || projects[0].slug;
 
         const lastTask = await tx.task.findFirst({
           where: { projectId: dto.projectId },
@@ -441,7 +441,7 @@ export class TasksService {
         // Assign task numbers and slugs to valid tasks
         const taskRecords = validTasks.map((task) => {
           const num = nextNumber++;
-          const slug = `${projectSlug}-${num}`;
+          const slug = `${taskPrefix}-${num}`;
 
           // Build task record without undefined values for createMany
           return {

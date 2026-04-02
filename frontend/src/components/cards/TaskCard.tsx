@@ -12,6 +12,7 @@ interface Task {
   statusId: string;
   dueDate: string;
   projectId: string;
+  slug: string;
 }
 
 interface TaskCardProps {
@@ -28,7 +29,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   className,
 }) => {
   return (
-    <Link href={`/${workspaceSlug}/${projectSlug}/tasks/${task.id}`}>
+    <Link href={`/${workspaceSlug}/${projectSlug}/tasks/${task.slug}`}>
       <Card className={`group ${className}`}>
         <CardHeader className="taskcard-header">
           <div className="taskcard-header-content">

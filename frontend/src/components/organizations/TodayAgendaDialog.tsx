@@ -21,7 +21,7 @@ interface TodayAgendaDialogProps {
 
 interface TaskAgendaItemProps {
   task: Task;
-  onClick: (taskId: string) => void;
+  onClick: (taskSlug: string) => void;
 }
 
 const getPriorityConfig = (priority: string) => {
@@ -86,13 +86,13 @@ const TaskAgendaItem: React.FC<TaskAgendaItemProps> = ({ task, onClick }) => {
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    onClick(task.id);
+    onClick(task.slug);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      onClick(task.id);
+      onClick(task.slug);
     }
   };
 
@@ -169,8 +169,8 @@ export function TodayAgendaDialog({
 }: TodayAgendaDialogProps) {
   const router = useRouter();
 
-  const handleTaskClick = (taskId: string) => {
-    router.push(`/tasks/${taskId}`);
+  const handleTaskClick = (taskSlug: string) => {
+    router.push(`/tasks/${taskSlug}`);
     onClose(); // Close the dialog after navigation
   };
 

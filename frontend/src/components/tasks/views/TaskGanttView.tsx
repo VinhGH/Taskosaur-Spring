@@ -172,10 +172,10 @@ export default function TaskGanttView({
         e.preventDefault();
         const href =
           safeWorkspaceSlug && safeProjectSlug
-            ? `/${safeWorkspaceSlug}/${safeProjectSlug}/tasks/${task.id}${task.slug ? `-${task.slug}` : ""}`
+            ? `/${safeWorkspaceSlug}/${safeProjectSlug}/tasks/${task.slug}`
             : safeWorkspaceSlug
-              ? `/${safeWorkspaceSlug}/tasks/${task.id}${task.slug ? `-${task.slug}` : ""}`
-              : `/tasks/${task.id}${task.slug ? `-${task.slug}` : ""}`;
+              ? `/${safeWorkspaceSlug}/tasks/${task.slug}`
+              : `/tasks/${task.slug}`;
         router.push(href);
       }
     },

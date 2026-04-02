@@ -25,6 +25,7 @@ interface Task {
     lastName: string;
     avatar?: string;
   };
+  slug: string;
 }
 
 interface TaskCalendarViewProps {
@@ -94,10 +95,10 @@ export default function TaskCalendarView({
     return slug;
   };
 
-  const getTaskUrl = (taskId: string) => {
-    // Validate taskId as UUID before URL construction
-    if (!validator.isUUID(taskId, 4)) {
-      console.error('Invalid task ID format:', taskId);
+  const getTaskUrl = (taskSlug: string) => {
+    // Validate taskSlug format
+    if (!taskSlug || typeof taskSlug !== 'string') {
+      console.error('Invalid task slug:', taskSlug);
       return '';
     }
 
@@ -105,11 +106,11 @@ export default function TaskCalendarView({
     const safeProjectSlug = sanitizeSlug(projectSlug);
 
     if (safeWorkspaceSlug && safeProjectSlug) {
-      return `/${safeWorkspaceSlug}/${safeProjectSlug}/tasks/${taskId}`;
+      return `/${safeWorkspaceSlug}/${safeProjectSlug}/tasks/${taskSlug}`;
     } else if (safeWorkspaceSlug) {
-      return `/${safeWorkspaceSlug}/tasks/${taskId}`;
+      return `/${safeWorkspaceSlug}/tasks/${taskSlug}`;
     } else {
-      return `/tasks/${taskId}`;
+      return `/tasks/${taskSlug}`;
     }
   };
 
@@ -325,7 +326,7 @@ export default function TaskCalendarView({
                       }`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        const taskUrl = getTaskUrl(task.id);
+                        const taskUrl = getTaskUrl(task.slug);
                         if (isValidInternalPath(taskUrl)) {
                           router.push(taskUrl);
                         } else {
@@ -446,7 +447,7 @@ export default function TaskCalendarView({
                           className="absolute inset-x-1 top-1 bottom-1 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-sm px-2 py-1 text-xs font-medium hover:bg-[var(--primary)]/90 hover:shadow-sm transition-all duration-200 truncate z-10 flex items-center group cursor-pointer"
                           onClick={(e) => {
                             e.stopPropagation();
-                            const taskUrl = getTaskUrl(task.id);
+                            const taskUrl = getTaskUrl(task.slug);
                             if (isValidInternalPath(taskUrl)) {
                               router.push(taskUrl);
                             } else {
@@ -625,7 +626,7 @@ export default function TaskCalendarView({
                           : " text-foreground  dark:text-foreground"
                       }`}
                       onClick={() => {
-                        const taskUrl = getTaskUrl(task.id);
+                        const taskUrl = getTaskUrl(task.slug);
                         if (isValidInternalPath(taskUrl)) {
                           router.push(taskUrl);
                         } else {

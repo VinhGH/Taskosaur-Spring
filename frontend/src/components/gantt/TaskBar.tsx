@@ -175,13 +175,13 @@ export const TaskBar: React.FC<TaskBarProps> = ({
   const handleNavigation = () => {
     // Don't navigate if we just finished resizing
     if (isResizing || justResized.current) return;
-    
+
     const href =
       workspaceSlug && projectSlug
-        ? `/${workspaceSlug}/${projectSlug}/tasks/${task.id}`
+        ? `/${workspaceSlug}/${projectSlug}/tasks/${task.slug}`
         : workspaceSlug
-          ? `/${workspaceSlug}/tasks/${task.id}`
-          : `/tasks/${task.id}`;
+          ? `/${workspaceSlug}/tasks/${task.slug}`
+          : `/tasks/${task.slug}`;
     router.push(href);
   };
 
