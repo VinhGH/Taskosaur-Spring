@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { EventsGateway } from '../../../gateway/events.gateway';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 export interface UserStatusInfo {
   isOnline: boolean;
@@ -17,7 +18,10 @@ export class UserStatusService implements OnModuleInit {
   private eventsGateway: EventsGateway;
   private userLastSeen = new Map<string, string>(); // userId -> ISO timestamp
 
-  constructor(eventsGateway: EventsGateway) {
+  constructor(
+    private prisma: PrismaService,
+    eventsGateway: EventsGateway,
+  ) {
     this.eventsGateway = eventsGateway;
   }
 
@@ -39,9 +43,26 @@ export class UserStatusService implements OnModuleInit {
   /**
    * Get detailed status information for a user
    */
-  getUserStatus(userId: string): UserStatusInfo {
+  async getUserStatus(userId: string): Promise<UserStatusInfo> {
     const isOnline = this.isUserOnline(userId);
-    const lastSeen = this.eventsGateway.getUserLastSeen(userId) || undefined;
+    let lastSeen = this.eventsGateway.getUserLastSeen(userId);
+
+    // If no WebSocket lastSeen, fall back to user's lastLoginAt from database
+    if (!lastSeen) {
+      // Validate UUID format before querying database
+      const uuidRegex =
+        /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+      if (uuidRegex.test(userId)) {
+        const user = await this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { lastLoginAt: true },
+        });
+        lastSeen = user?.lastLoginAt?.toISOString() || new Date().toISOString();
+      } else {
+        // For invalid UUIDs, return current timestamp
+        lastSeen = new Date().toISOString();
+      }
+    }
 
     return {
       isOnline,
@@ -52,11 +73,11 @@ export class UserStatusService implements OnModuleInit {
   /**
    * Get status for multiple users at once
    */
-  getUsersStatus(userIds: string[]): Map<string, UserStatusInfo> {
+  async getUsersStatus(userIds: string[]): Promise<Map<string, UserStatusInfo>> {
     const statusMap = new Map<string, UserStatusInfo>();
 
     for (const userId of userIds) {
-      statusMap.set(userId, this.getUserStatus(userId));
+      statusMap.set(userId, await this.getUserStatus(userId));
     }
 
     return statusMap;

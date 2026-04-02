@@ -180,7 +180,7 @@ export class UsersController {
     description: 'User online status',
     type: UserStatusResponseDto,
   })
-  getUserStatus(@Param('id', ParseUUIDPipe) id: string) {
+  async getUserStatus(@Param('id', ParseUUIDPipe) id: string) {
     return this.userStatusService.getUserStatus(id);
   }
 
@@ -196,12 +196,12 @@ export class UsersController {
     description: 'Map of user statuses',
     type: BulkUserStatusResponseDto,
   })
-  getUsersStatus(@Query('userIds') userIds: string) {
+  async getUsersStatus(@Query('userIds') userIds: string) {
     const ids = userIds
       .split(',')
       .map((id) => id.trim())
       .filter(Boolean);
-    const statusMap = this.userStatusService.getUsersStatus(ids);
+    const statusMap = await this.userStatusService.getUsersStatus(ids);
     const status: Record<string, { isOnline: boolean; lastSeen?: string }> = {};
     statusMap.forEach((value, key) => {
       status[key] = { isOnline: value.isOnline, lastSeen: value.lastSeen };

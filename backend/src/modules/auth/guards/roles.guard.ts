@@ -74,6 +74,14 @@ export class RolesGuard implements CanActivate {
         return true;
       }
     }
+    if (type === 'ORGANIZATION' && idParam === 'slug') {
+      const organization = await this.prisma.organization.findUnique({
+        where: { slug: scopeId },
+        select: { id: true },
+      });
+      if (!organization) throw new NotFoundException('Organization not found');
+      resolvedScopeId = organization.id;
+    }
     const memberRole = await this.getMemberRole(type, user.id as string, resolvedScopeId as string);
     if (!memberRole) throw new ForbiddenException('Not a member of this scope');
     const ok = requiredRoles.some((r) => ROLE_RANK[memberRole] >= ROLE_RANK[r]);
