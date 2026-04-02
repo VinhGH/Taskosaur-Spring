@@ -141,6 +141,7 @@ interface TaskContextType extends TaskState {
   getTasksOnly: (projectId?: string) => Promise<Task[]>;
   getSubtasksOnly: (projectId?: string) => Promise<Task[]>;
   getTaskById: (taskId: string, isAuth: boolean) => Promise<Task>;
+  getTaskBySlug: (slug: string, isAuth: boolean) => Promise<Task>;
   updateTask: (taskId: string, taskData: UpdateTaskRequest) => Promise<Task>;
   deleteTask: (taskId: string) => Promise<void>;
   bulkDeleteTasks: (
@@ -611,6 +612,18 @@ export function TaskProvider({ children }: TaskProviderProps) {
         const result = await handleApiOperation(() => taskApi.getTaskById(taskId, isAuth), false);
 
         // Update current task if it's the same ID
+        setTaskState((prev) => ({
+          ...prev,
+          currentTask: result,
+        }));
+
+        return result;
+      },
+
+      getTaskBySlug: async (slug: string, isAuth: boolean): Promise<Task> => {
+        const result = await handleApiOperation(() => taskApi.getTaskBySlug(slug, isAuth), false);
+
+        // Update current task if it's the same slug
         setTaskState((prev) => ({
           ...prev,
           currentTask: result,

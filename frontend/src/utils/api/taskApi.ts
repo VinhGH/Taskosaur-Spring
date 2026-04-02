@@ -532,6 +532,24 @@ export const taskApi = {
     }
   },
 
+  getTaskBySlug: async (slug: string, isAuth: boolean): Promise<Task> => {
+    try {
+      if (!slug || typeof slug !== 'string') {
+        throw new Error('Invalid task slug');
+      }
+      let response;
+      if (isAuth) {
+        response = await api.get<Task>(`/tasks/key/${encodeURIComponent(slug)}`);
+      } else {
+        response = await api.get<Task>(`/public/project-tasks/key/${encodeURIComponent(slug)}`);
+      }
+      return response.data;
+    } catch (error) {
+      console.error("Get task by slug error:", error);
+      throw error;
+    }
+  },
+
   updateTask: async (taskId: string, taskData: UpdateTaskRequest): Promise<Task> => {
     try {
       if (!isValidUUID(taskId)) {

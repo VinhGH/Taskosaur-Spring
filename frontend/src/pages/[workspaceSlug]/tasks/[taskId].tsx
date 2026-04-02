@@ -1,5 +1,5 @@
 import { useRouter } from "next/router";
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { useTask } from "@/contexts/task-context";
 import { useAuth } from "@/contexts/auth-context";
@@ -7,15 +7,13 @@ import TaskDetailClient from "@/components/tasks/TaskDetailClient";
 import ErrorState from "@/components/common/ErrorState";
 import { useLayout } from "@/contexts/layout-context";
 import NotFound from "@/pages/404";
-import { extractUuid } from "@/utils/slugUtils";
 
 function TaskDetailContent() {
   const { t } = useTranslation(["tasks", "common"]);
   const router = useRouter();
   const { workspaceSlug, projectSlug, taskId } = router.query;
-  const cleanTaskId = useMemo(() => extractUuid(taskId as string), [taskId]);
   const { setShow404 } = useLayout();
-  const { getTaskById } = useTask();
+  const { getTaskBySlug } = useTask();
   const { isAuthenticated } = useAuth();
 
   const [task, setTask] = useState<any>(null);
@@ -24,20 +22,22 @@ function TaskDetailContent() {
 
   useEffect(() => {
     const fetchTask = async () => {
-      if (!cleanTaskId) {
-        if (router.isReady && isAuthenticated()) {
-           setError("Task ID required");
+      if (!router.isReady) return;
+
+      if (!taskId) {
+        if (isAuthenticated()) {
+           setError("Task slug required");
            setLoading(false);
         }
         return;
       }
-      
+
       if (!isAuthenticated()) {
-         return; // Auth context will handle redirect usually, or layout
+         return;
       }
 
       try {
-        const taskData = await getTaskById(cleanTaskId as string, isAuthenticated());
+        const taskData = await getTaskBySlug(taskId as string, isAuthenticated());
 
         if (!taskData) {
           setError("Task not found");
@@ -54,24 +54,7 @@ function TaskDetailContent() {
     };
 
     fetchTask();
-  }, [cleanTaskId, router.isReady, isAuthenticated]);
-
-  // Update URL with slug
-  useEffect(() => {
-    if (task && task.slug && cleanTaskId && taskId) {
-      const expectedId = `${cleanTaskId}-${task.slug}`;
-      if (taskId !== expectedId) {
-        router.replace(
-          {
-            pathname: router.pathname,
-            query: { ...router.query, taskId: expectedId },
-          },
-          undefined,
-          { shallow: true }
-        );
-      }
-    }
-  }, [task, cleanTaskId, taskId, router]);
+  }, [taskId, router.isReady, isAuthenticated]);
 
   if (loading) {
     return (
@@ -85,7 +68,6 @@ function TaskDetailContent() {
   }
 
   if (error) {
-    // Check if it's a 404/not found error
     const is404Error = error.toLowerCase().includes('not found') ||
                        error.toLowerCase().includes('404') ||
                        error.toLowerCase().includes('task not found');
@@ -110,7 +92,7 @@ function TaskDetailContent() {
           task={task}
           workspaceSlug={workspaceSlug as string}
           projectSlug={projectSlug as string}
-          taskId={cleanTaskId as string}
+          taskId={task.id as string}
         />
       </Suspense>
     </div>

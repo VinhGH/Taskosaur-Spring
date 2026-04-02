@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { useTask } from "@/contexts/task-context";
 import TaskDetailClient from "@/components/tasks/TaskDetailClient";
@@ -6,7 +6,7 @@ import { useRouter } from "next/router";
 import { useAuth } from "@/contexts/auth-context";
 import TaskDetailsSkeleton from "@/components/skeletons/TaskDetailsSkeleton";
 import ErrorState from "@/components/common/ErrorState";
-import { extractUuid } from "@/utils/slugUtils";
+
 function TaskDetailContent() {
   const { t } = useTranslation(["tasks", "common"]);
   const [task, setTask] = useState<any>(null);
@@ -14,14 +14,13 @@ function TaskDetailContent() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { taskId } = router.query;
-  const cleanTaskId = useMemo(() => extractUuid(taskId as string), [taskId]);
-  
-  const { getTaskById } = useTask();
+
+  const { getTaskBySlug } = useTask();
   const { isAuthenticated } = useAuth();
 
   const fetchData = async () => {
     try {
-      const taskData = await getTaskById(cleanTaskId as string, isAuthenticated());
+      const taskData = await getTaskBySlug(taskId as string, isAuthenticated());
       if (!taskData) throw new Error("Task not found");
 
       const enhancedTask = {
@@ -45,7 +44,7 @@ function TaskDetailContent() {
   };
 
   useEffect(() => {
-    if (!cleanTaskId) {
+    if (!taskId) {
       if (router.isReady) {
          setError("Invalid URL parameters");
          setIsLoading(false);
@@ -58,24 +57,7 @@ function TaskDetailContent() {
     setIsLoading(true);
 
     fetchData();
-  }, [cleanTaskId, router.isReady]);
-
-  // Update URL with slug if missing
-  useEffect(() => {
-    if (task && task.slug && cleanTaskId && taskId) {
-      const expectedId = `${cleanTaskId}-${task.slug}`;
-      if (taskId !== expectedId) {
-        router.replace(
-          {
-            pathname: router.pathname,
-            query: { ...router.query, taskId: expectedId },
-          },
-          undefined,
-          { shallow: true }
-        );
-      }
-    }
-  }, [task, cleanTaskId, taskId, router]);
+  }, [taskId, router.isReady]);
 
   if (isLoading) {
     return <TaskDetailsSkeleton />;
@@ -87,7 +69,7 @@ function TaskDetailContent() {
 
   return (
     <Suspense fallback={<div className="p-4"><div className="animate-pulse h-96 bg-[var(--muted)] rounded"></div></div>}>
-      <TaskDetailClient task={task} taskId={cleanTaskId as string} />
+      <TaskDetailClient task={task} taskId={task.id as string} />
     </Suspense>
   );
 }
