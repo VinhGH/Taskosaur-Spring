@@ -7,6 +7,8 @@ import {
   SortBy,
   SortOrder,
 } from './dto/search.dto';
+import { Role } from '@prisma/client';
+import { hasRequiredRole } from '../../constants/roles';
 
 interface SearchResult {
   id: string;
@@ -101,7 +103,7 @@ export class SearchService {
 
     if (entityType === SearchEntityType.ALL || entityType === SearchEntityType.USERS) {
       searchPromises.push(
-        this.searchUsers(query || '', searchDto, offset, limit, accessibleScopes),
+        this.searchUsers(query || '', searchDto, offset, limit, accessibleScopes, userId),
       );
     }
 
@@ -417,7 +419,19 @@ export class SearchService {
     offset: number,
     limit: number,
     accessibleScopes: AccessibleScopes,
+    requesterId: string,
   ): Promise<SearchResult[]> {
+    // Fetch requester's role to determine access level
+    const requester = await this.prisma.user.findUnique({
+      where: { id: requesterId },
+      select: { role: true },
+    });
+
+    // Check if requester has admin privileges (MANAGER, OWNER, or SUPER_ADMIN)
+    const hasAdminPrivileges =
+      requester &&
+      (hasRequiredRole(requester.role, Role.MANAGER) || requester.role === Role.SUPER_ADMIN);
+
     const where: any = {
       OR: [
         { firstName: { contains: query, mode: 'insensitive' } },
@@ -461,19 +475,24 @@ export class SearchService {
       id: user.id,
       type: 'user',
       title: `${user.firstName} ${user.lastName}`,
-      description: user.bio || user.email,
+      description: user.bio || (hasAdminPrivileges ? user.email : undefined),
       relevanceScore: this.calculateRelevanceScore(
         `${user.firstName} ${user.lastName}`,
-        user.email,
+        hasAdminPrivileges ? user.email : '',
         query,
       ),
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       metadata: {
-        email: user.email,
         username: user.username,
         avatar: user.avatar,
-        role: user.role,
+        // Only include sensitive fields for admin users
+        ...(hasAdminPrivileges
+          ? {
+              email: user.email,
+              role: user.role,
+            }
+          : {}),
       },
     }));
   }
