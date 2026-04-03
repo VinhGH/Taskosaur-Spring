@@ -1,12 +1,18 @@
 # =============================================================================
 # Stage 1: Builder - Build the application
 # =============================================================================
-FROM node:22.21.0-slim AS builder
+FROM node:22-slim AS builder
 
 WORKDIR /app/taskosaur
 
 # Update npm to latest version
-RUN npm install -g npm@latest
+RUN npm install -g npm@10.9.4
+
+# Configure npm for better network reliability
+RUN npm config set fetch-timeout 150000 && \
+    npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 150000
 
 # Install build dependencies in a single layer
 RUN apt-get update && apt-get install -y --no-install-recommends \
