@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { HiXMark, HiPaperAirplane, HiSparkles, HiArrowPath, HiStop } from "react-icons/hi2";
+import { HiXMark, HiPaperAirplane, HiSparkles, HiArrowPath, HiStop, HiMicrophone } from "react-icons/hi2";
 import { useChatContext } from "@/contexts/chat-context";
 import { mcpServer, extractContextFromPath } from "@/lib/mcp-server";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { BrowserAgent } from "@/lib/browser-automation/browser-agent";
+import { VoiceController } from "@/lib/voice";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -38,6 +39,12 @@ export default function ChatPanel() {
   // Browser automation state
   const [isBrowserAgentRunning, setIsBrowserAgentRunning] = useState(false);
   const browserAgentRef = useRef<BrowserAgent | null>(null);
+
+  // Voice input state
+  const voiceControllerRef = useRef<VoiceController | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [interimTranscript, setInterimTranscript] = useState("");
+  const [voiceError, setVoiceError] = useState<string | null>(null);
 
   // Agent status display
   const thinkingWords = useRef([
@@ -113,8 +120,65 @@ export default function ChatPanel() {
       }
       sessionStorage.removeItem("mcp_conversation_history");
       mcpServer.clearHistory();
+
+      // Initialize voice controller
+      voiceControllerRef.current = new VoiceController({
+        callbacks: {
+          onStateChange: (state) => {
+            setIsListening(state.isListening);
+            setInterimTranscript(state.interimTranscript);
+            setVoiceError(state.error);
+          },
+          onTranscriptReady: (fullTranscript) => {
+            // Auto-send the transcribed message directly
+            if (fullTranscript.trim()) {
+              handleVoiceMessage(fullTranscript.trim());
+            }
+          },
+          onError: (error) => {
+            console.warn("Voice recognition error:", error);
+            setIsListening(false);
+          },
+        },
+        // 400ms delay after stopping to let API finalize word corrections
+        finalizationDelay: 400,
+        // Auto-stop after 2.5 seconds of silence
+        silenceTimeout: 2500,
+      });
     }
+
+    // Cleanup on unmount
+    return () => {
+      voiceControllerRef.current?.destroy();
+    };
   }, []);
+
+  // Abort voice input on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isListening) {
+        e.preventDefault();
+        voiceControllerRef.current?.abort();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isListening]);
+
+  // Abort voice input when clicking outside the chat panel
+  useEffect(() => {
+    if (!isListening) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const chatPanel = document.getElementById("chat-panel");
+      if (chatPanel && !chatPanel.contains(e.target as Node)) {
+        voiceControllerRef.current?.abort();
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isListening]);
+
   // Auto-resize textarea function
   const adjustTextareaHeight = useCallback(() => {
     const textarea = textareaRef.current;
@@ -345,6 +409,35 @@ export default function ChatPanel() {
     }
   };
 
+  // Voice input handlers
+  const handleToggleVoice = () => {
+    if (!voiceControllerRef.current) return;
+
+    if (isListening) {
+      // Stop listening — onTranscriptReady will auto-send if there's text
+      voiceControllerRef.current.stopListening();
+    } else {
+      // Clear any previous errors and start listening
+      setVoiceError(null);
+      setInterimTranscript("");
+      voiceControllerRef.current.startListening();
+    }
+  };
+
+  /** Handle a voice message — adds it to chat and sends through the automation pipeline. */
+  const handleVoiceMessage = async (message: string) => {
+    if (!message.trim() || isLoading || isBrowserAgentRunning) return;
+
+    const userMessage: Message = {
+      role: "user",
+      content: message,
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    await handleBrowserAutomation(message);
+  };
+
   const handleStopAgent = () => {
     browserAgentRef.current?.stop();
   };
@@ -432,6 +525,7 @@ export default function ChatPanel() {
     <>
       {/* Chat Panel - positioned below header */}
       <div
+        id="chat-panel"
         className={`fixed top-0 right-0 bottom-0 bg-[var(--background)] border-l border-[var(--border)] z-40 transform transition-transform duration-300 ease-in-out flex flex-col ${
           isChatOpen ? "translate-x-0" : "translate-x-full"
         }`}
@@ -619,7 +713,48 @@ export default function ChatPanel() {
 
         {/* Chat Input Area - Fixed at bottom with auto-expanding textarea */}
         <div className="flex-shrink-0 border-t border-[var(--border)] bg-[var(--background)] p-4">
+            {/* Interim transcript display (shown while listening) */}
+            {isListening && interimTranscript && (
+              <div className="mb-2 px-1">
+                <span className="text-xs text-gray-400 dark:text-gray-500 italic">
+                  {interimTranscript}
+                </span>
+              </div>
+            )}
+
+            {/* Voice error display */}
+            {voiceError && (
+              <div className="mb-2 px-1">
+                <span className="text-xs text-red-500 dark:text-red-400">
+                  {voiceError}
+                </span>
+              </div>
+            )}
+
+            {/* Cancel hint while listening */}
+            {isListening && (
+              <div className="mb-1 px-1">
+                <span className="text-xs text-gray-400 dark:text-gray-500">
+                  Press <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-[10px] font-mono">Esc</kbd> to cancel
+                </span>
+              </div>
+            )}
+
             <div className="flex gap-3 items-end">
+              {/* Microphone button */}
+              <button
+                onClick={handleToggleVoice}
+                disabled={isLoading || isBrowserAgentRunning}
+                className={`p-3 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isListening
+                    ? "bg-red-500 hover:bg-red-600 text-white animate-pulse"
+                    : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
+                }`}
+                title={isListening ? "Stop listening" : "Start voice input"}
+              >
+                <HiMicrophone className="w-4 h-4" />
+              </button>
+
               <textarea
                 ref={textareaRef}
                 value={inputValue}
@@ -628,10 +763,11 @@ export default function ChatPanel() {
                 placeholder={
                   !user
                     ? "Please log in to use AI assistant..."
-                    :
-                      "Message AI Assistant..."
+                    : isListening
+                    ? "Listening..."
+                    : "Message AI Assistant..."
                 }
-                disabled={isLoading || isBrowserAgentRunning || !user}
+                disabled={isLoading || isBrowserAgentRunning || !user || isListening}
                 rows={1}
                 className="flex-1 px-4 py-3 bg-[var(--muted)] border-[var(--border)] focus:ring-1 focus:ring-[var(--border)] focus:border-transparent transition-all duration-200 rounded-xl shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
                 style={{
@@ -645,6 +781,14 @@ export default function ChatPanel() {
                 <button
                   onClick={handleStopAgent}
                   className="p-3 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md flex-shrink-0"
+                >
+                  <HiStop className="w-4 h-4" />
+                </button>
+              ) : isListening ? (
+                <button
+                  onClick={() => voiceControllerRef.current?.stopListening()}
+                  className="p-3 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md flex-shrink-0 animate-pulse"
+                  title="Stop listening and send"
                 >
                   <HiStop className="w-4 h-4" />
                 </button>
