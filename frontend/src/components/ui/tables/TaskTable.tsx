@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Table,
@@ -94,7 +94,7 @@ const SortableHeader = ({ id, children, className }: { id: string; children: Rea
     transform: CSS.Translate.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 1 : "auto", 
+    zIndex: isDragging ? 1 : "auto",
   };
 
   return (
@@ -269,6 +269,8 @@ const TaskTable: React.FC<TaskTableProps> = ({
   const isOrgOrWorkspaceLevel = (!workspaceSlug && !projectSlug) || (workspaceSlug && !projectSlug);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  // Guard to prevent double-close race conditions
+  const isClosingRef = useRef(false);
 
   // Column Reordering State with localStorage persistence
   // Make the key project-specific so each project can have its own column order
@@ -281,7 +283,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
       return 'taskosaur_task_table_column_order_global';
     }
   };
-  
+
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
 
   const sensors = useSensors(
@@ -300,10 +302,10 @@ const TaskTable: React.FC<TaskTableProps> = ({
     const fixedColumns = ["task"];
     if (showProject) fixedColumns.push("project");
     fixedColumns.push("priority", "status", "assignees", "dueDate");
-    
+
     const dynamicColumns = columns.filter((col) => col.visible).map((col) => col.id);
     const allIds = [...fixedColumns, ...dynamicColumns];
-    
+
     setColumnOrder((prev) => {
       // Try to load from localStorage on first render
       if (prev.length === 0) {
@@ -313,13 +315,13 @@ const TaskTable: React.FC<TaskTableProps> = ({
           if (stored) {
             const storedOrder = JSON.parse(stored) as string[];
             const validIds = new Set(allIds);
-            
+
             // Filter stored order to only include currently valid columns
             const validStoredOrder = storedOrder.filter(id => validIds.has(id));
-            
+
             // Add any new columns that weren't in the stored order
             const newIds = allIds.filter(id => !storedOrder.includes(id));
-            
+
             // If we have a valid stored order, use it
             if (validStoredOrder.length > 0) {
               return [...validStoredOrder, ...newIds];
@@ -328,16 +330,16 @@ const TaskTable: React.FC<TaskTableProps> = ({
         } catch (error) {
           console.error('Failed to load column order from localStorage:', error);
         }
-        
+
         // Fallback to default order
         return allIds;
       }
-      
+
       // Sync with current props/visibility while preserving order
       const validIds = new Set(allIds);
       const currentOrderValid = prev.filter(id => validIds.has(id));
       const newIds = allIds.filter(id => !prev.includes(id));
-      
+
       return [...currentOrderValid, ...newIds];
     });
   }, [columns, showProject, projectSlug, workspaceSlug]); // Added projectSlug and workspaceSlug to dependencies
@@ -369,19 +371,21 @@ const TaskTable: React.FC<TaskTableProps> = ({
   // Handle browser back button to close modal
   useEffect(() => {
     const handlePopState = () => {
-      if (isEditModalOpen) {
+      if (isEditModalOpen && !isClosingRef.current) {
         setIsEditModalOpen(false);
+        setSelectedTask(null);
       }
+      isClosingRef.current = false;
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, [isEditModalOpen]);
 
-  // Handle modal close (goes back in history to revert URL)
   const handleCloseModal = () => {
-    // Check if we have history to go back to (simple heuristic: if modal is open, we likely pushed state)
-    // Alternatively, just close if we didn't push state? 
-    // For now, assuming standard flow: Click -> Push -> Close -> Back
+    if (isClosingRef.current || !isEditModalOpen) return;
+    isClosingRef.current = true;
+    setIsEditModalOpen(false);
+    setSelectedTask(null);
     window.history.back();
   };
 
@@ -402,9 +406,9 @@ const TaskTable: React.FC<TaskTableProps> = ({
   const [localAddTaskStatuses, setLocalAddTaskStatuses] = useState<
     Array<{ id: string; name: string }>
   >([]);
-    const [localAddTaskProjectMembers, setLocalAddTaskProjectMembers] = useState<any[]>([]);
-  
-    useEffect(() => {
+  const [localAddTaskProjectMembers, setLocalAddTaskProjectMembers] = useState<any[]>([]);
+
+  useEffect(() => {
     const fetchProjectMeta = async () => {
       const projectId = currentProject?.id || newTaskData?.projectId;
       if (addTaskStatuses && addTaskStatuses.length > 0) {
@@ -901,7 +905,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
 
     // Check if URL is already correct to avoid duplicate pushes
     if (!window.location.pathname.endsWith(slug)) {
-       window.history.pushState({ taskOpen: true }, "", newUrl);
+      window.history.pushState({ taskOpen: true }, "", newUrl);
     }
 
     await getTaskById(task.id, isAuthenticated());

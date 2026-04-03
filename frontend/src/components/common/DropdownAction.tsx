@@ -325,6 +325,7 @@ export default function DropdownAction({
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
+          data-testid={`dropdown-trigger-${itemType}`}
           className="w-full justify-between border-[var(--border)] hover:bg-[var(--accent)]
            px-2 py-1.5 h-9 text-sm sm:px-3 sm:py-2 sm:h-10 sm:text-base"
         >
@@ -389,12 +390,12 @@ export default function DropdownAction({
             return (
               <DropdownMenuItem
                 key={item.id}
+                data-testid={`dropdown-option-${itemType}-${item.id}`}
                 onClick={() => handleItemSelect(item)}
-                className={`flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-sm transition-colors ${
-                  isSelected
+                className={`flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-sm transition-colors ${isSelected
                     ? "bg-[var(--primary)]/10 text-[var(--primary)]"
                     : "text-[var(--foreground)] hover:bg-[var(--accent)] focus:bg-[var(--accent)]"
-                }`}
+                  }`}
               >
                 {!hideAvatar && (
                   <>

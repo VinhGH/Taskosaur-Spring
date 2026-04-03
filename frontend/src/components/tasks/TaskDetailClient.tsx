@@ -279,6 +279,10 @@ export default function TaskDetailClient({
   ]);
 
   useEffect(() => {
+    if (isAIActive()) {
+      setMinLoadTimeElapsed(true);
+      return;
+    }
     const timer = setTimeout(() => {
       setMinLoadTimeElapsed(true);
     }, 1000);
@@ -1014,7 +1018,7 @@ export default function TaskDetailClient({
     }
   })();
 
-  const isInitialLoading = !initialLoadComplete || !minLoadTimeElapsed;
+  const isInitialLoading = !isAIActive() && (!initialLoadComplete || !minLoadTimeElapsed);
 
   if (isInitialLoading) {
     return <TaskDetailSkeleton />;
@@ -1076,6 +1080,7 @@ export default function TaskDetailClient({
               {!task.emailThreadId && (
                 <Tooltip content={t("detail.editTask")} position="left">
                   <ActionButton
+                    data-testid="edit-title-description-btn"
                     onClick={handleEditTask}
                     variant="outline"
                     secondary
@@ -1230,6 +1235,7 @@ export default function TaskDetailClient({
                     {hasAccess && (
                       <button
                         type="button"
+                        data-testid="edit-task-type-btn"
                         className="rounded transition flex items-center cursor-pointer text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-xs p-1"
                         onClick={() => {
                           setIsEditingTask((prev) => ({
@@ -1321,6 +1327,7 @@ export default function TaskDetailClient({
                       />
                     ) : editTaskData.taskType ? (
                       <div
+                        data-testid="task-type-badge"
                         onClick={() => {
                           if (hasAccess) {
                             setIsEditingTask((prev) => ({
@@ -1367,6 +1374,7 @@ export default function TaskDetailClient({
                     {hasAccess && (
                       <button
                         type="button"
+                        data-testid="edit-sprint-btn"
                         className="rounded transition flex items-center cursor-pointer text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-xs p-1"
                         onClick={() => {
                           setIsEditingTask((prev) => ({
@@ -1394,18 +1402,18 @@ export default function TaskDetailClient({
                         currentItem={
                           editTaskData.sprintId
                             ? {
-                                id: editTaskData.sprintId,
-                                name:
-                                  sprints.find((s) => s.id === editTaskData.sprintId)?.name ||
-                                  task.sprint?.name ||
-                                  "Selected Sprint",
-                                color: "#6366F1",
-                              }
+                              id: editTaskData.sprintId,
+                              name:
+                                sprints.find((s) => s.id === editTaskData.sprintId)?.name ||
+                                task.sprint?.name ||
+                                "Selected Sprint",
+                              color: "#6366F1",
+                            }
                             : {
-                                id: "",
-                                name: t("detail.backlog"),
-                                color: "#6B7280",
-                              }
+                              id: "",
+                              name: t("detail.backlog"),
+                              color: "#6B7280",
+                            }
                         }
                         availableItems={[
                           { id: "", name: t("detail.backlog"), color: "#6B7280" },
@@ -1477,6 +1485,7 @@ export default function TaskDetailClient({
                       />
                     ) : (
                       <div
+                        data-testid="sprint-badge"
                         onClick={() => {
                           if (hasAccess) {
                             setIsEditingTask((prev) => ({
@@ -1517,6 +1526,7 @@ export default function TaskDetailClient({
                     {hasAccess && (
                       <button
                         type="button"
+                        data-testid="edit-priority-btn"
                         className="rounded transition flex items-center cursor-pointer text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-xs p-1"
                         onClick={() => {
                           setIsEditingTask((prev) => ({
@@ -1597,6 +1607,7 @@ export default function TaskDetailClient({
                       />
                     ) : (
                       <PriorityBadge
+                        data-testid="priority-badge"
                         priority={editTaskData?.priority}
                         onClick={() => {
                           setIsEditingTask((prev) => ({
@@ -1621,6 +1632,7 @@ export default function TaskDetailClient({
                     {hasAccess && (
                       <button
                         type="button"
+                        data-testid="edit-status-btn"
                         className="rounded transition flex items-center cursor-pointer text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-xs p-1"
                         onClick={() => {
                           setIsEditingTask((prev) => ({
@@ -1692,7 +1704,7 @@ export default function TaskDetailClient({
                         }}
                       />
                     ) : (
-                      <StatusBadge onClick={() => {
+                      <StatusBadge data-testid="status-badge" onClick={() => {
                         setIsEditingTask((prev) => ({
                           ...prev,
                           status: true,
@@ -1713,6 +1725,7 @@ export default function TaskDetailClient({
                     {hasAccess && (
                       <button
                         type="button"
+                        data-testid="edit-dates-btn"
                         className="rounded transition flex items-center cursor-pointer p-1 text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-xs"
                         onClick={() =>
                           setIsEditingTask((prev) => ({
@@ -1772,6 +1785,7 @@ export default function TaskDetailClient({
                       </div>
                     ) : (
                       <Badge
+                        data-testid="start-date-badge"
                         onClick={() =>
                           setIsEditingTask((prev) => ({
                             ...prev,
@@ -1780,7 +1794,7 @@ export default function TaskDetailClient({
                           }))
                         }
                         variant="outline"
-                        className="text-[13px] min-w-[120px] min-h-[29.33px] rounded-2xl  px-1.5 py-0.5 bg-[var(--muted)] border-[var(--border)] flex-shrink-0"
+                        className="text-[13px] min-w-[120px] min-h-[29.33px] rounded-2xl  px-1.5 py-0.5 bg-[var(--muted)] border-[var(--border)] flex-shrink-0 cursor-pointer"
                       >
                         {editTaskData.startDate
                           ? new Date(editTaskData.startDate).toLocaleDateString()
@@ -1830,6 +1844,7 @@ export default function TaskDetailClient({
                       </div>
                     ) : (
                       <Badge
+                        data-testid="due-date-badge"
                         onClick={() =>
                           setIsEditingTask((prev) => ({
                             ...prev,
@@ -1838,7 +1853,7 @@ export default function TaskDetailClient({
                           }))
                         }
                         variant="outline"
-                        className="min-w-[120px] min-h-[29.33px] text-[13px] rounded-2xl  px-1.5 py-0.5 bg-[var(--muted)] border-[var(--border)] flex-shrink-0"
+                        className="min-w-[120px] min-h-[29.33px] text-[13px] rounded-2xl  px-1.5 py-0.5 bg-[var(--muted)] border-[var(--border)] flex-shrink-0 cursor-pointer"
                       >
                         {editTaskData.dueDate
                           ? new Date(editTaskData.dueDate).toLocaleDateString()
@@ -1912,6 +1927,7 @@ export default function TaskDetailClient({
                         {hasAccess && (
                           <button
                             type="button"
+                            data-testid="edit-recurrence-btn"
                             className="rounded transition flex items-center cursor-pointer text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-xs p-1"
                             onClick={() => {
                               setEditRecurrenceConfig(task.recurringConfig);
