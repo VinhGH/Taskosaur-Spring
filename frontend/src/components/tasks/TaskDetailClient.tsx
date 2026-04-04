@@ -989,13 +989,13 @@ export default function TaskDetailClient({
       return '';
     }
 
-    const safeWorkspaceSlug = sanitizeSlug(workspaceSlug);
-    const safeProjectSlug = sanitizeSlug(projectSlug);
+    const wsSlug = sanitizeSlug(workspaceSlug) || task.project?.workspace?.slug;
+    const pgSlug = sanitizeSlug(projectSlug) || task.project?.slug;
 
-    if (safeWorkspaceSlug && safeProjectSlug) {
-      return `/${safeWorkspaceSlug}/${safeProjectSlug}/tasks/${task.slug}`;
-    } else if (safeWorkspaceSlug) {
-      return `/${safeWorkspaceSlug}/tasks/${task.slug}`;
+    if (wsSlug && pgSlug) {
+      return `/${wsSlug}/${pgSlug}/tasks/${task.slug}`;
+    } else if (wsSlug) {
+      return `/${wsSlug}/tasks/${task.slug}`;
     } else {
       return `/tasks/${task.slug}`;
     }
@@ -1006,13 +1006,13 @@ export default function TaskDetailClient({
       return '';
     }
 
-    const safeWorkspaceSlug = sanitizeSlug(workspaceSlug);
-    const safeProjectSlug = sanitizeSlug(projectSlug);
+    const wsSlug = sanitizeSlug(workspaceSlug) || task.project?.workspace?.slug;
+    const pgSlug = sanitizeSlug(projectSlug) || task.project?.slug;
 
-    if (safeWorkspaceSlug && safeProjectSlug) {
-      return `/${safeWorkspaceSlug}/${safeProjectSlug}/tasks/${task.parentTask.slug}`;
-    } else if (safeWorkspaceSlug) {
-      return `/${safeWorkspaceSlug}/tasks/${task.parentTask.slug}`;
+    if (wsSlug && pgSlug) {
+      return `/${wsSlug}/${pgSlug}/tasks/${task.parentTask.slug}`;
+    } else if (wsSlug) {
+      return `/${wsSlug}/tasks/${task.parentTask.slug}`;
     } else {
       return `/tasks/${task.parentTask.slug}`;
     }

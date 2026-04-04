@@ -3,6 +3,7 @@ export type SprintStatus = "PLANNING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
 export interface Sprint {
   id: string;
   name: string;
+  slug?: string;
   goal?: string;
   description?: string;
   startDate?: string;

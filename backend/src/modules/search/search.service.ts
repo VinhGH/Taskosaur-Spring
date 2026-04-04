@@ -654,6 +654,7 @@ export class SearchService {
       createdAt: sprint.createdAt,
       updatedAt: sprint.updatedAt,
       metadata: {
+        slug: sprint.slug,
         status: sprint.status,
         startDate: sprint.startDate,
         endDate: sprint.endDate,

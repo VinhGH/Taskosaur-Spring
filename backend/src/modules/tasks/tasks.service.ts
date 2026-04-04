@@ -949,6 +949,7 @@ export class TasksService {
                 select: {
                   id: true,
                   name: true,
+                  slug: true,
                   organizationId: true,
                 },
               },
@@ -976,7 +977,7 @@ export class TasksService {
           status: {
             select: { id: true, name: true, color: true, category: true },
           },
-          sprint: { select: { id: true, name: true, status: true } },
+          sprint: { select: { id: true, name: true, slug: true, status: true } },
           parentTask: {
             select: { id: true, title: true, slug: true, type: true },
           },
@@ -1145,7 +1146,7 @@ export class TasksService {
             name: true,
             slug: true,
             workspace: {
-              select: { id: true, name: true, organizationId: true },
+              select: { id: true, name: true, slug: true, organizationId: true },
             },
           },
         },
@@ -1170,7 +1171,7 @@ export class TasksService {
         status: {
           select: { id: true, name: true, color: true, category: true },
         },
-        sprint: { select: { id: true, name: true, status: true } },
+        sprint: { select: { id: true, name: true, slug: true, status: true } },
         parentTask: {
           select: { id: true, title: true, slug: true, type: true },
         },
@@ -1719,7 +1720,7 @@ export class TasksService {
         status: {
           select: { id: true, name: true, color: true, category: true },
         },
-        sprint: { select: { id: true, name: true, status: true } },
+        sprint: { select: { id: true, name: true, slug: true, status: true } },
         parentTask: {
           select: { id: true, title: true, slug: true, type: true },
         },

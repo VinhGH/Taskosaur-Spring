@@ -83,6 +83,18 @@ export const sprintApi = {
     }
   },
 
+  getSprintBySlug: async (sprintSlug: string, projectSlug: string): Promise<Sprint> => {
+    try {
+      const response = await api.get<Sprint>(
+        `/sprints/by-slug/${encodeURIComponent(projectSlug)}/${encodeURIComponent(sprintSlug)}`
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Get sprint by slug error:", error);
+      throw error;
+    }
+  },
+
   getActiveSprint: async (projectId: string): Promise<Sprint | null> => {
     try {
       // Validate projectId format
