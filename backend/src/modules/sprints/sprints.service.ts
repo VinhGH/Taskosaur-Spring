@@ -18,6 +18,102 @@ export class SprintsService {
     private accessControl: AccessControlService,
   ) {}
 
+  private async generateUniqueSlug(
+    name: string,
+    projectId: string,
+    excludeSprintId?: string,
+  ): Promise<string> {
+    const baseSlug =
+      name
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '') || 'sprint';
+
+    let slug = baseSlug;
+    let counter = 1;
+
+    while (true) {
+      const existing = await this.prisma.sprint.findFirst({
+        where: {
+          projectId,
+          slug,
+          ...(excludeSprintId ? { id: { not: excludeSprintId } } : {}),
+        },
+      });
+      if (!existing) break;
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+
+    return slug;
+  }
+
+  private async ensureSlug(sprint: Sprint): Promise<Sprint> {
+    if (sprint && !sprint.slug && sprint.name && sprint.projectId && sprint.id) {
+      const slug = await this.generateUniqueSlug(sprint.name, sprint.projectId);
+      await this.prisma.sprint.update({
+        where: { id: sprint.id },
+        data: { slug },
+      });
+      sprint.slug = slug;
+    }
+    return sprint;
+  }
+
+  private async ensureSlugs(sprints: Sprint[]): Promise<Sprint[]> {
+    for (const sprint of sprints) {
+      await this.ensureSlug(sprint);
+    }
+    return sprints;
+  }
+
+  async findBySlug(
+    projectSlug: string,
+    sprintSlug: string,
+    requestUserId: string,
+  ): Promise<Sprint> {
+    const project = await this.prisma.project.findFirst({
+      where: { slug: projectSlug },
+      select: { id: true },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    const sprint = await this.prisma.sprint.findFirst({
+      where: {
+        projectId: project.id,
+        slug: sprintSlug,
+      },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            workspace: {
+              select: { id: true, name: true, slug: true },
+            },
+          },
+        },
+        _count: { select: { tasks: true } },
+      },
+    });
+
+    if (!sprint) {
+      throw new NotFoundException('Sprint not found');
+    }
+
+    // Authorization check
+    await this.accessControl.getProjectAccess(project.id, requestUserId);
+
+    return sprint;
+  }
+
   async create(createSprintDto: CreateSprintDto, userId: string): Promise<Sprint> {
     // Check if project exists
     const project = await this.prisma.project.findUnique({
@@ -49,9 +145,13 @@ export class SprintsService {
       }
     }
 
+    // Generate slug from name
+    const slug = await this.generateUniqueSlug(createSprintDto.name, project.id);
+
     return this.prisma.sprint.create({
       data: {
         ...createSprintDto,
+        slug,
         projectId: project.id,
         createdBy: userId,
         updatedBy: userId,
@@ -130,7 +230,7 @@ export class SprintsService {
     if (projectId) whereClause.projectId = projectId;
     if (status) whereClause.status = status;
 
-    return this.prisma.sprint.findMany({
+    const sprints = await this.prisma.sprint.findMany({
       where: whereClause,
       include: {
         project: {
@@ -158,6 +258,7 @@ export class SprintsService {
         { createdAt: 'desc' },
       ],
     });
+    return this.ensureSlugs(sprints);
   }
   async findAllByProjectSlug(
     requestUserId: string,
@@ -193,7 +294,7 @@ export class SprintsService {
       whereClause.status = status;
     }
 
-    return this.prisma.sprint.findMany({
+    const sprints = await this.prisma.sprint.findMany({
       where: whereClause,
       include: {
         project: {
@@ -221,6 +322,7 @@ export class SprintsService {
         { createdAt: 'desc' }, // Recent sprints first
       ],
     });
+    return this.ensureSlugs(sprints);
   }
 
   async findOne(id: string, requestUserId: string): Promise<Sprint> {
@@ -300,7 +402,7 @@ export class SprintsService {
     // Authorization check
     await this.accessControl.getProjectAccess(sprint.projectId, requestUserId);
 
-    return sprint;
+    return this.ensureSlug(sprint);
   }
 
   async getActiveSprint(projectId: string, requestUserId: string) {

@@ -80,6 +80,20 @@ export class SprintsController {
     return this.sprintsService.findAllByProjectSlug(user.id as string, slug, status);
   }
 
+  @Get('by-slug/:projectSlug/:sprintSlug')
+  @ApiOperation({ summary: 'Get sprint by project slug and sprint slug' })
+  @ApiParam({ name: 'projectSlug', description: 'Project slug' })
+  @ApiParam({ name: 'sprintSlug', description: 'Sprint slug' })
+  @ApiResponse({ status: 200, description: 'Sprint details' })
+  @ApiResponse({ status: 404, description: 'Sprint not found' })
+  findBySlug(
+    @Param('projectSlug') projectSlug: string,
+    @Param('sprintSlug') sprintSlug: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.sprintsService.findBySlug(projectSlug, sprintSlug, user.id as string);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get sprint by ID' })
   @ApiParam({ name: 'id', description: 'Sprint ID (UUID)' })

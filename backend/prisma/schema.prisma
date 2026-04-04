@@ -446,6 +446,7 @@ model StatusTransition {
 model Sprint {
   id            String       @id @default(uuid()) @db.Uuid
   name          String
+  slug          String?
   goal          String?
   status        SprintStatus @default(PLANNING)
   isDefault     Boolean      @default(false) @map("is_default")
@@ -462,6 +463,7 @@ model Sprint {
   updatedByUser User?        @relation("SprintUpdatedBy", fields: [updatedBy], references: [id])
   tasks         Task[]
 
+  @@unique([projectId, slug])
   @@map("sprints")
 }
 
