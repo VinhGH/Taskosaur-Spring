@@ -30,6 +30,7 @@ import { useLayout } from "@/contexts/layout-context";
 import NotFound from "@/pages/404";
 import { useSlugRedirect, cacheSlugId } from "@/hooks/useSlugRedirect";
 import ActionButton from "@/components/common/ActionButton";
+import { sprintApi } from "@/utils/api/sprintApi";
 import { exportTasksToCSV, exportTasksToPDF, exportTasksToXLSX, exportTasksToJSON } from "@/utils/exportUtils";
 import {
   DropdownMenu,
@@ -52,7 +53,33 @@ function useDebounce<T>(value: T, delay: number): T {
 const SprintTasksTable = () => {
   const { t } = useTranslation(["sprints", "tasks", "common"]);
   const router = useRouter();
-  const { sprintId, projectSlug, workspaceSlug } = router.query;
+const { sprintId: sprintSlugOrId, projectSlug, workspaceSlug } = router.query;
+const isUUID = (val: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+const [resolvedSprintId, setResolvedSprintId] = useState<string | null>(null);
+
+useEffect(() => {
+  if (!sprintSlugOrId || !projectSlug) return;
+  
+  const val = sprintSlugOrId as string;
+  
+  if (isUUID(val)) {
+    setResolvedSprintId(val);
+  } else {
+    const resolveSlug = async () => {
+      try {
+        const sprint = await sprintApi.getSprintBySlug(val, projectSlug as string);
+        setResolvedSprintId(sprint.id);
+      } catch (err) {
+        console.error("Failed to resolve sprint slug:", err);
+        setResolvedSprintId(null);
+      }
+    };
+    
+    resolveSlug();
+  }
+}, [sprintSlugOrId, projectSlug]);
+
+const sprintId = resolvedSprintId;
 
   const { isAuthenticated, getUserAccess } = useAuth();
   const workspaceContext = useWorkspaceContext();
@@ -514,7 +541,7 @@ const SprintTasksTable = () => {
 
   useEffect(() => {
     loadTasks();
-  }, [selectedAssignees, selectedReporters, selectedStatuses, selectedPriorities, debouncedSearchQuery, sortField, sortOrder]);
+  }, [loadTasks, selectedAssignees, selectedReporters, selectedStatuses, selectedPriorities, debouncedSearchQuery, sortField, sortOrder]);
 
   useEffect(() => {
     if (currentView === "kanban") {
@@ -859,6 +886,7 @@ const SprintTasksTable = () => {
         <TaskListView
           tasks={sortedTasks}
           columns={columns}
+          workspaceSlug={workspaceSlug as string}
           projectSlug={projectSlug as string}
           projectMembers={projectMembers}
           addTaskStatuses={availableTaskStatuses}
@@ -913,6 +941,7 @@ const SprintTasksTable = () => {
           <TaskListView
             tasks={sortedTasks}
             columns={columns}
+            workspaceSlug={workspaceSlug as string}
             projectSlug={projectSlug as string}
             projectMembers={projectMembers}
             addTaskStatuses={availableTaskStatuses}

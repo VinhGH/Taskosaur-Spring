@@ -107,7 +107,7 @@ export const SprintCard = ({
       // Optionally display an error or just abort navigation
       return;
     }
-    router.push(`/${workspaceSlug}/${projectSlug}/sprints/${sprint.id}`);
+    router.push(`/${workspaceSlug}/${projectSlug}/sprints/${sprint.slug || sprint.id}`);
   };
 
   return (

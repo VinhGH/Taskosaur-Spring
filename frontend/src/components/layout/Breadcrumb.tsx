@@ -96,20 +96,18 @@ export default function Breadcrumb() {
 
     // Check if this is a task detail page
     // Patterns: /tasks/[slug], /[workspace]/tasks/[slug], /[workspace]/[project]/tasks/[slug]
-    // Also: /[workspace]/[project]/sprints/[sprintId]/[taskSlug] (sprint tasks)
     const taskSegmentIndex = segments.findIndex((seg, idx) => seg === 'tasks' && idx < segments.length - 1);
-    const isSprintTask = segments.length >= 5 &&
-                         segments[2] === 'sprints' &&
-                         segments[3] &&
-                         segments[4];
 
     // Handle sprint detail page
     if (isSprintDetail) {
-      const sprintId = segments[3];
+      const sprintIdOrSlug = segments[3];
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sprintIdOrSlug);
 
       const fetchSprintBreadcrumb = async () => {
         try {
-          const sprintResponse = await api.get(`/sprints/${encodeURIComponent(sprintId)}`);
+          const sprintResponse = isUUID
+            ? await api.get(`/sprints/${encodeURIComponent(sprintIdOrSlug)}`)
+            : await api.get(`/sprints/by-slug/${encodeURIComponent(segments[1])}/${encodeURIComponent(sprintIdOrSlug)}`);
           const sprint = sprintResponse.data;
 
           const items: BreadcrumbItem[] = [];
@@ -132,16 +130,9 @@ export default function Breadcrumb() {
             });
           }
 
-          // Add sprints
-          items.push({
-            name: 'Sprints',
-            href: `/${segments[0]}/${segments[1]}/sprints`,
-            current: false,
-          });
-
           // Add sprint name (current)
           items.push({
-            name: sprint?.name || formatSegment(sprintId),
+            name: sprint?.name || formatSegment(sprintIdOrSlug),
             current: true,
           });
 
@@ -156,10 +147,8 @@ export default function Breadcrumb() {
     }
 
     if (taskSegmentIndex !== -1 && taskSegmentIndex < segments.length - 1) {
-      // This is a task detail page: /tasks/[slug] or /[workspace]/tasks/[slug] or /[workspace]/[project]/tasks/[slug]
       const taskIdOrSlug = segments[taskSegmentIndex + 1];
 
-      // Fetch task data by slug for proper breadcrumb
       const fetchTaskBreadcrumb = async () => {
         try {
           const response = await api.get(`/tasks/key/${encodeURIComponent(taskIdOrSlug)}`);
@@ -167,104 +156,39 @@ export default function Breadcrumb() {
 
           const items: BreadcrumbItem[] = [];
 
-          // Determine URL structure from segments
-          const hasWorkspace = taskSegmentIndex >= 1 && segments[0] !== 'tasks';
-          const hasProject = taskSegmentIndex >= 2 && segments[1] !== 'tasks';
+          const urlWorkspace = taskSegmentIndex >= 1 && segments[0] !== 'tasks' ? segments[0] : null;
+          const urlProject = taskSegmentIndex >= 2 && segments[1] !== 'tasks' ? segments[1] : null;
 
-          // Add workspace if it's in the URL
-          if (hasWorkspace && segments[0]) {
-            items.push({
-              name: formatSegment(segments[0]),
-              href: `/${segments[0]}`,
-              current: false,
-            });
-          }
+          const wsSlug = urlWorkspace || task.project?.workspace?.slug;
+          const wsName = task.project?.workspace?.name;
 
-          // Add project if it's in the URL
-          if (hasProject && segments[1]) {
-            const projectHref = `/${segments[0]}/${segments[1]}`;
-            items.push({
-              name: formatSegment(segments[1]),
-              href: projectHref,
-              current: false,
-            });
-          }
-
-          // Add task (current) - use slug from task data or URL
-          const taskSlug = task.slug || taskIdOrSlug;
-          items.push({
-            name: decodeURIComponent(taskSlug).replace(/-/g, ' '),
-            current: true,
-          });
-
-          setBreadcrumbs(items);
-        } catch (error) {
-          console.error('Failed to fetch task data for breadcrumb:', error);
-          // Fallback to URL-based breadcrumb
-          buildBreadcrumbFromSegments(segments);
-        }
-      };
-      fetchTaskBreadcrumb();
-      return;
-    }
-
-    // Handle sprint task URLs: /[workspace]/[project]/sprints/[sprintId]/[taskSlug]
-    if (isSprintTask) {
-      const taskIdOrSlug = segments[4];
-      const sprintId = segments[3];
-
-      const fetchTaskBreadcrumb = async () => {
-        try {
-          const response = await api.get(`/tasks/key/${encodeURIComponent(taskIdOrSlug)}`);
-          const task = response.data;
-
-          const items: BreadcrumbItem[] = [];
+          const pgSlug = urlProject || task.project?.slug;
+          const pgName = task.project?.name;
 
           // Add workspace
-          if (segments[0]) {
+          if (wsSlug) {
             items.push({
-              name: formatSegment(segments[0]),
-              href: `/${segments[0]}`,
+              name: wsName || formatSegment(wsSlug),
+              href: `/${wsSlug}`,
               current: false,
             });
           }
 
           // Add project
-          if (segments[1]) {
+          if (pgSlug && wsSlug) {
             items.push({
-              name: formatSegment(segments[1]),
-              href: `/${segments[0]}/${segments[1]}`,
+              name: pgName || formatSegment(pgSlug),
+              href: `/${wsSlug}/${pgSlug}`,
               current: false,
             });
           }
 
-          // Add sprints
-          items.push({
-            name: 'Sprints',
-            href: `/${segments[0]}/${segments[1]}/sprints`,
-            current: false,
-          });
-
-          // Add sprint name
-          if (sprintId) {
-            try {
-              const sprintResponse = await api.get(`/sprints/${encodeURIComponent(sprintId)}`);
-              const sprint = sprintResponse.data;
-              console.log('Sprint data:', sprint);
-              items.push({
-                name: sprint?.name || formatSegment(sprintId),
-                href: `/${segments[0]}/${segments[1]}/sprints/${sprintId}`,
-                current: false,
-              });
-            } catch (error) {
-              // If sprint fetch fails, use sprint ID as fallback
-              console.error('Failed to fetch sprint data for breadcrumb:', error);
-              items.push({
-                name: formatSegment(sprintId),
-                href: `/${segments[0]}/${segments[1]}/sprints/${sprintId}`,
-                current: false,
-              });
-            }
+          if (pgSlug && wsSlug) {
+            items.push({
+              name: 'Tasks',
+              href: `/${wsSlug}/${pgSlug}/tasks`,
+              current: false,
+            });
           }
 
           // Add task (current)

@@ -143,7 +143,7 @@ const SearchManager = () => {
         if (result.context.workspace && result.context.project) {
           const workspaceSlug = getWorkspaceSlug(result.context.workspace.name);
           const projectSlug = result.context.project.slug;
-          navigationUrl = `/${workspaceSlug}/${projectSlug}/sprints/${result.id}`;
+          navigationUrl = `/${workspaceSlug}/${projectSlug}/sprints/${result.metadata?.slug || result.slug || result.id}`;
         }
         router.push(navigationUrl);
         closeSearch();
