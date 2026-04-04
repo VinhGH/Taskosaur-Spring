@@ -484,12 +484,7 @@ export function NewTaskModal({
 
       try {
         const defaultStatus =
-          taskStatuses.find(
-            (status) =>
-              status.name.toLowerCase() === "todo" ||
-              status.name.toLowerCase() === "to do" ||
-              status.isDefault
-          ) || taskStatuses[0];
+          taskStatuses.find((status) => status.isDefault) || taskStatuses[0];
 
         if (!defaultStatus) {
           throw new Error(t("modal.errorNoStatus"));

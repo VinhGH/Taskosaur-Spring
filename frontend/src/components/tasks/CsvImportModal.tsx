@@ -276,12 +276,7 @@ export function CsvImportModal({
         }
 
         const defaultStatus =
-            statuses.find(
-                (s: any) =>
-                    s.name.toLowerCase() === "todo" ||
-                    s.name.toLowerCase() === "to do" ||
-                    s.isDefault
-            ) || statuses[0];
+            statuses.find((s: any) => s.isDefault) || statuses[0];
 
         if (!defaultStatus) {
             toast.error("No task statuses found for this project");

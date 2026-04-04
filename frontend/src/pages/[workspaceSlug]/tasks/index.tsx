@@ -341,15 +341,27 @@ function WorkspaceTasksContent() {
     try {
       setLocalError(null);
 
+      // When no status filter is selected on list view, exclude the last workflow status (completed/done)
+      let statusFilter: { statuses?: string } = {};
+      if (selectedStatuses.length > 0) {
+        statusFilter = { statuses: selectedStatuses.join(",") };
+      } else if (currentView === "list" && availableStatuses.length > 0) {
+        const maxPosition = Math.max(...availableStatuses.map((s) => s.position ?? 0));
+        const activeStatusIds = availableStatuses
+          .filter((s) => s.position !== maxPosition)
+          .flatMap((s) => s.allIds || [s.id]);
+        if (activeStatusIds.length > 0) {
+          statusFilter = { statuses: activeStatusIds.join(",") };
+        }
+      }
+
       // Build parameters for getAllTasks
       const params = {
         workspaceId: workspace.id,
         ...(selectedProjects.length > 0 && {
           projectId: selectedProjects.join(","),
         }),
-        ...(selectedStatuses.length > 0 && {
-          statuses: selectedStatuses.join(","),
-        }),
+        ...statusFilter,
         ...(selectedPriorities.length > 0 && {
           priorities: selectedPriorities.join(","),
         }),
@@ -392,6 +404,8 @@ function WorkspaceTasksContent() {
     selectedTaskTypes,
     selectedAssignees,
     selectedReporters,
+    availableStatuses,
+    currentView,
     validateRequiredData,
     getAllTasks,
     sortField,
@@ -442,10 +456,11 @@ function WorkspaceTasksContent() {
   }, [router.isReady, workspaceSlug]);
 
   useEffect(() => {
-    if (workspace?.organizationId && workspace?.id) {
+    // For list view, wait for statuses to load so we can exclude the last workflow status
+    if (workspace?.organizationId && workspace?.id && (currentView !== "list" || availableStatuses.length > 0)) {
       loadTasks();
     }
-  }, [workspace?.organizationId, workspace?.id, selectedAssignees, selectedReporters]);
+  }, [workspace?.organizationId, workspace?.id, selectedAssignees, selectedReporters, availableStatuses, currentView]);
 
   const previousFiltersRef = useRef({
     page: currentPage,

@@ -408,12 +408,24 @@ function ProjectTasksContent() {
     try {
       setLocalError(null);
 
+      // When no status filter is selected on list view, exclude the last workflow status (completed/done)
+      let statusFilter: { statuses?: string } = {};
+      if (selectedStatuses.length > 0) {
+        statusFilter = { statuses: selectedStatuses.join(",") };
+      } else if (currentView === "list" && availableStatuses.length > 0) {
+        const maxPosition = Math.max(...availableStatuses.map((s) => s.position ?? 0));
+        const activeStatusIds = availableStatuses
+          .filter((s) => s.position !== maxPosition)
+          .map((s) => s.id);
+        if (activeStatusIds.length > 0) {
+          statusFilter = { statuses: activeStatusIds.join(",") };
+        }
+      }
+
       const params = {
         projectId: project.id,
         workspaceId: workspace.id,
-        ...(selectedStatuses.length > 0 && {
-          statuses: selectedStatuses.join(","),
-        }),
+        ...statusFilter,
         ...(selectedPriorities.length > 0 && {
           priorities: selectedPriorities.join(","),
         }),
@@ -454,6 +466,8 @@ function ProjectTasksContent() {
     selectedStatuses,
     selectedPriorities,
     selectedTaskTypes,
+    availableStatuses,
+    currentView,
     validateRequiredData,
     getAllTasks,
     sortField,
@@ -576,13 +590,14 @@ function ProjectTasksContent() {
 
   useEffect(() => {
     if (isAuth) {
-      if (currentOrganizationId && project?.id) {
+      // For list view, wait for statuses to load so we can exclude the last workflow status
+      if (currentOrganizationId && project?.id && (currentView !== "list" || statusesLoaded)) {
         loadTasks();
       }
     } else {
       loadPublicTasks();
     }
-  }, [currentOrganizationId, project?.id, isAuth]);
+  }, [currentOrganizationId, project?.id, isAuth, statusesLoaded, currentView]);
 
   useEffect(() => {
     if (project?.id && isAuth) {

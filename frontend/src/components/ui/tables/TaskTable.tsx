@@ -438,9 +438,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
   const loadTaskCreationData = () => {
     if (localAddTaskStatuses && localAddTaskStatuses.length > 0) {
       const defaultStatus =
-        localAddTaskStatuses.find(
-          (s) => s.name.toLowerCase() === "todo" || s.name.toLowerCase() === "to do"
-        ) || localAddTaskStatuses[0];
+        localAddTaskStatuses.find((s) => s.isDefault) || localAddTaskStatuses[0];
 
       if (defaultStatus) {
         setNewTaskData((prev) => ({ ...prev, statusId: defaultStatus.id }));
@@ -898,13 +896,22 @@ const TaskTable: React.FC<TaskTableProps> = ({
   };
 
   const handleRowClick = async (task: Task) => {
-    // Update URL to include only task slug (not UUID)
-    const currentPath = window.location.pathname;
     const slug = task.slug || "";
-    const newUrl = `${currentPath.replace(/\/$/, "")}/${slug}`;
+
+    const wsSlug = workspaceSlug || task.project?.workspace?.slug;
+    const pgSlug = projectSlug || task.project?.slug;
+
+    let newUrl = "";
+    if (wsSlug && pgSlug) {
+      newUrl = `/${wsSlug}/${pgSlug}/tasks/${slug}`;
+    } else if (wsSlug) {
+      newUrl = `/${wsSlug}/tasks/${slug}`;
+    } else {
+      newUrl = `/tasks/${slug}`;
+    }
 
     // Check if URL is already correct to avoid duplicate pushes
-    if (!window.location.pathname.endsWith(slug)) {
+    if (window.location.pathname !== newUrl) {
       window.history.pushState({ taskOpen: true }, "", newUrl);
     }
 
