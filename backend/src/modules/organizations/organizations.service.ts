@@ -165,6 +165,18 @@ export class OrganizationsService {
           },
         });
 
+        // Set as default organization if user doesn't have one yet
+        const user = await tx.user.findUnique({
+          where: { id: userId },
+          select: { defaultOrganizationId: true },
+        });
+        if (!user?.defaultOrganizationId) {
+          await tx.user.update({
+            where: { id: userId },
+            data: { defaultOrganizationId: organization.id },
+          });
+        }
+
         // Create default status transitions
         const defaultWorkflow = organization.workflows[0];
         if (defaultWorkflow) {
