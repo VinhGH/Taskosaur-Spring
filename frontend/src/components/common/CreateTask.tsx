@@ -234,6 +234,13 @@ export default function CreateTask({ projectSlug, workspace, projects }: CreateT
       try {
         const statuses = await getTaskStatusByProject(projectId);
         setAvailableStatuses(statuses);
+
+        // Auto-select the default status from the project's workflow
+        const defaultStatus =
+          statuses.find((s: any) => s.isDefault) || statuses[0];
+        if (defaultStatus) {
+          setFormData((prev) => ({ ...prev, status: defaultStatus.id }));
+        }
       } catch (error) {
         console.error("Failed to fetch project statuses:", error);
         setAvailableStatuses([]);
@@ -377,12 +384,7 @@ export default function CreateTask({ projectSlug, workspace, projects }: CreateT
     try {
 
       const defaultStatus =
-        availableStatuses.find(
-          (status) =>
-            status.name.toLowerCase() === "todo" ||
-            status.name.toLowerCase() === "to do" ||
-            status.isDefault
-        ) || availableStatuses[0];
+        availableStatuses.find((status) => status.isDefault) || availableStatuses[0];
 
 
       const taskData: any = {

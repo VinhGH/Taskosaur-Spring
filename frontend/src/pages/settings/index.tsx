@@ -11,7 +11,7 @@ import EmptyState from "@/components/common/EmptyState";
 import { EntityCard } from "@/components/common/EntityCard";
 import { useWorkspaceContext } from "@/contexts/workspace-context";
 import OrganizationFormModal from "@/components/organizations/OrganizationFormModal";
-import { ChartNoAxesGantt, Star, Users } from "lucide-react";
+import { ChartNoAxesGantt, Check, Users } from "lucide-react";
 import Tooltip from "@/components/common/ToolTip";
 import { useRouter } from "next/router";
 import { Badge } from "@/components/ui";
@@ -178,15 +178,16 @@ function OrganizationSettingsPageContent() {
                   }`}
                   leading={
                     <div className="relative">
-                      <div className="w-9 h-9 rounded-md bg-gradient-to-br from-[var(--primary)] to-[var(--primary)]/80 flex items-center justify-center text-[var(--primary-foreground)] font-semibold text-sm">
+                      <div
+                        className={cn(
+                          "w-9 h-9 rounded-md flex items-center justify-center font-semibold text-sm",
+                          organization.isDefault
+                            ? "bg-gradient-to-br from-[var(--primary)] to-[var(--primary)]/80 text-[var(--primary-foreground)] ring-2 ring-[var(--primary)]/30 ring-offset-1 ring-offset-[var(--card)]"
+                            : "bg-gradient-to-br from-[var(--primary)] to-[var(--primary)]/80 text-[var(--primary-foreground)]"
+                        )}
+                      >
                         {organization.name?.charAt(0)?.toUpperCase() || "?"}
                       </div>
-                      {/* Default badge on avatar */}
-                      {organization.isDefault && (
-                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center border-2 border-[var(--card)]">
-                          <Star className="h-2.5 w-2.5 text-white fill-white" />
-                        </div>
-                      )}
                     </div>
                   }
                   heading={
@@ -194,42 +195,30 @@ function OrganizationSettingsPageContent() {
                       <span className="font-semibold text-[var(--foreground)] truncate text-sm capitalize">
                         {organization.name}
                       </span>
-                      {/* Set as Default Button - Always Visible */}
-                      <Tooltip
-                        content={
-                          organization.isDefault
-                            ? t("organization_management.default_badge")
-                            : t("organization_management.set_default")
-                        }
-                        position="top"
-                      >
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (!organization.isDefault) {
-                              handleSetDefaultOrganization(organization.id);
-                            }
-                          }}
-                          disabled={organization.isDefault}
-                          aria-label={
-                            organization.isDefault
-                              ? t("organization_management.default_badge")
-                              : t("organization_management.set_default")
-                          }
-                          className={cn(
-                            "h-6 w-6 p-0 rounded-full transition-all duration-200 flex-shrink-0",
-                            organization.isDefault
-                              ? "text-green-600 dark:text-green-400 cursor-default bg-transparent hover:bg-transparent"
-                              : "hover:bg-[var(--accent)] text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-                          )}
+                      {organization.isDefault ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 flex-shrink-0 uppercase tracking-wide">
+                          <Check className="h-3 w-3" />
+                          {t("organization_management.default_badge")}
+                        </span>
+                      ) : (
+                        <Tooltip
+                          content={t("organization_management.set_default")}
+                          position="top"
                         >
-                          {!organization.isDefault && (
-                            <div className="h-3.5 w-3.5 rounded-full border-2 border-current" />
-                          )}
-                        </Button>
-                      </Tooltip>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSetDefaultOrganization(organization.id);
+                            }}
+                            aria-label={t("organization_management.set_default")}
+                            className="h-6 px-2 py-0 rounded-full text-[10px] font-medium text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--accent)] border border-[var(--border)] transition-all duration-200 flex-shrink-0"
+                          >
+                            {t("organization_management.set_default")}
+                          </Button>
+                        </Tooltip>
+                      )}
                     </div>
                   }
                   subheading={
