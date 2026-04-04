@@ -48,6 +48,14 @@ export class ProjectsService {
     private readonly activityLog: ActivityLogService,
   ) {}
 
+  private async isSuperAdmin(userId: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    return user?.role === 'SUPER_ADMIN';
+  }
+
   async create(createProjectDto: CreateProjectDto, userId: string): Promise<Project> {
     // Verify workspace exists and user has access
     const workspace = await this.prisma.workspace.findUnique({
@@ -305,7 +313,7 @@ export class ProjectsService {
     throw new ConflictException('Could not generate a unique slug after multiple attempts');
   }
 
-  findAll(
+  async findAll(
     workspaceId?: string,
     userId?: string,
     filters?: {
@@ -361,11 +369,15 @@ export class ProjectsService {
     // Sanitize search parameter
     const sanitizedSearch = InputSanitizer.sanitizeSearch(search);
 
+    const isSuperAdmin = await this.isSuperAdmin(userId);
+
     const whereClause: any = {
       archive: false,
       workspace: { archive: false },
-      OR: [
-        { visibility: 'PUBLIC' },
+    };
+    if (!isSuperAdmin) {
+      whereClause.OR = [
+        { visibility: 'PUBLIC', workspace: { organization: { members: { some: { userId } } } } },
         { members: { some: { userId } } },
         {
           visibility: 'INTERNAL',
@@ -377,8 +389,8 @@ export class ProjectsService {
             members: { some: { userId, role: { in: [Role.OWNER, Role.MANAGER] } } },
           },
         },
-      ],
-    };
+      ];
+    }
     if (workspaceId) {
       whereClause.workspace.id = workspaceId;
     }
@@ -511,11 +523,16 @@ export class ProjectsService {
     });
 
     if (!org) throw new NotFoundException('Organization not found');
+
+    const isSuperAdmin = await this.isSuperAdmin(userId);
+
     const whereClause: any = {
       workspace: { organizationId, archive: false },
       archive: false,
-      OR: [
-        { visibility: 'PUBLIC' },
+    };
+    if (!isSuperAdmin) {
+      whereClause.OR = [
+        { visibility: 'PUBLIC', workspace: { organization: { members: { some: { userId } } } } },
         { members: { some: { userId } } },
         {
           visibility: 'INTERNAL',
@@ -527,8 +544,8 @@ export class ProjectsService {
             members: { some: { userId, role: { in: [Role.OWNER, Role.MANAGER] } } },
           },
         },
-      ],
-    };
+      ];
+    }
     if (workspaceId) {
       whereClause.workspace.id = workspaceId;
     }
@@ -609,22 +626,28 @@ export class ProjectsService {
     userId: string,
     workspaceId?: string,
   ): Promise<string[]> {
-    const projects = await this.prisma.project.findMany({
-      where: {
-        workspace: {
-          organizationId,
-          ...(workspaceId && { id: workspaceId }),
-        },
-        archive: false,
-        OR: [
-          { visibility: 'PUBLIC' },
-          { members: { some: { userId } } },
-          {
-            visibility: 'INTERNAL',
-            workspace: { members: { some: { userId } } },
-          },
-        ],
+    const isSuperAdmin = await this.isSuperAdmin(userId);
+
+    const whereClause: any = {
+      workspace: {
+        organizationId,
+        ...(workspaceId && { id: workspaceId }),
       },
+      archive: false,
+    };
+    if (!isSuperAdmin) {
+      whereClause.OR = [
+        { visibility: 'PUBLIC', workspace: { organization: { members: { some: { userId } } } } },
+        { members: { some: { userId } } },
+        {
+          visibility: 'INTERNAL',
+          workspace: { members: { some: { userId } } },
+        },
+      ];
+    }
+
+    const projects = await this.prisma.project.findMany({
+      where: whereClause,
       select: { id: true },
     });
 
@@ -972,13 +995,20 @@ export class ProjectsService {
   }
 
   // Additional helper methods for search functionality
-  findBySearch(workspaceId?: string, organizationId?: string, search?: string, userId?: string) {
+  async findBySearch(
+    workspaceId?: string,
+    organizationId?: string,
+    search?: string,
+    userId?: string,
+  ) {
     if (!userId) {
       throw new ForbiddenException('User context required');
     }
 
     // Sanitize search parameter
     const sanitizedSearch = InputSanitizer.sanitizeSearch(search);
+
+    const isSuperAdmin = await this.isSuperAdmin(userId);
 
     const whereClause: any = { archive: false, workspace: { archive: false } };
 
@@ -990,20 +1020,22 @@ export class ProjectsService {
     }
 
     // Add user access filtering
-    whereClause.OR = [
-      { visibility: 'PUBLIC' },
-      { members: { some: { userId } } },
-      {
-        visibility: 'INTERNAL',
-        workspace: { members: { some: { userId } } },
-      },
-      { workspace: { organization: { ownerId: userId } } },
-      {
-        workspace: {
-          members: { some: { userId, role: { in: [Role.OWNER, Role.MANAGER] } } },
+    if (!isSuperAdmin) {
+      whereClause.OR = [
+        { visibility: 'PUBLIC', workspace: { organization: { members: { some: { userId } } } } },
+        { members: { some: { userId } } },
+        {
+          visibility: 'INTERNAL',
+          workspace: { members: { some: { userId } } },
         },
-      },
-    ];
+        { workspace: { organization: { ownerId: userId } } },
+        {
+          workspace: {
+            members: { some: { userId, role: { in: [Role.OWNER, Role.MANAGER] } } },
+          },
+        },
+      ];
+    }
 
     // Add search filter with sanitized input
     if (sanitizedSearch) {
@@ -1014,8 +1046,12 @@ export class ProjectsService {
         { slug: { contains: escapedSearch, mode: 'insensitive' } },
       ];
 
-      whereClause.AND = [{ OR: whereClause.OR }, { OR: searchConditions }];
-      delete whereClause.OR;
+      if (!isSuperAdmin) {
+        whereClause.AND = [{ OR: whereClause.OR }, { OR: searchConditions }];
+        delete whereClause.OR;
+      } else {
+        whereClause.AND = [{ OR: searchConditions }];
+      }
     }
 
     return this.prisma.project.findMany({
@@ -1068,6 +1104,8 @@ export class ProjectsService {
     // Sanitize search parameter
     const sanitizedSearch = InputSanitizer.sanitizeSearch(search);
 
+    const isSuperAdmin = await this.isSuperAdmin(userId);
+
     const whereClause: any = { archive: false, workspace: { archive: false } };
 
     if (workspaceId) {
@@ -1077,20 +1115,22 @@ export class ProjectsService {
     }
 
     // Add user access filtering
-    whereClause.OR = [
-      { visibility: 'PUBLIC' },
-      { members: { some: { userId } } },
-      {
-        visibility: 'INTERNAL',
-        workspace: { members: { some: { userId } } },
-      },
-      { workspace: { organization: { ownerId: userId } } },
-      {
-        workspace: {
-          members: { some: { userId, role: { in: [Role.OWNER, Role.MANAGER] } } },
+    if (!isSuperAdmin) {
+      whereClause.OR = [
+        { visibility: 'PUBLIC', workspace: { organization: { members: { some: { userId } } } } },
+        { members: { some: { userId } } },
+        {
+          visibility: 'INTERNAL',
+          workspace: { members: { some: { userId } } },
         },
-      },
-    ];
+        { workspace: { organization: { ownerId: userId } } },
+        {
+          workspace: {
+            members: { some: { userId, role: { in: [Role.OWNER, Role.MANAGER] } } },
+          },
+        },
+      ];
+    }
 
     if (sanitizedSearch) {
       const escapedSearch = InputSanitizer.escapeLikeString(sanitizedSearch);
@@ -1100,8 +1140,12 @@ export class ProjectsService {
         { slug: { contains: escapedSearch, mode: 'insensitive' } },
       ];
 
-      whereClause.AND = [{ OR: whereClause.OR }, { OR: searchConditions }];
-      delete whereClause.OR;
+      if (!isSuperAdmin) {
+        whereClause.AND = [{ OR: whereClause.OR }, { OR: searchConditions }];
+        delete whereClause.OR;
+      } else {
+        whereClause.AND = [{ OR: searchConditions }];
+      }
     }
 
     const [totalCount, projects] = await Promise.all([

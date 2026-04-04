@@ -127,13 +127,15 @@ export class WorkspacesService {
 
     return slug;
   }
-  findAll(userId: string, organizationId?: string, search?: string): Promise<Workspace[]> {
+  async findAll(userId: string, organizationId?: string, search?: string): Promise<Workspace[]> {
+    let isSuperAdmin = false;
     if (organizationId) {
-      void this.accessControl.getOrgAccess(organizationId, userId);
+      const access = await this.accessControl.getOrgAccess(organizationId, userId);
+      isSuperAdmin = access.isSuperAdmin;
     }
 
     const whereClause: any = { archive: false, organizationId };
-    if (userId) {
+    if (userId && !isSuperAdmin) {
       whereClause.members = { some: { userId } };
     }
 
@@ -200,12 +202,14 @@ export class WorkspacesService {
       hasPrevPage: boolean;
     };
   }> {
+    let isSuperAdmin = false;
     if (organizationId) {
-      await this.accessControl.getOrgAccess(organizationId, userId);
+      const access = await this.accessControl.getOrgAccess(organizationId, userId);
+      isSuperAdmin = access.isSuperAdmin;
     }
 
     const whereClause: any = { archive: false, organizationId };
-    if (userId) {
+    if (userId && !isSuperAdmin) {
       whereClause.members = { some: { userId } };
     }
 
@@ -399,12 +403,17 @@ export class WorkspacesService {
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
     }
-    const member = await this.prisma.workspaceMember.findUnique({
-      where: { userId_workspaceId: { userId, workspaceId: workspace.id } },
-    });
-    if (!member) {
-      throw new ForbiddenException('Not a member of this workspace');
+
+    const access = await this.accessControl.getWorkspaceAccess(workspace.id, userId);
+    if (!access.isSuperAdmin) {
+      const member = await this.prisma.workspaceMember.findUnique({
+        where: { userId_workspaceId: { userId, workspaceId: workspace.id } },
+      });
+      if (!member) {
+        throw new ForbiddenException('Not a member of this workspace');
+      }
     }
+
     return workspace;
   }
 
