@@ -40,6 +40,7 @@ import {
   PaginationNext,
 } from "@/components/ui/pagination";
 import type { Task, ColumnConfig } from "@/types";
+import type { TaskStatus } from "@/types/task-status";
 import { TaskPriorities, TaskTypeIcon } from "@/utils/data/taskData";
 import { StatusBadge } from "@/components/badges";
 import TaskDetailClient from "@/components/tasks/TaskDetailClient";
@@ -403,9 +404,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false); // For multi-select popover
   const [allDelete, setAllDelete] = useState<boolean>(false);
   const [excludedTaskIds, setExcludedTaskIds] = useState<string[]>([]);
-  const [localAddTaskStatuses, setLocalAddTaskStatuses] = useState<
-    Array<{ id: string; name: string }>
-  >([]);
+  const [localAddTaskStatuses, setLocalAddTaskStatuses] = useState<TaskStatus[]>([]);
   const [localAddTaskProjectMembers, setLocalAddTaskProjectMembers] = useState<any[]>([]);
 
   useEffect(() => {
