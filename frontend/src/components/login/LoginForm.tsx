@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
+import api, { TokenManager } from "@/lib/api";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Eye, EyeOff, Loader2, Mail, Lock, ArrowRight, Sparkle } from "lucide-react";
+import { Eye, EyeOff, Loader2, Mail, Lock, ArrowRight, Sparkle, Shield } from "lucide-react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 interface FormData {
@@ -30,6 +31,45 @@ export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [registrationEnabled, setRegistrationEnabled] = useState(true);
+  const [ssoConfig, setSsoConfig] = useState<{ enabled: boolean; configured: boolean; providerName: string } | null>(null);
+
+  useEffect(() => {
+    api.get("/auth/registration-status")
+      .then((res) => setRegistrationEnabled(res.data?.enabled !== false))
+      .catch(() => setRegistrationEnabled(true));
+
+    api.get("/auth/oidc/config")
+      .then((res) => setSsoConfig(res.data))
+      .catch(() => setSsoConfig(null));
+
+    // Handle SSO callback — exchange httpOnly cookie for tokens securely
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("sso") === "callback") {
+      // Clean URL immediately
+      window.history.replaceState({}, document.title, "/login");
+
+      api.post("/auth/oidc/exchange")
+        .then((res) => {
+          const { access_token, refresh_token, user } = res.data;
+          if (access_token && refresh_token) {
+            TokenManager.setAccessToken(access_token);
+            TokenManager.setRefreshToken(refresh_token);
+            if (user) localStorage.setItem("user", JSON.stringify(user));
+            window.location.href = "/dashboard";
+          } else {
+            setError("Failed to process SSO login");
+          }
+        })
+        .catch(() => setError("SSO authentication failed. Please try again."));
+    }
+
+    const ssoError = params.get("error");
+    if (ssoError === "sso_failed" || ssoError === "sso_invalid_state") {
+      window.history.replaceState({}, document.title, "/login");
+      setError(params.get("message") || "SSO authentication failed. Please try again.");
+    }
+  }, []);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -227,6 +267,45 @@ export function LoginForm() {
         </motion.div>
       </form>
 
+      {/* SSO Login Button */}
+      {ssoConfig?.enabled && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.45 }}
+            className="login-divider-container"
+          >
+            <div className="login-divider-text-container">
+              <span className="login-divider-text">Or continue with</span>
+            </div>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+          >
+            <Button
+              type="button"
+              variant="outline"
+              className="login-signup-button"
+              disabled={!ssoConfig.configured}
+              onClick={() => {
+                if (ssoConfig.configured) {
+                  window.location.href = `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000/api"}/auth/oidc/login`;
+                }
+              }}
+            >
+              <Shield className="w-4 h-4 mr-2" />
+              {ssoConfig.providerName || "Sign in with SSO"}
+              {!ssoConfig.configured && (
+                <span className="text-xs ml-1 opacity-60">(not configured)</span>
+              )}
+            </Button>
+          </motion.div>
+        </>
+      )}
+
       {/* Divider */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -237,24 +316,28 @@ export function LoginForm() {
         <div className="login-divider-line">
           <div className="login-divider-border" />
         </div>
-        <div className="login-divider-text-container">
-          <span className="login-divider-text">New to Taskosaur?</span>
-        </div>
+        {registrationEnabled && (
+          <div className="login-divider-text-container">
+            <span className="login-divider-text">New to Taskosaur?</span>
+          </div>
+        )}
       </motion.div>
 
       {/* Sign Up Link */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.6 }}
-      >
-        <Link href="/register">
-          <Button variant="outline" className="login-signup-button">
-            Create New Account
-            <ArrowRight className="login-button-arrow" />
-          </Button>
-        </Link>
-      </motion.div>
+      {registrationEnabled && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.6 }}
+        >
+          <Link href="/register">
+            <Button variant="outline" className="login-signup-button">
+              Create New Account
+              <ArrowRight className="login-button-arrow" />
+            </Button>
+          </Link>
+        </motion.div>
+      )}
 
       {/* Footer */}
       <motion.div

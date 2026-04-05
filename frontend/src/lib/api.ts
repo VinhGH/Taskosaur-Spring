@@ -240,7 +240,7 @@ const safeRedirect = (url: string): void => {
   try {
     if (typeof window !== "undefined") {
       const currentPath = window.location.pathname;
-      const publicPaths = ["/login", "/register", "/forgot-password", "/reset-password", "/404", "/public"];
+      const publicPaths = ["/login", "/register", "/forgot-password", "/reset-password", "/404", "/public", "/setup"];
 
       // Don't redirect if already on a public page or 404
       // Use some() with startsWith to catch sub-routes like /public/task/...
@@ -316,9 +316,13 @@ api.interceptors.request.use(
     try {
       const token = TokenManager.getAccessToken();
       // Don't add token for public endpoints to avoid 401s from stale tokens
-      // Check if URL contains /public/ which covers both relative and absolute URLs
-      const isPublicEndpoint = config.url?.includes("/public/");
-      
+      const isPublicEndpoint =
+        config.url?.includes("/public/") ||
+        config.url?.includes("/users/exists") ||
+        config.url?.includes("/auth/setup") ||
+        config.url?.includes("/auth/registration-status") ||
+        config.url?.includes("/auth/oidc/");
+
       if (token && config.headers && !isPublicEndpoint) {
         config.headers.Authorization = `Bearer ${token}`;
       }

@@ -17,6 +17,7 @@ import {
   HiMenu,
   HiLightningBolt,
   HiViewBoards,
+  HiShieldCheck,
 } from "react-icons/hi";
 import { useProject } from "@/contexts/project-context";
 
@@ -49,6 +50,7 @@ const usePathnameParsing = (pathname: string, isMounted: boolean) => {
       "settings",
       "tasks",
       "notifications",
+      "admin",
     ];
 
     // Define workspace-level routes that should not be treated as project slugs
@@ -77,8 +79,9 @@ const usePathnameParsing = (pathname: string, isMounted: boolean) => {
 export default function Sidebar() {
   const router = useRouter();
   const pathname = router.asPath.split("?")[0];
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, getCurrentUser } = useAuth();
   const isAuth = isAuthenticated();
+  const currentUser = getCurrentUser();
   const { getProjectBySlug, currentProject } = useProject();
   const [isMounted, setIsMounted] = useState(false);
   const [miniPathName, setMiniPathName] = useState("");
@@ -178,8 +181,20 @@ export default function Sidebar() {
             },
           ]
         : []),
+      // Admin panel only shown to super admins
+      ...(isAuth && currentUser?.role === "SUPER_ADMIN"
+        ? [
+            {
+              name: "Admin",
+              href: "/admin",
+              icon: <HiShieldCheck size={16} />,
+              title: "System Administration",
+              disabled: false,
+            },
+          ]
+        : []),
     ],
-    [isAuth]
+    [isAuth, currentUser?.role]
   );
 
   const workspaceNavItems = useMemo(

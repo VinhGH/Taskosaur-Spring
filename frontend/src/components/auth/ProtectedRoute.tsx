@@ -48,7 +48,7 @@ export default function ProtectedRoute({
 
   //For Public
   const isProjectRoute = router.pathname.includes("/[workspaceSlug]/[projectSlug]") ||
-    (typeof window !== "undefined" && /\/[^\/]+\/[^\/]+/.test(window.location.pathname) && !window.location.pathname.startsWith("/public/"));
+    (typeof window !== "undefined" && /\/[^\/]+\/[^\/]+/.test(window.location.pathname) && !window.location.pathname.startsWith("/public/") && !window.location.pathname.startsWith("/admin"));
   const is404 = router.pathname === "/404";
   // Check the actual path to exclude settings and members routes
   const actualPath = typeof window !== "undefined" ? window.location.pathname : router.asPath.split("?")[0];
@@ -98,6 +98,11 @@ export default function ProtectedRoute({
           }
         }
         return { isAuth: true, redirectPath: "/dashboard", isOrg: true };
+      }
+
+      // Admin routes bypass org check — super admin can access without an org
+      if (router.pathname.startsWith("/admin")) {
+        return { isAuth: true, isOrg: true };
       }
 
       if (typeof checkOrganizationAndRedirect === "function") {
