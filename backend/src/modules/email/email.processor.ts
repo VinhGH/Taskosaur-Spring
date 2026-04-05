@@ -8,6 +8,7 @@ import { QueueService } from '../queue/services/queue.service';
 import { QueueConfigService } from '../queue/config/queue-config.service';
 import { convertMarkdownToHtml } from '../../common/utils/markdown.util';
 import { sanitizeHtml } from '../../common/utils/sanitizer.util';
+import { SettingsService } from '../settings/settings.service';
 
 @QueueProcessor('email')
 export class EmailProcessor implements OnModuleInit {
@@ -18,6 +19,7 @@ export class EmailProcessor implements OnModuleInit {
     private configService: ConfigService,
     private queueService: QueueService,
     private queueConfigService: QueueConfigService,
+    private settingsService: SettingsService,
   ) {
     // initializeTransporter is now async and called in onModuleInit
   }
@@ -78,14 +80,30 @@ export class EmailProcessor implements OnModuleInit {
     }
   }
 
-  private async initializeTransporter() {
-    const smtpHost = this.configService.get<string>('SMTP_HOST');
-    const smtpPort = Number(this.configService.get<number>('SMTP_PORT', 587));
-    const smtpUser = this.configService.get<string>('SMTP_USER');
-    const smtpPass = this.configService.get<string>('SMTP_PASS');
+  /**
+   * Get SMTP config value: DB setting takes priority, env var is fallback.
+   */
+  private async getSmtpConfig(
+    key: string,
+    envKey: string,
+    defaultValue?: string,
+  ): Promise<string | undefined> {
+    // DB setting (lowercase key) takes priority
+    const dbValue = await this.settingsService.get(key);
+    if (dbValue) return dbValue;
+    // Fallback to env var
+    return this.configService.get<string>(envKey, defaultValue as string) || undefined;
+  }
+
+  async initializeTransporter() {
+    const smtpHost = await this.getSmtpConfig('smtp_host', 'SMTP_HOST');
+    const smtpPort = Number(await this.getSmtpConfig('smtp_port', 'SMTP_PORT', '587'));
+    const smtpUser = await this.getSmtpConfig('smtp_user', 'SMTP_USER');
+    const smtpPass = await this.getSmtpConfig('smtp_pass', 'SMTP_PASS');
 
     if (!smtpHost || !smtpUser || !smtpPass) {
       this.logger.warn('SMTP configuration missing. Email sending will be simulated.');
+      this.transporter = null;
       return;
     }
 
@@ -98,13 +116,11 @@ export class EmailProcessor implements OnModuleInit {
           user: smtpUser,
           pass: smtpPass,
         },
-        // Add TLS configuration for AWS SES compatibility
         tls: {
           rejectUnauthorized: this.configService.get('NODE_ENV') !== 'development',
         },
       });
 
-      // Verify connection configuration
       await this.transporter.verify();
       this.logger.log(
         `SMTP transporter initialized and VERIFIED successfully for ${smtpHost}:${smtpPort}`,
@@ -119,11 +135,15 @@ export class EmailProcessor implements OnModuleInit {
   }
 
   async process(job: IJob<EmailJobData>) {
+    // If transporter not initialized, try to reinitialize (config may have been set via admin)
     if (!this.transporter) {
-      const smtpHost = this.configService.get<string>('SMTP_HOST');
+      await this.initializeTransporter();
+    }
+    if (!this.transporter) {
+      const smtpHost = await this.getSmtpConfig('smtp_host', 'SMTP_HOST');
       if (smtpHost) {
         this.logger.warn(
-          `Email job ${job.id} started but SMTP transporter is not initialized. Verification failed at startup.`,
+          `Email job ${job.id} started but SMTP transporter is not initialized. Verification failed.`,
         );
       }
     }
@@ -132,7 +152,7 @@ export class EmailProcessor implements OnModuleInit {
 
   async handleSendEmail(job: IJob<EmailJobData>) {
     const { to, subject, template, data } = job.data;
-    const smtpFrom = this.configService.get<string>('SMTP_FROM', 'noreply@taskosaur.com');
+    const smtpFrom = await this.getSmtpConfig('smtp_from', 'SMTP_FROM', 'noreply@taskosaur.com');
 
     this.logger.debug(`Processing email job for ${to} using template ${template}`);
 

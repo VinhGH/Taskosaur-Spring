@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SettingsService } from '../settings/settings.service';
 import { InjectQueue } from '../queue/decorators/inject-queue.decorator';
 import { IQueue } from '../queue/interfaces/queue.interface';
 import {
@@ -20,6 +21,7 @@ export class EmailService {
     @InjectQueue('email') private emailQueue: IQueue<EmailJobData>,
     private prisma: PrismaService,
     private configService: ConfigService,
+    private settingsService: SettingsService,
   ) {}
 
   async sendEmail(emailDto: SendEmailDto): Promise<void> {
@@ -506,10 +508,14 @@ export class EmailService {
     };
   }
 
-  isSmtpEnabled(): boolean {
-    const smtpHost = this.configService.get<string>('SMTP_HOST');
-    const smtpUser = this.configService.get<string>('SMTP_USER');
-    const smtpPass = this.configService.get<string>('SMTP_PASS');
+  async isSmtpEnabled(): Promise<boolean> {
+    // Check DB settings first, then env vars
+    const smtpHost =
+      (await this.settingsService.get('smtp_host')) || this.configService.get<string>('SMTP_HOST');
+    const smtpUser =
+      (await this.settingsService.get('smtp_user')) || this.configService.get<string>('SMTP_USER');
+    const smtpPass =
+      (await this.settingsService.get('smtp_pass')) || this.configService.get<string>('SMTP_PASS');
     return !!(smtpHost && smtpUser && smtpPass);
   }
 
