@@ -8,8 +8,11 @@ import {
   Get,
   Param,
   Query,
+  Res,
+  Req,
   ParseUUIDPipe,
 } from '@nestjs/common';
+import { Response, Request } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -24,6 +27,8 @@ import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { SetupService } from './services/setup.service';
 import { AccessControlService, AccessResult } from 'src/common/access-control.utils';
+import { SettingsService } from '../settings/settings.service';
+import { OidcService } from './services/oidc.service';
 export enum ScopeType {
   ORGANIZATION = 'organization',
   WORKSPACE = 'workspace',
@@ -37,6 +42,8 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly setupService: SetupService,
     private readonly accessControlService: AccessControlService,
+    private readonly settingsService: SettingsService,
+    private readonly oidcService: OidcService,
   ) {}
 
   @Public()
@@ -72,6 +79,15 @@ export class AuthController {
   })
   async register(@Body() registerDto: RegisterDto): Promise<AuthResponseDto> {
     return this.authService.register(registerDto);
+  }
+
+  @Public()
+  @Get('registration-status')
+  @ApiOperation({ summary: 'Check if user registration is enabled' })
+  @ApiResponse({ status: 200, description: 'Registration status' })
+  async getRegistrationStatus() {
+    const value = await this.settingsService.get('registration_enabled');
+    return { enabled: value !== 'false' };
   }
 
   @Public()
@@ -299,5 +315,100 @@ export class AuthController {
   })
   async setupSuperAdmin(@Body() setupAdminDto: SetupAdminDto): Promise<AuthResponseDto> {
     return this.setupService.setupSuperAdmin(setupAdminDto);
+  }
+
+  // ─── SSO / OIDC ──────────────────────────────────────────────────
+
+  @Public()
+  @Get('oidc/config')
+  @ApiOperation({ summary: 'Check if SSO/OIDC is enabled' })
+  async getOidcConfig() {
+    return this.oidcService.isConfigured();
+  }
+
+  @Public()
+  @Get('oidc/login')
+  @ApiOperation({ summary: 'Redirect to OIDC provider for login' })
+  async oidcLogin(@Res() res: Response) {
+    const { url, state, nonce } = await this.oidcService.getAuthorizationUrl();
+
+    // Store state and nonce in secure httpOnly cookies
+    const isProduction = process.env.NODE_ENV === 'production';
+    const cookieOpts = {
+      httpOnly: true,
+      maxAge: 600000,
+      sameSite: 'strict' as const,
+      secure: isProduction,
+    };
+    res.cookie('oidc_state', state, cookieOpts);
+    res.cookie('oidc_nonce', nonce, cookieOpts);
+
+    return res.redirect(url);
+  }
+
+  @Public()
+  @Get('oidc/callback')
+  @ApiOperation({ summary: 'Handle OIDC provider callback' })
+  async oidcCallback(
+    @Query('code') code: string,
+    @Query('state') state: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    try {
+      const storedState = String(req.cookies?.oidc_state || '');
+      const storedNonce = String(req.cookies?.oidc_nonce || '');
+
+      if (!code || !state || !storedState || !storedNonce) {
+        return res.redirect('/login?error=sso_invalid_state');
+      }
+
+      const authResult = await this.oidcService.handleCallback(
+        code,
+        state,
+        storedState,
+        storedNonce,
+      );
+
+      // Clear OIDC cookies
+      res.clearCookie('oidc_state');
+      res.clearCookie('oidc_nonce');
+
+      // Store tokens in short-lived httpOnly cookie for secure exchange
+      const isProd = process.env.NODE_ENV === 'production';
+      res.cookie('sso_auth', JSON.stringify(authResult), {
+        httpOnly: true,
+        maxAge: 60000,
+        sameSite: 'strict',
+        secure: isProd,
+      });
+
+      return res.redirect('/login?sso=callback');
+    } catch (error: unknown) {
+      res.clearCookie('oidc_state');
+      res.clearCookie('oidc_nonce');
+      const message = error instanceof Error ? error.message : 'SSO authentication failed';
+      return res.redirect(`/login?error=sso_failed&message=${encodeURIComponent(message)}`);
+    }
+  }
+
+  @Public()
+  @Post('oidc/exchange')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Exchange SSO cookie for tokens' })
+  oidcExchange(@Req() req: Request, @Res() res: Response) {
+    const ssoAuth = String(req.cookies?.sso_auth || '');
+    if (!ssoAuth) {
+      return res.status(401).json({ message: 'No SSO session found' });
+    }
+
+    try {
+      const authResult = JSON.parse(ssoAuth) as Record<string, unknown>;
+      res.clearCookie('sso_auth');
+      return res.json(authResult);
+    } catch {
+      res.clearCookie('sso_auth');
+      return res.status(401).json({ message: 'Invalid SSO session' });
+    }
   }
 }

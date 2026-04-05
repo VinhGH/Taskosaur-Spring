@@ -17,6 +17,7 @@ import { JwtPayload } from './strategies/jwt.strategy';
 import { SYSTEM_USER_ID } from '../../common/constants';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Role } from '@prisma/client';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class AuthService {
@@ -26,6 +27,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   async validateUser(email: string, password: string) {
@@ -53,6 +55,21 @@ export class AuthService {
     const user = await this.validateUser(loginDto.email, loginDto.password);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Auto-promote first user to SUPER_ADMIN if not already
+    if (user.role !== Role.SUPER_ADMIN) {
+      const firstUser = await this.prisma.user.findFirst({
+        orderBy: { createdAt: 'asc' },
+        select: { id: true },
+      });
+      if (firstUser && firstUser.id === user.id) {
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: { role: Role.SUPER_ADMIN },
+        });
+        user.role = Role.SUPER_ADMIN;
+      }
     }
 
     const payload: JwtPayload = {
@@ -88,6 +105,14 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
+    // Check if registration is enabled (default: enabled)
+    const registrationValue = await this.settingsService.get('registration_enabled');
+    if (registrationValue === 'false') {
+      throw new BadRequestException(
+        'User registration is currently disabled. Please contact your administrator.',
+      );
+    }
+
     // Check if user already exists
     const existingUser = await this.usersService.findByEmail(registerDto.email);
     if (existingUser) {

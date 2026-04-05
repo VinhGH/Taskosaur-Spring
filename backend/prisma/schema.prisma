@@ -38,6 +38,10 @@ model User {
   // User Source Tracking
   source UserSource @default(MANUAL)
 
+  // SSO / OIDC fields
+  externalId       String?  @unique @map("external_id")
+  externalProvider String?  @map("external_provider")
+
   activityLogs             ActivityLog[]
   createdAutomationRules   AutomationRule[]     @relation("AutomationRuleCreatedBy")
   updatedAutomationRules   AutomationRule[]     @relation("AutomationRuleUpdatedBy")
