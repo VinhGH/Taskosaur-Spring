@@ -30,7 +30,7 @@ export class InvitationsService {
   ) {}
 
   async createInvitation(dto: CreateInvitationDto, inviterId: string) {
-    const isSmtpEnabled = this.emailService.isSmtpEnabled();
+    const isSmtpEnabled = await this.emailService.isSmtpEnabled();
     const isDev = this.configService.get('NODE_ENV') === 'development';
 
     if (!isSmtpEnabled && !isDev) {

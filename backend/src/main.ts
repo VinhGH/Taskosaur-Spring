@@ -9,6 +9,7 @@ import {
   findPublicDir,
 } from './middleware/static-routing.middleware';
 import { RequestContextInterceptor } from './common/request-context.interceptor';
+import * as cookieParser from 'cookie-parser';
 
 // Suppress unhandled promise rejections from Redis connection failures
 process.on('unhandledRejection', (reason: unknown) => {
@@ -34,6 +35,10 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   const appConfig = configService.get('app');
+
+  // Enable cookie parsing for OIDC state management
+  app.use(cookieParser());
+
   // Enable CORS
   app.enableCors({
     origin: process.env.CORS_ORIGINS

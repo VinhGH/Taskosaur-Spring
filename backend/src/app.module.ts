@@ -44,6 +44,7 @@ import { QueueModule } from './modules/queue/queue.module';
 
 import { PublicModule } from './modules/public/public.module';
 import { HealthModule } from './modules/health/health.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -88,6 +89,7 @@ import { HealthModule } from './modules/health/health.module';
           PublicModule,
           HealthModule,
           QueueModule,
+          AdminModule,
         ],
       },
     ]),
@@ -127,6 +129,7 @@ import { HealthModule } from './modules/health/health.module';
     HealthModule,
     EmailModule,
     QueueModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [
