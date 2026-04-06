@@ -421,7 +421,18 @@ function AdminUsersContent() {
       </Card>
 
       {totalPages > 1 && (
-        <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+        <Pagination
+          pagination={{
+            currentPage: page,
+            totalPages,
+            totalCount: total,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+          }}
+          pageSize={limit}
+          onPageChange={setPage}
+          itemType="users"
+        />
       )}
     </>
   );
