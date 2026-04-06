@@ -115,30 +115,23 @@ const TokenManager = {
     }
   },
 
+  // Refresh token is now managed by the backend as an httpOnly cookie.
+  // It is sent automatically with requests via withCredentials: true.
+  // These methods are kept for backward compatibility with callers.
   getRefreshToken: (): string | null => {
+    // Cannot read httpOnly cookie from JS — return a marker if we believe
+    // a session exists (access_token is present), so callers don't bail out early.
     try {
       if (typeof window === "undefined") return null;
-      return Cookies.get("refresh_token") || null;
+      return localStorage.getItem("access_token") ? "httponly" : null;
     } catch (error) {
-      console.warn("Failed to get refresh token:", error);
+      console.warn("Failed to check refresh token:", error);
       return null;
     }
   },
 
-  setRefreshToken: (token: string): void => {
-    try {
-      if (typeof window !== "undefined") {
-        Cookies.set("refresh_token", token, {
-          expires: 30, // 30 days
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "strict",
-          path: "/",
-          httpOnly: false,
-        });
-      }
-    } catch (error) {
-      console.error("Failed to set refresh token:", error);
-    }
+  setRefreshToken: (_token: string): void => {
+    // No-op: refresh token is now set by the backend as an httpOnly cookie
   },
 
   getCurrentOrgId: (): string | null => {
@@ -167,6 +160,7 @@ const TokenManager = {
         localStorage.removeItem("access_token");
         localStorage.removeItem("token_timestamp");
         localStorage.removeItem("currentOrganizationId");
+        // Remove legacy client-side cookie if it exists from before httpOnly migration
         Cookies.remove("refresh_token", { path: "/" });
       }
     } catch (error) {
@@ -257,15 +251,10 @@ const safeRedirect = (url: string): void => {
 // Refresh token function
 const refreshTokens = async (): Promise<string> => {
   try {
-    const refreshToken = TokenManager.getRefreshToken();
-
-    if (!refreshToken) {
-      throw new ApiAuthError("No refresh token available", 401);
-    }
-
+    // Refresh token is sent automatically as an httpOnly cookie via withCredentials
     const response = await axios.post<AuthTokenResponse>(
       `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000/api"}/auth/refresh`,
-      { refresh_token: refreshToken },
+      {},
       {
         headers: { "Content-Type": "application/json" },
         withCredentials: true,
@@ -273,16 +262,13 @@ const refreshTokens = async (): Promise<string> => {
       }
     );
 
-    const { access_token, refresh_token: newRefreshToken } = response.data;
+    const { access_token } = response.data;
 
     if (!access_token) {
       throw new ApiAuthError("Invalid token response", 401);
     }
 
     TokenManager.setAccessToken(access_token);
-    if (newRefreshToken) {
-      TokenManager.setRefreshToken(newRefreshToken);
-    }
 
     return access_token;
   } catch (error) {
