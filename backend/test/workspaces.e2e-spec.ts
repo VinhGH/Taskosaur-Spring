@@ -146,12 +146,16 @@ describe('WorkspacesController (e2e)', () => {
         });
     });
 
-    it('should prevent a non-elevated user (MEMBER) from creating a workspace', () => {
+    it('should allow a MEMBER user to create a workspace', () => {
       return request(app.getHttpServer())
         .post('/api/workspaces')
         .set('Authorization', `Bearer ${memberAccessToken}`)
         .send({ ...createDto, name: 'Member Workspace', slug: 'member-ws' })
-        .expect(HttpStatus.FORBIDDEN);
+        .expect(HttpStatus.CREATED)
+        .expect((res) => {
+          expect(res.body).toHaveProperty('id');
+          expect(res.body.name).toBe('Member Workspace');
+        });
     });
 
     it('should automatically add organization members to the new workspace', async () => {
