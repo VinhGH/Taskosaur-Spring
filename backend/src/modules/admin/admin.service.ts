@@ -1,9 +1,15 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { Role, UserStatus } from '@prisma/client';
 import * as crypto from 'crypto';
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class AdminService {
@@ -63,7 +69,9 @@ export class AdminService {
     status?: UserStatus,
     role?: Role,
   ) {
-    const where: any = {};
+    const where: any = {
+      deletedAt: null,
+    };
 
     if (search) {
       where.OR = [
@@ -250,12 +258,12 @@ export class AdminService {
       );
     }
 
-    // Soft delete: deactivate, clear sensitive data, revoke sessions
-    // Hard delete would fail due to 31+ FK references (createdBy, updatedBy audit fields)
     await this.prisma.user.update({
       where: { id },
       data: {
         status: UserStatus.INACTIVE,
+        deletedAt: new Date(),
+        deletedBy: currentUserId,
         password: null,
         refreshToken: null,
         resetToken: null,
@@ -273,7 +281,7 @@ export class AdminService {
 
     return {
       success: true,
-      message: `User "${user.firstName} ${user.lastName}" (${user.email}) has been deactivated and removed from all organizations.`,
+      message: `User "${user.firstName} ${user.lastName}" (${user.email}) has been deleted.`,
     };
   }
 
@@ -403,6 +411,18 @@ export class AdminService {
       where: { defaultOrganizationId: id },
       data: { defaultOrganizationId: null },
     });
+
+    // Clear global default_organization_id setting if it points to this org
+    const defaultOrgSetting = await this.settingsService.get('default_organization_id');
+    if (defaultOrgSetting === id) {
+      await this.settingsService.set(
+        'default_organization_id',
+        '',
+        undefined,
+        undefined,
+        'registration',
+      );
+    }
 
     // Delete the organization (cascade will handle members, workspaces, etc.)
     await this.prisma.organization.delete({ where: { id } });
@@ -550,5 +570,53 @@ export class AdminService {
     }
 
     return result;
+  }
+
+  /**
+   * Test SMTP configuration by verifying server connection and authentication
+   */
+  async testSmtpConfig(): Promise<{ success: boolean; message: string }> {
+    const getSmtpValue = async (key: string, envKey: string, fallback = ''): Promise<string> => {
+      return (
+        this.configService.get<string>(envKey) || (await this.settingsService.get(key)) || fallback
+      );
+    };
+
+    const smtpHost = await getSmtpValue('smtp_host', 'SMTP_HOST');
+    const smtpPort = Number(await getSmtpValue('smtp_port', 'SMTP_PORT', '587'));
+    const smtpUser = await getSmtpValue('smtp_user', 'SMTP_USER');
+    const smtpPass = await getSmtpValue('smtp_pass', 'SMTP_PASS');
+
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      throw new BadRequestException(
+        'SMTP configuration is incomplete. Please set host, username, and password.',
+      );
+    }
+
+    try {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+        tls: {
+          rejectUnauthorized: this.configService.get('NODE_ENV') !== 'development',
+        },
+      });
+
+      await transporter.verify();
+      transporter.close();
+
+      return {
+        success: true,
+        message: `SMTP connection to ${smtpHost}:${smtpPort} verified successfully`,
+      };
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      throw new BadRequestException(`SMTP test failed: ${msg}`);
+    }
   }
 }

@@ -92,6 +92,8 @@ export class UsersService {
         externalProvider: true,
         createdAt: true,
         updatedAt: true,
+        deletedAt: true,
+        deletedBy: true,
       },
     });
   }
@@ -125,6 +127,8 @@ export class UsersService {
         externalProvider: true,
         createdAt: true,
         updatedAt: true,
+        deletedAt: true,
+        deletedBy: true,
       },
     });
 
