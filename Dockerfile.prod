@@ -24,10 +24,11 @@ ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy?schema=public"
 
 # ------- Layer cache: install dependencies first, source code later -------
 
-# Copy only package files (changes rarely → cached layer)
+# Copy only package files and scripts (changes rarely → cached layer)
 COPY package.json package-lock.json ./
 COPY backend/package.json backend/package.dist.json ./backend/
 COPY frontend/package.json ./frontend/
+COPY scripts ./scripts
 
 # Install dependencies with BuildKit cache mount for npm cache
 RUN --mount=type=cache,target=/root/.npm \
@@ -37,7 +38,6 @@ RUN --mount=type=cache,target=/root/.npm \
 
 COPY backend ./backend
 COPY frontend ./frontend
-COPY scripts ./scripts
 
 # Accept build number as build argument (placed AFTER npm install so it doesn't bust dep cache)
 ARG BUILD_NUMBER
