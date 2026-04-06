@@ -1569,6 +1569,17 @@ export class TasksService {
 
       // Handle assignees update
       if (assigneeIds !== undefined) {
+        if (assigneeIds.length > 0) {
+          const existingUsers = await this.prisma.user.findMany({
+            where: { id: { in: assigneeIds } },
+            select: { id: true },
+          });
+          const foundIds = new Set(existingUsers.map((u) => u.id));
+          const missingIds = assigneeIds.filter((id) => !foundIds.has(id));
+          if (missingIds.length > 0) {
+            throw new NotFoundException(`Users not found: ${missingIds.join(', ')}`);
+          }
+        }
         updateData.assignees = {
           deleteMany: {},
           create: assigneeIds.map((id) => ({ userId: id })),
@@ -1577,6 +1588,17 @@ export class TasksService {
 
       // Handle reporters update
       if (reporterIds !== undefined) {
+        if (reporterIds.length > 0) {
+          const existingUsers = await this.prisma.user.findMany({
+            where: { id: { in: reporterIds } },
+            select: { id: true },
+          });
+          const foundIds = new Set(existingUsers.map((u) => u.id));
+          const missingIds = reporterIds.filter((id) => !foundIds.has(id));
+          if (missingIds.length > 0) {
+            throw new NotFoundException(`Users not found: ${missingIds.join(', ')}`);
+          }
+        }
         updateData.reporters = {
           deleteMany: {},
           create: reporterIds.map((id) => ({ userId: id })),

@@ -152,7 +152,7 @@ describe('RecurrenceService (e2e)', () => {
           dueDate: new Date().toISOString(),
           
           assignees: {
-            connect: [{ id: user.id }]
+            create: [{ userId: user.id }]
           }
         },
       });
