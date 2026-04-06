@@ -96,7 +96,7 @@ export class SchedulerService {
           },
         },
         include: {
-          assignees: true, // Multiple assignees instead of single assignee
+          assignees: { include: { user: true } }, // Multiple assignees instead of single assignee
           project: {
             include: {
               workspace: {
@@ -110,7 +110,7 @@ export class SchedulerService {
       });
 
       // Define types for better type safety
-      type TaskAssignee = {
+      type TaskAssigneeUser = {
         id: string;
         email: string;
         firstName: string;
@@ -120,20 +120,23 @@ export class SchedulerService {
       type OverdueTask = (typeof overdueTasks)[number];
 
       // Group overdue tasks by assignee using Map
-      const tasksByAssignee = new Map<string, { assignee: TaskAssignee; tasks: OverdueTask[] }>();
+      const tasksByAssignee = new Map<
+        string,
+        { assignee: TaskAssigneeUser; tasks: OverdueTask[] }
+      >();
 
       // Process each task and its assignees
       for (const task of overdueTasks) {
         // Iterate through all assignees for each task
         for (const assignee of task.assignees) {
-          if (!assignee?.email) continue;
+          if (!assignee?.user?.email) continue;
 
-          const assigneeId = assignee.id;
+          const assigneeId = assignee.user.id;
 
           // Initialize assignee entry if not exists
           if (!tasksByAssignee.has(assigneeId)) {
             tasksByAssignee.set(assigneeId, {
-              assignee: assignee,
+              assignee: assignee.user,
               tasks: [],
             });
           }
@@ -168,8 +171,8 @@ export class SchedulerService {
               // Additional info for shared tasks
               isShared: task.assignees.length > 1,
               coAssignees: task.assignees
-                .filter((a) => a.id !== assignee.id)
-                .map((a) => `${a.firstName} ${a.lastName}`)
+                .filter((a) => a.user.id !== assignee.id)
+                .map((a) => `${a.user.firstName} ${a.user.lastName}`)
                 .join(', '),
             })),
           },
@@ -199,10 +202,12 @@ export class SchedulerService {
       const activeUsers = await this.prisma.user.findMany({
         where: {
           status: 'ACTIVE',
-          assignedTasks: {
+          taskAssignees: {
             some: {
-              createdAt: {
-                gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Active in last 30 days
+              task: {
+                createdAt: {
+                  gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Active in last 30 days
+                },
               },
             },
           },

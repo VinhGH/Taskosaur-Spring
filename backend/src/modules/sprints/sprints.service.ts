@@ -354,18 +354,26 @@ export class SprintsService {
           include: {
             assignees: {
               select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                avatar: true,
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    avatar: true,
+                  },
+                },
               },
             },
             reporters: {
               select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                avatar: true,
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    avatar: true,
+                  },
+                },
               },
             },
             status: {
@@ -426,10 +434,14 @@ export class SprintsService {
           include: {
             assignees: {
               select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                avatar: true,
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    avatar: true,
+                  },
+                },
               },
             },
             status: {

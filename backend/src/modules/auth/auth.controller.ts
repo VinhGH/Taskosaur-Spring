@@ -11,8 +11,10 @@ import {
   Res,
   Req,
   ParseUUIDPipe,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
+import { ConfigService } from '@nestjs/config';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -44,7 +46,23 @@ export class AuthController {
     private readonly accessControlService: AccessControlService,
     private readonly settingsService: SettingsService,
     private readonly oidcService: OidcService,
+    private readonly configService: ConfigService,
   ) {}
+
+  private setRefreshTokenCookie(res: Response, refreshToken: string): void {
+    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
+  }
+
+  private clearRefreshTokenCookie(res: Response): void {
+    res.clearCookie('refresh_token', { path: '/' });
+  }
 
   @Public()
   @Post('login')
@@ -60,8 +78,13 @@ export class AuthController {
     status: 401,
     description: 'Invalid credentials',
   })
-  async login(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
-    return this.authService.login(loginDto);
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponseDto> {
+    const result = await this.authService.login(loginDto);
+    this.setRefreshTokenCookie(res, result.refresh_token);
+    return result;
   }
 
   @Public()
@@ -77,8 +100,13 @@ export class AuthController {
     status: 409,
     description: 'User already exists',
   })
-  async register(@Body() registerDto: RegisterDto): Promise<AuthResponseDto> {
-    return this.authService.register(registerDto);
+  async register(
+    @Body() registerDto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponseDto> {
+    const result = await this.authService.register(registerDto);
+    this.setRefreshTokenCookie(res, result.refresh_token);
+    return result;
   }
 
   @Public()
@@ -104,8 +132,19 @@ export class AuthController {
     status: 401,
     description: 'Invalid refresh token',
   })
-  async refreshToken(@Body() refreshTokenDto: RefreshTokenDto): Promise<AuthResponseDto> {
-    return this.authService.refreshToken(refreshTokenDto.refresh_token);
+  async refreshToken(
+    @Body() refreshTokenDto: RefreshTokenDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponseDto> {
+    // Read refresh token from httpOnly cookie first, fallback to POST body
+    const token = String(req.cookies?.refresh_token || refreshTokenDto.refresh_token || '');
+    if (!token) {
+      throw new UnauthorizedException('No refresh token provided');
+    }
+    const result = await this.authService.refreshToken(token);
+    this.setRefreshTokenCookie(res, result.refresh_token);
+    return result;
   }
 
   @UseGuards(JwtAuthGuard)
@@ -116,8 +155,12 @@ export class AuthController {
     status: 200,
     description: 'Logout successful',
   })
-  async logout(@CurrentUser() user: any): Promise<{ message: string }> {
-    await this.authService.logout(user.id as string);
+  async logout(
+    @CurrentUser() user: { id: string },
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ message: string }> {
+    await this.authService.logout(user.id);
+    this.clearRefreshTokenCookie(res);
     return { message: 'Logout successful' };
   }
 
@@ -313,8 +356,13 @@ export class AuthController {
     status: 400,
     description: 'Invalid setup data',
   })
-  async setupSuperAdmin(@Body() setupAdminDto: SetupAdminDto): Promise<AuthResponseDto> {
-    return this.setupService.setupSuperAdmin(setupAdminDto);
+  async setupSuperAdmin(
+    @Body() setupAdminDto: SetupAdminDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponseDto> {
+    const result = await this.setupService.setupSuperAdmin(setupAdminDto);
+    this.setRefreshTokenCookie(res, result.refresh_token);
+    return result;
   }
 
   // ─── SSO / OIDC ──────────────────────────────────────────────────
@@ -405,6 +453,12 @@ export class AuthController {
     try {
       const authResult = JSON.parse(ssoAuth) as Record<string, unknown>;
       res.clearCookie('sso_auth');
+
+      // Set refresh token as httpOnly cookie
+      if (authResult.refresh_token && typeof authResult.refresh_token === 'string') {
+        this.setRefreshTokenCookie(res, authResult.refresh_token);
+      }
+
       return res.json(authResult);
     } catch {
       res.clearCookie('sso_auth');

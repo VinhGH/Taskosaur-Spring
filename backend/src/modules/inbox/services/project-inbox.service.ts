@@ -421,16 +421,16 @@ export class ProjectInboxService {
         taskNumber,
         slug,
         assignees: {
-          connect: message.projectInbox.defaultAssigneeId
-            ? [{ id: message.projectInbox.defaultAssigneeId }]
+          create: message.projectInbox.defaultAssigneeId
+            ? [{ userId: message.projectInbox.defaultAssigneeId }]
             : [],
         },
-        reporters: { connect: [{ id: userId }] },
+        reporters: { create: [{ userId: userId }] },
       },
       include: {
         project: true,
         status: true,
-        assignees: true,
+        assignees: { include: { user: true } },
       },
     });
 

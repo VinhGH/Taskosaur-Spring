@@ -184,18 +184,23 @@ export class AutomationProcessor {
       where: { id: taskId },
       data: {
         assignees: {
-          set: assigneeIds.map((id) => ({ id })), // Replace all assignees with new ones
+          deleteMany: {},
+          create: assigneeIds.map((id) => ({ userId: id })),
         },
       },
       include: {
         project: { select: { id: true } },
         assignees: {
           select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            avatar: true,
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                avatar: true,
+              },
+            },
           },
         },
       },
@@ -204,13 +209,13 @@ export class AutomationProcessor {
     // Send real-time notification to each assignee
     task.assignees.forEach((assignee) => {
       this.eventsGateway.emitTaskAssigned(task.project.id, taskId, {
-        assigneeId: assignee.id,
+        assigneeId: assignee.user.id,
         assignee: {
-          id: assignee.id,
-          firstName: assignee.firstName,
-          lastName: assignee.lastName,
-          email: assignee.email,
-          avatar: assignee.avatar,
+          id: assignee.user.id,
+          firstName: assignee.user.firstName,
+          lastName: assignee.user.lastName,
+          email: assignee.user.email,
+          avatar: assignee.user.avatar,
         },
       });
     });
@@ -218,8 +223,8 @@ export class AutomationProcessor {
     return {
       success: true,
       taskId,
-      assigneeIds, // Return array instead of single ID
-      assignees: task.assignees, // Include full assignee data
+      assigneeIds,
+      assignees: task.assignees.map((a) => a.user),
     };
   }
 

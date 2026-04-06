@@ -29,6 +29,31 @@ export class TasksService {
     private recurrenceService: RecurrenceService,
   ) {}
 
+  /**
+   * Flattens explicit m2m assignees/reporters from { user: { id, email, ... } }
+   * to { id, email, ... } for API backward compatibility.
+   */
+
+  private flattenTaskRelations<T>(task: T): T {
+    const result = { ...(task as Record<string, unknown>) };
+    if (result.assignees && Array.isArray(result.assignees)) {
+      result.assignees = (result.assignees as Array<{ user?: unknown }>).map((a) => a.user ?? a);
+    }
+    if (result.reporters && Array.isArray(result.reporters)) {
+      result.reporters = (result.reporters as Array<{ user?: unknown }>).map((r) => r.user ?? r);
+    }
+    if (result.childTasks && Array.isArray(result.childTasks)) {
+      result.childTasks = (result.childTasks as unknown[]).map((child) =>
+        this.flattenTaskRelations(child),
+      );
+    }
+    return result as T;
+  }
+
+  private flattenTasksList<T>(tasks: T[]): T[] {
+    return tasks.map((task) => this.flattenTaskRelations(task));
+  }
+
   // Helper to get enum values safely
   private getTaskType(value?: string): TaskType {
     if (!value) return TaskType.TASK;
@@ -174,14 +199,14 @@ export class TasksService {
       // Only add assignees if there are any
       if (assigneeIds?.length) {
         taskCreateData.assignees = {
-          connect: assigneeIds.map((id) => ({ id })),
+          create: assigneeIds.map((id) => ({ userId: id })),
         };
       }
 
       // Only add reporters if there are any
       if (reporterIds?.length) {
         taskCreateData.reporters = {
-          connect: reporterIds.map((id) => ({ id })),
+          create: reporterIds.map((id) => ({ userId: id })),
         };
       }
 
@@ -207,20 +232,28 @@ export class TasksService {
           },
           assignees: {
             select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true,
-              avatar: true,
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  firstName: true,
+                  lastName: true,
+                  avatar: true,
+                },
+              },
             },
           },
           reporters: {
             select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true,
-              avatar: true,
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  firstName: true,
+                  lastName: true,
+                  avatar: true,
+                },
+              },
             },
           },
           status: {
@@ -579,14 +612,14 @@ export class TasksService {
       // Only add assignees if there are any
       if (assigneeIds?.length) {
         taskCreateData.assignees = {
-          connect: assigneeIds.map((id) => ({ id })),
+          create: assigneeIds.map((id) => ({ userId: id })),
         };
       }
 
       // Only add reporters if there are any
       if (reporterIds?.length) {
         taskCreateData.reporters = {
-          connect: reporterIds.map((id) => ({ id })),
+          create: reporterIds.map((id) => ({ userId: id })),
         };
       }
 
@@ -673,20 +706,28 @@ export class TasksService {
         },
         assignees: {
           select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            avatar: true,
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+              },
+            },
           },
         },
         reporters: {
           select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            avatar: true,
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+              },
+            },
           },
         },
         status: {
@@ -738,12 +779,12 @@ export class TasksService {
         }),
       );
 
-      return {
+      return this.flattenTaskRelations({
         ...task,
         attachments: attachmentsWithUrls,
-      };
+      });
     }
-    return task;
+    return task ? this.flattenTaskRelations(task) : task;
   }
 
   async findAll(
@@ -860,14 +901,14 @@ export class TasksService {
     if (assigneeIds && assigneeIds.length > 0) {
       andConditions.push({
         assignees: {
-          some: { id: { in: assigneeIds } },
+          some: { userId: { in: assigneeIds } },
         },
       });
     }
     if (reporterIds && reporterIds.length > 0) {
       andConditions.push({
         reporters: {
-          some: { id: { in: reporterIds } },
+          some: { userId: { in: reporterIds } },
         },
       });
     }
@@ -885,8 +926,8 @@ export class TasksService {
     // if (!isElevated) {
     //   andConditions.push({
     //     OR: [
-    //       { assignees: { some: { id: userId } } },
-    //       { reporters: { some: { id: userId } } },
+    //       { assignees: { some: { userId: userId } } },
+    //       { reporters: { some: { userId: userId } } },
     //       { createdBy: userId },
     //     ],
     //   });
@@ -958,20 +999,28 @@ export class TasksService {
           },
           assignees: {
             select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true,
-              avatar: true,
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  firstName: true,
+                  lastName: true,
+                  avatar: true,
+                },
+              },
             },
           },
           reporters: {
             select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true,
-              avatar: true,
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  firstName: true,
+                  lastName: true,
+                  avatar: true,
+                },
+              },
             },
           },
           status: {
@@ -1005,7 +1054,7 @@ export class TasksService {
       })),
     }));
     return {
-      data: transformedTasks,
+      data: this.flattenTasksList(transformedTasks),
       total,
       page,
       limit,
@@ -1152,20 +1201,28 @@ export class TasksService {
         },
         assignees: {
           select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            avatar: true,
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+              },
+            },
           },
         },
         reporters: {
           select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            avatar: true,
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+              },
+            },
           },
         },
         status: {
@@ -1182,16 +1239,18 @@ export class TasksService {
       orderBy,
     });
 
-    return tasks.map((task) => ({
-      ...task,
-      labels: task.labels.map((taskLabel) => ({
-        taskId: taskLabel.taskId,
-        labelId: taskLabel.labelId,
-        name: taskLabel.label.name,
-        color: taskLabel.label.color,
-        description: taskLabel.label.description,
+    return this.flattenTasksList(
+      tasks.map((task) => ({
+        ...task,
+        labels: task.labels.map((taskLabel) => ({
+          taskId: taskLabel.taskId,
+          labelId: taskLabel.labelId,
+          name: taskLabel.label.name,
+          color: taskLabel.label.color,
+          description: taskLabel.label.description,
+        })),
       })),
-    }));
+    );
   }
 
   async findOne(id: string, userId: string) {
@@ -1219,20 +1278,28 @@ export class TasksService {
         },
         assignees: {
           select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            avatar: true,
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+              },
+            },
           },
         },
         reporters: {
           select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            avatar: true,
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+              },
+            },
           },
         },
         status: {
@@ -1263,20 +1330,28 @@ export class TasksService {
                 },
                 assignees: {
                   select: {
-                    id: true,
-                    email: true,
-                    firstName: true,
-                    lastName: true,
-                    avatar: true,
+                    user: {
+                      select: {
+                        id: true,
+                        email: true,
+                        firstName: true,
+                        lastName: true,
+                        avatar: true,
+                      },
+                    },
                   },
                 },
                 reporters: {
                   select: {
-                    id: true,
-                    email: true,
-                    firstName: true,
-                    lastName: true,
-                    avatar: true,
+                    user: {
+                      select: {
+                        id: true,
+                        email: true,
+                        firstName: true,
+                        lastName: true,
+                        avatar: true,
+                      },
+                    },
                   },
                 },
               },
@@ -1293,18 +1368,22 @@ export class TasksService {
                 },
                 assignees: {
                   select: {
-                    id: true,
-                    email: true,
-                    firstName: true,
-                    lastName: true,
-                    avatar: true,
+                    user: {
+                      select: {
+                        id: true,
+                        email: true,
+                        firstName: true,
+                        lastName: true,
+                        avatar: true,
+                      },
+                    },
                   },
                 },
               },
               where: {
                 OR: [
-                  { assignees: { some: { id: userId } } },
-                  { reporters: { some: { id: userId } } },
+                  { assignees: { some: { userId: userId } } },
+                  { reporters: { some: { userId: userId } } },
                   { createdBy: userId },
                 ],
               },
@@ -1404,7 +1483,7 @@ export class TasksService {
     const projectInbox = await this.prisma.projectInbox.findUnique({
       where: { projectId: task.projectId },
     });
-    return {
+    return this.flattenTaskRelations({
       ...task,
       showEmailReply: projectInbox,
       labels: task.labels.map((taskLabel) => ({
@@ -1414,7 +1493,7 @@ export class TasksService {
         color: taskLabel.label.color,
         description: taskLabel.label.description,
       })),
-    };
+    });
   }
 
   async findByKey(key: string, userId: string) {
@@ -1491,14 +1570,16 @@ export class TasksService {
       // Handle assignees update
       if (assigneeIds !== undefined) {
         updateData.assignees = {
-          set: assigneeIds.map((id) => ({ id })),
+          deleteMany: {},
+          create: assigneeIds.map((id) => ({ userId: id })),
         };
       }
 
       // Handle reporters update
       if (reporterIds !== undefined) {
         updateData.reporters = {
-          set: reporterIds.map((id) => ({ id })),
+          deleteMany: {},
+          create: reporterIds.map((id) => ({ userId: id })),
         };
       }
       const updatedTask = await this.prisma.task.update({
@@ -1509,10 +1590,18 @@ export class TasksService {
             select: { id: true, name: true, slug: true },
           },
           assignees: {
-            select: { id: true, firstName: true, lastName: true, avatar: true },
+            select: {
+              user: {
+                select: { id: true, firstName: true, lastName: true, avatar: true },
+              },
+            },
           },
           reporters: {
-            select: { id: true, firstName: true, lastName: true, avatar: true },
+            select: {
+              user: {
+                select: { id: true, firstName: true, lastName: true, avatar: true },
+              },
+            },
           },
           status: {
             select: { id: true, name: true, color: true, category: true },
@@ -1526,7 +1615,7 @@ export class TasksService {
         },
       });
 
-      return updatedTask;
+      return this.flattenTaskRelations(updatedTask);
     } catch (error: any) {
       this.logger.error('Failed to update the task');
       if (error.code === 'P2025') {
@@ -1682,8 +1771,8 @@ export class TasksService {
       andConditions.push({
         OR: [
           ...this.accessControl.getTaskVisibilityFilter(userId),
-          { assignees: { some: { id: userId } } },
-          { reporters: { some: { id: userId } } },
+          { assignees: { some: { userId: userId } } },
+          { reporters: { some: { userId: userId } } },
           { createdBy: userId },
         ],
       });
@@ -1707,15 +1796,23 @@ export class TasksService {
         project: { select: { id: true, name: true, slug: true } },
         assignees: {
           select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            avatar: true,
-            email: true,
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+                email: true,
+              },
+            },
           },
         },
         reporters: {
-          select: { id: true, firstName: true, lastName: true, avatar: true },
+          select: {
+            user: {
+              select: { id: true, firstName: true, lastName: true, avatar: true },
+            },
+          },
         },
         status: {
           select: { id: true, name: true, color: true, category: true },
@@ -1743,7 +1840,7 @@ export class TasksService {
     }));
 
     return {
-      tasks: transformedTasks,
+      tasks: this.flattenTasksList(transformedTasks),
       pagination: {
         currentPage: page,
         totalPages,
@@ -1838,17 +1935,17 @@ export class TasksService {
     const userFilters: Prisma.TaskWhereInput[] = [];
 
     if (filters.assigneeId) {
-      userFilters.push({ assignees: { some: { id: filters.assigneeId } } });
+      userFilters.push({ assignees: { some: { userId: filters.assigneeId } } });
     }
 
     if (filters.reporterId) {
-      userFilters.push({ reporters: { some: { id: filters.reporterId } } });
+      userFilters.push({ reporters: { some: { userId: filters.reporterId } } });
     }
 
     if (filters.userId) {
       userFilters.push(
-        { assignees: { some: { id: filters.userId } } },
-        { reporters: { some: { id: filters.userId } } },
+        { assignees: { some: { userId: filters.userId } } },
+        { reporters: { some: { userId: filters.userId } } },
         { createdBy: filters.userId },
       );
     }
@@ -1860,8 +1957,8 @@ export class TasksService {
         ...(userFilters.length > 0
           ? userFilters
           : [
-              { assignees: { some: { id: userId } } },
-              { reporters: { some: { id: userId } } },
+              { assignees: { some: { userId: userId } } },
+              { reporters: { some: { userId: userId } } },
               { createdBy: userId },
             ]),
       ];
@@ -1889,20 +1986,28 @@ export class TasksService {
           },
           assignees: {
             select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              avatar: true,
-              email: true,
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  avatar: true,
+                  email: true,
+                },
+              },
             },
           },
           reporters: {
             select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              avatar: true,
-              email: true,
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  avatar: true,
+                  email: true,
+                },
+              },
             },
           },
           status: {
@@ -1927,7 +2032,7 @@ export class TasksService {
     const totalPages = Math.ceil(totalCount / limit);
 
     return {
-      tasks,
+      tasks: this.flattenTasksList(tasks),
       pagination: {
         currentPage: page,
         totalPages,
@@ -1983,12 +2088,12 @@ export class TasksService {
         whereClause.OR = [
           {
             assignees: {
-              some: { id: userId },
+              some: { userId: userId },
             },
           },
           {
             reporters: {
-              some: { id: userId },
+              some: { userId: userId },
             },
           },
           {
@@ -2062,17 +2167,25 @@ export class TasksService {
             },
             assignees: {
               select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                avatar: true,
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    avatar: true,
+                  },
+                },
               },
             },
             reporters: {
               select: {
-                id: true,
-                firstName: true,
-                lastName: true,
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                  },
+                },
               },
             },
           },
@@ -2094,17 +2207,17 @@ export class TasksService {
             taskNumber: task.taskNumber,
             assignees: task.assignees
               ? task.assignees.map((assignee) => ({
-                  id: assignee.id,
-                  firstName: assignee.firstName,
-                  lastName: assignee.lastName,
-                  avatar: assignee.avatar || undefined,
+                  id: assignee.user.id,
+                  firstName: assignee.user.firstName,
+                  lastName: assignee.user.lastName,
+                  avatar: assignee.user.avatar || undefined,
                 }))
               : undefined,
             reporters: task.reporters
               ? task.reporters.map((reporter) => ({
-                  id: reporter.id,
-                  firstName: reporter.firstName,
-                  lastName: reporter.lastName,
+                  id: reporter.user.id,
+                  firstName: reporter.user.firstName,
+                  lastName: reporter.user.lastName,
                 }))
               : undefined,
             dueDate: task.dueDate ? task.dueDate.toISOString() : undefined,
@@ -2147,7 +2260,7 @@ export class TasksService {
       whereClause.OR = [{ assigneeId: userId }, { reporterId: userId }, { createdBy: userId }];
     }
 
-    return this.prisma.task.findMany({
+    const subtasks = await this.prisma.task.findMany({
       where: whereClause,
       include: {
         labels: { include: { label: true } },
@@ -2156,15 +2269,23 @@ export class TasksService {
         },
         assignees: {
           select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            avatar: true,
-            email: true,
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+                email: true,
+              },
+            },
           },
         },
         reporters: {
-          select: { id: true, firstName: true, lastName: true, avatar: true },
+          select: {
+            user: {
+              select: { id: true, firstName: true, lastName: true, avatar: true },
+            },
+          },
         },
         status: {
           select: { id: true, name: true, color: true, category: true },
@@ -2178,6 +2299,7 @@ export class TasksService {
       },
       orderBy: { taskNumber: 'asc' },
     });
+    return this.flattenTasksList(subtasks);
   }
 
   async findMainTasks(
@@ -2246,15 +2368,23 @@ export class TasksService {
         },
         assignees: {
           select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            avatar: true,
-            email: true,
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+                email: true,
+              },
+            },
           },
         },
         reporters: {
-          select: { id: true, firstName: true, lastName: true, avatar: true },
+          select: {
+            user: {
+              select: { id: true, firstName: true, lastName: true, avatar: true },
+            },
+          },
         },
         status: {
           select: { id: true, name: true, color: true, category: true },
@@ -2266,16 +2396,18 @@ export class TasksService {
       orderBy: { taskNumber: 'desc' },
     });
 
-    return tasks.map((task) => ({
-      ...task,
-      labels: task.labels.map((taskLabel) => ({
-        taskId: taskLabel.taskId,
-        labelId: taskLabel.labelId,
-        name: taskLabel.label.name,
-        color: taskLabel.label.color,
-        description: taskLabel.label.description,
+    return this.flattenTasksList(
+      tasks.map((task) => ({
+        ...task,
+        labels: task.labels.map((taskLabel) => ({
+          taskId: taskLabel.taskId,
+          labelId: taskLabel.labelId,
+          name: taskLabel.label.name,
+          color: taskLabel.label.color,
+          description: taskLabel.label.description,
+        })),
       })),
-    }));
+    );
   }
 
   async bulkDeleteTasks(params: {
@@ -2387,8 +2519,8 @@ export class TasksService {
       where: { id: taskId },
       include: {
         recurringConfig: true,
-        assignees: { select: { id: true } },
-        reporters: { select: { id: true } },
+        assignees: { select: { userId: true } },
+        reporters: { select: { userId: true } },
       },
     });
 
@@ -2440,8 +2572,8 @@ export class TasksService {
         statusId: task.statusId,
         sprintId: task.sprintId || undefined,
         dueDate: nextOccurrence.toISOString(),
-        assigneeIds: task.assignees.map((a) => a.id),
-        reporterIds: task.reporters.map((r) => r.id),
+        assigneeIds: task.assignees.map((a) => a.userId),
+        reporterIds: task.reporters.map((r) => r.userId),
         isRecurring: false, // Next instance is not itself recurring
       },
       userId,
@@ -2608,7 +2740,7 @@ export class TasksService {
 
     await this.accessControl.getOrgAccess(project.workspace.organizationId, userId);
 
-    return this.prisma.task.findMany({
+    const recurringTasks = await this.prisma.task.findMany({
       where: {
         projectId,
         isRecurring: true,
@@ -2617,11 +2749,15 @@ export class TasksService {
         recurringConfig: true,
         assignees: {
           select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            avatar: true,
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+              },
+            },
           },
         },
         status: {
@@ -2629,5 +2765,6 @@ export class TasksService {
         },
       },
     });
+    return this.flattenTasksList(recurringTasks);
   }
 }

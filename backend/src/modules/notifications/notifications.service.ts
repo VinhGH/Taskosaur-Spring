@@ -185,8 +185,8 @@ export class NotificationsService {
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
       include: {
-        assignees: true, // Multiple assignees
-        reporters: true, // Multiple reporters
+        assignees: { include: { user: true } }, // Explicit join table
+        reporters: { include: { user: true } }, // Explicit join table
         project: {
           include: {
             workspace: {
@@ -204,15 +204,15 @@ export class NotificationsService {
 
     // Add all assignees
     task.assignees?.forEach((assignee: any) => {
-      if (assignee.id !== changedBy) {
-        usersToNotify.add(assignee.id as string);
+      if (assignee.userId !== changedBy) {
+        usersToNotify.add(assignee.userId as string);
       }
     });
 
     // Add all reporters
     task.reporters?.forEach((reporter: any) => {
-      if (reporter.id !== changedBy) {
-        usersToNotify.add(reporter.id as string);
+      if (reporter.userId !== changedBy) {
+        usersToNotify.add(reporter.userId as string);
       }
     });
 
@@ -240,7 +240,7 @@ export class NotificationsService {
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
       include: {
-        assignees: true, // Multiple assignees instead of single assignee
+        assignees: true, // Only need userId from join table
         project: {
           include: {
             workspace: {
@@ -259,7 +259,7 @@ export class NotificationsService {
         title: 'Task Due Soon',
         message: `Task "${task.title}" is due soon`,
         type: NotificationType.TASK_DUE_SOON,
-        userId: assignee.id,
+        userId: assignee.userId,
         organizationId: task.project.workspace.organizationId,
         entityType: 'Task',
         entityId: taskId,

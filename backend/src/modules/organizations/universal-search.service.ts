@@ -406,7 +406,7 @@ export class UniversalSearchService {
           select: { name: true },
         },
         assignees: {
-          select: { id: true, firstName: true, lastName: true },
+          select: { user: { select: { id: true, firstName: true, lastName: true } } },
         },
         createdByUser: {
           select: { id: true, firstName: true, lastName: true },
@@ -444,9 +444,9 @@ export class UniversalSearchService {
         priority: task.priority,
         assignees: task.assignees
           ? task.assignees.map((assignee) => ({
-              id: assignee.id,
-              firstName: assignee.firstName,
-              lastName: assignee.lastName,
+              id: assignee.user.id,
+              firstName: assignee.user.firstName,
+              lastName: assignee.user.lastName,
             }))
           : undefined,
         createdBy: task.createdByUser

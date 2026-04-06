@@ -336,8 +336,8 @@ export class AccessControlService {
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
       include: {
-        assignees: { select: { id: true } },
-        reporters: { select: { id: true } },
+        assignees: { select: { userId: true } },
+        reporters: { select: { userId: true } },
         project: {
           select: {
             visibility: true,
@@ -424,8 +424,8 @@ export class AccessControlService {
     });
 
     // Check if user is assignee or reporter
-    const isAssignee = assignees.some((a) => a.id === userId);
-    const isReporter = reporters.some((a) => a.id === userId);
+    const isAssignee = assignees.some((a) => a.userId === userId);
+    const isReporter = reporters.some((a) => a.userId === userId);
 
     if (!projectMember && !wsMember && !orgMember && !isAssignee && !isReporter) {
       // If project is PUBLIC, we still allow read-only access (VIEWER)

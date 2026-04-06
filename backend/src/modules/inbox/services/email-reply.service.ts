@@ -180,7 +180,7 @@ export class EmailReplyService {
         },
         createdByUser: true,
         reporters: {
-          select: { email: true },
+          select: { user: { select: { email: true } } },
         },
       },
     });
@@ -230,7 +230,7 @@ export class EmailReplyService {
         fromEmail: mailOptions.from, // formatted sender address
         fromName: `${comment.author.firstName} ${comment.author.lastName}`.trim(),
         toEmails: [mailOptions.to],
-        ccEmails: task.reporters?.map((r) => r.email) ?? [],
+        ccEmails: task.reporters?.map((r) => r.user.email) ?? [],
         headers: {},
         bccEmails: [],
         replyTo: null,

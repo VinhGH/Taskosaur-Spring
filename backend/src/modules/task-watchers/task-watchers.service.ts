@@ -234,18 +234,26 @@ export class TaskWatchersService {
             },
             assignees: {
               select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                avatar: true,
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    avatar: true,
+                  },
+                },
               },
             },
             reporters: {
               select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                avatar: true,
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    avatar: true,
+                  },
+                },
               },
             },
             project: {
@@ -338,10 +346,14 @@ export class TaskWatchersService {
             },
             assignees: {
               select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                avatar: true,
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    avatar: true,
+                  },
+                },
               },
             },
             project: {

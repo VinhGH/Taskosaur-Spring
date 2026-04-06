@@ -188,11 +188,11 @@ export class SearchService {
     }
 
     if (searchDto.assigneeIds?.length) {
-      where.assignees = { some: { id: { in: searchDto.assigneeIds } } };
+      where.assignees = { some: { userId: { in: searchDto.assigneeIds } } };
     }
 
     if (searchDto.reporterIds?.length) {
-      where.reporters = { some: { id: { in: searchDto.reporterIds } } };
+      where.reporters = { some: { userId: { in: searchDto.reporterIds } } };
     }
 
     if (searchDto.statusIds?.length) {
@@ -250,10 +250,14 @@ export class SearchService {
             },
           },
           assignees: {
-            select: { id: true, firstName: true, lastName: true, email: true },
+            select: {
+              user: { select: { id: true, firstName: true, lastName: true, email: true } },
+            },
           },
           reporters: {
-            select: { id: true, firstName: true, lastName: true, email: true },
+            select: {
+              user: { select: { id: true, firstName: true, lastName: true, email: true } },
+            },
           },
           status: {
             select: { id: true, name: true, color: true },
@@ -292,8 +296,8 @@ export class SearchService {
         key: task.slug,
         type: task.type,
         priority: task.priority,
-        assignee: task.assignees,
-        reporter: task.reporters,
+        assignee: task.assignees.map((a) => a.user),
+        reporter: task.reporters.map((r) => r.user),
         status: task.status,
         labels: task.labels.map((tl) => tl.label),
         sprint: task.sprint,

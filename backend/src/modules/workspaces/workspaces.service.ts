@@ -675,7 +675,10 @@ export class WorkspacesService {
       ...(isElevated
         ? {}
         : {
-            OR: [{ assignees: { some: { id: userId } } }, { reporters: { some: { id: userId } } }],
+            OR: [
+              { assignees: { some: { userId: userId } } },
+              { reporters: { some: { userId: userId } } },
+            ],
           }),
     };
 
@@ -707,7 +710,10 @@ export class WorkspacesService {
       ...(isElevated
         ? {}
         : {
-            OR: [{ assignees: { some: { id: userId } } }, { reporters: { some: { id: userId } } }],
+            OR: [
+              { assignees: { some: { userId: userId } } },
+              { reporters: { some: { userId: userId } } },
+            ],
           }),
     };
 
@@ -759,7 +765,10 @@ export class WorkspacesService {
       ...(isElevated
         ? {}
         : {
-            OR: [{ assignees: { some: { id: userId } } }, { reporters: { some: { id: userId } } }],
+            OR: [
+              { assignees: { some: { userId: userId } } },
+              { reporters: { some: { userId: userId } } },
+            ],
           }),
     };
 
@@ -824,7 +833,10 @@ export class WorkspacesService {
       ...(isElevated
         ? {}
         : {
-            OR: [{ assignees: { some: { id: userId } } }, { reporters: { some: { id: userId } } }],
+            OR: [
+              { assignees: { some: { userId: userId } } },
+              { reporters: { some: { userId: userId } } },
+            ],
           }),
     };
 

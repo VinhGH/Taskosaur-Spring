@@ -174,7 +174,7 @@ export class LabelsService {
     });
   }
 
-  async findOne(id: string, userId: string): Promise<Label> {
+  async findOne(id: string, userId: string) {
     const label = await this.prisma.label.findUnique({
       where: { id },
       include: {
@@ -209,10 +209,14 @@ export class LabelsService {
                 },
                 assignees: {
                   select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true,
-                    avatar: true,
+                    user: {
+                      select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        avatar: true,
+                      },
+                    },
                   },
                 },
               },
@@ -236,7 +240,19 @@ export class LabelsService {
       throw new ForbiddenException('You do not have permission to view this label');
     }
 
-    return label;
+    // Flatten nested assignees for API backward compatibility
+    return {
+      ...label,
+      taskLabels: label.taskLabels?.map((tl) => ({
+        ...tl,
+        task: tl.task
+          ? {
+              ...tl.task,
+              assignees: tl.task.assignees?.map((a: { user?: unknown }) => a.user ?? a),
+            }
+          : tl.task,
+      })),
+    };
   }
 
   async update(id: string, updateLabelDto: UpdateLabelDto, userId: string): Promise<Label> {

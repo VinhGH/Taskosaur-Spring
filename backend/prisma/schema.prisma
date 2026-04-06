@@ -102,8 +102,8 @@ model User {
   timeEntries             TimeEntry[]
   workspaceMembers        WorkspaceMember[]
   sentInvitations         Invitation[]         @relation("InvitationInviter")
-  assignedTasks           Task[]               @relation("TaskAssignees")
-  reportedTasks           Task[]               @relation("TaskReporters")
+  taskAssignees           TaskAssignee[]
+  taskReporters           TaskReporter[]
 
   // Project Inbox Relations
   defaultInboxes         ProjectInbox[] @relation("InboxDefaultAssignee")
@@ -322,8 +322,8 @@ model Task {
   sprint          Sprint?          @relation(fields: [sprintId], references: [id])
   status          TaskStatus       @relation(fields: [statusId], references: [id], onDelete: Cascade)
   timeEntries     TimeEntry[]
-  assignees       User[]           @relation("TaskAssignees")
-  reporters       User[]           @relation("TaskReporters")
+  assignees       TaskAssignee[]
+  reporters       TaskReporter[]
   publicShares    PublicTaskShare[]
 
   @@unique([projectId, taskNumber])
@@ -504,6 +504,28 @@ model TaskLabel {
 
   @@id([taskId, labelId])
   @@map("task_labels")
+}
+
+model TaskAssignee {
+  taskId    String   @map("task_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, userId])
+  @@map("task_assignees")
+}
+
+model TaskReporter {
+  taskId    String   @map("task_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, userId])
+  @@map("task_reporters")
 }
 
 model TaskWatcher {

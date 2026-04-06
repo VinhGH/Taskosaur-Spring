@@ -203,9 +203,9 @@ export class TaskCommentsService {
 
     // 3. Notify Assignees, Reporters, Watchers (Task Commented)
     const participants = [
-      ...task.assignees,
-      ...task.reporters,
-      ...task.watchers.map((w) => w.user),
+      ...task.assignees.map((a) => ({ id: a.userId })),
+      ...task.reporters.map((r) => ({ id: r.userId })),
+      ...task.watchers.map((w) => ({ id: w.user.id })),
     ];
 
     for (const participant of participants) {

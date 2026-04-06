@@ -722,8 +722,8 @@ export class ProjectsService {
               },
               where: {
                 OR: [
-                  { assignees: { some: { id: userId } } },
-                  { reporters: { some: { id: userId } } },
+                  { assignees: { some: { userId: userId } } },
+                  { reporters: { some: { userId: userId } } },
                 ],
               },
               take: 10,

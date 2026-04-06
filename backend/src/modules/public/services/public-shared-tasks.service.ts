@@ -108,7 +108,7 @@ export class PublicSharedTasksService {
               select: { name: true, color: true },
             },
             assignees: {
-              select: { firstName: true, lastName: true },
+              select: { user: { select: { firstName: true, lastName: true } } },
             },
             createdByUser: {
               select: { firstName: true, lastName: true, avatar: true },
@@ -151,8 +151,8 @@ export class PublicSharedTasksService {
       priority: share.task.priority,
       dueDate: share.task.dueDate || undefined,
       assignees: share.task.assignees.map((a) => ({
-        firstName: a.firstName,
-        lastName: a.lastName,
+        firstName: a.user.firstName,
+        lastName: a.user.lastName,
       })),
       createdBy: share.task.createdByUser ? {
         firstName: share.task.createdByUser.firstName,

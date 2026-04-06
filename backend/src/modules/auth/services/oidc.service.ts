@@ -81,7 +81,7 @@ export class OidcService {
     }
 
     // Cache client, reinitialize if config changed
-    const configHash = `${config.issuerUrl}:${config.clientId}:${config.redirectUri}`;
+    const configHash = `${config.issuerUrl}:${config.clientId}:${config.clientSecret}:${config.redirectUri}`;
     if (this.client && this.lastConfigHash === configHash) {
       return this.client;
     }

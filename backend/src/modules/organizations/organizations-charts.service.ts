@@ -187,7 +187,10 @@ export class OrganizationChartsService {
             },
           ],
         },
-        OR: [{ assignees: { some: { id: userId } } }, { reporters: { some: { id: userId } } }],
+        OR: [
+          { assignees: { some: { userId: userId } } },
+          { reporters: { some: { userId: userId } } },
+        ],
       },
       sprintForUser: {
         archive: false,
@@ -448,8 +451,8 @@ export class OrganizationChartsService {
           ? {}
           : {
               OR: [
-                { assignees: { some: { id: userId } } },
-                { reporters: { some: { id: userId } } },
+                { assignees: { some: { userId: userId } } },
+                { reporters: { some: { userId: userId } } },
               ],
             }),
       },
@@ -477,7 +480,10 @@ export class OrganizationChartsService {
       ? base
       : {
           ...base,
-          OR: [{ assignees: { some: { id: userId } } }, { reporters: { some: { id: userId } } }],
+          OR: [
+            { assignees: { some: { userId: userId } } },
+            { reporters: { some: { userId: userId } } },
+          ],
         };
 
     return this.prisma.task.groupBy({
@@ -529,7 +535,10 @@ export class OrganizationChartsService {
       ? base
       : {
           ...base,
-          OR: [{ assignees: { some: { id: userId } } }, { reporters: { some: { id: userId } } }],
+          OR: [
+            { assignees: { some: { userId: userId } } },
+            { reporters: { some: { userId: userId } } },
+          ],
         };
 
     const [totalBugs, resolvedBugs, criticalBugs, resolvedCriticalBugs] = await Promise.all([
@@ -632,34 +641,38 @@ export class OrganizationChartsService {
         lastName: true,
         _count: {
           select: {
-            assignedTasks: {
+            taskAssignees: {
               where: {
-                project: {
-                  workspace: { organizationId: orgId },
-                  archive: false,
+                task: {
+                  project: {
+                    workspace: { organizationId: orgId },
+                    archive: false,
+                  },
+                  completedAt: null,
                 },
-                completedAt: null,
               },
             },
-            reportedTasks: {
+            taskReporters: {
               where: {
-                project: {
-                  workspace: { organizationId: orgId },
-                  archive: false,
+                task: {
+                  project: {
+                    workspace: { organizationId: orgId },
+                    archive: false,
+                  },
                 },
               },
             },
           },
         },
       },
-      orderBy: isElevated ? { assignedTasks: { _count: 'desc' } } : undefined,
+      orderBy: isElevated ? { taskAssignees: { _count: 'desc' } } : undefined,
     });
 
     return members.map((m) => ({
       memberId: m.id,
       memberName: `${m.firstName || ''} ${m.lastName || ''}`.trim() || 'Unknown User',
-      activeTasks: m._count.assignedTasks,
-      reportedTasks: m._count.reportedTasks,
+      activeTasks: m._count.taskAssignees,
+      reportedTasks: m._count.taskReporters,
     }));
   }
 

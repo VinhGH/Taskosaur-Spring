@@ -58,7 +58,9 @@ export class GanttService {
         where: { projectId },
         include: {
           assignees: {
-            select: { id: true, firstName: true, lastName: true, avatar: true },
+            select: {
+              user: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+            },
           },
           status: {
             select: { name: true, color: true },
@@ -113,10 +115,10 @@ export class GanttService {
         dependencies,
         assignees: task.assignees
           ? task.assignees.map((assignee) => ({
-              id: assignee.id,
-              firstName: assignee.firstName,
-              lastName: assignee.lastName,
-              avatar: assignee.avatar || undefined,
+              id: assignee.user.id,
+              firstName: assignee.user.firstName,
+              lastName: assignee.user.lastName,
+              avatar: assignee.user.avatar || undefined,
             }))
           : undefined,
         priority: task.priority,
@@ -176,7 +178,9 @@ export class GanttService {
         where: { sprintId },
         include: {
           assignees: {
-            select: { id: true, firstName: true, lastName: true, avatar: true },
+            select: {
+              user: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+            },
           },
           status: {
             select: { name: true, color: true },
@@ -206,10 +210,10 @@ export class GanttService {
       dependencies: task.dependsOn.map((dep) => dep.blockingTask.id),
       assignees: task.assignees
         ? task.assignees.map((assignee) => ({
-            id: assignee.id,
-            firstName: assignee.firstName,
-            lastName: assignee.lastName,
-            avatar: assignee.avatar || undefined,
+            id: assignee.user.id,
+            firstName: assignee.user.firstName,
+            lastName: assignee.user.lastName,
+            avatar: assignee.user.avatar || undefined,
           }))
         : undefined,
       priority: task.priority,
@@ -256,7 +260,7 @@ export class GanttService {
       },
       include: {
         assignees: {
-          select: { id: true, firstName: true, lastName: true, avatar: true },
+          select: { user: { select: { id: true, firstName: true, lastName: true, avatar: true } } },
         },
       },
     });
@@ -278,15 +282,15 @@ export class GanttService {
     tasks.forEach((task) => {
       // Since each task can have multiple assignees, iterate through all of them
       task.assignees.forEach((assignee) => {
-        const assigneeId = assignee.id;
+        const assigneeId = assignee.user.id;
 
         // Initialize assignee in map if not exists
         if (!resourceMap.has(assigneeId)) {
           resourceMap.set(assigneeId, {
             assignee: {
-              id: assignee.id,
-              name: `${assignee.firstName} ${assignee.lastName}`,
-              avatar: assignee.avatar,
+              id: assignee.user.id,
+              name: `${assignee.user.firstName} ${assignee.user.lastName}`,
+              avatar: assignee.user.avatar,
             },
             tasks: [],
             workload: 0,

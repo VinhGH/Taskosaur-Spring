@@ -29,8 +29,8 @@ export class RecurringTasksCronService {
         include: {
           task: {
             include: {
-              assignees: { select: { id: true } },
-              reporters: { select: { id: true } },
+              assignees: { select: { userId: true } },
+              reporters: { select: { userId: true } },
             },
           },
         },
@@ -120,10 +120,10 @@ export class RecurringTasksCronService {
                     slug,
                     createdBy: recurringTask.task.createdBy,
                     assignees: {
-                      connect: recurringTask.task.assignees.map((a) => ({ id: a.id })),
+                      create: recurringTask.task.assignees.map((a) => ({ userId: a.userId })),
                     },
                     reporters: {
-                      connect: recurringTask.task.reporters.map((r) => ({ id: r.id })),
+                      create: recurringTask.task.reporters.map((r) => ({ userId: r.userId })),
                     },
                     isRecurring: false,
                   },

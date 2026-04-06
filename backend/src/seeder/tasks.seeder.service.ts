@@ -94,16 +94,18 @@ export class TasksSeederService {
                     )
                   : null,
 
-              // Connect multiple reporters (instead of single reporterId)
+              // Create multiple reporters via explicit join table
               reporters: {
-                connect: [
-                  { id: availableUsers[0]?.id || users[0].id }, // You can add more reporters here
+                create: [
+                  { userId: availableUsers[0]?.id || users[0].id }, // You can add more reporters here
                 ],
               },
 
-              // Connect multiple assignees (instead of single assigneeId)
+              // Create multiple assignees via explicit join table
               assignees: {
-                connect: this.getAssigneesForTask(taskWithStatus.taskData, availableUsers),
+                create: this.getAssigneesForTask(taskWithStatus.taskData, availableUsers).map(
+                  (a) => ({ userId: a.id }),
+                ),
               },
             },
           });
@@ -739,16 +741,24 @@ export class TasksSeederService {
         },
         assignees: {
           select: {
-            firstName: true,
-            lastName: true,
-            email: true,
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
           },
         },
         reporters: {
           select: {
-            firstName: true,
-            lastName: true,
-            email: true,
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
           },
         },
         status: {

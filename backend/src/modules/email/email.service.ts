@@ -85,8 +85,8 @@ export class EmailService {
       const task = await this.prisma.task.findUnique({
         where: { id: taskId },
         include: {
-          assignees: true, // Changed from assignee to assignees
-          reporters: true, // Changed from reporter to reporters
+          assignees: { include: { user: true } }, // Explicit join table
+          reporters: { include: { user: true } }, // Explicit join table
           project: {
             include: {
               workspace: {
@@ -110,20 +110,22 @@ export class EmailService {
       });
 
       // Filter to only include the assignees that were just added (present in assigneeIds)
-      const newAssignees = task.assignees.filter((assignee) => assigneeIds.includes(assignee.id));
+      const newAssignees = task.assignees.filter((assignee) =>
+        assigneeIds.includes(assignee.userId),
+      );
 
       // Send email to each NEW assignee concurrently
       const emailPromises = newAssignees
         .filter((assignee) => {
-          if (!assignee.email) {
-            this.logger.warn(`No email found for assignee ${assignee.id}`);
+          if (!assignee.user.email) {
+            this.logger.warn(`No email found for assignee ${assignee.userId}`);
             return false;
           }
           return true;
         })
         .map((assignee) =>
           this.sendEmail({
-            to: assignee.email,
+            to: assignee.user.email,
             subject: `Task Assigned: ${sanitizeHtml(task.title)}`,
             template: EmailTemplate.TASK_ASSIGNED,
             data: {
@@ -136,8 +138,8 @@ export class EmailService {
                 dueDate: task.dueDate,
               },
               assignee: {
-                name: `${assignee.firstName} ${assignee.lastName}`,
-                email: assignee.email,
+                name: `${assignee.user.firstName} ${assignee.user.lastName}`,
+                email: assignee.user.email,
               },
               assignedBy: {
                 name: assignedByUser
@@ -169,7 +171,7 @@ export class EmailService {
       const task = await this.prisma.task.findUnique({
         where: { id: taskId },
         include: {
-          assignees: true, // Changed from assignee to assignees
+          assignees: { include: { user: true } }, // Explicit join table
           project: {
             include: {
               workspace: {
@@ -190,10 +192,10 @@ export class EmailService {
 
       // Send reminder to all assignees
       const emailPromises = task.assignees
-        .filter((assignee) => assignee.email) // Only assignees with email
+        .filter((assignee) => assignee.user.email) // Only assignees with email
         .map((assignee) =>
           this.sendEmail({
-            to: assignee.email,
+            to: assignee.user.email,
             subject: `Task Due Soon: ${sanitizeHtml(task.title)}`,
             template: EmailTemplate.DUE_DATE_REMINDER,
             data: {
@@ -207,7 +209,7 @@ export class EmailService {
                 hoursUntilDue,
               },
               assignee: {
-                name: `${assignee.firstName} ${assignee.lastName}`,
+                name: `${assignee.user.firstName} ${assignee.user.lastName}`,
               },
               project: {
                 name: task.project.name,
@@ -235,8 +237,8 @@ export class EmailService {
       const task = await this.prisma.task.findUnique({
         where: { id: taskId },
         include: {
-          assignees: true,
-          reporters: true,
+          assignees: { include: { user: true } },
+          reporters: { include: { user: true } },
           status: true,
           project: {
             include: {
@@ -327,15 +329,15 @@ export class EmailService {
 
       // Add all assignees' emails
       task.assignees?.forEach((assignee) => {
-        if (assignee.email && assignee.id !== actorId) {
-          recipients.add(assignee.email);
+        if (assignee.user.email && assignee.userId !== actorId) {
+          recipients.add(assignee.user.email);
         }
       });
 
       // Add all reporters' emails
       task.reporters?.forEach((reporter) => {
-        if (reporter.email && reporter.id !== actorId) {
-          recipients.add(reporter.email);
+        if (reporter.user.email && reporter.userId !== actorId) {
+          recipients.add(reporter.user.email);
         }
       });
 
@@ -399,16 +401,14 @@ export class EmailService {
         this.prisma.task.count({
           where: {
             assignees: {
-              // Changed from assigneeId to assignees relation
-              some: { id: userId },
+              some: { userId: userId },
             },
           },
         }),
         this.prisma.task.count({
           where: {
             assignees: {
-              // Changed from assigneeId to assignees relation
-              some: { id: userId },
+              some: { userId: userId },
             },
             createdAt: {
               gte: oneWeekAgo,
@@ -431,8 +431,7 @@ export class EmailService {
       const overdueTasks = await this.prisma.task.findMany({
         where: {
           assignees: {
-            // Changed from assigneeId to assignees relation
-            some: { id: userId },
+            some: { userId: userId },
           },
           dueDate: {
             lt: new Date(),

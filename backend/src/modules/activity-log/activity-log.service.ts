@@ -96,8 +96,8 @@ export class ActivityLogService {
       });
 
       return [
-        ...(task?.assignees.map((assignee) => assignee.id) || []),
-        ...(task?.reporters.map((reporter) => reporter.id) || []),
+        ...(task?.assignees.map((assignee) => assignee.userId) || []),
+        ...(task?.reporters.map((reporter) => reporter.userId) || []),
       ].filter(Boolean);
     } catch (error) {
       console.error('Error getting task participants:', error);
