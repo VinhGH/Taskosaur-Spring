@@ -3,7 +3,6 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-package-lock.json
 
 # Development files
 .env
@@ -11,6 +10,7 @@ package-lock.json
 .env.development.local
 .env.test.local
 .env.production.local
+.env.test
 
 # IDE files
 .vscode/
@@ -57,25 +57,19 @@ temp/
 # Socket files
 *.sock
 
-# Docker files
+# Docker files (except entrypoint)
 Dockerfile*
 docker-compose*
 .dockerignore
 
-# Development tools
+# Development-only tools
 .eslintrc*
 .prettierrc*
-tsconfig.json
-tsconfig.*.json
 jest.config.*
-tailwind.config.*
-postcss.config.*
-next.config.*
-nest-cli.json
 
 # Uploads and data
 uploads/
 docker-data/
 
-# Scripts
+# Scripts (not needed in build)
 sync_to_oss.sh

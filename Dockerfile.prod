@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # =============================================================================
 # Stage 1: Builder - Build the application
 # =============================================================================
@@ -5,42 +6,42 @@ FROM node:22-slim AS builder
 
 WORKDIR /app/taskosaur
 
-# Update npm to latest version
-RUN npm install -g npm@10.9.4
+# Configure npm for better network reliability (env vars inherited by all child processes)
+ENV npm_config_fetch_timeout=150000 \
+    npm_config_fetch_retries=5 \
+    npm_config_fetch_retry_mintimeout=20000 \
+    npm_config_fetch_retry_maxtimeout=150000
 
-# Configure npm for better network reliability
-RUN npm config set fetch-timeout 150000 && \
-    npm config set fetch-retries 5 && \
-    npm config set fetch-retry-mintimeout 20000 && \
-    npm config set fetch-retry-maxtimeout 150000
-
-# Install build dependencies in a single layer
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     git \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Accept build number as build argument
-ARG BUILD_NUMBER
-ENV BUILD_NUMBER=${BUILD_NUMBER}
+# Set dummy DATABASE_URL for Prisma generate (required during build)
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy?schema=public"
 
-# Invalidate cache when BUILD_NUMBER changes
-RUN echo "Build number: ${BUILD_NUMBER}" > /tmp/build_number.txt
+# ------- Layer cache: install dependencies first, source code later -------
 
-# Copy package files first for better layer caching
-COPY package.json ./
+# Copy only package files (changes rarely → cached layer)
+COPY package.json package-lock.json ./
+COPY backend/package.json backend/package.dist.json ./backend/
+COPY frontend/package.json ./frontend/
 
-# Copy workspace directories
+# Install dependencies with BuildKit cache mount for npm cache
+RUN --mount=type=cache,target=/root/.npm \
+    npm install
+
+# ------- Now copy source code (changes frequently → invalidates from here) -------
+
 COPY backend ./backend
 COPY frontend ./frontend
 COPY scripts ./scripts
 
-# Install dependencies
-RUN npm install
-
-# Set dummy DATABASE_URL for Prisma generate (required by Prisma during build)
-ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy?schema=public"
+# Accept build number as build argument (placed AFTER npm install so it doesn't bust dep cache)
+ARG BUILD_NUMBER
+ENV BUILD_NUMBER=${BUILD_NUMBER}
 
 # Build the distribution
 RUN npm run build:dist

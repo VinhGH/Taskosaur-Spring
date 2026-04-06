@@ -203,7 +203,7 @@ class PackageAndDependenciesPlugin {
         // Step 6: Run npm install in dist directory (skip postinstall to avoid prisma generate error)
         console.log('[PackageAndDependenciesPlugin] Running npm install in dist directory...');
         console.log('[PackageAndDependenciesPlugin] This may take a few moments...');
-        execSync('npm install --production --no-audit --no-fund --ignore-scripts', {
+        execSync('npm install --production --no-audit --no-fund --ignore-scripts --fetch-timeout=150000 --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=150000', {
           cwd: distDir,
           stdio: 'inherit',
         });
