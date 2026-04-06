@@ -15,6 +15,7 @@ import ActionButton from "@/components/common/ActionButton";
 import { SEO } from "@/components/common/SEO";
 import { InvitationModal } from "@/components/notifications/InvitationModal";
 import { ModeToggle } from "@/components/header/ModeToggle";
+import api from "@/lib/api";
 
 const extendedQuestions: QuestionType[] = [
   ...questions,
@@ -292,8 +293,20 @@ function IntroQuestions({ onComplete }: { onComplete: () => void }) {
 export default function CreateOrganizationPage() {
   const [showInvitationModal, setShowInvitationModal] = useState(false);
   const [hasPendingInvites, setHasPendingInvites] = useState(false);
+  const [orgCreationBlocked, setOrgCreationBlocked] = useState(false);
   const { getCurrentUser } = useAuth();
   const currentUser = getCurrentUser();
+
+  useEffect(() => {
+    // Check if org creation is allowed
+    api.get("/auth/registration-status")
+      .then((res) => {
+        if (res.data?.allowOrgCreation === false && !res.data?.hasDefaultOrganization) {
+          setOrgCreationBlocked(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (currentUser) {
@@ -324,6 +337,22 @@ export default function CreateOrganizationPage() {
   const handleInvitationsProcessed = () => {
     setShowInvitationModal(false);
   };
+
+  if (orgCreationBlocked) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[var(--background)]">
+        <div className="max-w-md text-center space-y-4 p-8">
+          <h2 className="text-xl font-semibold text-[var(--foreground)]">
+            Organization Creation Disabled
+          </h2>
+          <p className="text-sm text-[var(--muted-foreground)]">
+            Organization creation is currently restricted by your administrator.
+            Please contact your admin to be assigned to an organization.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

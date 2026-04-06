@@ -19,7 +19,7 @@ interface FormData {
 }
 
 export function LoginForm() {
-  const { login } = useAuth();
+  const { login, checkOrganizationAndRedirect } = useAuth();
   const router = useRouter();
   const { resolvedTheme } = useTheme();
 
@@ -50,13 +50,15 @@ export function LoginForm() {
       window.history.replaceState({}, document.title, "/login");
 
       api.post("/auth/oidc/exchange")
-        .then((res) => {
+        .then(async (res) => {
           const { access_token, refresh_token, user } = res.data;
           if (access_token && refresh_token) {
             TokenManager.setAccessToken(access_token);
             TokenManager.setRefreshToken(refresh_token);
             if (user) localStorage.setItem("user", JSON.stringify(user));
-            window.location.href = "/dashboard";
+            // Use org check to determine correct redirect (dashboard vs organization)
+            const redirectPath = await checkOrganizationAndRedirect();
+            window.location.href = redirectPath;
           } else {
             setError("Failed to process SSO login");
           }
@@ -306,37 +308,36 @@ export function LoginForm() {
         </>
       )}
 
-      {/* Divider */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.5 }}
-        className="login-divider-container"
-      >
-        <div className="login-divider-line">
-          <div className="login-divider-border" />
-        </div>
-        {registrationEnabled && (
-          <div className="login-divider-text-container">
-            <span className="login-divider-text">New to Taskosaur?</span>
-          </div>
-        )}
-      </motion.div>
-
-      {/* Sign Up Link */}
+      {/* Divider + Sign Up Link (only when registration is enabled) */}
       {registrationEnabled && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.6 }}
-        >
-          <Link href="/register">
-            <Button variant="outline" className="login-signup-button">
-              Create New Account
-              <ArrowRight className="login-button-arrow" />
-            </Button>
-          </Link>
-        </motion.div>
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+            className="login-divider-container"
+          >
+            <div className="login-divider-line">
+              <div className="login-divider-border" />
+            </div>
+            <div className="login-divider-text-container">
+              <span className="login-divider-text">New to Taskosaur?</span>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+          >
+            <Link href="/register">
+              <Button variant="outline" className="login-signup-button">
+                Create New Account
+                <ArrowRight className="login-button-arrow" />
+              </Button>
+            </Link>
+          </motion.div>
+        </>
       )}
 
       {/* Footer */}
