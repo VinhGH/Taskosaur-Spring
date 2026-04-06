@@ -390,27 +390,32 @@ export class EmailProcessor implements OnModuleInit {
 
       case EmailTemplate.SEND_INVITATION:
         bodyContent = `
-        <div class="container">
-          <div class="content">
-            <p>${data.inviterName} has invited you to join their ${(data.entityType as string).toLowerCase()} on Taskosaur.</p>
-            
-            <div class="task-info">
-              <p><strong>${data.entityType}:</strong> ${data.entityName}</p>
-              <p><strong>Role:</strong> ${data.role}</p>
-              <p><strong>Invited by:</strong> ${data.inviterName}</p>
-              <p><strong>Expires:</strong> ${data.expiresAt}</p>
-            </div>
-            
-            <div class="button-container">
-              <a href="${data.invitationUrl}" class="button">View Invitation</a>
-            </div>
-            
-            <div class="info-section">
-              <p>This invitation expires on <strong>${data.expiresAt}</strong>. Please respond before this date.</p>
-            </div>
-          </div>
-          <div class="footer">
-            <p>Taskosaur - Modern Project Management</p>
+        <div style="max-width:560px;margin:0 auto;padding:40px 0;">
+          <div style="padding:0 20px;">
+            <p style="font-size:15px;color:#1d1d1f;margin:0 0 24px;">Hi,</p>
+
+            <p style="font-size:15px;color:#1d1d1f;margin:0 0 16px;">
+              <strong>${data.inviterName}</strong> has invited you to join
+              <strong>${data.entityName}</strong> on Taskosaur as a <strong>${data.role}</strong>.
+            </p>
+
+            <p style="font-size:15px;color:#1d1d1f;margin:0 0 28px;">
+              To accept this invitation, click the link below:
+            </p>
+
+            <p style="margin:0 0 28px;">
+              <a href="${data.invitationUrl}" style="font-size:15px;color:#0066cc;text-decoration:none;">${data.invitationUrl}</a>
+            </p>
+
+            <p style="font-size:13px;color:#86868b;margin:0 0 8px;">
+              This invitation expires on ${data.expiresAt}. If you didn't expect this email, you can safely ignore it.
+            </p>
+
+            <div style="border-top:1px solid #d2d2d7;margin:32px 0 20px;"></div>
+
+            <p style="font-size:12px;color:#86868b;margin:0;">
+              Taskosaur &mdash; Project Management
+            </p>
           </div>
         </div>
       `;
@@ -418,26 +423,31 @@ export class EmailProcessor implements OnModuleInit {
 
       case EmailTemplate.DIRECT_ADD_NOTIFICATION:
         bodyContent = `
-            <div class="container">
-              <div class="content">
-                <p>${data.inviterName} has added you to their ${(data.entityType as string).toLowerCase()} on Taskosaur.</p>
-                
-                <div class="task-info">
-                  <p><strong>${data.entityType}:</strong> ${data.entityName}</p>
-                  ${data.organizationName ? `<p><strong>Organization:</strong> ${data.organizationName}</p>` : ''}
-                  <p><strong>Role:</strong> ${data.role}</p>
-                  <p><strong>Added by:</strong> ${data.inviterName}</p>
-                </div>
-                
-                <div class="button-container">
-                  <a href="${data.entityUrl}" class="button">Go to ${data.entityType}</a>
-                </div>
-              </div>
-              <div class="footer">
-                <p>Taskosaur - Modern Project Management</p>
-              </div>
-            </div>
-          `;
+        <div style="max-width:560px;margin:0 auto;padding:40px 0;">
+          <div style="padding:0 20px;">
+            <p style="font-size:15px;color:#1d1d1f;margin:0 0 24px;">Hi,</p>
+
+            <p style="font-size:15px;color:#1d1d1f;margin:0 0 16px;">
+              <strong>${data.inviterName}</strong> has added you to
+              <strong>${data.entityName}</strong>${data.organizationName ? ` in <strong>${data.organizationName}</strong>` : ''} as a <strong>${data.role}</strong>.
+            </p>
+
+            <p style="font-size:15px;color:#1d1d1f;margin:0 0 28px;">
+              You can access it here:
+            </p>
+
+            <p style="margin:0 0 28px;">
+              <a href="${data.entityUrl}" style="font-size:15px;color:#0066cc;text-decoration:none;">${data.entityUrl}</a>
+            </p>
+
+            <div style="border-top:1px solid #d2d2d7;margin:32px 0 20px;"></div>
+
+            <p style="font-size:12px;color:#86868b;margin:0;">
+              Taskosaur &mdash; Project Management
+            </p>
+          </div>
+        </div>
+      `;
         break;
 
       case EmailTemplate.INVITATION_ACCEPTED:
@@ -884,6 +894,32 @@ ${data.notification.actionUrl ? `View details: ${data.notification.actionUrl}` :
 
 --
 Taskosaur - Modern Project Management
+        `;
+
+      case EmailTemplate.SEND_INVITATION:
+        return `Hi,
+
+${data.inviterName} has invited you to join ${data.entityName} on Taskosaur as a ${data.role}.
+
+To accept this invitation, visit:
+${data.invitationUrl}
+
+This invitation expires on ${data.expiresAt}.
+
+--
+Taskosaur - Project Management
+        `;
+
+      case EmailTemplate.DIRECT_ADD_NOTIFICATION:
+        return `Hi,
+
+${data.inviterName} has added you to ${data.entityName}${data.organizationName ? ` in ${data.organizationName}` : ''} as a ${data.role}.
+
+You can access it here:
+${data.entityUrl}
+
+--
+Taskosaur - Project Management
         `;
 
       default:
