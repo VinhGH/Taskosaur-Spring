@@ -18,27 +18,27 @@ export const adminApi = {
   },
 
   getUserDetail: async (id: string) => {
-    const res = await api.get(`/admin/users/${id}`);
+    const res = await api.get(`/admin/users/${encodeURIComponent(id)}`);
     return res.data;
   },
 
   updateUserRole: async (id: string, role: string) => {
-    const res = await api.patch(`/admin/users/${id}/role`, { role });
+    const res = await api.patch(`/admin/users/${encodeURIComponent(id)}/role`, { role });
     return res.data;
   },
 
   updateUserStatus: async (id: string, status: string) => {
-    const res = await api.patch(`/admin/users/${id}/status`, { status });
+    const res = await api.patch(`/admin/users/${encodeURIComponent(id)}/status`, { status });
     return res.data;
   },
 
   deleteUser: async (id: string) => {
-    const res = await api.delete(`/admin/users/${id}`);
+    const res = await api.delete(`/admin/users/${encodeURIComponent(id)}`);
     return res.data;
   },
 
   resetUserPassword: async (id: string) => {
-    const res = await api.post(`/admin/users/${id}/reset-password`);
+    const res = await api.post(`/admin/users/${encodeURIComponent(id)}/reset-password`);
     return res.data;
   },
 
@@ -52,22 +52,22 @@ export const adminApi = {
   },
 
   getOrganizationDetail: async (id: string) => {
-    const res = await api.get(`/admin/organizations/${id}`);
+    const res = await api.get(`/admin/organizations/${encodeURIComponent(id)}`);
     return res.data;
   },
 
   deleteOrganization: async (id: string) => {
-    const res = await api.delete(`/admin/organizations/${id}`);
+    const res = await api.delete(`/admin/organizations/${encodeURIComponent(id)}`);
     return res.data;
   },
 
   toggleOrganizationArchive: async (id: string) => {
-    const res = await api.patch(`/admin/organizations/${id}/archive`);
+    const res = await api.patch(`/admin/organizations/${encodeURIComponent(id)}/archive`);
     return res.data;
   },
 
   transferOrganizationOwnership: async (orgId: string, newOwnerId: string) => {
-    const res = await api.patch(`/admin/organizations/${orgId}/transfer-ownership`, { newOwnerId });
+    const res = await api.patch(`/admin/organizations/${encodeURIComponent(orgId)}/transfer-ownership`, { newOwnerId });
     return res.data;
   },
 
