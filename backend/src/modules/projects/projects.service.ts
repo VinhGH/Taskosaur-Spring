@@ -14,6 +14,7 @@ import slugify from 'slugify';
 import { DEFAULT_SPRINT } from '../../constants/defaultWorkflow';
 import { AccessControlService } from 'src/common/access-control.utils';
 import { ActivityLogService } from '../activity-log/activity-log.service';
+import { SettingsService } from '../settings/settings.service';
 import { InputSanitizer } from '../../common/utils/input-sanitizer';
 
 type ProjectFilters = {
@@ -46,6 +47,7 @@ export class ProjectsService {
     private prisma: PrismaService,
     private accessControl: AccessControlService,
     private readonly activityLog: ActivityLogService,
+    private settingsService: SettingsService,
   ) {}
 
   private async isSuperAdmin(userId: string): Promise<boolean> {
@@ -76,23 +78,45 @@ export class ProjectsService {
 
     if (!workspace) throw new NotFoundException('Workspace not found');
 
-    // Consolidated permission check: Verify user can create projects in this workspace
-    // Skip membership check if user is the organization owner
-    if (workspace.organization.ownerId !== userId) {
-      const wsMember = await this.prisma.workspaceMember.findUnique({
-        where: {
-          userId_workspaceId: {
-            userId,
-            workspaceId: createProjectDto.workspaceId,
-          },
-        },
-        select: { role: true },
-      });
+    // Check if organization is archived
+    const org = await this.prisma.organization.findUnique({
+      where: { id: workspace.organizationId },
+      select: { id: true, archive: true },
+    });
+    if (org?.archive) {
+      throw new ForbiddenException('Cannot create project in an archived organization');
+    }
 
-      if (!wsMember || wsMember.role === Role.VIEWER) {
-        throw new ForbiddenException(
-          'Insufficient permissions to create projects in this workspace',
-        );
+    const isOrgOwner = workspace.organization.ownerId === userId;
+    const superAdmin = await this.isSuperAdmin(userId);
+
+    // Check global setting for project creation
+    const allowProjectCreation = await this.settingsService.get('allow_project_creation');
+    if (allowProjectCreation === 'false') {
+      // Only MANAGER+ at workspace level, org owner, or SUPER_ADMIN can create when disabled
+      if (!isOrgOwner && !superAdmin) {
+        const wsMember = await this.prisma.workspaceMember.findUnique({
+          where: { userId_workspaceId: { userId, workspaceId: createProjectDto.workspaceId } },
+          select: { role: true },
+        });
+        if (!wsMember || (wsMember.role !== Role.OWNER && wsMember.role !== Role.MANAGER)) {
+          throw new ForbiddenException(
+            'Project creation is restricted. Please contact your workspace admin.',
+          );
+        }
+      }
+    } else {
+      // Default behavior: org owner and SUPER_ADMIN can always create, others need non-VIEWER role
+      if (!isOrgOwner && !superAdmin) {
+        const wsMember = await this.prisma.workspaceMember.findUnique({
+          where: { userId_workspaceId: { userId, workspaceId: createProjectDto.workspaceId } },
+          select: { role: true },
+        });
+        if (!wsMember || wsMember.role === Role.VIEWER) {
+          throw new ForbiddenException(
+            'Insufficient permissions to create projects in this workspace',
+          );
+        }
       }
     }
 

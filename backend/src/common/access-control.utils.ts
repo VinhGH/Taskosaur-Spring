@@ -103,12 +103,13 @@ export class AccessControlService {
 
     const org = await this.prisma.organization.findUnique({
       where: { id: orgId },
-      select: { ownerId: true },
+      select: { ownerId: true, archive: true },
     });
 
     if (!org) throw new NotFoundException('Organization not found');
 
-    if (org.ownerId === userId) {
+    // Organization owner bypass — not if archived
+    if (org.ownerId === userId && !org.archive) {
       return {
         isElevated: true,
         role: Role.OWNER,
@@ -128,7 +129,7 @@ export class AccessControlService {
     if (!member) throw new ForbiddenException('Not a member of this organization');
 
     const isElevated = member.role === Role.MANAGER || member.role === Role.OWNER;
-    const canChange = member.role === Role.MANAGER || member.role === Role.OWNER;
+    const canChange = isElevated && !org.archive;
 
     return {
       isElevated,
@@ -169,9 +170,14 @@ export class AccessControlService {
       throw new ForbiddenException('Not a member of this workspace');
     }
 
+    const org = await this.prisma.organization.findUnique({
+      where: { id: workspace.organizationId },
+      select: { id: true, archive: true },
+    });
+
     const effectiveRole = wsMember?.role || Role.VIEWER;
     const isElevated = effectiveRole === Role.MANAGER || effectiveRole === Role.OWNER;
-    const canChange = effectiveRole === Role.MANAGER || effectiveRole === Role.OWNER;
+    const canChange = isElevated && !org?.archive;
 
     return {
       isElevated,
@@ -211,8 +217,13 @@ export class AccessControlService {
 
     if (!project) throw new NotFoundException('Project not found');
 
-    // Organization owner bypass
-    if (project.workspace.organization.ownerId === userId) {
+    const org = await this.prisma.organization.findUnique({
+      where: { id: project.workspace.organizationId },
+      select: { id: true, archive: true },
+    });
+
+    // Organization owner bypass — not if archived
+    if (project.workspace.organization.ownerId === userId && !org?.archive) {
       return {
         isElevated: true,
         role: Role.OWNER,
@@ -224,7 +235,7 @@ export class AccessControlService {
       };
     }
 
-    // Check organization membership (MANAGER/OWNER bypass)
+    // Check organization membership (MANAGER/OWNER bypass) — not if archived
     const orgMember = await this.prisma.organizationMember.findUnique({
       where: {
         userId_organizationId: {
@@ -239,7 +250,7 @@ export class AccessControlService {
       return {
         isElevated: true,
         role: orgMember.role,
-        canChange: true,
+        canChange: !org?.archive,
         userId,
         scopeId: projectId,
         scopeType: 'PROJECT',
@@ -247,7 +258,7 @@ export class AccessControlService {
       };
     }
 
-    // Check workspace membership
+    // Check workspace membership — not if archived
     const wsMember = await this.prisma.workspaceMember.findUnique({
       where: { userId_workspaceId: { userId, workspaceId: project.workspaceId } },
       select: { role: true },
@@ -257,7 +268,7 @@ export class AccessControlService {
       return {
         isElevated: true,
         role: wsMember.role,
-        canChange: true,
+        canChange: !org?.archive,
         userId,
         scopeId: projectId,
         scopeType: 'PROJECT',
@@ -274,7 +285,7 @@ export class AccessControlService {
       return {
         isElevated,
         role: projectMember.role,
-        canChange: projectMember.role !== Role.VIEWER,
+        canChange: projectMember.role !== Role.VIEWER && !org?.archive,
         userId,
         scopeId: projectId,
         scopeType: 'PROJECT',
@@ -365,8 +376,13 @@ export class AccessControlService {
     const { workspaceId, workspace } = project;
     const { organizationId, organization } = workspace;
 
-    // Organization owner bypass
-    if (organization.ownerId === userId) {
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true, archive: true },
+    });
+
+    // Organization owner bypass — not if archived
+    if (organization.ownerId === userId && !org?.archive) {
       return {
         isElevated: true,
         role: Role.OWNER,
@@ -379,7 +395,7 @@ export class AccessControlService {
       };
     }
 
-    // Check organization membership first (highest priority)
+    // Check organization membership first (highest priority) — not if archived
     const orgMember = await this.prisma.organizationMember.findUnique({
       where: { userId_organizationId: { userId, organizationId } },
       select: { role: true },
@@ -389,7 +405,7 @@ export class AccessControlService {
       return {
         isElevated: true,
         role: orgMember.role,
-        canChange: true,
+        canChange: !org?.archive,
         userId,
         scopeId: taskId,
         scopeType: 'TASK',
@@ -398,7 +414,7 @@ export class AccessControlService {
       };
     }
 
-    // Check workspace membership
+    // Check workspace membership — not if archived
     const wsMember = await this.prisma.workspaceMember.findUnique({
       where: { userId_workspaceId: { userId, workspaceId } },
       select: { role: true },
@@ -408,7 +424,7 @@ export class AccessControlService {
       return {
         isElevated: true,
         role: wsMember.role,
-        canChange: true,
+        canChange: !org?.archive,
         userId,
         scopeId: taskId,
         scopeType: 'TASK',
@@ -446,13 +462,14 @@ export class AccessControlService {
 
     const effectiveRole = projectMember?.role || wsMember?.role || orgMember?.role || Role.VIEWER;
 
-    // Allow changes if user is MANAGER/OWNER, or creator, or assignee, or reporter
+    // Allow changes if user is MANAGER/OWNER, or creator, or assignee, or reporter — not if archived
     const canChange =
-      effectiveRole === Role.MANAGER ||
-      effectiveRole === Role.OWNER ||
-      task.createdBy === userId ||
-      isAssignee ||
-      isReporter;
+      !org?.archive &&
+      (effectiveRole === Role.MANAGER ||
+        effectiveRole === Role.OWNER ||
+        task.createdBy === userId ||
+        isAssignee ||
+        isReporter);
 
     return {
       isElevated: effectiveRole === Role.MANAGER || effectiveRole === Role.OWNER,
@@ -493,8 +510,13 @@ export class AccessControlService {
 
     if (!project) throw new NotFoundException('Project not found');
 
-    // Organization owner bypass
-    if (project.workspace.organization.ownerId === userId) {
+    const org = await this.prisma.organization.findUnique({
+      where: { id: project.workspace.organizationId },
+      select: { id: true, archive: true },
+    });
+
+    // Organization owner bypass — not if archived
+    if (project.workspace.organization.ownerId === userId && !org?.archive) {
       return {
         isElevated: true,
         role: Role.OWNER,
@@ -506,7 +528,7 @@ export class AccessControlService {
       };
     }
 
-    // Check organization membership first (highest priority)
+    // Check organization membership first (highest priority) — not if archived
     const orgMember = await this.prisma.organizationMember.findUnique({
       where: {
         userId_organizationId: {
@@ -521,7 +543,7 @@ export class AccessControlService {
       return {
         isElevated: true,
         role: orgMember.role,
-        canChange: true,
+        canChange: !org?.archive,
         userId,
         scopeId: slug,
         scopeType: 'PROJECT',
@@ -529,7 +551,7 @@ export class AccessControlService {
       };
     }
 
-    // Check workspace membership
+    // Check workspace membership — not if archived
     const wsMember = await this.prisma.workspaceMember.findUnique({
       where: {
         userId_workspaceId: { userId, workspaceId: project.workspaceId },
@@ -541,7 +563,7 @@ export class AccessControlService {
       return {
         isElevated: true,
         role: wsMember.role,
-        canChange: true,
+        canChange: !org?.archive,
         userId,
         scopeId: slug,
         scopeType: 'PROJECT',
@@ -559,7 +581,7 @@ export class AccessControlService {
       return {
         isElevated,
         role: projectMember.role,
-        canChange: projectMember.role !== Role.VIEWER,
+        canChange: projectMember.role !== Role.VIEWER && !org?.archive,
         userId,
         scopeId: slug,
         scopeType: 'PROJECT',
@@ -601,7 +623,7 @@ export class AccessControlService {
     return {
       isElevated,
       role: effectiveRole,
-      canChange: isElevated,
+      canChange: isElevated && !org?.archive,
       userId,
       scopeId: slug,
       scopeType: 'PROJECT',

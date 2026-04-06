@@ -111,11 +111,19 @@ export class AuthController {
 
   @Public()
   @Get('registration-status')
-  @ApiOperation({ summary: 'Check if user registration is enabled' })
-  @ApiResponse({ status: 200, description: 'Registration status' })
+  @ApiOperation({ summary: 'Check if user registration is enabled and org creation settings' })
+  @ApiResponse({ status: 200, description: 'Registration and org creation status' })
   async getRegistrationStatus() {
-    const value = await this.settingsService.get('registration_enabled');
-    return { enabled: value !== 'false' };
+    const [registrationValue, allowOrgCreation, defaultOrgId] = await Promise.all([
+      this.settingsService.get('registration_enabled'),
+      this.settingsService.get('allow_org_creation'),
+      this.settingsService.get('default_organization_id'),
+    ]);
+    return {
+      enabled: registrationValue !== 'false',
+      allowOrgCreation: allowOrgCreation !== 'false',
+      hasDefaultOrganization: !!defaultOrgId,
+    };
   }
 
   @Public()

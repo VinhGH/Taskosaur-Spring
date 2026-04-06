@@ -189,6 +189,10 @@ export class AdminController {
     },
   ) {
     for (const setting of body.settings) {
+      // Skip saving masked password values to avoid overwriting real secrets
+      if (setting.isEncrypted && setting.value === '••••••••') {
+        continue;
+      }
       await this.settingsService.set(
         setting.key,
         setting.value,
@@ -199,5 +203,11 @@ export class AdminController {
       );
     }
     return { success: true };
+  }
+
+  @Post('config/test-smtp')
+  @ApiOperation({ summary: 'Test SMTP connection and authentication' })
+  async testSmtp() {
+    return this.adminService.testSmtpConfig();
   }
 }

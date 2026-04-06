@@ -12,6 +12,7 @@ import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { AccessControlService } from 'src/common/access-control.utils';
+import { SettingsService } from '../settings/settings.service';
 import { isUUID } from 'class-validator';
 import {
   DEFAULT_WORKFLOW,
@@ -31,6 +32,7 @@ export class OrganizationsService {
     private prisma: PrismaService,
     private activityLog: ActivityLogService,
     private accessControl: AccessControlService,
+    private settingsService: SettingsService,
   ) {}
 
   /**
@@ -108,6 +110,21 @@ export class OrganizationsService {
     createOrganizationDto: CreateOrganizationDto,
     userId: string,
   ): Promise<Organization> {
+    // Check if org creation is allowed globally
+    const allowOrgCreation = await this.settingsService.get('allow_org_creation');
+    if (allowOrgCreation === 'false') {
+      // Only SUPER_ADMIN can create orgs when disabled
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+      if (user?.role !== Role.SUPER_ADMIN) {
+        throw new ForbiddenException(
+          'Organization creation is disabled. Please contact your administrator.',
+        );
+      }
+    }
+
     try {
       // Use Prisma transaction to ensure atomicity of all operations
       const result = await this.prisma.$transaction(async (tx) => {
@@ -771,6 +788,24 @@ export class OrganizationsService {
 
       if (!organization) {
         throw new NotFoundException('Organization not found');
+      }
+
+      // Clear defaultOrganizationId for users who had this as their default
+      await this.prisma.user.updateMany({
+        where: { defaultOrganizationId: id },
+        data: { defaultOrganizationId: null },
+      });
+
+      // Clear global default_organization_id setting if it points to this org
+      const defaultOrgSetting = await this.settingsService.get('default_organization_id');
+      if (defaultOrgSetting === id) {
+        await this.settingsService.set(
+          'default_organization_id',
+          '',
+          undefined,
+          undefined,
+          'registration',
+        );
       }
 
       const deletedOrg = await this.prisma.organization.delete({

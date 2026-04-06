@@ -5,9 +5,10 @@ import { PrismaModule } from '../../prisma/prisma.module';
 import { AccessControlService } from 'src/common/access-control.utils';
 import { ProjectChartsService } from './project-charts.service';
 import { ActivityLogService } from '../activity-log/activity-log.service';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, SettingsModule],
   controllers: [ProjectsController],
   providers: [ProjectsService, AccessControlService, ProjectChartsService, ActivityLogService],
   exports: [ProjectsService],

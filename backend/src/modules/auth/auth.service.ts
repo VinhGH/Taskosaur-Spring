@@ -148,6 +148,9 @@ export class AuthService {
       role: Role.MEMBER,
     });
 
+    // Auto-join default organization if configured
+    await this.addUserToDefaultOrganization(user.id);
+
     // Generate tokens
     const payload: JwtPayload = {
       sub: user.id,
@@ -178,6 +181,42 @@ export class AuthService {
         mobileNumber: user.mobileNumber || undefined,
       },
     };
+  }
+
+  /**
+   * Auto-joins a new user to the default organization if configured.
+   */
+  async addUserToDefaultOrganization(userId: string): Promise<void> {
+    const defaultOrgId = await this.settingsService.get('default_organization_id');
+    if (!defaultOrgId) return;
+
+    // Verify the organization exists
+    const org = await this.prisma.organization.findUnique({
+      where: { id: defaultOrgId },
+      select: { id: true },
+    });
+    if (!org) return;
+
+    // Check if user is already a member
+    const existing = await this.prisma.organizationMember.findUnique({
+      where: { userId_organizationId: { userId, organizationId: defaultOrgId } },
+    });
+    if (existing) return;
+
+    // Add user as MEMBER
+    await this.prisma.organizationMember.create({
+      data: {
+        userId,
+        organizationId: defaultOrgId,
+        role: Role.MEMBER,
+      },
+    });
+
+    // Set as user's default organization
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { defaultOrganizationId: defaultOrgId },
+    });
   }
 
   async refreshToken(refreshToken: string): Promise<AuthResponseDto> {

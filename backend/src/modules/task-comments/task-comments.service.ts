@@ -95,6 +95,14 @@ export class TaskCommentsService {
       throw new NotFoundException('Task not found');
     }
 
+    const org = await this.prisma.organization.findUnique({
+      where: { id: task.project.workspace.organizationId },
+      select: { id: true, archive: true },
+    });
+    if (org?.archive) {
+      throw new ForbiddenException('Operation not allowed in an archived organization');
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {

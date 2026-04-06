@@ -5,9 +5,10 @@ import { PrismaModule } from '../../prisma/prisma.module';
 import { ActivityLogService } from '../activity-log/activity-log.service';
 import { AccessControlService } from 'src/common/access-control.utils';
 import { WorkspaceChartsService } from './workspace-charts.service';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, SettingsModule],
   controllers: [WorkspacesController],
   providers: [WorkspacesService, ActivityLogService, AccessControlService, WorkspaceChartsService],
   exports: [WorkspacesService],

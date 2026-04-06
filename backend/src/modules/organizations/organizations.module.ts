@@ -7,9 +7,10 @@ import { AuthModule } from '../auth/auth.module';
 import { AccessControlService } from 'src/common/access-control.utils';
 import { UniversalSearchService } from './universal-search.service';
 import { ActivityLogModule } from '../activity-log/activity-log.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, ActivityLogModule],
+  imports: [PrismaModule, AuthModule, ActivityLogModule, SettingsModule],
   controllers: [OrganizationsController],
   providers: [
     OrganizationsService,

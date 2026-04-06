@@ -66,7 +66,7 @@ export class ProjectsController {
   @ApiBody({ type: CreateProjectDto })
   @ApiResponse({ status: 201, description: 'Project created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid project data' })
-  @Roles(Role.MANAGER, Role.OWNER, Role.SUPER_ADMIN)
+  @Roles(Role.MEMBER, Role.MANAGER, Role.OWNER, Role.SUPER_ADMIN)
   @LogActivity({
     type: 'PROJECT_CREATED',
     entityType: 'Project',

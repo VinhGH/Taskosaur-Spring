@@ -54,7 +54,7 @@ export class WorkspacesController {
   @ApiOperation({ summary: 'Create a new workspace' })
   @ApiResponse({ status: 201, description: 'Workspace created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid workspace data' })
-  @Roles(Role.MANAGER, Role.OWNER)
+  @Roles(Role.MEMBER, Role.MANAGER, Role.OWNER)
   create(@Body() createWorkspaceDto: CreateWorkspaceDto, @CurrentUser() user: any) {
     return this.workspacesService.create(createWorkspaceDto, user.id as string);
   }

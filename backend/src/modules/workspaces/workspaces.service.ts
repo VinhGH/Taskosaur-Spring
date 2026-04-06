@@ -9,27 +9,39 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { AccessControlService } from 'src/common/access-control.utils';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class WorkspacesService {
   constructor(
     private prisma: PrismaService,
     private accessControl: AccessControlService,
+    private settingsService: SettingsService,
   ) {}
 
   async create(createWorkspaceDto: CreateWorkspaceDto, userId: string): Promise<Workspace> {
-    const { isElevated } = await this.accessControl.getOrgAccess(
+    // getOrgAccess throws ForbiddenException if user is not an org member
+    const orgAccess = await this.accessControl.getOrgAccess(
       createWorkspaceDto.organizationId,
       userId,
     );
-    if (!isElevated) {
-      throw new ForbiddenException('Insufficient permissions to create workspace');
+
+    // Check global setting for workspace creation
+    const allowWsCreation = await this.settingsService.get('allow_workspace_creation');
+    if (allowWsCreation === 'false') {
+      // Only elevated users (OWNER/MANAGER) and SUPER_ADMIN can create when disabled
+      if (!orgAccess.isElevated && !orgAccess.isSuperAdmin) {
+        throw new ForbiddenException(
+          'Workspace creation is restricted. Please contact your organization admin.',
+        );
+      }
     }
     const organization = await this.prisma.organization.findUnique({
       where: { id: createWorkspaceDto.organizationId },
       select: {
         id: true,
         ownerId: true,
+        archive: true,
         members: {
           select: { userId: true, role: true },
         },
@@ -38,6 +50,10 @@ export class WorkspacesService {
 
     if (!organization) {
       throw new NotFoundException('Organization not found');
+    }
+
+    if (organization.archive) {
+      throw new ForbiddenException('Cannot create workspace in an archived organization');
     }
     // Generate unique slug
     const uniqueSlug = await this.generateUniqueSlug(
