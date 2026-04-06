@@ -89,4 +89,9 @@ export const adminApi = {
     const res = await api.post("/admin/config", { settings });
     return res.data;
   },
+
+  testSmtp: async () => {
+    const res = await api.post("/admin/config/test-smtp");
+    return res.data;
+  },
 };

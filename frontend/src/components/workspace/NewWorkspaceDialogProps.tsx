@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useRouter } from "next/router";
 import { useWorkspaceContext } from "@/contexts/workspace-context";
 import { useAuth } from "@/contexts/auth-context";
 import { HiExclamationTriangle, HiSparkles, HiDocumentText } from "react-icons/hi2";
@@ -42,6 +43,7 @@ export default function NewWorkspaceDialog({
   triggerVariant = "default",
   onWorkspaceCreated,
 }: NewWorkspaceDialogProps) {
+  const router = useRouter();
   const workspaceContext = useWorkspaceContext();
   const { isAuthenticated } = useAuth();
 
@@ -107,7 +109,7 @@ export default function NewWorkspaceDialog({
           throw new Error("Authentication required");
         }
 
-        await workspaceContext.createWorkspace({
+        const newWorkspace = await workspaceContext.createWorkspace({
           name: formData.name.trim(),
           description: formData.description.trim(),
         });
@@ -117,11 +119,15 @@ export default function NewWorkspaceDialog({
             await onWorkspaceCreated();
           } catch (refreshError) {
             console.error("Failed to refresh workspaces:", refreshError);
-            toast.warning("Workspace created but failed to refresh list. Please refresh the page.");
           }
         }
 
         handleOpenChange(false);
+        toast.success(`Workspace "${formData.name}" created successfully!`);
+
+        if (newWorkspace?.slug) {
+          router.push(`/${newWorkspace.slug}`);
+        }
       } catch (error) {
         const errMsg = error instanceof Error ? error.message : "Failed to create workspace";
         setError(errMsg);

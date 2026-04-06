@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/router";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Command,
@@ -49,6 +50,7 @@ export function NewProjectModal({
   workspaceSlug,
   onProjectCreated,
 }: NewProjectModalProps) {
+  const router = useRouter();
   const workspaceContext = useWorkspace();
   const projectContext = useProject();
 
@@ -278,10 +280,17 @@ export function NewProjectModal({
         },
       };
 
-      await createProject(projectData);
+      const newProject = await createProject(projectData);
+      const wsSlug = formData.workspace?.slug;
+      const projSlug = newProject?.slug;
+
       toast.success(`Project "${formData.name}" created successfully!`);
       handleClose();
       document.body.style.pointerEvents = "auto";
+
+      if (wsSlug && projSlug) {
+        router.push(`/${wsSlug}/${projSlug}`);
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to create project";
       toast.error(errorMessage);

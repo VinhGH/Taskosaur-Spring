@@ -8,7 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { SettingsService } from '../../settings/settings.service';
-import { UserSource, UserStatus } from '@prisma/client';
+import { Role, UserSource, UserStatus } from '@prisma/client';
 import { JwtPayload } from '../strategies/jwt.strategy';
 
 // openid-client v5 is ESM-only — must use dynamic import in CommonJS
@@ -43,7 +43,7 @@ export class OidcService {
   ) {}
 
   async getOidcConfig(): Promise<OidcConfig> {
-    const [enabled, providerName, issuerUrl, clientId, clientSecret, redirectUri] =
+    const [enabled, providerName, issuerUrl, clientId, clientSecret, savedRedirectUri] =
       await Promise.all([
         this.settingsService.get('sso_enabled'),
         this.settingsService.get('sso_provider_name'),
@@ -53,23 +53,39 @@ export class OidcService {
         this.settingsService.get('sso_redirect_uri'),
       ]);
 
+    // Auto-generate redirect URI from FRONTEND_URL or NEXT_PUBLIC_API_BASE_URL, fallback to saved
+    const apiBaseUrl =
+      this.configService.get<string>('NEXT_PUBLIC_API_BASE_URL') ||
+      this.configService.get<string>('FRONTEND_URL') ||
+      '';
+    const autoRedirectUri = apiBaseUrl
+      ? `${apiBaseUrl.replace(/\/api\/?$/, '')}/api/auth/oidc/callback`
+      : '';
+    const redirectUri = savedRedirectUri || autoRedirectUri;
+
     return {
       enabled: enabled === 'true',
       providerName: providerName || 'SSO Provider',
       issuerUrl: issuerUrl || '',
       clientId: clientId || '',
       clientSecret: clientSecret || '',
-      redirectUri: redirectUri || '',
+      redirectUri,
     };
   }
 
-  async isConfigured(): Promise<{ enabled: boolean; configured: boolean; providerName: string }> {
+  async isConfigured(): Promise<{
+    enabled: boolean;
+    configured: boolean;
+    providerName: string;
+    redirectUri: string;
+  }> {
     const config = await this.getOidcConfig();
     const fullyConfigured = !!config.issuerUrl && !!config.clientId && !!config.clientSecret;
     return {
       enabled: config.enabled,
       configured: fullyConfigured,
       providerName: config.providerName,
+      redirectUri: config.redirectUri,
     };
   }
 
@@ -174,6 +190,10 @@ export class OidcService {
       emailVerified,
     );
 
+    if (!user) {
+      throw new BadRequestException('Failed to create or find SSO user');
+    }
+
     // Generate JWT tokens (same pattern as auth.service login)
     const payload: JwtPayload = {
       sub: user.id,
@@ -248,9 +268,13 @@ export class OidcService {
     // Check if registration is enabled before creating a new account
     const registrationValue = await this.settingsService.get('registration_enabled');
     if (registrationValue === 'false') {
-      throw new BadRequestException(
-        'User registration is currently disabled. Please contact your administrator to get an account.',
-      );
+      // Allow SSO auto-registration if explicitly enabled
+      const ssoAutoRegister = await this.settingsService.get('sso_auto_register');
+      if (ssoAutoRegister !== 'true') {
+        throw new BadRequestException(
+          'User registration is currently disabled. Please contact your administrator to get an account.',
+        );
+      }
     }
 
     // Create new SSO user
@@ -262,7 +286,7 @@ export class OidcService {
       counter++;
     }
 
-    return this.prisma.user.create({
+    const newUser = await this.prisma.user.create({
       data: {
         email,
         firstName,
@@ -274,6 +298,40 @@ export class OidcService {
         externalId,
         externalProvider: provider,
       },
+    });
+
+    // Auto-join default organization if configured
+    await this.addUserToDefaultOrganization(newUser.id);
+
+    return newUser;
+  }
+
+  private async addUserToDefaultOrganization(userId: string): Promise<void> {
+    const defaultOrgId = await this.settingsService.get('default_organization_id');
+    if (!defaultOrgId) return;
+
+    const org = await this.prisma.organization.findUnique({
+      where: { id: defaultOrgId },
+      select: { id: true },
+    });
+    if (!org) return;
+
+    const existing = await this.prisma.organizationMember.findUnique({
+      where: { userId_organizationId: { userId, organizationId: defaultOrgId } },
+    });
+    if (existing) return;
+
+    await this.prisma.organizationMember.create({
+      data: {
+        userId,
+        organizationId: defaultOrgId,
+        role: Role.MEMBER,
+      },
+    });
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { defaultOrganizationId: defaultOrgId },
     });
   }
 }
