@@ -108,9 +108,26 @@ export class AuthService {
     // Check if registration is enabled (default: enabled)
     const registrationValue = await this.settingsService.get('registration_enabled');
     if (registrationValue === 'false') {
-      throw new BadRequestException(
-        'User registration is currently disabled. Please contact your administrator.',
-      );
+      // Allow registration if a valid pending invitation token is provided
+      let hasValidInvitation = false;
+      if (registerDto.invitationToken) {
+        const invitation = await this.prisma.invitation.findUnique({
+          where: { token: registerDto.invitationToken },
+        });
+        if (
+          invitation &&
+          invitation.status === 'PENDING' &&
+          invitation.expiresAt > new Date() &&
+          invitation.inviteeEmail.toLowerCase() === registerDto.email.toLowerCase()
+        ) {
+          hasValidInvitation = true;
+        }
+      }
+      if (!hasValidInvitation) {
+        throw new BadRequestException(
+          'User registration is currently disabled. Please contact your administrator.',
+        );
+      }
     }
 
     // Check if user already exists

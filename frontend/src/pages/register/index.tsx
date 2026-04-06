@@ -6,6 +6,7 @@ import { ModeToggle } from "@/components/header/ModeToggle";
 import { RegisterContent } from "@/components/register/RegisterContent";
 import { RegisterForm } from "@/components/register/RegisterForm";
 import api from "@/lib/api";
+import { invitationApi } from "@/utils/api/invitationsApi";
 
 export default function SignUpPage() {
   const { checkOrganizationAndRedirect } = useAuth();
@@ -13,10 +14,30 @@ export default function SignUpPage() {
   const [registrationAllowed, setRegistrationAllowed] = useState<boolean | null>(null);
 
   useEffect(() => {
+    const pendingToken = localStorage.getItem("pendingInvitation");
+
     api.get("/auth/registration-status")
       .then((res) => {
         if (res.data?.enabled === false) {
-          router.replace("/login");
+          // Registration is disabled — only allow if there's a valid pending invitation
+          if (pendingToken) {
+            invitationApi.verifyInvitation(pendingToken)
+              .then((verifyRes) => {
+                if (verifyRes?.isValid) {
+                  setRegistrationAllowed(true);
+                } else {
+                  // Token is expired/invalid — clean up and redirect
+                  localStorage.removeItem("pendingInvitation");
+                  router.replace("/login");
+                }
+              })
+              .catch(() => {
+                localStorage.removeItem("pendingInvitation");
+                router.replace("/login");
+              });
+          } else {
+            router.replace("/login");
+          }
         } else {
           setRegistrationAllowed(true);
         }

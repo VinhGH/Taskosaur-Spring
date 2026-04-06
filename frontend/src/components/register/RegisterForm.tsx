@@ -107,12 +107,14 @@ export function RegisterForm() {
       return;
     }
 
+    const invitationToken = localStorage.getItem("pendingInvitation") || undefined;
     try {
       const userData = {
         email: formData.email,
         password: formData.password,
         firstName: formData.firstName,
         lastName: formData.lastName,
+        ...(invitationToken && { invitationToken }),
       };
 
       const response = await register(userData);
@@ -123,10 +125,13 @@ export function RegisterForm() {
         router.push("/login?message=Registration successful! Please log in.");
       }
     } catch (err: any) {
-      if (err.message) {
-        setError(err.message);
-      } else {
-        setError("An error occurred during registration. Please try again.");
+      const message = err.message || "An error occurred during registration. Please try again.";
+      setError(message);
+
+      // If registration was disabled and the invitation token didn't help,
+      // clear the stale token so the user isn't stuck in a loop
+      if (invitationToken && message.toLowerCase().includes("registration is currently disabled")) {
+        localStorage.removeItem("pendingInvitation");
       }
     } finally {
       setIsLoading(false);

@@ -44,4 +44,12 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   username?: string;
+
+  @ApiProperty({
+    description: 'Invitation token (allows registration even when public registration is disabled)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  invitationToken?: string;
 }

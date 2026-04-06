@@ -5,6 +5,7 @@ export interface UserData {
   password: string;
   firstName: string;
   lastName: string;
+  invitationToken?: string;
 }
 
 export interface LoginData {

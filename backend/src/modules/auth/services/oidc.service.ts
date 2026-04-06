@@ -245,6 +245,14 @@ export class OidcService {
       });
     }
 
+    // Check if registration is enabled before creating a new account
+    const registrationValue = await this.settingsService.get('registration_enabled');
+    if (registrationValue === 'false') {
+      throw new BadRequestException(
+        'User registration is currently disabled. Please contact your administrator to get an account.',
+      );
+    }
+
     // Create new SSO user
     const baseUsername = email.split('@')[0].toLowerCase();
     let finalUsername = baseUsername;
