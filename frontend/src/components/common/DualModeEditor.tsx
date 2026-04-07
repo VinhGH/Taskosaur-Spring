@@ -11,8 +11,16 @@ import {
   HiCodeBracket,
   HiCodeBracketSquare,
   HiDocumentText,
+  HiOutlinePhoto,
 } from "react-icons/hi2";
 import { List, Quote } from "lucide-react";
+import { toast } from "sonner";
+import {
+  handleImageUpload,
+  generateUploadPlaceholderId,
+  isUploadingPlaceholder,
+  IMAGE_UPLOAD_CONFIG,
+} from "@/lib/image-upload";
 
 // Dynamically import MDEditor to avoid SSR issues
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false });
@@ -20,6 +28,9 @@ const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false });
 export type EditorMode = "markdown" | "richtext";
 
 const EDITOR_MODE_STORAGE_KEY = "taskosaur_comment_editor_mode";
+
+// Track ongoing uploads by placeholder ID
+const ongoingUploads = new Map<string, boolean>();
 
 // Inline styles configuration
 const INLINE_STYLES = [
@@ -202,13 +213,16 @@ function RichTextEditorInner({
     ContentState: typeof import("draft-js").ContentState;
     convertToRaw: typeof import("draft-js").convertToRaw;
     DefaultDraftBlockRenderMap: typeof import("draft-js").DefaultDraftBlockRenderMap;
+    AtomicBlockUtils: typeof import("draft-js").AtomicBlockUtils;
     draftToHtml: typeof import("draftjs-to-html").default;
     htmlToDraft: typeof import("html-to-draftjs").default;
   } | null>(null);
 
   const [editorState, setEditorState] = useState<import("draft-js").EditorState | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const lastEmittedValue = useRef<string>(value);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // Load draft-js modules on mount
   useEffect(() => {
@@ -226,6 +240,7 @@ function RichTextEditorInner({
         ContentState: draftJs.ContentState,
         convertToRaw: draftJs.convertToRaw,
         DefaultDraftBlockRenderMap: draftJs.DefaultDraftBlockRenderMap,
+        AtomicBlockUtils: draftJs.AtomicBlockUtils,
         draftToHtml: draftToHtmlMod.default,
         htmlToDraft: htmlToDraftMod.default,
       });
@@ -323,6 +338,167 @@ function RichTextEditorInner({
     [draftModules, editorState, handleEditorChange]
   );
 
+  // Handle image upload for rich text editor
+  const handleRichTextImageUpload = useCallback(async (file: File) => {
+    if (!draftModules || !editorState) return;
+
+    const placeholderId = generateUploadPlaceholderId();
+    const placeholderHtml = `<div class="image-upload-placeholder" data-upload-id="${placeholderId}">🔄 Uploading image...</div>`;
+    
+    // Mark upload as in progress
+    ongoingUploads.set(placeholderId, true);
+    
+    // Insert placeholder at current cursor position as HTML
+    const currentHtml = draftModules.draftToHtml(draftModules.convertToRaw(editorState.getCurrentContent()));
+    const selection = editorState.getSelection();
+    const plainText = editorState.getCurrentContent().getPlainText();
+    const cursorPos = selection.getStartOffset();
+    
+    // Insert placeholder HTML at cursor position
+    const beforeHtml = plainText.substring(0, cursorPos);
+    const afterHtml = plainText.substring(cursorPos);
+    const newHtml = beforeHtml + placeholderHtml + afterHtml;
+    
+    // Convert back to draft content and update
+    const contentBlock = draftModules.htmlToDraft(newHtml);
+    if (contentBlock) {
+      const newContentState = draftModules.ContentState.createFromBlockArray(contentBlock.contentBlocks);
+      const newEditorState = draftModules.EditorState.createWithContent(newContentState);
+      setEditorState(newEditorState);
+      onChange(newHtml);
+    }
+
+    // Upload image
+    const imageUrl = await handleImageUpload(file, {
+      onProgress: (progress) => {
+        if (ongoingUploads.has(placeholderId)) {
+          // Could update placeholder with progress
+        }
+      },
+      showToasts: false,
+    });
+
+    // Remove from ongoing uploads
+    ongoingUploads.delete(placeholderId);
+
+    if (imageUrl) {
+      // Replace placeholder with actual image
+      const finalHtml = newHtml.replace(placeholderHtml, `<img src="${imageUrl}" alt="${file.name}" />`);
+      
+      // Update editor with final HTML
+      const contentBlock = draftModules.htmlToDraft(finalHtml);
+      if (contentBlock) {
+        const finalContentState = draftModules.ContentState.createFromBlockArray(
+          contentBlock.contentBlocks
+        );
+        const finalEditorState = draftModules.EditorState.createWithContent(finalContentState);
+        setEditorState(finalEditorState);
+        onChange(finalHtml);
+        toast.success("Image uploaded successfully", { description: file.name });
+      }
+    } else {
+      // Remove placeholder on failure
+      const finalHtml = newHtml.replace(placeholderHtml, '');
+      
+      const contentBlock = draftModules.htmlToDraft(finalHtml);
+      if (contentBlock) {
+        const finalContentState = draftModules.ContentState.createFromBlockArray(
+          contentBlock.contentBlocks
+        );
+        const finalEditorState = draftModules.EditorState.createWithContent(finalContentState);
+        setEditorState(finalEditorState);
+        onChange(finalHtml);
+        toast.error("Image upload failed", { description: file.name });
+      }
+    }
+  }, [draftModules, editorState, onChange]);
+
+  // Handle paste events in rich text editor
+  const handleRichTextPaste = useCallback(async (event: React.ClipboardEvent) => {
+    const items = event.clipboardData.items;
+    const imageFiles: File[] = [];
+
+    // Extract image files from clipboard
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          imageFiles.push(file);
+        }
+      }
+    }
+
+    // If we have image files, handle the upload
+    if (imageFiles.length > 0) {
+      event.preventDefault();
+      
+      // Upload each image
+      for (const file of imageFiles) {
+        await handleRichTextImageUpload(file);
+      }
+    }
+  }, [handleRichTextImageUpload]);
+
+  // Handle drag and drop in rich text editor
+  const handleRichTextDrop = useCallback(async (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragOver(false);
+
+    const files = Array.from(event.dataTransfer.files);
+    const imageFiles = files.filter((file): file is File => 
+      IMAGE_UPLOAD_CONFIG.allowedTypes.includes(file.type as any)
+    );
+
+    if (imageFiles.length > 0) {
+      for (const file of imageFiles) {
+        await handleRichTextImageUpload(file);
+      }
+    }
+  }, [handleRichTextImageUpload]);
+
+  // Handle drag over
+  const handleRichTextDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = 'copy';
+  }, []);
+
+  // Handle drag leave
+  const handleRichTextDragLeave = useCallback(() => {
+    setIsDragOver(false);
+  }, []);
+
+  // Handle file input change for rich text
+  const handleRichTextFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    if (!IMAGE_UPLOAD_CONFIG.allowedTypes.includes(file.type as any)) {
+      toast.error("Invalid file type", { 
+        description: "Only JPEG, PNG, GIF, and WebP images are allowed." 
+      });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    await handleRichTextImageUpload(file);
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [handleRichTextImageUpload]);
+
+  // Trigger file input click for rich text
+  const handleRichTextImageButtonClick = useCallback(() => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  }, []);
+
   const blockStyleFn = useCallback((block: import("draft-js").ContentBlock) => {
     switch (block.getType()) {
       case "header-one":
@@ -416,17 +592,56 @@ function RichTextEditorInner({
             {block.icon}
           </button>
         ))}
+
+        <span className="w-px h-5 bg-[var(--border)] mx-1" />
+
+        {/* Image Upload Button */}
+        <button
+          type="button"
+          title="Upload image"
+          disabled={disabled}
+          onClick={handleRichTextImageButtonClick}
+          className={`p-1.5 rounded transition-colors text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)] ${
+            disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+          }`}
+        >
+          <HiOutlinePhoto className="size-4" />
+        </button>
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={IMAGE_UPLOAD_CONFIG.allowedTypes.join(',')}
+          onChange={handleRichTextFileChange}
+          className="hidden"
+          disabled={disabled}
+        />
       </div>
 
       {/* Draft.js Editor */}
       <div
         ref={editorRef}
-        className="px-3 py-2 overflow-y-auto cursor-text text-sm"
+        className="px-3 py-2 overflow-y-auto cursor-text text-sm relative"
         style={{ height: height - 45 }}
         onClick={() => {
           editorRef.current?.querySelector<HTMLElement>(".DraftEditor-root")?.click();
         }}
+        onPaste={handleRichTextPaste}
+        onDrop={handleRichTextDrop}
+        onDragOver={handleRichTextDragOver}
+        onDragLeave={handleRichTextDragLeave}
       >
+        {/* Drop zone overlay */}
+        {isDragOver && (
+          <div className="absolute inset-0 bg-blue-500/10 border-2 border-dashed border-blue-500 rounded-md flex items-center justify-center z-50 pointer-events-none">
+            <div className="bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-lg">
+              <HiOutlinePhoto className="size-6 mx-auto mb-1 text-blue-500" />
+              <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Drop image to upload</p>
+            </div>
+          </div>
+        )}
+        
         <Editor
           editorState={editorState}
           onChange={handleEditorChange}
@@ -454,6 +669,8 @@ export default function DualModeEditor({
   const [richTextValue, setRichTextValue] = useState<string>("");
   const [isInitialized, setIsInitialized] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle client-side mounting
   useEffect(() => {
@@ -536,6 +753,168 @@ export default function DualModeEditor({
     [onChange]
   );
 
+  // Handle image upload and insert into markdown editor
+  const handleImageUploadAndInsert = useCallback(async (file: File) => {
+    const placeholderId = generateUploadPlaceholderId();
+    const placeholderText = `![Uploading image...](uploading:${placeholderId})`;
+    
+    // Mark upload as in progress
+    ongoingUploads.set(placeholderId, true);
+    
+    // Try to get cursor position from textarea, fallback to appending
+    const textarea = document.querySelector('.w-md-editor-text-input') as HTMLTextAreaElement;
+    let startPos = 0;
+    let endPos = 0;
+    
+    if (textarea) {
+      startPos = textarea.selectionStart;
+      endPos = textarea.selectionEnd;
+    }
+    
+    // Insert placeholder at cursor position or append
+    const beforeText = markdownValue.substring(0, startPos);
+    const afterText = markdownValue.substring(endPos);
+    const needsNewlineBefore = beforeText.length > 0 && !beforeText.endsWith('\n');
+    const needsNewlineAfter = afterText.length > 0 && !afterText.startsWith('\n');
+    const newText = beforeText + (needsNewlineBefore ? '\n' : '') + placeholderText + (needsNewlineAfter ? '\n' : '') + afterText;
+    
+    setMarkdownValue(newText);
+    onChange(newText);
+
+    // Upload image
+    const imageUrl = await handleImageUpload(file, {
+      onProgress: (progress) => {
+        // Optional: Update placeholder with progress
+        if (ongoingUploads.has(placeholderId)) {
+          const progressText = `![Uploading image... ${progress}%](uploading:${placeholderId})`;
+          const updatedText = newText.replace(placeholderText, progressText);
+          setMarkdownValue(updatedText);
+          onChange(updatedText);
+        }
+      },
+      showToasts: false,
+    });
+
+    // Remove from ongoing uploads
+    ongoingUploads.delete(placeholderId);
+
+    if (imageUrl) {
+      // Replace placeholder with actual image markdown
+      const finalText = newText.replace(placeholderText, `![${file.name}](${imageUrl})`);
+      setMarkdownValue(finalText);
+      onChange(finalText);
+      toast.success("Image uploaded successfully", { description: file.name });
+    } else {
+      // Remove placeholder on failure
+      const finalText = newText.replace(placeholderText, '').replace(/\n\n/g, '\n');
+      setMarkdownValue(finalText);
+      onChange(finalText);
+      toast.error("Image upload failed", { description: file.name });
+    }
+  }, [markdownValue, onChange]);
+
+  // Handle file input change
+  const handleFileInputChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    if (!IMAGE_UPLOAD_CONFIG.allowedTypes.includes(file.type as any)) {
+      toast.error("Invalid file type", { 
+        description: "Only JPEG, PNG, GIF, and WebP images are allowed." 
+      });
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    await handleImageUploadAndInsert(file);
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [handleImageUploadAndInsert]);
+
+  // Trigger file input click
+  const handleImageButtonClick = useCallback(() => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  }, []);
+
+  // Attach paste and drop listeners to the markdown editor
+  useEffect(() => {
+    if (!isMounted || mode !== 'markdown') return;
+
+    const editorContainer = document.querySelector('.task-md-editor');
+    if (!editorContainer) return;
+
+    const handlePaste = async (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      
+      const imageFiles: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            imageFiles.push(file);
+          }
+        }
+      }
+
+      if (imageFiles.length > 0) {
+        e.preventDefault();
+        for (const file of imageFiles) {
+          await handleImageUploadAndInsert(file);
+        }
+      }
+    };
+
+    const handleDrop = async (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(false);
+
+      const files = Array.from(e.dataTransfer?.files || []);
+      const imageFiles = files.filter((file): file is File => 
+        IMAGE_UPLOAD_CONFIG.allowedTypes.includes(file.type as any)
+      );
+
+      if (imageFiles.length > 0) {
+        for (const file of imageFiles) {
+          await handleImageUploadAndInsert(file);
+        }
+      }
+    };
+
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = 'copy';
+      setIsDragOver(true);
+    };
+
+    const handleDragLeave = () => {
+      setIsDragOver(false);
+    };
+
+    editorContainer.addEventListener('paste', handlePaste);
+    editorContainer.addEventListener('drop', handleDrop);
+    editorContainer.addEventListener('dragover', handleDragOver);
+    editorContainer.addEventListener('dragleave', handleDragLeave);
+    
+    return () => {
+      editorContainer.removeEventListener('paste', handlePaste);
+      editorContainer.removeEventListener('drop', handleDrop);
+      editorContainer.removeEventListener('dragover', handleDragOver);
+      editorContainer.removeEventListener('dragleave', handleDragLeave);
+    };
+  }, [isMounted, mode, handleImageUploadAndInsert]);
+
   // Handle rich text editor change
   const handleRichTextChange = useCallback(
     (val: string) => {
@@ -596,7 +975,48 @@ export default function DualModeEditor({
 
       {/* Editor Content */}
       {mode === "markdown" ? (
-        <div data-color-mode={colorMode} className="task-md-editor">
+        <div
+          data-color-mode={colorMode}
+          className="task-md-editor relative"
+        >
+          {/* Custom Image Upload Button */}
+          <div className="flex items-center gap-1 p-1 border-b border-[var(--border)] bg-[var(--muted)]/30">
+            <button
+              type="button"
+              onClick={handleImageButtonClick}
+              disabled={disabled}
+              title="Upload image"
+              className={`p-1.5 rounded transition-colors text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)] ${
+                disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+              }`}
+            >
+              <HiOutlinePhoto className="size-4" />
+            </button>
+            <span className="text-[10px] text-[var(--muted-foreground)] ml-2">
+              Paste or drag images to upload
+            </span>
+          </div>
+          
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={IMAGE_UPLOAD_CONFIG.allowedTypes.join(',')}
+            onChange={handleFileInputChange}
+            className="hidden"
+            disabled={disabled}
+          />
+          
+          {/* Drop zone overlay */}
+          {isDragOver && (
+            <div className="absolute inset-0 bg-blue-500/10 border-2 border-dashed border-blue-500 rounded-md flex items-center justify-center z-50 pointer-events-none">
+              <div className="bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-lg">
+                <HiOutlinePhoto className="size-6 mx-auto mb-1 text-blue-500" />
+                <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Drop image to upload</p>
+              </div>
+            </div>
+          )}
+          
           <MDEditor
             value={markdownValue}
             onChange={handleMarkdownChange}

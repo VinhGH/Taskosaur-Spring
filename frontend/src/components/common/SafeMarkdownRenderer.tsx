@@ -35,11 +35,14 @@ export const SafeMarkdownRenderer: React.FC<SafeMarkdownRendererProps> = ({
       // Inline elements
       'a', 'b', 'strong', 'i', 'em', 'u', 's', 'del', 'ins',
       'span', 'br', 'sub', 'sup', 'mark', 'kbd',
+      // Images
+      'img',
       // Input for checkboxes
       'input'
     ],
     attributes: {
       a: ['href', 'title', 'target', 'rel'],
+      img: ['src', 'alt', 'title', 'width', 'height'],
       input: ['type', 'checked', 'disabled'],
       code: ['className'], // for syntax highlighting
       '*': ['className'] // Allow className on all elements for styling

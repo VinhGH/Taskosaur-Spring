@@ -761,7 +761,6 @@ const TaskTable: React.FC<TaskTableProps> = ({
   };
 
   const isOverdue = (dueDate: string) => {
-    console.log(new Date(dueDate), new Date());
     return new Date(dueDate) < new Date();
   };
 
