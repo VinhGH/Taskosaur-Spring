@@ -1486,3 +1486,125 @@
     height: 6px;
   }
 }
+
+/* ===========================
+   Image Upload Editor Styles
+   =========================== */
+
+/* Image upload placeholder in rich text editor */
+.image-upload-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2rem 1rem;
+  margin: 0.5rem 0;
+  border: 2px dashed var(--border);
+  border-radius: 0.5rem;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+  animation: placeholder-pulse 2s ease-in-out infinite;
+}
+
+@keyframes placeholder-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Dark mode adjustments for placeholder */
+.dark .image-upload-placeholder {
+  background: var(--secondary-800);
+  border-color: var(--secondary-700);
+  color: var(--secondary-400);
+}
+
+/* Uploaded images in markdown editor */
+.task-md-editor img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.375rem;
+  margin: 0.5rem 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Uploaded images in rich text editor */
+.rich-text-editor img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.375rem;
+  margin: 0.5rem 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Drop zone overlay for both editors */
+.editor-drop-zone {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* Markdown editor drop zone */
+.task-md-editor .editor-drop-zone {
+  background: rgba(59, 130, 246, 0.1);
+  border: 2px dashed rgba(59, 130, 246, 0.5);
+  border-radius: 0.5rem;
+}
+
+/* Rich text editor drop zone */
+.rich-text-editor .editor-drop-zone {
+  background: rgba(59, 130, 246, 0.1);
+  border: 2px dashed rgba(59, 130, 246, 0.5);
+  border-radius: 0.5rem;
+}
+
+/* Image upload button hover state */
+.image-upload-button {
+  transition: all 0.2s ease;
+}
+
+.image-upload-button:hover {
+  background: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+}
+
+.image-upload-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Loading indicator for uploads */
+.upload-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.upload-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary-500);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive adjustments for editor toolbar */
+@media (max-width: 640px) {
+  .editor-toolbar {
+    flex-wrap: wrap;
+  }
+}
+
