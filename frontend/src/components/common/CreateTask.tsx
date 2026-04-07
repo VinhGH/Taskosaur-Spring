@@ -12,7 +12,8 @@ import {
 import RecurrenceSelector, { RecurrenceConfig } from "./RecurrenceSelector";
 import { HiDocumentText, HiCog, HiUsers, HiPaperClip, HiTrash, HiLink, HiCheck, HiChevronDown, HiSparkles } from "react-icons/hi2";
 import api from "@/lib/api";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -376,9 +377,14 @@ export default function CreateTask({ projectSlug, workspace, projects }: CreateT
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent | React.MouseEvent) => {
     e.preventDefault();
-    if (!isFormValid()) return;
+    if (!isFormValid()) {
+      if (!formData.title.trim()) toast.error("Please enter a task title.");
+      else if (!selectedProject?.id) toast.error("Please select a project.");
+      else toast.error("Please fill in all required fields.");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -535,8 +541,8 @@ export default function CreateTask({ projectSlug, workspace, projects }: CreateT
                         <div
                           key={index}
                           className={`flex items-center justify-between p-3 bg-[var(--background)] border rounded-md transition-colors ${isSelectMode && selectedIndices.has(index)
-                              ? "border-[var(--primary)] bg-[var(--primary)]/5"
-                              : "border-[var(--border)]"
+                            ? "border-[var(--primary)] bg-[var(--primary)]/5"
+                            : "border-[var(--border)]"
                             }`}
                         >
                           <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -633,7 +639,7 @@ export default function CreateTask({ projectSlug, workspace, projects }: CreateT
                 {isGeneratingDescription && (
                   <div className="flex items-center gap-1.5 text-xs text-[var(--primary)] animate-pulse">
                     <HiSparkles className="w-3.5 h-3.5" />
-                 </div>
+                  </div>
                 )}
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1014,36 +1020,37 @@ export default function CreateTask({ projectSlug, workspace, projects }: CreateT
               )}
             </CardContent>
           </Card>
-          <div className="flex items-center justify-end gap-3 " id="submit-form-button">
-            <ActionButton
-              onClick={() => router.back()}
-              type="button"
-              variant="outline"
-              secondary
-              className="h-8 px-3 cursor-pointer"
-            >
-              Cancel
-            </ActionButton>
-            <ActionButton
-              id="create-task-submit"
-              data-automation-id="create-task-submit"
-              aria-label="Create Task"
-              form="create-task-form"
-              onClick={handleSubmit}
-              type="submit"
-              disabled={!isFormValid() || isSubmitting}
-              primary
-            >
-              {isSubmitting ? (
-                <div className="flex items-center">
-                  <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                  Creating task...
-                </div>
-              ) : (
-                "Create Task"
-              )}
-            </ActionButton>
-          </div>
+        </div>
+      </div>
+      <div className="sticky bottom-0 z-10 bg-[var(--background)]/80 backdrop-blur-sm border-t border-[var(--border)] py-3 -mx-6 px-6 lg:col-span-3" id="submit-form-button">
+        <div className="flex items-center justify-end gap-3">
+          <ActionButton
+            onClick={() => router.back()}
+            type="button"
+            variant="outline"
+            secondary
+            className="h-8 px-3 cursor-pointer"
+          >
+            Cancel
+          </ActionButton>
+          <ActionButton
+            id="create-task-submit"
+            data-automation-id="create-task-submit"
+            aria-label="Create Task"
+            onClick={handleSubmit}
+            type="button"
+            disabled={isSubmitting}
+            primary
+          >
+            {isSubmitting ? (
+              <div className="flex items-center">
+                <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                Creating task...
+              </div>
+            ) : (
+              "Create Task"
+            )}
+          </ActionButton>
         </div>
       </div>
     </div>

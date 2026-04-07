@@ -189,8 +189,8 @@ export class BrowserAgent {
 
       return llmResponse;
     } catch (error: any) {
-      const msg = error?.message || error?.error || "Unknown error";
-      throw new Error(msg);
+      const msg = error?.response?.data?.message || error?.response?.data?.error || error?.message || "Unknown error";
+      return `DONE: ${msg}`;
     }
   }
 

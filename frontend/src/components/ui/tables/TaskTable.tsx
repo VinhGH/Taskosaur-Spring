@@ -30,7 +30,9 @@ import {
   Plus,
   Check,
   Users,
+  ExternalLink,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import {
   Pagination,
   PaginationContent,
@@ -262,6 +264,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
   totalTask,
 }) => {
   const { t } = useTranslation("tasks");
+  const router = useRouter();
   const { createTask, getTaskById, currentTask, bulkDeleteTasks } = useTask();
   const { getTaskStatusByProject } = useProject();
   const { getProjectMembers } = useProject();
@@ -372,11 +375,12 @@ const TaskTable: React.FC<TaskTableProps> = ({
   // Handle browser back button to close modal
   useEffect(() => {
     const handlePopState = () => {
-      if (isEditModalOpen && !isClosingRef.current) {
+      if (isEditModalOpen) {
+        isClosingRef.current = true;
         setIsEditModalOpen(false);
         setSelectedTask(null);
+        setTimeout(() => { isClosingRef.current = false; }, 100);
       }
-      isClosingRef.current = false;
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
@@ -384,9 +388,6 @@ const TaskTable: React.FC<TaskTableProps> = ({
 
   const handleCloseModal = () => {
     if (isClosingRef.current || !isEditModalOpen) return;
-    isClosingRef.current = true;
-    setIsEditModalOpen(false);
-    setSelectedTask(null);
     window.history.back();
   };
 
@@ -1387,6 +1388,23 @@ const TaskTable: React.FC<TaskTableProps> = ({
                       Archived
                     </Badge>
                   )}
+                  <Tooltip content="Expand to full screen" position="top">
+                    <button
+                      className="p-0.5 rounded opacity-0 group-hover/row:opacity-100 transition-opacity duration-150 hover:bg-[var(--accent)] cursor-pointer flex-shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const wsSlug = workspaceSlug || task.project?.workspace?.slug;
+                        const pgSlug = projectSlug || task.project?.slug;
+                        const slug = task.slug || "";
+                        let url = `/tasks/${slug}`;
+                        if (wsSlug && pgSlug) url = `/${wsSlug}/${pgSlug}/tasks/${slug}`;
+                        else if (wsSlug) url = `/${wsSlug}/tasks/${slug}`;
+                        router.push(url);
+                      }}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-[var(--muted-foreground)]" />
+                    </button>
+                  </Tooltip>
                 </div>
                 <div className="flex items-center gap-3 mt-2">
                   {task._count?.comments > 0 && (
@@ -1513,15 +1531,25 @@ const TaskTable: React.FC<TaskTableProps> = ({
                       </TableCell>
                     </TableRow>
                   ))}
-                {tasks.map((task) => (
-                  <TableRow
-                    key={task.id}
-                    className="tasktable-row h-12 odd:bg-[var(--odd-row)] cursor-pointer"
-                    onClick={() => handleRowClick(task)}
-                  >
-                    {columnOrder.map((colId) => renderTaskRowCell(colId, task))}
-                  </TableRow>
-                ))}
+                {tasks.map((task) => {
+                  const taskUrl = (() => {
+                    const wsSlug = workspaceSlug || task.project?.workspace?.slug;
+                    const pgSlug = projectSlug || task.project?.slug;
+                    const slug = task.slug || "";
+                    if (wsSlug && pgSlug) return `/${wsSlug}/${pgSlug}/tasks/${slug}`;
+                    if (wsSlug) return `/${wsSlug}/tasks/${slug}`;
+                    return `/tasks/${slug}`;
+                  })();
+                  return (
+                    <TableRow
+                      key={task.id}
+                      className="tasktable-row group/row h-12 odd:bg-[var(--odd-row)] cursor-pointer"
+                      onClick={() => handleRowClick(task)}
+                    >
+                      {columnOrder.map((colId) => renderTaskRowCell(colId, task))}
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </DndContext>

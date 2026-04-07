@@ -269,6 +269,9 @@ export class DOMDetector {
 
   private isTopElement(element: Element): boolean {
     try {
+      if (element.hasAttribute('data-automation-id') || element.hasAttribute('data-testid')) {
+        return true;
+      }
       const rect = element.getBoundingClientRect();
 
       // Check if element is outside viewport

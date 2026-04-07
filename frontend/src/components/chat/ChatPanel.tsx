@@ -19,6 +19,19 @@ interface ChatMessage {
   content: string;
 }
 
+function sanitizeErrorMessage(msg: string): string {
+  const l = msg.toLowerCase();
+  if (l.includes("rate limit") || l.includes("429") || l.includes("too many requests"))
+    return "Rate limit reached. Please wait a moment and try again.";
+  if (l.includes("context_length") || l.includes("context length") || l.includes("maximum context") || l.includes("too long"))
+    return "Conversation too long. Please clear the chat and try again.";
+  if (l.includes("element") && l.includes("not found"))
+    return "I had trouble interacting with the page. Please try again.";
+  if (l.includes("network") || l.includes("failed to fetch") || l.includes("econnrefused"))
+    return "Network error. Please check your connection.";
+  return msg.replace(/^Error:\s*/i, "").replace(/^LLM API error:\s*/i, "");
+}
+
 export default function ChatPanel() {
   const { isChatOpen, toggleChat } = useChatContext();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -50,7 +63,7 @@ export default function ChatPanel() {
   const thinkingWords = useRef([
     "Thinking", "Pondering", "Analyzing", "Processing",
     "Examining", "Figuring out", "Working on it", "Looking into it",
-    "On it", "Brewing ideas", "Cooking up a plan", "Strategizing", "Contemplating", "Deliberating", 
+    "On it", "Brewing ideas", "Cooking up a plan", "Strategizing", "Contemplating", "Deliberating",
   ]);
   const lastStartIndex = useRef(0);
   const [agentStatus, setAgentStatus] = useState("");
@@ -111,10 +124,10 @@ export default function ChatPanel() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       if (!browserAgentRef.current) {
-      browserAgentRef.current = new BrowserAgent({
-        maxIterations: 30,
-        waitAfterAction: 500,
-      });
+        browserAgentRef.current = new BrowserAgent({
+          maxIterations: 30,
+          waitAfterAction: 500,
+        });
       } else {
         browserAgentRef.current.reset();
       }
@@ -356,7 +369,10 @@ export default function ChatPanel() {
         cleanMessage = cleanMessage.replace("Error: LLM API error: ", "").trim();
       } else if (cleanMessage.startsWith("Error: ")) {
         cleanMessage = cleanMessage.substring(7).trim();
+      } else if (cleanMessage.startsWith("Action failed: ")) {
+        cleanMessage = cleanMessage.substring(15).trim();
       }
+      cleanMessage = sanitizeErrorMessage(cleanMessage);
 
       const resultMessage: Message = {
         role: "assistant",
@@ -369,7 +385,7 @@ export default function ChatPanel() {
       const rawMessage = error?.response?.data?.message || error?.response?.data?.error || error?.message || "Failed to process request";
       const errorMessage: Message = {
         role: "assistant",
-        content: rawMessage,
+        content: sanitizeErrorMessage(rawMessage),
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);

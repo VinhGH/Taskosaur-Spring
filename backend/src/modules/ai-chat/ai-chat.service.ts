@@ -14,7 +14,7 @@ import { getAutomationPrompt } from './automation-prompts';
 
 @Injectable()
 export class AiChatService {
-  constructor(private settingsService: SettingsService) { }
+  constructor(private settingsService: SettingsService) {}
 
   private detectProvider(apiUrl: string): string {
     try {
