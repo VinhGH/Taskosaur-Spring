@@ -455,8 +455,8 @@ const TaskTable: React.FC<TaskTableProps> = ({
 
   const formatDate = (dateString: string) => {
     try {
-      const date = moment(dateString);
-      const now = moment();
+      const date = moment(dateString).startOf("day");
+      const now = moment().startOf("day");
       const diffDays = date.diff(now, "days");
 
       if (diffDays === 0) return t("table.today");
@@ -761,6 +761,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
   };
 
   const isOverdue = (dueDate: string) => {
+    console.log(new Date(dueDate), new Date());
     return new Date(dueDate) < new Date();
   };
 
