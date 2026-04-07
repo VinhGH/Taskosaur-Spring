@@ -10,10 +10,11 @@ import {
 } from './dto/chat.dto';
 import { SettingsService } from '../settings/settings.service';
 import { enhancePromptWithContext } from './app-guide';
+import { getAutomationPrompt } from './automation-prompts';
 
 @Injectable()
 export class AiChatService {
-  constructor(private settingsService: SettingsService) {}
+  constructor(private settingsService: SettingsService) { }
 
   private detectProvider(apiUrl: string): string {
     try {
@@ -233,7 +234,11 @@ FILTER RULES (VERY IMPORTANT - for filtering tasks by priority, status, type, et
         const task = taskMatch[1].trim();
         const url = urlMatch[1].trim();
         const appContext = enhancePromptWithContext(task, url);
+        const automationPrompt = getAutomationPrompt(task);
         userMessage = userMessage + `\n\n${appContext}`;
+        if (automationPrompt) {
+          userMessage = userMessage + `\n\n${automationPrompt}`;
+        }
       }
 
       messages.push({
