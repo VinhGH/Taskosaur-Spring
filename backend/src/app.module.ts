@@ -41,6 +41,7 @@ import { AiChatModule } from './modules/ai-chat/ai-chat.module';
 import { InboxModule } from './modules/inbox/inbox.module';
 import { EmailModule } from './modules/email/email.module';
 import { QueueModule } from './modules/queue/queue.module';
+import { EditorImagesModule } from './modules/editor-images/editor-images.module';
 
 import { PublicModule } from './modules/public/public.module';
 import { HealthModule } from './modules/health/health.module';
@@ -89,6 +90,7 @@ import { AdminModule } from './modules/admin/admin.module';
           PublicModule,
           HealthModule,
           QueueModule,
+          EditorImagesModule,
           AdminModule,
         ],
       },
@@ -129,6 +131,7 @@ import { AdminModule } from './modules/admin/admin.module';
     HealthModule,
     EmailModule,
     QueueModule,
+    EditorImagesModule,
     AdminModule,
   ],
   controllers: [AppController],

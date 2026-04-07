@@ -125,8 +125,6 @@ export class FilesController {
   @Public()
   @Get(':folder/:filename')
   @ApiOperation({ summary: 'Serve file from storage' })
-  @ApiParam({ name: 'folder', description: 'Folder name (e.g., avatars, tasks)' })
-  @ApiParam({ name: 'filename', description: 'Filename' })
   @ApiResponse({ status: 200, description: 'File served successfully' })
   @ApiResponse({ status: 404, description: 'File not found' })
   async serveFile(
@@ -166,5 +164,33 @@ export class FilesController {
       zip: 'application/zip',
     };
     return mimeTypes[ext || ''] || 'application/octet-stream';
+  }
+
+  @Public()
+  @Get('editor-images/:userId/:filename')
+  @ApiOperation({ summary: 'Serve editor image file' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiParam({ name: 'filename', description: 'Image filename' })
+  @ApiResponse({ status: 200, description: 'File served successfully' })
+  @ApiResponse({ status: 404, description: 'File not found' })
+  async serveEditorImage(
+    @Param('userId') userId: string,
+    @Param('filename') filename: string,
+    @Res() res: Response,
+  ) {
+    // Sanitize path components to prevent path injection
+    const safeUserId = this.sanitizePathComponent(userId);
+    const safeFilename = this.sanitizePathComponent(filename);
+
+    const key = `editor-images/${safeUserId}/${safeFilename}`;
+
+    // Check if using S3 or local storage
+    if (this.storageService.isUsingS3()) {
+      // For S3, stream the file directly
+      await this.storageService.streamFromS3(key, res);
+    } else {
+      // For local storage, use the existing method
+      this.storageService.streamFromLocal(key, res);
+    }
   }
 }
