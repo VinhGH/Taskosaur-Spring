@@ -787,47 +787,8 @@ const sprintId = resolvedSprintId;
     setCurrentPage(1);
   }, []);
 
-  // Sorting logic for tasks (client-side sorting of server results)
-  const sortedTasks = useMemo(() => {
-    const sorted = [...tasks].sort((a, b) => {
-      const aValue = a[sortField];
-      const bValue = b[sortField];
-
-      if (sortField === "dueIn") {
-        const now = Date.now();
-        if (!a.dueDate && !b.dueDate) return 0;
-        if (!a.dueDate) return 1;
-        if (!b.dueDate) return -1;
-
-        const aDue = new Date(a.dueDate).getTime() - now;
-        const bDue = new Date(b.dueDate).getTime() - now;
-        return sortOrder === "asc" ? aDue - bDue : bDue - aDue;
-      }
-
-      if (["createdAt", "updatedAt", "completedAt", "dueDate", "timeline"].includes(sortField)) {
-        const aVal = a[sortField];
-        const bVal = b[sortField];
-
-        if (!aVal && !bVal) return 0;
-        if (!aVal) return 1;
-        if (!bVal) return -1;
-
-        const aTime = new Date(aVal).getTime();
-        const bTime = new Date(bVal).getTime();
-        return sortOrder === "asc" ? aTime - bTime : bTime - aTime;
-      }
-      if (typeof aValue === "string" && typeof bValue === "string") {
-        return sortOrder === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-      }
-      // Handle number comparison
-      if (typeof aValue === "number" && typeof bValue === "number") {
-        return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
-      }
-      // Fallback
-      return 0;
-    });
-    return sorted;
-  }, [tasks, sortOrder, sortField]);
+  // Tasks are already sorted by the backend, so we use tasks directly
+  const sortedTasks = tasks;
   const handleExport = useCallback((format: "csv" | "pdf" | "xlsx" | "json" = "csv") => {
     const dateStr = new Date().toISOString().split("T")[0];
     if (format === "csv") {

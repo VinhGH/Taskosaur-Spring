@@ -810,6 +810,13 @@ export class TasksService {
     page: number;
     limit: number;
     totalPages: number;
+    filterCounts: {
+      priorities: { value: string; count: number }[];
+      types: { value: string; count: number }[];
+      statuses: { id: string; name: string; count: number }[];
+      assignees: { id: string; name: string; count: number }[];
+      reporters: { id: string; name: string; count: number }[];
+    };
   }> {
     if (!userId) {
       throw new ForbiddenException('User context required');
@@ -1053,12 +1060,112 @@ export class TasksService {
         description: taskLabel.label.description,
       })),
     }));
+
+    // Compute filter facet counts using the same whereClause
+    const [priorityCounts, typeCounts, statusCounts, assigneeCounts, reporterCounts] =
+      await this.prisma.$transaction([
+        this.prisma.task.groupBy({
+          by: ['priority'],
+          where: whereClause,
+          _count: true,
+          orderBy: { priority: 'asc' },
+        }),
+        this.prisma.task.groupBy({
+          by: ['type'],
+          where: whereClause,
+          _count: true,
+          orderBy: { type: 'asc' },
+        }),
+        this.prisma.task.groupBy({
+          by: ['statusId'],
+          where: whereClause,
+          _count: true,
+          orderBy: { statusId: 'asc' },
+        }),
+        this.prisma.taskAssignee.groupBy({
+          by: ['userId'],
+          where: { task: whereClause },
+          _count: true,
+          orderBy: { userId: 'asc' },
+        }),
+        this.prisma.taskReporter.groupBy({
+          by: ['userId'],
+          where: { task: whereClause },
+          _count: true,
+          orderBy: { userId: 'asc' },
+        }),
+      ]);
+
+    // Fetch status names for display
+    const statusIds = statusCounts.map((s) => s.statusId);
+    const statusNames =
+      statusIds.length > 0
+        ? await this.prisma.taskStatus.findMany({
+            where: { id: { in: statusIds } },
+            select: { id: true, name: true },
+          })
+        : [];
+    const statusNameMap = new Map(statusNames.map((s) => [s.id, s.name]));
+
+    // Fetch assignee names for display
+    const assigneeUserIds = assigneeCounts.map((a) => a.userId);
+    const assigneeUsers =
+      assigneeUserIds.length > 0
+        ? await this.prisma.user.findMany({
+            where: { id: { in: assigneeUserIds } },
+            select: { id: true, firstName: true, lastName: true },
+          })
+        : [];
+    const assigneeNameMap = new Map(
+      assigneeUsers.map((u) => [u.id, `${u.firstName} ${u.lastName}`]),
+    );
+
+    // Fetch reporter names for display
+    const reporterUserIds = reporterCounts.map((r) => r.userId);
+    const reporterUsers =
+      reporterUserIds.length > 0
+        ? await this.prisma.user.findMany({
+            where: { id: { in: reporterUserIds } },
+            select: { id: true, firstName: true, lastName: true },
+          })
+        : [];
+    const reporterNameMap = new Map(
+      reporterUsers.map((u) => [u.id, `${u.firstName} ${u.lastName}`]),
+    );
+
+    const filterCounts = {
+      priorities: priorityCounts.map((p) => ({
+        value: p.priority,
+        count: p._count as unknown as number,
+      })),
+      types: typeCounts.map((t) => ({
+        value: t.type,
+        count: t._count as unknown as number,
+      })),
+      statuses: statusCounts.map((s) => ({
+        id: s.statusId,
+        name: statusNameMap.get(s.statusId) || '',
+        count: s._count as unknown as number,
+      })),
+      assignees: assigneeCounts.map((a) => ({
+        id: a.userId,
+        name: assigneeNameMap.get(a.userId) || '',
+        count: a._count as unknown as number,
+      })),
+      reporters: reporterCounts.map((r) => ({
+        id: r.userId,
+        name: reporterNameMap.get(r.userId) || '',
+        count: r._count as unknown as number,
+      })),
+    };
+
     return {
       data: this.flattenTasksList(transformedTasks),
       total,
       page,
       limit,
       totalPages: Math.ceil(total / limit),
+      filterCounts,
     };
   }
 

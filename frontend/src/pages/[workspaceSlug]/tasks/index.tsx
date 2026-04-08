@@ -927,58 +927,8 @@ function WorkspaceTasksContent() {
     setSearchInput("");
   }, []);
 
-  const sortedTasks = useMemo(() => {
-    const sorted = [...tasks].sort((a, b) => {
-      let aValue = a[sortField];
-      let bValue = b[sortField];
-
-      if (sortField === "dueIn") {
-        const now = Date.now();
-        if (!a.dueDate && !b.dueDate) return 0;
-        if (!a.dueDate) return 1;
-        if (!b.dueDate) return -1;
-
-        const aDue = new Date(a.dueDate).getTime() - now;
-        const bDue = new Date(b.dueDate).getTime() - now;
-        return sortOrder === "asc" ? aDue - bDue : bDue - aDue;
-      }
-
-      // Handle date fields
-      if (["createdAt", "updatedAt", "completedAt", "dueDate", "timeline"].includes(sortField)) {
-        const aVal = a[sortField];
-        const bVal = b[sortField];
-
-        if (!aVal && !bVal) return 0;
-        if (!aVal) return 1;
-        if (!bVal) return -1;
-
-        const aTime = new Date(aVal).getTime();
-        const bTime = new Date(bVal).getTime();
-        return sortOrder === "asc" ? aTime - bTime : bTime - aTime;
-      }
-
-      // Handle status field (object with name property)
-      if (sortField === "status") {
-        aValue = a.status?.name || "";
-        bValue = b.status?.name || "";
-      }
-
-      // Handle commentsCount field (stored in _count.comments)
-      if (sortField === "commentsCount") {
-        aValue = a._count?.comments || 0;
-        bValue = b._count?.comments || 0;
-      }
-
-      if (typeof aValue === "string" && typeof bValue === "string") {
-        return sortOrder === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-      }
-      if (typeof aValue === "number" && typeof bValue === "number") {
-        return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
-      }
-      return 0;
-    });
-    return sorted;
-  }, [tasks, sortOrder, sortField]);
+  // Tasks are already sorted by the backend, so we use tasks directly
+  const sortedTasks = tasks;
 
   const handleExport = useCallback((format: "csv" | "pdf" | "xlsx" | "json" = "csv") => {
     const dateStr = new Date().toISOString().split("T")[0];

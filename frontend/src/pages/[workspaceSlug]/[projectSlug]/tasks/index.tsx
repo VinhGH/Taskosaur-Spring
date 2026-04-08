@@ -667,73 +667,8 @@ function ProjectTasksContent() {
   const displayTasks = isAuth ? tasks : publicTasks;
   const displayLoading = isAuth ? isLoading : isLoadingPublic;
 
-  const sortedTasks = useMemo(() => {
-    const sorted = [...displayTasks].sort((a, b) => {
-      let aValue = a[sortField];
-      let bValue = b[sortField];
-
-      if (sortField === "dueIn") {
-        const now = Date.now();
-        if (!a.dueDate && !b.dueDate) return 0;
-        if (!a.dueDate) return 1;
-        if (!b.dueDate) return -1;
-
-        const aDue = new Date(a.dueDate).getTime() - now;
-        const bDue = new Date(b.dueDate).getTime() - now;
-        return sortOrder === "asc" ? aDue - bDue : bDue - aDue;
-      }
-
-      // Handle date fields
-      if (["createdAt", "updatedAt", "completedAt", "dueDate", "timeline"].includes(sortField)) {
-        const aVal = a[sortField];
-        const bVal = b[sortField];
-
-        if (!aVal && !bVal) return 0;
-        if (!aVal) return 1;
-        if (!bVal) return -1;
-
-        const aTime = new Date(aVal).getTime();
-        const bTime = new Date(bVal).getTime();
-        return sortOrder === "asc" ? aTime - bTime : bTime - aTime;
-      }
-
-      // Handle priority field
-      if (sortField === "priority") {
-        const priorityOrder = {
-          HIGHEST: 4,
-          HIGH: 3,
-          MEDIUM: 2,
-          LOW: 1,
-        };
-        aValue = priorityOrder[aValue] || 999;
-        bValue = priorityOrder[bValue] || 999;
-
-        return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
-      }
-      // Handle status field (object with name property)
-      if (sortField === "status") {
-        aValue = a.status?.name || "";
-        bValue = b.status?.name || "";
-      }
-
-      // Handle commentsCount field (stored in _count.comments)
-      if (sortField === "commentsCount") {
-        aValue = a._count?.comments || 0;
-        bValue = b._count?.comments || 0;
-      }
-
-      if (typeof aValue === "string" && typeof bValue === "string") {
-        return sortOrder === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-      }
-
-      if (typeof aValue === "number" && typeof bValue === "number") {
-        return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
-      }
-
-      return 0;
-    });
-    return sorted;
-  }, [displayTasks, sortOrder, sortField]);
+  // Tasks are already sorted by the backend, so we use displayTasks directly
+  const sortedTasks = displayTasks;
 
   const handleExport = useCallback((format: "csv" | "pdf" | "xlsx" | "json" = "csv") => {
     if (format === "csv") {
@@ -765,16 +700,21 @@ function ProjectTasksContent() {
   const priorityFilters = useMemo(
     () =>
       isAuth
-        ? availablePriorities.map((priority) => ({
-          id: priority.id,
-          name: priority.name,
-          value: priority.value,
-          selected: selectedPriorities.includes(priority.value),
-          count: displayTasks.filter((task) => task.priority === priority.value).length,
-          color: priority.color,
-        }))
+        ? availablePriorities.map((priority) => {
+            const serverCount = taskResponse?.filterCounts?.priorities?.find(
+              (p) => p.value === priority.value
+            );
+            return {
+              id: priority.id,
+              name: priority.name,
+              value: priority.value,
+              selected: selectedPriorities.includes(priority.value),
+              count: serverCount?.count || 0,
+              color: priority.color,
+            };
+          })
         : [],
-    [availablePriorities, selectedPriorities, displayTasks, isAuth]
+    [availablePriorities, selectedPriorities, taskResponse?.filterCounts?.priorities, isAuth]
   );
 
   const taskTypeFilters = useMemo(
@@ -783,52 +723,53 @@ function ProjectTasksContent() {
         ? availableTaskTypes.map((type) => {
           const typeKey = type as keyof typeof TaskTypeIcon;
           const iconData = TaskTypeIcon[typeKey];
+          const serverCount = taskResponse?.filterCounts?.types?.find(
+            (t) => t.value === type
+          );
           return {
             id: type,
             name: type.charAt(0) + type.slice(1).toLowerCase(),
             value: type,
             selected: selectedTaskTypes.includes(type),
-            count: displayTasks.filter((task) => task.type === type).length,
+            count: serverCount?.count || 0,
             color: iconData?.color || "text-gray-500",
           };
         })
         : [],
-    [availableTaskTypes, selectedTaskTypes, displayTasks, isAuth]
+    [availableTaskTypes, selectedTaskTypes, taskResponse?.filterCounts?.types, isAuth]
   );
 
   const assigneeFilters = useMemo(() => {
-    return projectMembers.map((member) => ({
-      id: member.user.id,
-      name: member?.user?.firstName + " " + member.user.lastName,
-      value: member?.user.id,
-      selected: selectedAssignees.includes(member.user.id),
-      count: Array.isArray(tasks)
-        ? tasks.filter((task) =>
-          Array.isArray(task.assignees)
-            ? task.assignees.some((assignee) => assignee.id === member.user.id)
-            : false
-        ).length
-        : 0,
-      email: member?.user?.email,
-    }));
-  }, [projectMembers, selectedAssignees, tasks]);
+    return projectMembers.map((member) => {
+      const serverCount = taskResponse?.filterCounts?.assignees?.find(
+        (a) => a.id === member.user.id
+      );
+      return {
+        id: member.user.id,
+        name: member?.user?.firstName + " " + member.user.lastName,
+        value: member?.user.id,
+        selected: selectedAssignees.includes(member.user.id),
+        count: serverCount?.count || 0,
+        email: member?.user?.email,
+      };
+    });
+  }, [projectMembers, selectedAssignees, taskResponse?.filterCounts?.assignees]);
 
   const reporterFilters = useMemo(() => {
-    return projectMembers.map((member) => ({
-      id: member.user.id,
-      name: member?.user?.firstName + " " + member.user.lastName,
-      value: member?.user.id,
-      selected: selectedReporters.includes(member.user.id),
-      count: Array.isArray(tasks)
-        ? tasks.filter((task) =>
-          Array.isArray(task.reporters)
-            ? task.reporters.some((reporter) => reporter.id === member.user.id)
-            : false
-        ).length
-        : 0,
-      email: member?.user?.email,
-    }));
-  }, [projectMembers, selectedReporters, tasks]);
+    return projectMembers.map((member) => {
+      const serverCount = taskResponse?.filterCounts?.reporters?.find(
+        (r) => r.id === member.user.id
+      );
+      return {
+        id: member.user.id,
+        name: member?.user?.firstName + " " + member.user.lastName,
+        value: member?.user.id,
+        selected: selectedReporters.includes(member.user.id),
+        count: serverCount?.count || 0,
+        email: member?.user?.email,
+      };
+    });
+  }, [projectMembers, selectedReporters, taskResponse?.filterCounts?.reporters]);
 
   const safeToggleStatus = useCallback(
     (id: string) => {

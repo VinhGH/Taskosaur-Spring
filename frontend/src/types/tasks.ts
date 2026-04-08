@@ -87,6 +87,13 @@ export interface PaginationResponse<T> {
   page: number;
   limit: number;
   totalPages: number;
+  filterCounts?: {
+    priorities: { value: string; count: number }[];
+    types: { value: string; count: number }[];
+    statuses: { id: string; name: string; count: number }[];
+    assignees: { id: string; name: string; count: number }[];
+    reporters: { id: string; name: string; count: number }[];
+  };
 }
 
 export type PaginatedTaskResponse = PaginationResponse<Task>;
