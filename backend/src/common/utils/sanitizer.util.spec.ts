@@ -32,6 +32,27 @@ describe('sanitizeHtml', () => {
     expect(sanitizeHtml(input)).toBe('<img src="image.jpg" />');
   });
 
+  it('should allow img tags with safe attributes', () => {
+    const input = '<img src="https://example.com/image.png" alt="Test image">';
+    expect(sanitizeHtml(input)).toBe('<img src="https://example.com/image.png" alt="Test image" />');
+  });
+
+  it('should allow img tags with width and height', () => {
+    const input = '<img src="image.jpg" alt="Test" width="500" height="300">';
+    expect(sanitizeHtml(input)).toBe('<img src="image.jpg" alt="Test" width="500" height="300" />');
+  });
+
+  it('should remove dangerous attributes from img tags', () => {
+    const input = '<img src="image.jpg" alt="Test" onclick="alert(\'xss\')" onload="evil()">';
+    expect(sanitizeHtml(input)).toBe('<img src="image.jpg" alt="Test" />');
+  });
+
+  it('should allow full editor image HTML', () => {
+    const input = '<p><img src="http://localhost:3000/api/uploads/editor-images/user123/123456-image.png" alt="screenshot.png" /></p>';
+    const expected = '<p><img src="http://localhost:3000/api/uploads/editor-images/user123/123456-image.png" alt="screenshot.png" /></p>';
+    expect(sanitizeHtml(input)).toBe(expected);
+  });
+
   it('should sanitize nested unsafe content', () => {
     const input = '<div><script>alert("xss")</script><span>Safe</span></div>';
     expect(sanitizeHtml(input)).toBe('<div><span>Safe</span></div>');

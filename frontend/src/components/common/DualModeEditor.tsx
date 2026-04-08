@@ -22,6 +22,12 @@ import {
   IMAGE_UPLOAD_CONFIG,
 } from "@/lib/image-upload";
 
+// Tiptap imports
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Image from "@tiptap/extension-image";
+import Underline from "@tiptap/extension-underline";
+
 // Dynamically import MDEditor to avoid SSR issues
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false });
 
@@ -189,7 +195,7 @@ function htmlToMarkdown(html: string): string {
   return markdown;
 }
 
-// Rich text editor inner component (loaded only on client)
+// Rich text editor inner component (Tiptap-based)
 interface RichTextEditorInnerProps {
   value: string;
   onChange: (value: string) => void;
@@ -205,329 +211,175 @@ function RichTextEditorInner({
   height,
   disabled,
 }: RichTextEditorInnerProps) {
-  // Import draft-js modules dynamically
-  const [draftModules, setDraftModules] = useState<{
-    Editor: typeof import("draft-js").Editor;
-    EditorState: typeof import("draft-js").EditorState;
-    RichUtils: typeof import("draft-js").RichUtils;
-    ContentState: typeof import("draft-js").ContentState;
-    convertToRaw: typeof import("draft-js").convertToRaw;
-    DefaultDraftBlockRenderMap: typeof import("draft-js").DefaultDraftBlockRenderMap;
-    AtomicBlockUtils: typeof import("draft-js").AtomicBlockUtils;
-    draftToHtml: typeof import("draftjs-to-html").default;
-    htmlToDraft: typeof import("html-to-draftjs").default;
-  } | null>(null);
 
-  const [editorState, setEditorState] = useState<import("draft-js").EditorState | null>(null);
-  const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const lastEmittedValue = useRef<string>(value);
+  const lastEmittedHtml = useRef<string>(value);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  // Load draft-js modules on mount
-  useEffect(() => {
-    async function loadModules() {
-      const [draftJs, draftToHtmlMod, htmlToDraftMod] = await Promise.all([
-        import("draft-js"),
-        import("draftjs-to-html"),
-        import("html-to-draftjs"),
-      ]);
-
-      setDraftModules({
-        Editor: draftJs.Editor,
-        EditorState: draftJs.EditorState,
-        RichUtils: draftJs.RichUtils,
-        ContentState: draftJs.ContentState,
-        convertToRaw: draftJs.convertToRaw,
-        DefaultDraftBlockRenderMap: draftJs.DefaultDraftBlockRenderMap,
-        AtomicBlockUtils: draftJs.AtomicBlockUtils,
-        draftToHtml: draftToHtmlMod.default,
-        htmlToDraft: htmlToDraftMod.default,
-      });
-    }
-    loadModules();
-  }, []);
-
-  // Initialize editor state when modules are loaded
-  useEffect(() => {
-    if (draftModules && !editorState) {
-      if (value) {
-        try {
-          const contentBlock = draftModules.htmlToDraft(value);
-          if (contentBlock) {
-            const contentState = draftModules.ContentState.createFromBlockArray(
-              contentBlock.contentBlocks
-            );
-            setEditorState(draftModules.EditorState.createWithContent(contentState));
-            lastEmittedValue.current = value;
-          } else {
-            setEditorState(draftModules.EditorState.createEmpty());
-          }
-        } catch {
-          setEditorState(draftModules.EditorState.createEmpty());
-        }
-      } else {
-        setEditorState(draftModules.EditorState.createEmpty());
-      }
-    }
-  }, [draftModules, value, editorState]);
-  // Handle external value updates (e.g. switching to edit mode, or clearing after submit)
-  useEffect(() => {
-    if (draftModules && editorState && value !== lastEmittedValue.current) {
-      try {
-        const contentBlock = draftModules.htmlToDraft(value);
-        if (contentBlock) {
-          const contentState = draftModules.ContentState.createFromBlockArray(
-            contentBlock.contentBlocks
-          );
-          setEditorState(draftModules.EditorState.createWithContent(contentState));
-          lastEmittedValue.current = value;
-        }
-      } catch (e) {
-        // Fallback for invalid HTML
-        console.error("Failed to parse HTML for editor update", e);
-      }
-    }
-  }, [value, draftModules, editorState]);
-
-  const handleEditorChange = useCallback(
-    (newState: import("draft-js").EditorState) => {
-      if (!draftModules) return;
-      setEditorState(newState);
-      const rawContent = draftModules.convertToRaw(newState.getCurrentContent());
-      const html = draftModules.draftToHtml(rawContent);
-      const plainText = newState.getCurrentContent().getPlainText();
-      
-      let newValue = "";
-      if (plainText.trim() || html !== "<p></p>\n") {
-        newValue = html;
-      }
-      
-      lastEmittedValue.current = newValue;
-      onChange(newValue);
-    },
-    [draftModules, onChange]
-  );
-
-  const toggleInlineStyle = useCallback(
-    (style: string) => {
-      if (!draftModules || !editorState) return;
-      handleEditorChange(draftModules.RichUtils.toggleInlineStyle(editorState, style));
-    },
-    [draftModules, editorState, handleEditorChange]
-  );
-
-  const toggleBlockType = useCallback(
-    (blockType: string) => {
-      if (!draftModules || !editorState) return;
-      handleEditorChange(draftModules.RichUtils.toggleBlockType(editorState, blockType));
-    },
-    [draftModules, editorState, handleEditorChange]
-  );
-
-  const handleKeyCommand = useCallback(
-    (command: string): "handled" | "not-handled" => {
-      if (!draftModules || !editorState) return "not-handled";
-      const newState = draftModules.RichUtils.handleKeyCommand(editorState, command);
-      if (newState) {
-        handleEditorChange(newState);
-        return "handled";
-      }
-      return "not-handled";
-    },
-    [draftModules, editorState, handleEditorChange]
-  );
-
-  // Handle image upload for rich text editor
-  const handleRichTextImageUpload = useCallback(async (file: File) => {
-    if (!draftModules || !editorState) return;
-
-    const placeholderId = generateUploadPlaceholderId();
-    const placeholderHtml = `<div class="image-upload-placeholder" data-upload-id="${placeholderId}">🔄 Uploading image...</div>`;
-    
-    // Mark upload as in progress
-    ongoingUploads.set(placeholderId, true);
-    
-    // Insert placeholder at current cursor position as HTML
-    const currentHtml = draftModules.draftToHtml(draftModules.convertToRaw(editorState.getCurrentContent()));
-    const selection = editorState.getSelection();
-    const plainText = editorState.getCurrentContent().getPlainText();
-    const cursorPos = selection.getStartOffset();
-    
-    // Insert placeholder HTML at cursor position
-    const beforeHtml = plainText.substring(0, cursorPos);
-    const afterHtml = plainText.substring(cursorPos);
-    const newHtml = beforeHtml + placeholderHtml + afterHtml;
-    
-    // Convert back to draft content and update
-    const contentBlock = draftModules.htmlToDraft(newHtml);
-    if (contentBlock) {
-      const newContentState = draftModules.ContentState.createFromBlockArray(contentBlock.contentBlocks);
-      const newEditorState = draftModules.EditorState.createWithContent(newContentState);
-      setEditorState(newEditorState);
-      onChange(newHtml);
-    }
-
-    // Upload image
-    const imageUrl = await handleImageUpload(file, {
-      onProgress: (progress) => {
-        if (ongoingUploads.has(placeholderId)) {
-          // Could update placeholder with progress
-        }
+  // Initialize Tiptap editor
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Underline,
+      Image.configure({ inline: false, allowBase64: false }),
+    ],
+    content: value || "",
+    editable: !disabled,
+    immediatelyRender: false, // Prevent SSR hydration mismatches
+    editorProps: {
+      attributes: {
+        class: "tiptap-rich-editor prose prose-sm max-w-none focus:outline-none px-3 py-2 text-sm text-[var(--foreground)]",
+        "data-placeholder": placeholder,
       },
-      showToasts: false,
-    });
+    },
+    onUpdate: ({ editor: ed }) => {
+      const html = ed.getHTML();
+      // Normalize empty paragraph to empty string
+      const emitted = html === "<p></p>" ? "" : html;
+      lastEmittedHtml.current = emitted;
+      onChange(emitted);
+    },
+  });
 
-    // Remove from ongoing uploads
-    ongoingUploads.delete(placeholderId);
+  // Sync external value changes (form reset, mode switch, clear after submit)
+  useEffect(() => {
+    if (!editor) return;
+    const incoming = value || "";
+    const current = lastEmittedHtml.current;
+    // Only push new content when it truly differs (avoids cursor jump on every keystroke)
+    if (incoming !== current) {
+      editor.commands.setContent(incoming, false);
+      lastEmittedHtml.current = incoming;
+    }
+  }, [value, editor]);
 
-    if (imageUrl) {
-      // Replace placeholder with actual image
-      const finalHtml = newHtml.replace(placeholderHtml, `<img src="${imageUrl}" alt="${file.name}" />`);
-      
-      // Update editor with final HTML
-      const contentBlock = draftModules.htmlToDraft(finalHtml);
-      if (contentBlock) {
-        const finalContentState = draftModules.ContentState.createFromBlockArray(
-          contentBlock.contentBlocks
-        );
-        const finalEditorState = draftModules.EditorState.createWithContent(finalContentState);
-        setEditorState(finalEditorState);
-        onChange(finalHtml);
+  // Toggle disabled state
+  useEffect(() => {
+    if (!editor) return;
+    editor.setEditable(!disabled);
+  }, [disabled, editor]);
+
+  // ── Image upload ──────────────────────────────────────────────────────────
+  const handleRichTextImageUpload = useCallback(
+    async (file: File) => {
+      if (!editor) return;
+
+      // Upload with progress tracking
+      const toastId = toast.loading("Uploading image...", { description: file.name });
+
+      const imageUrl = await handleImageUpload(file, {
+        showToasts: false,
+      });
+
+      toast.dismiss(toastId);
+
+      if (imageUrl) {
+        // Insert image directly
+        editor
+          .chain()
+          .focus()
+          .setImage({ src: imageUrl, alt: file.name })
+          .run();
+        
         toast.success("Image uploaded successfully", { description: file.name });
-      }
-    } else {
-      // Remove placeholder on failure
-      const finalHtml = newHtml.replace(placeholderHtml, '');
-      
-      const contentBlock = draftModules.htmlToDraft(finalHtml);
-      if (contentBlock) {
-        const finalContentState = draftModules.ContentState.createFromBlockArray(
-          contentBlock.contentBlocks
-        );
-        const finalEditorState = draftModules.EditorState.createWithContent(finalContentState);
-        setEditorState(finalEditorState);
-        onChange(finalHtml);
+      } else {
         toast.error("Image upload failed", { description: file.name });
       }
-    }
-  }, [draftModules, editorState, onChange]);
+    },
+    [editor]
+  );
 
-  // Handle paste events in rich text editor
-  const handleRichTextPaste = useCallback(async (event: React.ClipboardEvent) => {
-    const items = event.clipboardData.items;
-    const imageFiles: File[] = [];
+  // ── Paste handler ─────────────────────────────────────────────────────────
+  const handleRichTextPaste = useCallback(
+    async (event: React.ClipboardEvent) => {
+      const items = event.clipboardData.items;
+      const imageFiles: File[] = [];
 
-    // Extract image files from clipboard
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf('image') !== -1) {
-        const file = items[i].getAsFile();
-        if (file) {
-          imageFiles.push(file);
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith("image/")) {
+          const file = items[i].getAsFile();
+          if (file) imageFiles.push(file);
         }
       }
-    }
 
-    // If we have image files, handle the upload
-    if (imageFiles.length > 0) {
+      if (imageFiles.length > 0) {
+        event.preventDefault();
+        for (const file of imageFiles) {
+          await handleRichTextImageUpload(file);
+        }
+      }
+    },
+    [handleRichTextImageUpload]
+  );
+
+  // ── Drag & drop handlers ──────────────────────────────────────────────────
+  const handleRichTextDrop = useCallback(
+    async (event: React.DragEvent) => {
       event.preventDefault();
-      
-      // Upload each image
+      event.stopPropagation();
+      setIsDragOver(false);
+
+      const files = Array.from(event.dataTransfer.files);
+      const imageFiles = files.filter((f): f is File =>
+        IMAGE_UPLOAD_CONFIG.allowedTypes.includes(f.type as (typeof IMAGE_UPLOAD_CONFIG.allowedTypes)[number])
+      );
+
       for (const file of imageFiles) {
         await handleRichTextImageUpload(file);
       }
-    }
-  }, [handleRichTextImageUpload]);
+    },
+    [handleRichTextImageUpload]
+  );
 
-  // Handle drag and drop in rich text editor
-  const handleRichTextDrop = useCallback(async (event: React.DragEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setIsDragOver(false);
-
-    const files = Array.from(event.dataTransfer.files);
-    const imageFiles = files.filter((file): file is File => 
-      IMAGE_UPLOAD_CONFIG.allowedTypes.includes(file.type as any)
-    );
-
-    if (imageFiles.length > 0) {
-      for (const file of imageFiles) {
-        await handleRichTextImageUpload(file);
-      }
-    }
-  }, [handleRichTextImageUpload]);
-
-  // Handle drag over
   const handleRichTextDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    event.dataTransfer.dropEffect = 'copy';
+    event.dataTransfer.dropEffect = "copy";
+    setIsDragOver(true);
   }, []);
 
-  // Handle drag leave
   const handleRichTextDragLeave = useCallback(() => {
     setIsDragOver(false);
   }, []);
 
-  // Handle file input change for rich text
-  const handleRichTextFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
+  // ── Toolbar file input ────────────────────────────────────────────────────
+  const handleRichTextFileChange = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
 
-    const file = files[0];
-    if (!IMAGE_UPLOAD_CONFIG.allowedTypes.includes(file.type as any)) {
-      toast.error("Invalid file type", { 
-        description: "Only JPEG, PNG, GIF, and WebP images are allowed." 
-      });
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      const file = files[0];
+      if (!IMAGE_UPLOAD_CONFIG.allowedTypes.includes(file.type as (typeof IMAGE_UPLOAD_CONFIG.allowedTypes)[number])) {
+        toast.error("Invalid file type", {
+          description: "Only JPEG, PNG, GIF, and WebP images are allowed.",
+        });
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
       }
-      return;
-    }
 
-    await handleRichTextImageUpload(file);
-    
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  }, [handleRichTextImageUpload]);
+      await handleRichTextImageUpload(file);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    },
+    [handleRichTextImageUpload]
+  );
 
-  // Trigger file input click for rich text
   const handleRichTextImageButtonClick = useCallback(() => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
+    fileInputRef.current?.click();
   }, []);
 
-  const blockStyleFn = useCallback((block: import("draft-js").ContentBlock) => {
-    switch (block.getType()) {
-      case "header-one":
-        return "text-2xl font-bold my-2";
-      case "header-two":
-        return "text-xl font-semibold my-2";
-      case "header-three":
-        return "text-lg font-semibold my-1";
-      case "header-four":
-        return "text-base font-medium my-1";
-      case "header-five":
-        return "text-sm font-medium my-1";
-      case "header-six":
-        return "text-xs font-medium my-1";
-      case "blockquote":
-        return "border-l-4 border-[var(--border)] pl-4 italic text-[var(--muted-foreground)] my-2";
-      case "unordered-list-item":
-        return "list-disc ml-5 my-1";
-      case "ordered-list-item":
-        return "list-decimal ml-5 my-1";
-      case "code-block":
-        return "bg-[var(--muted)] font-mono p-2 rounded my-1 text-sm";
-      default:
-        return "";
-    }
-  }, []);
+  // ── Toolbar active-state helpers ──────────────────────────────────────────
+  const isActive = (type: string, attrs?: Record<string, unknown>) =>
+    editor?.isActive(type, attrs) ?? false;
 
-  // Show loading state while modules are loading
-  if (!draftModules || !editorState) {
+  const toolbarBtn = (active: boolean, disabled_: boolean) =>
+    `p-1.5 rounded transition-colors ${
+      active
+        ? "bg-[var(--accent)] text-[var(--accent-foreground)]"
+        : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+    } ${disabled_ ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`;
+
+  // Loading state
+  if (!editor) {
     return (
       <div
         className="rounded-md border border-[var(--border)] bg-[var(--background)] flex items-center justify-center"
@@ -538,95 +390,90 @@ function RichTextEditorInner({
     );
   }
 
-  const currentInlineStyle = editorState.getCurrentInlineStyle();
-  const selection = editorState.getSelection();
-  const currentBlockType = editorState
-    .getCurrentContent()
-    .getBlockForKey(selection.getStartKey())
-    .getType();
-
-  const { Editor } = draftModules;
-
   return (
     <div className="rounded-md border border-[var(--border)] bg-[var(--background)] overflow-hidden">
-      {/* Rich Text Toolbar */}
+      {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-0.5 p-2 border-b border-[var(--border)] bg-[var(--muted)]/30">
-        {INLINE_STYLES.map((style) => (
-          <button
-            key={style.tooltip}
-            type="button"
-            title={style.tooltip}
-            disabled={disabled}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              toggleInlineStyle(style.style);
-            }}
-            className={`p-1.5 rounded transition-colors ${
-              currentInlineStyle.has(style.style)
-                ? "bg-[var(--accent)] text-[var(--accent-foreground)]"
-                : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
-            } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-          >
-            {style.icon}
-          </button>
-        ))}
 
-        <span className="w-px h-5 bg-[var(--border)] mx-1" />
-
-        {BLOCK_TYPES.map((block) => (
-          <button
-            key={block.tooltip}
-            type="button"
-            title={block.tooltip}
-            disabled={disabled}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              toggleBlockType(block.style);
-            }}
-            className={`p-1.5 rounded transition-colors ${
-              currentBlockType === block.style
-                ? "bg-[var(--accent)] text-[var(--accent-foreground)]"
-                : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
-            } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-          >
-            {block.icon}
-          </button>
-        ))}
-
-        <span className="w-px h-5 bg-[var(--border)] mx-1" />
-
-        {/* Image Upload Button */}
-        <button
-          type="button"
-          title="Upload image"
-          disabled={disabled}
-          onClick={handleRichTextImageButtonClick}
-          className={`p-1.5 rounded transition-colors text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)] ${
-            disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-          }`}
-        >
-          <HiOutlinePhoto className="size-4" />
+        {/* ── Inline styles ── */}
+        <button type="button" title="Bold (Ctrl+B)" disabled={disabled}
+          onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBold().run(); }}
+          className={toolbarBtn(isActive("bold"), disabled)}>
+          <HiBold className="size-4" />
+        </button>
+        <button type="button" title="Italic (Ctrl+I)" disabled={disabled}
+          onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleItalic().run(); }}
+          className={toolbarBtn(isActive("italic"), disabled)}>
+          <HiItalic className="size-4" />
+        </button>
+        <button type="button" title="Underline (Ctrl+U)" disabled={disabled}
+          onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleUnderline().run(); }}
+          className={toolbarBtn(isActive("underline"), disabled)}>
+          <HiUnderline className="size-4" />
+        </button>
+        <button type="button" title="Strikethrough" disabled={disabled}
+          onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleStrike().run(); }}
+          className={toolbarBtn(isActive("strike"), disabled)}>
+          <HiStrikethrough className="size-4" />
         </button>
 
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={IMAGE_UPLOAD_CONFIG.allowedTypes.join(',')}
+        <span className="w-px h-5 bg-[var(--border)] mx-1" />
+
+        {/* ── Block types ── */}
+        <button type="button" title="Heading 1" disabled={disabled}
+          onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 1 }).run(); }}
+          className={toolbarBtn(isActive("heading", { level: 1 }), disabled)}>
+          <span className="text-xs font-semibold">H1</span>
+        </button>
+        <button type="button" title="Heading 2" disabled={disabled}
+          onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 2 }).run(); }}
+          className={toolbarBtn(isActive("heading", { level: 2 }), disabled)}>
+          <span className="text-xs font-semibold">H2</span>
+        </button>
+        <button type="button" title="Heading 3" disabled={disabled}
+          onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 3 }).run(); }}
+          className={toolbarBtn(isActive("heading", { level: 3 }), disabled)}>
+          <span className="text-xs font-semibold">H3</span>
+        </button>
+        <button type="button" title="Bullet List" disabled={disabled}
+          onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBulletList().run(); }}
+          className={toolbarBtn(isActive("bulletList"), disabled)}>
+          <HiOutlineListBullet className="size-4" />
+        </button>
+        <button type="button" title="Numbered List" disabled={disabled}
+          onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleOrderedList().run(); }}
+          className={toolbarBtn(isActive("orderedList"), disabled)}>
+          <List className="size-4" />
+        </button>
+        <button type="button" title="Quote" disabled={disabled}
+          onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBlockquote().run(); }}
+          className={toolbarBtn(isActive("blockquote"), disabled)}>
+          <Quote className="size-4" />
+        </button>
+        <button type="button" title="Code Block" disabled={disabled}
+          onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleCodeBlock().run(); }}
+          className={toolbarBtn(isActive("codeBlock"), disabled)}>
+          <HiCodeBracket className="size-4" />
+        </button>
+
+        <span className="w-px h-5 bg-[var(--border)] mx-1" />
+
+        {/* ── Image upload ── */}
+        <button type="button" title="Upload image" disabled={disabled}
+          onClick={handleRichTextImageButtonClick}
+          className={toolbarBtn(false, disabled)}>
+          <HiOutlinePhoto className="size-4" />
+        </button>
+        <input ref={fileInputRef} type="file"
+          accept={IMAGE_UPLOAD_CONFIG.allowedTypes.join(",")}
           onChange={handleRichTextFileChange}
-          className="hidden"
-          disabled={disabled}
-        />
+          className="hidden" disabled={disabled} />
       </div>
 
-      {/* Draft.js Editor */}
+      {/* Editor area */}
       <div
-        ref={editorRef}
-        className="px-3 py-2 overflow-y-auto cursor-text text-sm relative"
+        className="overflow-y-auto cursor-text relative"
         style={{ height: height - 45 }}
-        onClick={() => {
-          editorRef.current?.querySelector<HTMLElement>(".DraftEditor-root")?.click();
-        }}
         onPaste={handleRichTextPaste}
         onDrop={handleRichTextDrop}
         onDragOver={handleRichTextDragOver}
@@ -641,15 +488,8 @@ function RichTextEditorInner({
             </div>
           </div>
         )}
-        
-        <Editor
-          editorState={editorState}
-          onChange={handleEditorChange}
-          placeholder={placeholder}
-          handleKeyCommand={handleKeyCommand}
-          blockStyleFn={blockStyleFn}
-          readOnly={disabled}
-        />
+
+        <EditorContent editor={editor} style={{ minHeight: height - 45 }} />
       </div>
     </div>
   );

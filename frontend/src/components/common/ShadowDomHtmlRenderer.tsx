@@ -101,7 +101,7 @@ const EMAIL_STYLES = `
 `;
 
 const EMAIL_SANITIZE_CONFIG = {
-  ADD_TAGS: ['style', 'font', 'center', 'strike', 'u'],
+  ADD_TAGS: ['style', 'font', 'center', 'strike', 'u', 'img'],
   ADD_ATTR: [
     'target',
     'color',
@@ -114,6 +114,8 @@ const EMAIL_SANITIZE_CONFIG = {
     'width',
     'height',
     'style',
+    'src',
+    'alt',
   ],
   WHOLE_DOCUMENT: false,
   FORCE_BODY: true,

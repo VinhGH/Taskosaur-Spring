@@ -44,12 +44,15 @@ export const sanitizeHtml = (html: string): string => {
       'mark',
       'kbd',
       'strike',
+      // Images
+      'img',
       // Input for checkboxes (sometimes used in markdown)
       'input',
     ],
     allowedAttributes: {
       '*': ['class', 'style', 'title', 'className'],
       a: ['href', 'name', 'target', 'title', 'rel'],
+      img: ['src', 'alt', 'width', 'height'],
       input: ['type', 'checked', 'disabled'],
       code: ['className'],
     },

@@ -14,11 +14,13 @@ export const SANITIZE_CONFIG = {
     'ul', 'ol', 'li',
     'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
     'hr', 'br',
+    // Images
+    'img',
     // Inline elements
     'a', 'b', 'strong', 'i', 'em', 'u', 's', 'del', 'ins',
     'span', 'sub', 'sup', 'mark', 'kbd',
   ],
-  ALLOWED_ATTR: ['href', 'title', 'target', 'rel', 'class', 'className'],
+  ALLOWED_ATTR: ['href', 'title', 'target', 'rel', 'class', 'className', 'src', 'alt', 'width', 'height'],
   // Prevent javascript: URLs and other dangerous protocols
   ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|ftp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
 };
