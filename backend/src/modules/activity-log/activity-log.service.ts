@@ -1,6 +1,6 @@
 // src/activity-log/activity-log.service.ts
 import { Injectable } from '@nestjs/common';
-import { ActivityLog, ActivityType } from '@prisma/client';
+import { ActivityLog, ActivityType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -327,9 +327,9 @@ export class ActivityLogService {
     const totalCount = Number(totalResult[0]?.count ?? 0);
     const totalPages = Math.ceil(totalCount / limit);
     const offset = (page - 1) * limit;
-    // ✅ Fixed raw query with proper UUID casting
+    // ✅ Fixed raw query with proper UUID casting and slug joins for navigation
     const activities: any[] = await this.prisma.$queryRaw`
-    SELECT 
+    SELECT
       al.id,
       al.type,
       al.description,
@@ -340,19 +340,31 @@ export class ActivityLogService {
       u.first_name,
       u.last_name,
       u.email,
-      u.avatar
+      u.avatar,
+      t.slug as task_slug,
+      tp.slug as task_project_slug,
+      tw.slug as task_workspace_slug,
+      pp.slug as project_slug,
+      pw.slug as project_workspace_slug,
+      ws.slug as workspace_slug
     FROM activity_logs al
     JOIN users u ON al.user_id = u.id
-    WHERE 
+    LEFT JOIN tasks t ON al.entity_type = 'Task' AND al.entity_id = t.id
+    LEFT JOIN projects tp ON t.project_id = tp.id
+    LEFT JOIN workspaces tw ON tp.workspace_id = tw.id
+    LEFT JOIN projects pp ON al.entity_type = 'Project' AND al.entity_id = pp.id
+    LEFT JOIN workspaces pw ON pp.workspace_id = pw.id
+    LEFT JOIN workspaces ws ON al.entity_type = 'Workspace' AND al.entity_id = ws.id
+    WHERE
       (al.entity_type = 'Workspace' AND al.entity_id = ${workspaceId}::uuid)
-      OR 
+      OR
       (al.entity_type = 'Project' AND al.entity_id IN (
         SELECT id FROM projects WHERE workspace_id = ${workspaceId}::uuid
       ))
       OR
       (al.entity_type = 'Task' AND al.entity_id IN (
-        SELECT t.id FROM tasks t 
-        JOIN projects p ON t.project_id = p.id 
+        SELECT t.id FROM tasks t
+        JOIN projects p ON t.project_id = p.id
         WHERE p.workspace_id = ${workspaceId}::uuid
       ))
     ORDER BY al.created_at DESC
@@ -360,21 +372,30 @@ export class ActivityLogService {
     OFFSET ${offset}::int
   `;
 
+    const mapped = activities.map((activity) => ({
+      id: activity.id,
+      type: activity.type,
+      description: activity.description,
+      entityType: activity.entity_type,
+      entityId: activity.entity_id,
+      createdAt: activity.created_at,
+      taskSlug: activity.task_slug || null,
+      projectSlug: activity.task_project_slug || activity.project_slug || null,
+      workspaceSlug:
+        activity.task_workspace_slug ||
+        activity.project_workspace_slug ||
+        activity.workspace_slug ||
+        null,
+      user: {
+        id: activity.user_id,
+        name: `${activity.first_name} ${activity.last_name}`,
+        email: activity.email,
+        avatar: activity.avatar,
+      },
+    }));
+
     return {
-      activities: activities.map((activity) => ({
-        id: activity.id,
-        type: activity.type,
-        description: activity.description,
-        entityType: activity.entity_type,
-        entityId: activity.entity_id,
-        createdAt: activity.created_at,
-        user: {
-          id: activity.user_id,
-          name: `${activity.first_name} ${activity.last_name}`,
-          email: activity.email,
-          avatar: activity.avatar,
-        },
-      })),
+      activities: mapped,
       pagination: {
         currentPage: page,
         totalPages,
@@ -597,110 +618,131 @@ export class ActivityLogService {
       startDate?: Date;
       endDate?: Date;
     },
-  ): Promise<{
-    activities: ActivityLog[];
-    pagination: {
-      currentPage: number;
-      totalPages: number;
-      totalCount: number;
-      hasNextPage: boolean;
-      hasPrevPage: boolean;
-    };
-  }> {
-    // Get all workspaces in the organization
-    const workspaces = await this.prisma.workspace.findMany({
-      where: { organizationId },
-      select: { id: true },
-    });
-    const workspaceIds = workspaces.map((w) => w.id);
+  ) {
+    const offset = (page - 1) * limit;
 
-    // Get all projects in organization workspaces
-    const projects = await this.prisma.project.findMany({
-      where: { workspaceId: { in: workspaceIds } },
-      select: { id: true },
-    });
-    const projectIds = projects.map((p) => p.id);
+    const entityTypeFilter = filters?.entityType
+      ? Prisma.sql`AND al.entity_type = ${filters.entityType}`
+      : Prisma.empty;
 
-    // Get all tasks in organization projects
-    const tasks = await this.prisma.task.findMany({
-      where: { projectId: { in: projectIds } },
-      select: { id: true },
-    });
-    const taskIds = tasks.map((t) => t.id);
+    const userIdFilter = filters?.userId
+      ? Prisma.sql`AND al.user_id = ${filters.userId}::uuid`
+      : Prisma.empty;
 
-    // Build comprehensive where clause
-    const whereClause: any = {
-      OR: [
-        // Direct organization activities
-        { organizationId: organizationId },
-        // Workspace activities within the organization
-        {
-          entityType: 'Workspace',
-          entityId: { in: workspaceIds },
-        },
-        // Project activities within organization workspaces
-        {
-          entityType: 'Project',
-          entityId: { in: projectIds },
-        },
-        // Task activities within organization projects
-        {
-          entityType: 'Task',
-          entityId: { in: taskIds },
-        },
-      ],
-    };
+    const startDateFilter = filters?.startDate
+      ? Prisma.sql`AND al.created_at >= ${filters.startDate}`
+      : Prisma.empty;
 
-    // Apply additional filters
-    if (filters) {
-      const additionalFilters: any[] = [];
+    const endDateFilter = filters?.endDate
+      ? Prisma.sql`AND al.created_at <= ${filters.endDate}`
+      : Prisma.empty;
 
-      if (filters.entityType) {
-        additionalFilters.push({ entityType: filters.entityType });
-      }
+    const totalResult: Array<{ count: bigint }> = await this.prisma.$queryRaw`
+      SELECT COUNT(*)::bigint as count
+      FROM activity_logs al
+      WHERE (
+        al.organization_id = ${organizationId}::uuid
+        OR (al.entity_type = 'Workspace' AND al.entity_id IN (
+          SELECT id FROM workspaces WHERE organization_id = ${organizationId}::uuid
+        ))
+        OR (al.entity_type = 'Project' AND al.entity_id IN (
+          SELECT p.id FROM projects p
+          JOIN workspaces w ON p.workspace_id = w.id
+          WHERE w.organization_id = ${organizationId}::uuid
+        ))
+        OR (al.entity_type = 'Task' AND al.entity_id IN (
+          SELECT t.id FROM tasks t
+          JOIN projects p ON t.project_id = p.id
+          JOIN workspaces w ON p.workspace_id = w.id
+          WHERE w.organization_id = ${organizationId}::uuid
+        ))
+      )
+      ${entityTypeFilter}
+      ${userIdFilter}
+      ${startDateFilter}
+      ${endDateFilter}
+    `;
 
-      if (filters.userId) {
-        additionalFilters.push({ userId: filters.userId });
-      }
-
-      if (filters.startDate) {
-        additionalFilters.push({ createdAt: { gte: filters.startDate } });
-      }
-
-      if (filters.endDate) {
-        additionalFilters.push({ createdAt: { lte: filters.endDate } });
-      }
-
-      if (additionalFilters.length > 0) {
-        whereClause.AND = additionalFilters;
-      }
-    }
-
-    const [totalCount, activities] = await Promise.all([
-      this.prisma.activityLog.count({ where: whereClause }),
-      this.prisma.activityLog.findMany({
-        where: whereClause,
-        include: {
-          user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              avatar: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-    ]);
-
+    const totalCount = Number(totalResult[0]?.count ?? 0);
     const totalPages = Math.ceil(totalCount / limit);
 
+    const activities: any[] = await this.prisma.$queryRaw`
+      SELECT
+        al.id,
+        al.type,
+        al.description,
+        al.entity_type,
+        al.entity_id,
+        al.new_value,
+        al.created_at,
+        u.id as user_id,
+        u.first_name,
+        u.last_name,
+        u.email,
+        u.avatar,
+        t.slug as task_slug,
+        tp.slug as task_project_slug,
+        tw.slug as task_workspace_slug,
+        pp.slug as project_slug,
+        pw.slug as project_workspace_slug,
+        ws.slug as workspace_slug
+      FROM activity_logs al
+      JOIN users u ON al.user_id = u.id
+      LEFT JOIN tasks t ON al.entity_type = 'Task' AND al.entity_id = t.id
+      LEFT JOIN projects tp ON t.project_id = tp.id
+      LEFT JOIN workspaces tw ON tp.workspace_id = tw.id
+      LEFT JOIN projects pp ON al.entity_type = 'Project' AND al.entity_id = pp.id
+      LEFT JOIN workspaces pw ON pp.workspace_id = pw.id
+      LEFT JOIN workspaces ws ON al.entity_type = 'Workspace' AND al.entity_id = ws.id
+      WHERE (
+        al.organization_id = ${organizationId}::uuid
+        OR (al.entity_type = 'Workspace' AND al.entity_id IN (
+          SELECT id FROM workspaces WHERE organization_id = ${organizationId}::uuid
+        ))
+        OR (al.entity_type = 'Project' AND al.entity_id IN (
+          SELECT p.id FROM projects p
+          JOIN workspaces w ON p.workspace_id = w.id
+          WHERE w.organization_id = ${organizationId}::uuid
+        ))
+        OR (al.entity_type = 'Task' AND al.entity_id IN (
+          SELECT t.id FROM tasks t
+          JOIN projects p ON t.project_id = p.id
+          JOIN workspaces w ON p.workspace_id = w.id
+          WHERE w.organization_id = ${organizationId}::uuid
+        ))
+      )
+      ${entityTypeFilter}
+      ${userIdFilter}
+      ${startDateFilter}
+      ${endDateFilter}
+      ORDER BY al.created_at DESC
+      LIMIT ${limit}::int
+      OFFSET ${offset}::int
+    `;
+
     return {
-      activities,
+      activities: activities.map((activity) => ({
+        id: activity.id,
+        type: activity.type,
+        description: activity.description,
+        entityType: activity.entity_type,
+        entityId: activity.entity_id,
+        newValue: activity.new_value,
+        createdAt: activity.created_at,
+        taskSlug: activity.task_slug || null,
+        projectSlug: activity.task_project_slug || activity.project_slug || null,
+        workspaceSlug:
+          activity.task_workspace_slug ||
+          activity.project_workspace_slug ||
+          activity.workspace_slug ||
+          null,
+        user: {
+          id: activity.user_id,
+          name: `${activity.first_name} ${activity.last_name}`,
+          email: activity.email,
+          avatar: activity.avatar,
+        },
+      })),
       pagination: {
         currentPage: page,
         totalPages,

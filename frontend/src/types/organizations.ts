@@ -95,6 +95,10 @@ export interface ActivityItem {
   action: string;
   description: string;
   userId: string;
+  taskSlug?: string | null;
+  projectSlug?: string | null;
+  workspaceSlug?: string | null;
+  newValue?: any;
   user?: {
     id: string;
     firstName: string;

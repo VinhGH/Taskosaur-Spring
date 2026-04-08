@@ -81,56 +81,9 @@ export interface ActivityLog {
   description: string;
   entityType: string;
   entityId: string;
-  metadata?: Record<string, any>;
-  createdAt: string;
-  updatedAt: string;
-  type: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    avatar?: string;
-  };
-}
-
-export interface WorkspaceActivityResponse {
-  activities: ActivityLog[];
-  pagination: {
-    currentPage: number;
-    totalPages: number;
-    totalCount: number;
-    hasNextPage: boolean;
-    hasPrevPage: boolean;
-  };
-}
-
-export interface GetWorkspaceActivityParams {
-  limit?: number;
-  page?: number;
-  entityType?: string;
-}
-
-export interface AddMemberToWorkspaceData {
-  userId: string;
-  workspaceId: string;
-  role: WorkspaceRole;
-}
-
-export interface InviteMemberToWorkspaceData {
-  email: string;
-  workspaceId: string;
-  role: WorkspaceRole;
-}
-
-export interface UpdateMemberRoleData {
-  role: WorkspaceRole;
-}
-export interface ActivityLog {
-  id: string;
-  action: string;
-  description: string;
-  entityType: string;
-  entityId: string;
+  taskSlug?: string | null;
+  projectSlug?: string | null;
+  workspaceSlug?: string | null;
   metadata?: Record<string, any>;
   createdAt: string;
   updatedAt: string;

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { HiClock, HiChatBubbleLeft } from "react-icons/hi2";
 import { InfoPanel } from "@/components/common/InfoPanel";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -19,6 +20,9 @@ export interface ActivityFeedItem {
   type: string;
   entityType?: string;
   entityId?: string;
+  taskSlug?: string | null;
+  projectSlug?: string | null;
+  workspaceSlug?: string | null;
   createdAt: string | Date;
   metadata?: { comment?: string } & Record<string, unknown>;
   newValue?: {
@@ -64,18 +68,19 @@ interface ActivityFeedPanelProps {
   onRetry?: () => void;
   onClearFilter?: () => void;
   emptyMessage?: string;
+  workspaceSlug?: string;
 }
 
-function getEntityLink(activity: ActivityFeedItem): string {
+function getEntityLink(activity: ActivityFeedItem, fallbackWorkspaceSlug?: string): string {
   if (!activity.entityType) return "#";
 
   const entityType = activity.entityType.toLowerCase();
+  const wsSlug = activity.workspaceSlug || fallbackWorkspaceSlug;
 
-  // For task attachments, get the task ID from newValue
+  // For task attachments, use slug-based URL if available
   if (entityType === "task attachment" || entityType === "task attchment") {
-    const taskId = activity.newValue?.taskId || activity.newValue?.task?.id;
-    if (taskId) {
-      return `/tasks/${taskId}`;
+    if (wsSlug && activity.projectSlug && activity.taskSlug) {
+      return `/${wsSlug}/${activity.projectSlug}/tasks/${activity.taskSlug}`;
     }
   }
 
@@ -83,11 +88,22 @@ function getEntityLink(activity: ActivityFeedItem): string {
 
   switch (entityType) {
     case "task":
-      return `/tasks/${activity.entityId}`;
+      if (wsSlug && activity.projectSlug && activity.taskSlug) {
+        return `/${wsSlug}/${activity.projectSlug}/tasks/${activity.taskSlug}`;
+      }
+      return "#";
     case "project":
-      return `/projects/${activity.entityId}`;
+      if (wsSlug && activity.projectSlug) {
+        return `/${wsSlug}/${activity.projectSlug}`;
+      }
+      return "#";
     case "workspace":
-      return `/workspaces/${activity.entityId}`;
+      if (wsSlug) {
+        return `/${wsSlug}`;
+      }
+      return "#";
+    case "organization":
+      return `/dashboard`;
     case "user":
       return `/users/${activity.entityId}`;
     default:
@@ -97,11 +113,30 @@ function getEntityLink(activity: ActivityFeedItem): string {
 
 function normalizeActivity(activity: any): ActivityFeedItem {
   const user = activity.user || {};
+  const newValue = activity.newValue || {};
 
   const userName =
     user.name || `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Unknown User";
 
-  const description = activity.description || activity.newValue?.title || "Activity";
+  const description = activity.description || newValue?.title || "Activity";
+
+  const entityType = (activity.entityType || "").toLowerCase();
+
+  // Resolve slugs from API response first, then fall back to newValue contents
+  let taskSlug = activity.taskSlug || null;
+  let projectSlug = activity.projectSlug || null;
+  const workspaceSlug = activity.workspaceSlug || null;
+
+  if (!taskSlug && entityType === "task") {
+    taskSlug = newValue.slug || newValue.key || null;
+  }
+  if (!projectSlug) {
+    if (entityType === "project") {
+      projectSlug = newValue.slug || null;
+    } else if (entityType === "task") {
+      projectSlug = newValue.project?.slug || null;
+    }
+  }
 
   return {
     id: activity.id || "",
@@ -109,6 +144,9 @@ function normalizeActivity(activity: any): ActivityFeedItem {
     description,
     entityType: activity.entityType || null,
     entityId: activity.entityId || null,
+    taskSlug,
+    projectSlug,
+    workspaceSlug,
     createdAt: activity.createdAt || "",
     user: {
       name: userName,
@@ -119,7 +157,7 @@ function normalizeActivity(activity: any): ActivityFeedItem {
     },
     action: activity.description || description,
     metadata: activity.metadata || {},
-    newValue: activity.newValue || {},
+    newValue,
   };
 }
 
@@ -132,6 +170,7 @@ export function ActivityFeedPanel({
   onRetry,
   onClearFilter,
   emptyMessage = "No activity yet",
+  workspaceSlug: fallbackWorkspaceSlug,
 }: ActivityFeedPanelProps) {
   const normalizedActivities = activities.map(normalizeActivity);
 
@@ -221,13 +260,31 @@ export function ActivityFeedPanel({
                     activity.action
                   )}
                 </span>
-                {activity.entityId && activity.type !== "invitation_sent" && (
-                  <span>
-                    <Link href={getEntityLink(activity)} className="activity-content-link">
-                      View {activity.entityType?.replace(/\s*Att[a]?chment$/i, "")}
-                    </Link>
-                  </span>
-                )}
+                {activity.entityId && activity.type !== "invitation_sent" && (() => {
+                  const href = getEntityLink(activity, fallbackWorkspaceSlug);
+                  const label = `View ${activity.entityType?.replace(/\s*Att[a]?chment$/i, "")}`;
+                  if (href !== "#") {
+                    return (
+                      <span>
+                        <Link href={href} className="activity-content-link">
+                          {label}
+                        </Link>
+                      </span>
+                    );
+                  }
+                  return (
+                    <span>
+                      <button
+                        className="activity-content-link"
+                        onClick={() =>
+                          toast.error(`Unable to navigate to this ${activity.entityType?.toLowerCase() || "item"}. The details may have been deleted or are no longer accessible.`)
+                        }
+                      >
+                        {label}
+                      </button>
+                    </span>
+                  );
+                })()}
               </div>
 
               {/* Meta row */}

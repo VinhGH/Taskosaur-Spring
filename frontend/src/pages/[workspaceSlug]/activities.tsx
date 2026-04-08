@@ -234,6 +234,9 @@ function WorkspaceActivityContent() {
             description: item.description,
             entityType: item.entityType,
             entityId: item.entityId,
+            taskSlug: item.taskSlug || null,
+            projectSlug: item.projectSlug || null,
+            workspaceSlug: item.workspaceSlug || null,
             createdAt: item.createdAt,
             updatedAt: item.updatedAt,
           })
@@ -455,6 +458,7 @@ function WorkspaceActivityContent() {
           error={error}
           onRetry={() => fetchData(currentPage)}
           onClearFilter={activityFilter !== "all" ? () => handleFilterChange("all") : undefined}
+          workspaceSlug={workspace?.slug || (workspaceSlug as string)}
           emptyMessage={
             activityFilter === "all"
               ? t("no_activity")
