@@ -134,19 +134,24 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
       }
     }
 
-    const { type, entityType, entityId, actionUrl } = notification;
-
-    if (actionUrl) {
-      router.push(actionUrl);
+    const { type, entityType, entityId, actionUrl, entity } = notification;
+    if (entityId && entity === null && type !== "SYSTEM" && type !== "WORKSPACE_INVITED") {
+      toast.error(
+        `Unable to navigate to this ${entityType?.toLowerCase() || "item"}. The details may have been deleted or are no longer accessible.`
+      );
       return;
     }
+    const slug = entity?.slug || entity?.parent?.slug;
 
     switch (type) {
       case "TASK_ASSIGNED":
       case "TASK_STATUS_CHANGED":
       case "TASK_COMMENTED":
       case "TASK_DUE_SOON":
-        if (entityId) {
+      case "MENTION":
+        if (slug) {
+          router.push(`/tasks/${slug}`);
+        } else if (entityId) {
           router.push(`/tasks/${entityId}`);
         } else {
           router.push("/tasks");
@@ -155,7 +160,9 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
 
       case "PROJECT_CREATED":
       case "PROJECT_UPDATED":
-        if (entityId) {
+        if (slug) {
+          router.push(`/projects/${slug}`);
+        } else if (entityId) {
           router.push(`/projects/${entityId}`);
         } else {
           router.push("/projects");
@@ -163,20 +170,12 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
         break;
 
       case "WORKSPACE_INVITED":
-        if (entityId) {
+        if (slug) {
+          router.push(`/workspaces/${slug}`);
+        } else if (entityId) {
           router.push(`/workspaces/${entityId}`);
         } else {
           router.push("/workspaces");
-        }
-        break;
-
-      case "MENTION":
-        if (entityType === "task" && entityId) {
-          router.push(`/tasks/${entityId}`);
-        } else if (entityType === "project" && entityId) {
-          router.push(`/projects/${entityId}`);
-        } else {
-          router.push("/dashboard");
         }
         break;
 
@@ -185,7 +184,11 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
         break;
 
       default:
-        router.push("/dashboard");
+        if (actionUrl) {
+          router.push(actionUrl);
+        } else {
+          router.push("/dashboard");
+        }
     }
   };
 
@@ -229,8 +232,8 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
   }, [fetchNotifications]);
 
   /* import useNotification inside component */
-  const { refreshNotifications } = useNotification();  
-  
+  const { refreshNotifications } = useNotification();
+
   const handleMarkAsRead = async (notificationIds: string[]) => {
     try {
       if (notificationIds.length === 1) {
@@ -247,7 +250,7 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
         unread: Math.max(0, prev.unread - notificationIds.length),
       }));
       toast.success("Successfully marked as read");
-      
+
       // Update global context
       refreshNotifications();
     } catch (error) {
@@ -279,7 +282,7 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
         fetchNotifications();
       }
       toast.success("Notifications(s) deleted successfully!");
-      
+
       // Update global context
       refreshNotifications();
     } catch (error) {
@@ -294,7 +297,7 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setStats((prev) => ({ ...prev, unread: 0 }));
       toast.success("Successfully marked all as read");
-      
+
       // Update global context
       refreshNotifications();
     } catch (error) {
@@ -367,18 +370,16 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between">
                       <h4
-                        className={`font-bold text-[15px] truncate ${
-                          isUnread ? "text-[var(--foreground)]" : "text-[var(--muted-foreground)]"
-                        }`}
+                        className={`font-bold text-[15px] truncate ${isUnread ? "text-[var(--foreground)]" : "text-[var(--muted-foreground)]"
+                          }`}
                       >
                         {notification.title}
                       </h4>
                     </div>
 
                     <p
-                      className={`text-sm mt-[2px] line-clamp-2 ${
-                        isUnread ? "text-[var(--foreground)]" : "text-[var(--muted-foreground)]"
-                      }`}
+                      className={`text-sm mt-[2px] line-clamp-2 ${isUnread ? "text-[var(--foreground)]" : "text-[var(--muted-foreground)]"
+                        }`}
                     >
                       {notification.message}
                     </p>

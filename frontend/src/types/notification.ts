@@ -20,6 +20,18 @@ export interface Notification {
   isRead: boolean;
   entityType?: string;
   entityId?: string;
+  entity?: {
+    id?: string;
+    type?: string;
+    name?: string;
+    slug?: string;
+    parent?: {
+      id?: string;
+      name?: string;
+      slug?: string;
+    };
+    extra?: any;
+  } | null;
   actionUrl?: string;
   userId: string;
   organizationId?: string;
