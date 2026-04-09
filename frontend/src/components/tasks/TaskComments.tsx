@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useTask } from "../../contexts/task-context";
@@ -21,6 +21,7 @@ import { inboxApi } from "@/utils/api/inboxApi";
 import { useAuth } from "@/contexts/auth-context";
 import { useTheme } from "next-themes";
 import DualModeEditor from "@/components/common/DualModeEditor";
+import type { DualModeEditorHandle } from "@/components/common/DualModeEditor";
 
 /**
  * Detects if content is rich text HTML (from Draft.js or similar editors)
@@ -311,6 +312,7 @@ export default function TaskComments({
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loadingComments, setLoadingComments] = useState(true);
   const [sendingEmailCommentId, setSendingEmailCommentId] = useState<string | null>(null);
+  const editorRef = useRef<DualModeEditorHandle>(null);
 
   const [splitIndex, setSplitIndex] = useState(0); // Tracks where top comments end and bottom start
 
@@ -589,6 +591,7 @@ export default function TaskComments({
         onTaskRefetch();
       }
       setCommentContent("");
+      editorRef.current?.clear();
       setEditingCommentId(null);
     } catch {
       toast.error(t("comments.saveError"));
@@ -605,6 +608,7 @@ export default function TaskComments({
   const handleCancelEdit = () => {
     setEditingCommentId(null);
     setCommentContent("");
+    editorRef.current?.clear();
   };
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -812,6 +816,7 @@ export default function TaskComments({
         {hasAccess && (
           <div>
             <DualModeEditor
+              ref={editorRef}
               value={commentContent}
               onChange={(val) => setCommentContent(val || "")}
               placeholder={editingCommentId ? t("comments.editPlaceholder") : t("comments.addPlaceholder")}

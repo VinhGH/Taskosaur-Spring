@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
 import dynamic from "next/dynamic";
 import {
   HiBold,
@@ -56,6 +56,10 @@ const BLOCK_TYPES = [
   { icon: <Quote className="size-4" />, style: "blockquote", tooltip: "Quote" },
   { icon: <HiCodeBracket className="size-4" />, style: "code-block", tooltip: "Code Block" },
 ] as const;
+
+export interface DualModeEditorHandle {
+  clear: () => void;
+}
 
 interface DualModeEditorProps {
   value: string;
@@ -496,7 +500,7 @@ function RichTextEditorInner({
   );
 }
 
-export default function DualModeEditor({
+const DualModeEditor = forwardRef<DualModeEditorHandle, DualModeEditorProps>(function DualModeEditor({
   value,
   onChange,
   placeholder = "Write your comment...",
@@ -504,7 +508,7 @@ export default function DualModeEditor({
   colorMode = "light",
   disabled = false,
   onModeChange,
-}: DualModeEditorProps) {
+}, ref) {
   const [mode, setMode] = useState<EditorMode>("markdown");
   const [markdownValue, setMarkdownValue] = useState<string>("");
   const [richTextValue, setRichTextValue] = useState<string>("");
@@ -513,6 +517,15 @@ export default function DualModeEditor({
   const [isDragOver, setIsDragOver] = useState(false);
   const [contentVersion, setContentVersion] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    clear: () => {
+      setMarkdownValue("");
+      setRichTextValue("");
+      setContentVersion(prev => prev + 1);
+      onChange("");
+    },
+  }), [onChange]);
 
   // Handle client-side mounting
   useEffect(() => {
@@ -836,6 +849,7 @@ export default function DualModeEditor({
       {/* Editor Content */}
       {mode === "markdown" ? (
         <div
+          key={contentVersion}
           data-color-mode={colorMode}
           className="task-md-editor relative"
         >
@@ -902,4 +916,5 @@ export default function DualModeEditor({
       )}
     </div>
   );
-}
+});
+export default DualModeEditor;
