@@ -1,6 +1,7 @@
 import { Task } from "@/types";
 import Link from "next/link";
 import { HiCalendarDays } from "react-icons/hi2";
+import { formatDateForDisplay } from "@/utils/date";
 
 interface TaskInfoPanelProps {
   task: Task;
@@ -70,16 +71,13 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
           <div
             className="flex items-center gap-1 text-xs text-[var(--muted-foreground)] shrink-0"
             title={`Due: ${
-              task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "No due date"
+              task.dueDate ? formatDateForDisplay(task.dueDate) : "No due date"
             }`}
           >
             <HiCalendarDays className="w-3 h-3 shrink-0" />
             <span>
               {task.dueDate
-                ? new Date(task.dueDate).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                  })
+                ? formatDateForDisplay(task.dueDate, "MMM D")
                 : "No date"}
             </span>
             {isOverdue && <span className="text-red-600 dark:text-red-400 font-bold ml-1">!</span>}

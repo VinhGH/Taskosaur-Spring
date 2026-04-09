@@ -12,6 +12,7 @@ import { type KeyboardEvent, useState, useEffect, useRef } from "react";
 import { StatusBadge } from "../ui";
 import { HiCheckCircle, HiClock } from "react-icons/hi";
 import { HiExclamationTriangle } from "react-icons/hi2";
+import { isDateOverdue as checkDateOverdue } from "@/utils/date";
 
 interface TaskBarProps {
   task: Task;
@@ -167,7 +168,7 @@ export const TaskBar: React.FC<TaskBarProps> = ({
 
   const priorityColors = getPriorityColors(task.priority || "low");
 
-  const isOverdue = currentEnd < new Date() && task.status.name.toLowerCase() !== "done";
+  const isOverdue = checkDateOverdue(currentEnd.toISOString()) && task.status.name.toLowerCase() !== "done";
 
   const isDone = task.status.name.toLowerCase() === "done";
   const isInProgress = task.status.name.toLowerCase().includes("progress");

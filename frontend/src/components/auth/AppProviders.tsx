@@ -10,6 +10,7 @@ import Breadcrumb from "@/components/layout/Breadcrumb";
 import InboxProvider from "@/contexts/inbox-context";
 import { LayoutProvider, useLayout } from "@/contexts/layout-context";
 import { NotificationProvider } from "@/contexts/notification-context";
+import { TimezoneInitializer } from "@/components/common/TimezoneInitializer";
 
 interface CommonProvidersProps {
   children: ReactNode;
@@ -25,6 +26,7 @@ function AppProvidersContent({ children }: CommonProvidersProps) {
 
   return (
     <>
+      <TimezoneInitializer />
       <OrganizationProvider>
         <NotificationProvider>
           <WorkspaceProvider>

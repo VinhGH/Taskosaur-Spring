@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { CardContent } from "@/components/ui/card";
 import { Calendar, Clock, CheckCircle, Sparkles } from "lucide-react";
 import { Task } from "@/types";
+import { getRelativeDateLabel, isDateOverdue as checkDateOverdue, formatDateTimeForDisplay } from "@/utils/date";
 
 interface TodayAgendaDialogProps {
   isOpen: boolean;
@@ -60,24 +61,14 @@ const getPriorityConfig = (priority: string) => {
 };
 
 const formatDueDate = (dateString: string) => {
-  try {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = date.getTime() - now.getTime();
-    const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
+  if (checkDateOverdue(dateString)) return "Overdue";
 
-    if (diffHours < 0) return "Overdue";
-    if (diffHours < 24) return `${diffHours}h left`;
-
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return dateString;
+  const label = getRelativeDateLabel(dateString);
+  if (label === "Today" || label === "Tomorrow") {
+    return label;
   }
+
+  return formatDateTimeForDisplay(dateString, "MMM D, h:mm A");
 };
 
 const TaskAgendaItem: React.FC<TaskAgendaItemProps> = ({ task, onClick }) => {

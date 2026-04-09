@@ -15,7 +15,7 @@ import {
 } from "../ui/DropdownMenu";
 import { ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
-import moment from "moment";
+import dayjs from "dayjs";
 
 interface TaskPagination {
   total: number;
@@ -53,6 +53,7 @@ interface KanbanTask {
     lastName: string;
   }>;
   dueDate?: string;
+  completedAt?: string;
   createdAt: string;
   updatedAt: string;
   commentCount?: number;
@@ -282,12 +283,12 @@ const StatusColumn: React.FC<StatusColumnProps> = ({
                     <label className="kanban-create-task-label">Due date</label>
                     <Input
                       type="date"
-                      min={moment().format("YYYY-MM-DD")}
-                      value={taskForm.dueDate ? moment(taskForm.dueDate).format("YYYY-MM-DD") : ""}
+                      min={dayjs().format("YYYY-MM-DD")}
+                      value={taskForm.dueDate ? dayjs(taskForm.dueDate).format("YYYY-MM-DD") : ""}
                       onChange={(e) =>
                         setTaskForm((p) => ({
                           ...p,
-                          dueDate: moment(e.target.value).format("YYYY-MM-DD"),
+                          dueDate: dayjs(e.target.value).format("YYYY-MM-DD"),
                         }))
                       }
                       className="kanban-create-task-date-input"

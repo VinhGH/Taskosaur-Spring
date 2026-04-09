@@ -1,4 +1,4 @@
-import moment from "moment";
+import dayjs from "dayjs";
 import { Task, ColumnConfig } from "@/types";
 import * as XLSX from "xlsx";
 
@@ -44,16 +44,16 @@ function extractTaskData(task: Task, columnId: string): any {
 
     case "timeline":
       if (task.startDate && task.dueDate) {
-        return `${moment(task.startDate).format("MMM D, YYYY")} - ${moment(task.dueDate).format("MMM D, YYYY")}`;
+        return `${dayjs(task.startDate).format("MMM D, YYYY")} - ${dayjs(task.dueDate).format("MMM D, YYYY")}`;
       } else if (task.startDate) {
-        return `${moment(task.startDate).format("MMM D, YYYY")} - TBD`;
+        return `${dayjs(task.startDate).format("MMM D, YYYY")} - TBD`;
       } else if (task.dueDate) {
-        return `TBD - ${moment(task.dueDate).format("MMM D, YYYY")}`;
+        return `TBD - ${dayjs(task.dueDate).format("MMM D, YYYY")}`;
       }
       return "-";
 
     case "completedAt":
-      return task.completedAt ? moment(task.completedAt).format("MMM D, YYYY") : null;
+      return task.completedAt ? dayjs(task.completedAt).format("MMM D, YYYY") : null;
 
     case "storyPoints":
       return task.storyPoints || 0;
@@ -73,10 +73,10 @@ function extractTaskData(task: Task, columnId: string): any {
       return task.createdBy || "";
 
     case "createdAt":
-      return task.createdAt ? moment(task.createdAt).format("MMM D, YYYY") : null;
+      return task.createdAt ? dayjs(task.createdAt).format("MMM D, YYYY") : null;
 
     case "updatedAt":
-      return task.updatedAt ? moment(task.updatedAt).format("MMM D, YYYY") : null;
+      return task.updatedAt ? dayjs(task.updatedAt).format("MMM D, YYYY") : null;
 
     case "sprint":
       return task.sprint ? task.sprint.name : "";
@@ -103,10 +103,10 @@ function extractTaskData(task: Task, columnId: string): any {
       return task.project?.name || "";
 
     case "dueDate":
-      return task.dueDate ? moment(task.dueDate).format("YYYY-MM-DD") : null;
+      return task.dueDate ? dayjs(task.dueDate).format("YYYY-MM-DD") : null;
 
     case "startDate":
-      return task.startDate ? moment(task.startDate).format("YYYY-MM-DD") : null;
+      return task.startDate ? dayjs(task.startDate).format("YYYY-MM-DD") : null;
 
     default:
       const val = (task as any)[columnId];

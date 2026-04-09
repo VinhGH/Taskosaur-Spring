@@ -11,11 +11,131 @@ import { Button } from "../ui";
 import React from "react";
 import Tooltip from "../common/ToolTip";
 import { useTranslation } from "react-i18next";
+import { useTimezone } from "@/hooks/useTimezone";
+import { detectBrowserTimezone } from "@/utils/date";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { HiCheck, HiChevronDown } from "react-icons/hi2";
 
 export default function ProfileSection() {
   const { t } = useTranslation("settings");
   const [isEditing, setIsEditing] = useState(false);
   const { getCurrentUser, updateUser, uploadFileToS3, getUserById } = useAuth();
+  const { timezone, detectFromBrowser, isBrowserTimezoneDifferent, handleTimezoneChange } = useTimezone();
+  const [tzPopoverOpen, setTzPopoverOpen] = useState(false);
+  const [tzSearchTerm, setTzSearchTerm] = useState("");
+
+  const TIMEZONES = [
+    "Africa/Abidjan",
+    "Africa/Accra",
+    "Africa/Cairo",
+    "Africa/Casablanca",
+    "Africa/Johannesburg",
+    "Africa/Lagos",
+    "Africa/Nairobi",
+    "America/Anchorage",
+    "America/Argentina/Buenos_Aires",
+    "America/Bogota",
+    "America/Chicago",
+    "America/Denver",
+    "America/Edmonton",
+    "America/Halifax",
+    "America/Lima",
+    "America/Los_Angeles",
+    "America/Mexico_City",
+    "America/New_York",
+    "America/Phoenix",
+    "America/Santiago",
+    "America/Sao_Paulo",
+    "America/St_Johns",
+    "America/Toronto",
+    "America/Vancouver",
+    "Asia/Baghdad",
+    "Asia/Bangkok",
+    "Asia/Beirut",
+    "Asia/Colombo",
+    "Asia/Dhaka",
+    "Asia/Dubai",
+    "Asia/Ho_Chi_Minh",
+    "Asia/Hong_Kong",
+    "Asia/Jakarta",
+    "Asia/Jerusalem",
+    "Asia/Kabul",
+    "Asia/Karachi",
+    "Asia/Kathmandu",
+    "Asia/Kolkata",
+    "Asia/Kuala_Lumpur",
+    "Asia/Kuwait",
+    "Asia/Manila",
+    "Asia/Muscat",
+    "Asia/Riyadh",
+    "Asia/Seoul",
+    "Asia/Shanghai",
+    "Asia/Singapore",
+    "Asia/Taipei",
+    "Asia/Tehran",
+    "Asia/Tokyo",
+    "Asia/Yangon",
+    "Atlantic/Azores",
+    "Atlantic/Reykjavik",
+    "Australia/Adelaide",
+    "Australia/Brisbane",
+    "Australia/Melbourne",
+    "Australia/Perth",
+    "Australia/Sydney",
+    "Europe/Amsterdam",
+    "Europe/Athens",
+    "Europe/Berlin",
+    "Europe/Brussels",
+    "Europe/Bucharest",
+    "Europe/Budapest",
+    "Europe/Copenhagen",
+    "Europe/Dublin",
+    "Europe/Helsinki",
+    "Europe/Istanbul",
+    "Europe/Lisbon",
+    "Europe/London",
+    "Europe/Madrid",
+    "Europe/Moscow",
+    "Europe/Oslo",
+    "Europe/Paris",
+    "Europe/Prague",
+    "Europe/Rome",
+    "Europe/Stockholm",
+    "Europe/Vienna",
+    "Europe/Warsaw",
+    "Europe/Zurich",
+    "Pacific/Auckland",
+    "Pacific/Fiji",
+    "Pacific/Honolulu",
+    "Pacific/Midway",
+    "UTC",
+  ];
+
+  // Update timezone in backend
+  const updateProfileTimezone = async (tz: string) => {
+    if (!currentUser) return;
+    try {
+      await handleTimezoneChange(tz, false);
+      await updateUser(currentUser.id, { timezone: tz });
+      toast.success(`Timezone updated to ${tz}`);
+    } catch {
+      toast.error("Failed to update timezone");
+    }
+  };
+
+  const filteredTimezones = tzSearchTerm
+    ? TIMEZONES.filter((tz) =>
+        tz.toLowerCase().replace(/_/g, " ").includes(tzSearchTerm.toLowerCase())
+      )
+    : TIMEZONES;
 
   // Store the current user and profile data
   const [currentUser, setCurrentUser] = useState(null);
@@ -139,6 +259,8 @@ export default function ProfileSection() {
     setIsEditing(false);
     setSelectedFile(null);
     setPreviewUrl(null);
+    setTzSearchTerm("");
+    setTzPopoverOpen(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -348,6 +470,76 @@ export default function ProfileSection() {
                 />
               </div>
 
+              {/* Timezone */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-[var(--foreground)]">
+                  {t("profile_section.timezone", "Timezone")}
+                </Label>
+                <div className="flex gap-2 items-center">
+                  <Popover open={tzPopoverOpen} onOpenChange={setTzPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={tzPopoverOpen}
+                        className="h-8 justify-between bg-[var(--background)] border-[var(--border)] text-xs font-mono flex-1"
+                      >
+                        <span className="truncate">{timezone || "UTC"}</span>
+                        <HiChevronDown className="w-3 h-3 ml-1 shrink-0 text-[var(--muted-foreground)]" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0 bg-[var(--card)] border-[var(--border)] shadow-sm w-[340px]">
+                      <Command>
+                        <CommandInput
+                          placeholder="Search timezone..."
+                          value={tzSearchTerm}
+                          onValueChange={setTzSearchTerm}
+                          className="border-b border-[var(--border)] focus:ring-0"
+                        />
+                        <CommandList>
+                          <CommandEmpty>No timezone found.</CommandEmpty>
+                          <CommandGroup className="max-h-[260px] overflow-y-auto">
+                            {filteredTimezones.map((tz) => (
+                              <CommandItem
+                                key={tz}
+                                value={tz}
+                                onSelect={() => {
+                                  updateProfileTimezone(tz);
+                                  setTzPopoverOpen(false);
+                                  setTzSearchTerm("");
+                                }}
+                                className="flex items-center gap-2 cursor-pointer hover:bg-[var(--muted)]"
+                              >
+                                <HiCheck
+                                  className={`w-4 h-4 shrink-0 ${
+                                    timezone === tz ? "opacity-100" : "opacity-0"
+                                  }`}
+                                />
+                                <span className="text-xs font-mono truncate">{tz}</span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+
+                  {isBrowserTimezoneDifferent() && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
+                      onClick={() => {
+                        detectFromBrowser();
+                      }}
+                      className="h-8 text-xs shrink-0"
+                    >
+                      🔄 Detect from browser
+                    </Button>
+                  )}
+                </div>
+              </div>
+
               {/* Action Buttons */}
               <div className="flex justify-end gap-3 -mt-2">
                 <ActionButton
@@ -419,6 +611,14 @@ export default function ProfileSection() {
                   <p className="text-[var(--foreground)] leading-6 text-sm">{profileData.bio}</p>
                 </div>
               )}
+
+              {/* Timezone */}
+              <div>
+                <h4 className="text-sm font-medium text-[var(--muted-foreground)]">
+                  {t("profile_section.timezone", "Timezone")}
+                </h4>
+                <p className="text-[var(--foreground)] text-sm font-mono">{timezone || "UTC"}</p>
+              </div>
             </div>
           )}
         </div>

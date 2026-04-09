@@ -44,6 +44,7 @@ interface KanbanTask {
     lastName: string;
   }>;
   dueDate?: string;
+  completedAt?: string;
   createdAt: string;
   updatedAt: string;
   commentCount?: number;

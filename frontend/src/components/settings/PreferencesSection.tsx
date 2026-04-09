@@ -11,13 +11,17 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { HiBell, HiGlobeAlt } from "react-icons/hi2";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
+import { useTimezone } from "@/hooks/useTimezone";
+import { detectBrowserTimezone } from "@/utils/date";
 
 export default function PreferencesSection() {
   const { getCurrentUser, updateUser } = useAuth();
   const currentUser = getCurrentUser();
+  const { handleTimezoneChange, detectFromBrowser, isBrowserTimezoneDifferent } = useTimezone();
 
   const fetchingRef = useRef(false);
   const [loading, setLoading] = useState(false);
@@ -95,12 +99,15 @@ export default function PreferencesSection() {
             <div className="max-w-md">
               <Select
                 value={preferencesData.timezone}
-                onValueChange={(value) =>
+                onValueChange={(value) => {
                   setPreferencesData((prev) => ({
                     ...prev,
                     timezone: value,
-                  }))
-                }
+                  }));
+                  handleTimezoneChange(value, false).catch(() => {
+                    toast.error("Failed to update timezone");
+                  });
+                }}
               >
                 <SelectTrigger className="h-8 border-none bg-[var(--background)]">
                   <SelectValue placeholder="Select your timezone" />
@@ -116,14 +123,37 @@ export default function PreferencesSection() {
                   <SelectItem value="(UTC+01:00) Berlin, Paris, Rome">
                     (UTC+01:00) Berlin, Paris, Rome
                   </SelectItem>
+                  <SelectItem value="(UTC+05:30) India Standard Time">
+                    (UTC+05:30) India Standard Time
+                  </SelectItem>
                   <SelectItem value="(UTC+08:00) Singapore, Hong Kong">
                     (UTC+08:00) Singapore, Hong Kong
                   </SelectItem>
                   <SelectItem value="(UTC+09:00) Tokyo">(UTC+09:00) Tokyo</SelectItem>
                 </SelectContent>
               </Select>
+
+              {isBrowserTimezoneDifferent() && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    detectFromBrowser();
+                    const browserTz = detectBrowserTimezone();
+                    setPreferencesData((prev) => ({
+                      ...prev,
+                      timezone: browserTz,
+                    }));
+                    toast.success(`Timezone updated to ${browserTz}`);
+                  }}
+                  className="mt-2 h-7 text-xs"
+                >
+                  🔄 Detect from browser
+                </Button>
+              )}
+
               <p className="text-xs text-[var(--muted-foreground)] mt-1">
-                Used to display dates and times in the local timezone.
+                Used to display dates and times in your local timezone.
               </p>
             </div>
           </div>

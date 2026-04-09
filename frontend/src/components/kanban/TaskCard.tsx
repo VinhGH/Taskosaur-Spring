@@ -3,6 +3,7 @@ import { CardContent } from "@/components/ui/card";
 import { HiChatBubbleLeft, HiCalendarDays, HiPaperClip } from "react-icons/hi2";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { getRelativeDateLabel, isDateOverdue as checkDateOverdue } from "@/utils/date";
 
 interface KanbanTask {
   id: string;
@@ -22,6 +23,7 @@ interface KanbanTask {
     lastName: string;
   }>;
   dueDate?: string;
+  completedAt?: string;
   createdAt: string;
   updatedAt: string;
   commentCount?: number;
@@ -83,23 +85,7 @@ const getInitials = (firstName?: string, lastName?: string) => {
 };
 
 const formatDueDate = (dueDate: string) => {
-  const due = new Date(dueDate);
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
-  // Reset time parts for comparison
-  due.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-  tomorrow.setHours(0, 0, 0, 0);
-
-  if (due.getTime() === today.getTime()) {
-    return "Today";
-  } else if (due.getTime() === tomorrow.getTime()) {
-    return "Tomorrow";
-  } else {
-    return due.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  }
+  return getRelativeDateLabel(dueDate);
 };
 
 const TaskCard: React.FC<TaskCardProps> = ({
@@ -110,7 +96,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
   onDragEnd,
   onClick,
 }) => {
-  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
+  const isOverdue = task.dueDate ? checkDateOverdue(task.dueDate, task.completedAt) : false;
   const category = getCategoryFromDescription(task.description);
   const priorityColor = getPriorityColor(task.priority);
 
