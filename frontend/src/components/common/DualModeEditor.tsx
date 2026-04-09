@@ -246,6 +246,7 @@ function RichTextEditorInner({
     if (!editor) return;
     const incoming = value || "";
     const current = lastEmittedHtml.current;
+    
     // Only push new content when it truly differs (avoids cursor jump on every keystroke)
     if (incoming !== current) {
       editor.commands.setContent(incoming, { emitUpdate: false });
@@ -510,6 +511,7 @@ export default function DualModeEditor({
   const [isInitialized, setIsInitialized] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [contentVersion, setContentVersion] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle client-side mounting
@@ -521,14 +523,31 @@ export default function DualModeEditor({
   }, []);
 
   // Initialize editor with the provided value and handle external updates
+  const prevValueRef = useRef<string>("");
+
   useEffect(() => {
     if (isMounted) {
       // Only update if the value has actually changed from what we have stored
       // This prevents loops when the update comes from the editor itself
       const currentStoredValue = mode === "markdown" ? markdownValue : richTextValue;
-      
+
+      // Detect if content is being cleared after having content (form submission)
+      const prevValue = prevValueRef.current;
+      const hadContent = prevValue !== "" && prevValue !== "<p></p>";
+      const nowEmpty = value === "" || value === "<p></p>";
+
+      if (hadContent && nowEmpty) {
+        // Content was cleared - force remount to clear stale state
+        // First, clear the stored values
+        setMarkdownValue("");
+        setRichTextValue("");
+        // Then increment version to trigger remount
+        setContentVersion(prev => prev + 1);
+      }
+
+      prevValueRef.current = value || "";
+
       // If the incoming value is different from what we have, update our state
-      // We also update if we haven't initialized yet
       if (!isInitialized || value !== currentStoredValue) {
         if (value) {
           // Detect if value is HTML or markdown
@@ -542,16 +561,17 @@ export default function DualModeEditor({
             setMarkdownValue(isHtml ? htmlToMarkdown(value) : value);
           }
         } else if (!isInitialized) {
-          // Only reset to empty on init, otherwise we might wipe user input
-          // if the parent passes empty string temporarily
+          // Only reset to empty on init
           setMarkdownValue("");
           setRichTextValue("");
         } else if (value === "") {
-           // Explicit clear from parent
-           setMarkdownValue("");
-           setRichTextValue("");
+           // Explicit clear from parent (but not the submission clear we handled above)
+           if (!hadContent || !nowEmpty) {
+             setMarkdownValue("");
+             setRichTextValue("");
+           }
         }
-        
+
         if (!isInitialized) {
           setIsInitialized(true);
         }
@@ -872,6 +892,7 @@ export default function DualModeEditor({
         </div>
       ) : (
         <RichTextEditorInner
+          key={contentVersion}
           value={richTextValue}
           onChange={handleRichTextChange}
           placeholder={placeholder}
