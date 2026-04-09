@@ -55,6 +55,7 @@ export class AuthController {
       httpOnly: true,
       secure: isProd,
       sameSite: 'strict',
+      signed: true,
       path: '/',
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     });
@@ -146,7 +147,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
     // Read refresh token from httpOnly cookie first, fallback to POST body
-    const token = String(req.cookies?.refresh_token || refreshTokenDto.refresh_token || '');
+    const token = String(req.signedCookies?.refresh_token || refreshTokenDto.refresh_token || '');
     if (!token) {
       throw new UnauthorizedException('No refresh token provided');
     }
@@ -436,6 +437,7 @@ export class AuthController {
         httpOnly: true,
         maxAge: 60000,
         sameSite: 'strict',
+        signed: true,
         secure: isProd,
       });
 
@@ -453,7 +455,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Exchange SSO cookie for tokens' })
   oidcExchange(@Req() req: Request, @Res() res: Response) {
-    const ssoAuth = String(req.cookies?.sso_auth || '');
+    const ssoAuth = String(req.signedCookies?.sso_auth || '');
     if (!ssoAuth) {
       return res.status(401).json({ message: 'No SSO session found' });
     }

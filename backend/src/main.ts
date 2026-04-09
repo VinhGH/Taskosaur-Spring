@@ -41,7 +41,8 @@ async function bootstrap() {
   app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
   // Enable cookie parsing for OIDC state management
-  app.use(cookieParser());
+  const cookieSecret = configService.get<string>('JWT_SECRET') || 'fallback-cookie-secret';
+  app.use(cookieParser(cookieSecret));
 
   // Enable CORS
   app.enableCors({
