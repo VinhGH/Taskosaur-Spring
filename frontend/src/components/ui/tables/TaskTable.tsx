@@ -14,7 +14,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { PriorityBadge } from "@/components/badges/PriorityBadge";
 import { Badge } from "@/components/ui/badge";
 import { BulkActionBar } from "@/components/ui/tables/BulkActionBar";
-import moment from "moment";
+import dayjs from "dayjs";
+import { getRelativeDateLabel, formatDateForDisplay, isDateOverdue as checkDateOverdue } from "@/utils/date";
 import {
   CalendarDays,
   User,
@@ -123,7 +124,7 @@ function extractTaskValue(task: Task, columnId: string): any {
       };
 
     case "completedAt":
-      return task.completedAt ? moment(task.completedAt).format("MMM D, YYYY") : "";
+      return task.completedAt ? dayjs(task.completedAt).format("MMM D, YYYY") : "";
 
     case "storyPoints":
       return task.storyPoints || 0;
@@ -150,10 +151,10 @@ function extractTaskValue(task: Task, columnId: string): any {
       return task.createdBy || "";
 
     case "createdAt":
-      return task.createdAt ? moment(task.createdAt).format("MMM D, YYYY") : "";
+      return task.createdAt ? dayjs(task.createdAt).format("MMM D, YYYY") : "";
 
     case "updatedAt":
-      return task.updatedAt ? moment(task.updatedAt).format("MMM D, YYYY") : "";
+      return task.updatedAt ? dayjs(task.updatedAt).format("MMM D, YYYY") : "";
 
     case "sprint":
       return task.sprint ? task.sprint.name : "";
@@ -191,18 +192,18 @@ function formatColumnValue(value: any, columnType: string): string {
       return value.toString();
     case "dateRange":
       if (typeof value === "object" && value.startDate && value.dueDate) {
-        const start = moment(value.startDate).format("MMM D, YYYY");
-        const end = moment(value.dueDate).format("MMM D, YYYY");
+        const start = dayjs(value.startDate).format("MMM D, YYYY");
+        const end = dayjs(value.dueDate).format("MMM D, YYYY");
         return `${start} - ${end}`;
       } else if (typeof value === "object" && value.startDate) {
-        return `${moment(value.startDate).format("MMM D, YYYY")} - TBD`;
+        return `${dayjs(value.startDate).format("MMM D, YYYY")} - TBD`;
       } else if (typeof value === "object" && value.dueDate) {
-        return `TBD - ${moment(value.dueDate).format("MMM D, YYYY")}`;
+        return `TBD - ${dayjs(value.dueDate).format("MMM D, YYYY")}`;
       }
       return "-";
     case "date":
       if (value instanceof Date || typeof value === "string") {
-        return moment(value).format("MMM D, YYYY");
+        return dayjs(value).format("MMM D, YYYY");
       }
       return value?.toString?.() ?? "";
     case "number":
@@ -452,27 +453,15 @@ const TaskTable: React.FC<TaskTableProps> = ({
     }
   }, [localAddTaskStatuses, isCreatingTask]);
 
-  const today = moment().format("YYYY-MM-DD");
+  const today = dayjs().format("YYYY-MM-DD");
 
   const formatDate = (dateString: string) => {
-    try {
-      const date = moment(dateString).startOf("day");
-      const now = moment().startOf("day");
-      const diffDays = date.diff(now, "days");
-
-      if (diffDays === 0) return t("table.today");
-      if (diffDays === 1) return t("table.tomorrow");
-      if (diffDays === -1) return t("table.yesterday");
-      if (diffDays < -1) return t("table.daysAgo", { count: Math.abs(diffDays) });
-      if (diffDays > 1) return t("table.inDays", { count: diffDays });
-
-      if (date.year() !== now.year()) {
-        return date.format("MMM D, YYYY");
-      }
-      return date.format("MMM D");
-    } catch {
-      return dateString;
+    const label = getRelativeDateLabel(dateString);
+    // If it's a relative label, return it; otherwise format the date
+    if (["Today", "Tomorrow", "Yesterday"].includes(label) || label.includes("days")) {
+      return label;
     }
+    return formatDateForDisplay(dateString);
   };
 
   const getInitials = (firstName: string, lastName: string) => {
@@ -761,8 +750,8 @@ const TaskTable: React.FC<TaskTableProps> = ({
     return <IconComponent className={`w-4 h-4 text-${taskType.color}`} />;
   };
 
-  const isOverdue = (dueDate: string) => {
-    return new Date(dueDate) < new Date();
+  const isOverdue = (dueDate: string, completedAt?: string) => {
+    return checkDateOverdue(dueDate, completedAt);
   };
 
   const renderDynamicCellContent = (task: Task, column: ColumnConfig) => {
@@ -987,7 +976,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
         projectId,
         statusId: newTaskData.statusId,
         assigneeIds: newTaskData.assigneeIds.length > 0 ? newTaskData.assigneeIds : undefined, // Send array of assignee IDs
-        dueDate: newTaskData.dueDate ? moment(newTaskData.dueDate).toISOString() : undefined,
+        dueDate: newTaskData.dueDate ? dayjs(newTaskData.dueDate).toISOString() : undefined,
       };
 
       await createTask(taskData);
@@ -1007,7 +996,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
   };
 
   const getToday = () => {
-    return moment().format("YYYY-MM-DD");
+    return dayjs().format("YYYY-MM-DD");
   };
 
   // Helper to check if title is invalid
@@ -1458,7 +1447,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
             {task.dueDate ? (
               <div className="tasktable-date-container">
                 <CalendarDays className="tasktable-date-icon w-4 h-4" />
-                <span className={cn("tasktable-date-text", isOverdue(task.dueDate) && "text-red-600")}>
+                <span className={cn("tasktable-date-text", isOverdue(task.dueDate, task.completedAt) && "text-red-600")}>
                   {formatDate(task.dueDate)}
                 </span>
               </div>

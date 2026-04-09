@@ -248,7 +248,7 @@ function RichTextEditorInner({
     const current = lastEmittedHtml.current;
     // Only push new content when it truly differs (avoids cursor jump on every keystroke)
     if (incoming !== current) {
-      editor.commands.setContent(incoming, false);
+      editor.commands.setContent(incoming, { emitUpdate: false });
       lastEmittedHtml.current = incoming;
     }
   }, [value, editor]);

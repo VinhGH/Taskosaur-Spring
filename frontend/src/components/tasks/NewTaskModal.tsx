@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import moment from "moment";
+import dayjs from "dayjs";
 import {
   HiBuildingOffice2,
   HiDocumentText,
@@ -222,7 +222,7 @@ export function NewTaskModal({
   }, []);
 
   const loadInitialData = async () => {
-    const requestId = `load-${moment().valueOf()}-${Math.random()}`;
+    const requestId = `load-${dayjs().valueOf()}-${Math.random()}`;
     requestIdRef.current = requestId;
 
     if (abortControllerRef.current) {
@@ -568,7 +568,7 @@ export function NewTaskModal({
   const isValid = formData.title.trim().length > 0 && formData.project && formData.priority && (formData.type !== "SUBTASK" || formData.parentTaskId);
 
   const getToday = () => {
-    return moment().format("YYYY-MM-DD");
+    return dayjs().format("YYYY-MM-DD");
   };
 
   return (

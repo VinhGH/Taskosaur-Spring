@@ -9,12 +9,14 @@ import { PriorityBadge } from "@/components/ui";
 import { useTranslation } from "react-i18next";
 import MDEditor from "@uiw/react-md-editor";
 import validator from "validator";
+import { isDateOverdue as checkDateOverdue } from "@/utils/date";
 
 interface Task {
   id: string;
   title: string;
   description?: string;
   dueDate?: string;
+  completedAt?: string;
   createdAt?: string;
   priority?: string;
   status?: {
@@ -313,7 +315,7 @@ export default function TaskCalendarView({
                 {day.tasks.slice(0, 2).map((task) => {
                   const statusColors = getStatusColors(task.status?.name || "");
                   const isOverdue =
-                    new Date(task.dueDate!) < new Date() &&
+                    checkDateOverdue(task.dueDate!, task.completedAt) &&
                     task.status?.name?.toLowerCase() !== "done";
 
                   return (
@@ -614,7 +616,7 @@ export default function TaskCalendarView({
               <div className="space-y-1">
                 {dayTasks.map((task) => {
                   const isOverdue =
-                    new Date(task.dueDate!) < new Date() &&
+                    checkDateOverdue(task.dueDate!, task.completedAt) &&
                     task.status?.name?.toLowerCase() !== "done";
 
                   return (

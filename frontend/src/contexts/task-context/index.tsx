@@ -28,6 +28,7 @@ import {
   ActivityApiResponse,
   PaginatedTaskResponse,
 } from "@/types";
+import { isDateOverdue as checkDateOverdue } from "@/utils/date";
 interface TaskState {
   tasks: Task[];
   currentTask: Task | null;
@@ -994,9 +995,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
       },
 
       isTaskOverdue: (task: Task): boolean => {
-        const now = new Date();
-        const dueDate = new Date(task.dueDate);
-        return dueDate < now && task.statusId !== "completed"; // Adjust based on your status logic
+        return checkDateOverdue(task.dueDate, task.statusId !== "completed" ? undefined : task.completedAt);
       },
       getTasksByOrganization: async (
         organizationId?: string,

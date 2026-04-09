@@ -4,6 +4,7 @@ import UserAvatar from "@/components/ui/avatars/UserAvatar";
 import TaskDetailModal from "./TaskDetailModal";
 import { HiEnvelope } from "react-icons/hi2";
 import RecurringBadge from "@/components/common/RecurringBadge";
+import { getRelativeDateLabel, isDateOverdue as checkDateOverdue, formatDateForDisplay } from "@/utils/date";
 
 interface TaskCardProps {
   task: Task;
@@ -92,42 +93,46 @@ export default function TaskCard({
   };
 
   const formatDueDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = date.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const label = getRelativeDateLabel(dateString);
+    const overdue = checkDateOverdue(dateString, task.completedAt);
 
-    if (diffDays < 0) {
+    if (overdue) {
       return {
-        text: `${Math.abs(diffDays)} days overdue`,
+        text: label,
         color: "text-red-600",
         bgColor: "bg-red-100 dark:bg-red-900/20",
       };
-    } else if (diffDays === 0) {
+    }
+
+    if (label === "Today") {
       return {
         text: "Due today",
         color: "text-orange-600",
         bgColor: "bg-orange-100 dark:bg-orange-900/20",
       };
-    } else if (diffDays === 1) {
+    }
+
+    if (label === "Tomorrow") {
       return {
         text: "Due tomorrow",
         color: "text-yellow-600",
         bgColor: "bg-yellow-100 dark:bg-yellow-900/20",
       };
-    } else if (diffDays <= 7) {
+    }
+
+    if (label.includes("In ") && label.includes(" days")) {
       return {
-        text: `Due in ${diffDays} days`,
+        text: `Due ${label.toLowerCase()}`,
         color: "text-yellow-600",
         bgColor: "bg-yellow-100 dark:bg-yellow-900/20",
       };
-    } else {
-      return {
-        text: date.toLocaleDateString(),
-        color: "text-gray-600",
-        bgColor: "bg-gray-100 dark:bg-gray-900/20",
-      };
     }
+
+    return {
+      text: formatDateForDisplay(dateString),
+      color: "text-gray-600",
+      bgColor: "bg-gray-100 dark:bg-gray-900/20",
+    };
   };
 
   const handleDragStart = (e: React.DragEvent) => {
