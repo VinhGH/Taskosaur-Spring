@@ -350,15 +350,6 @@ const sprintId = resolvedSprintId;
           await getPublicProjectTasks(workspaceSlug as string, projectSlug as string, params);
         }
       }
-      const uniqueStatuses = Array.from(
-        new Map(
-          tasks
-            .map((task) => task.status)
-            .filter((status) => status && status.id)
-            .map((status) => [status.id, status])
-        ).values()
-      );
-      setAvailableStatuses(uniqueStatuses);
     } catch (err: any) {
       setLocalError(err?.message || t("errors.fetchTasksFailed"));
     } finally {
@@ -376,12 +367,23 @@ const sprintId = resolvedSprintId;
     selectedPriorities,
     selectedAssignees,
     selectedReporters,
-    tasks,
     workspaceSlug,
     projectSlug,
     sortField,
     sortOrder,
   ]);
+
+  useEffect(() => {
+    const uniqueStatuses = Array.from(
+      new Map(
+        tasks
+          .map((task) => task.status)
+          .filter((status) => status && status.id)
+          .map((status) => [status.id, status])
+      ).values()
+    );
+    setAvailableStatuses(uniqueStatuses);
+  }, [tasks]);
 
   const loadKanbanData = useCallback(
     async (projSlug: string, sprintId: string, statusId?: string, page: number = 1) => {
@@ -601,7 +603,7 @@ const sprintId = resolvedSprintId;
 
   const statusFilters = useMemo(
     () =>
-      availableStatuses.map((status) => ({
+      availableTaskStatuses.map((status) => ({
         id: status.id,
         name: status.name,
         value: status.id,
@@ -613,7 +615,7 @@ const sprintId = resolvedSprintId;
         }).length,
         color: status.color || "#6b7280",
       })),
-    [availableStatuses, selectedStatuses, tasks]
+    [availableTaskStatuses, selectedStatuses, tasks]
   );
 
   const priorityFilters = useMemo(
