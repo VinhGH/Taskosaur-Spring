@@ -143,4 +143,42 @@ describe('AuthController (e2e)', () => {
         .expect(HttpStatus.OK);
     });
   });
+
+  describe('OIDC SSO (/auth/oidc)', () => {
+    it('should get OIDC config', () => {
+      return request(app.getHttpServer())
+        .get('/api/auth/oidc/config')
+        .expect(HttpStatus.OK)
+        .expect((res) => {
+          expect(res.body).toHaveProperty('enabled');
+          expect(res.body).toHaveProperty('configured');
+          expect(res.body).toHaveProperty('providerName');
+        });
+    });
+
+    it('should fail to login if OIDC is not configured', () => {
+      return request(app.getHttpServer())
+        .get('/api/auth/oidc/login')
+        .expect(HttpStatus.SERVICE_UNAVAILABLE)
+        .expect((res) => {
+          expect(res.body.message).toBe('SSO is not configured');
+        });
+    });
+
+    it('should redirect to login with error on invalid callback state', () => {
+      return request(app.getHttpServer())
+        .get('/api/auth/oidc/callback?code=123&state=abc')
+        .expect(HttpStatus.FOUND) // 302 Redirect
+        .expect('Location', '/login?error=sso_invalid_state');
+    });
+
+    it('should reject oidc exchange without session cookie', () => {
+      return request(app.getHttpServer())
+        .post('/api/auth/oidc/exchange')
+        .expect(HttpStatus.UNAUTHORIZED)
+        .expect((res) => {
+          expect(res.body.message).toBe('No SSO session found');
+        });
+    });
+  });
 });
