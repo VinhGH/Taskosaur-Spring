@@ -30,6 +30,7 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { SetupService } from './services/setup.service';
 import { AccessControlService, AccessResult } from 'src/common/access-control.utils';
 import { SettingsService } from '../settings/settings.service';
+import { encryptCookieValue, decryptCookieValue } from 'src/common/cookie-crypto.utils';
 import { OidcService } from './services/oidc.service';
 export enum ScopeType {
   ORGANIZATION = 'organization',
@@ -49,13 +50,17 @@ export class AuthController {
     private readonly configService: ConfigService,
   ) {}
 
+  private getEncryptionSecret(): string {
+    return this.configService.get<string>('JWT_SECRET') || 'fallback-secret';
+  }
+
   private setRefreshTokenCookie(res: Response, refreshToken: string): void {
     const isProd = this.configService.get<string>('NODE_ENV') === 'production';
-    res.cookie('refresh_token', refreshToken, {
+    const encrypted = encryptCookieValue(refreshToken, this.getEncryptionSecret());
+    res.cookie('refresh_token', encrypted, {
       httpOnly: true,
       secure: isProd,
       sameSite: 'strict',
-      signed: true,
       path: '/',
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     });
@@ -147,7 +152,14 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
     // Read refresh token from httpOnly cookie first, fallback to POST body
-    const token = String(req.signedCookies?.refresh_token || refreshTokenDto.refresh_token || '');
+    let token = '';
+    const encryptedCookie = req.cookies?.refresh_token;
+    if (encryptedCookie) {
+      token = decryptCookieValue(String(encryptedCookie), this.getEncryptionSecret()) || '';
+    }
+    if (!token) {
+      token = String(refreshTokenDto.refresh_token || '');
+    }
     if (!token) {
       throw new UnauthorizedException('No refresh token provided');
     }
@@ -433,11 +445,14 @@ export class AuthController {
 
       // Store tokens in short-lived httpOnly cookie for secure exchange
       const isProd = process.env.NODE_ENV === 'production';
-      res.cookie('sso_auth', JSON.stringify(authResult), {
+      const encryptedSso = encryptCookieValue(
+        JSON.stringify(authResult),
+        this.getEncryptionSecret(),
+      );
+      res.cookie('sso_auth', encryptedSso, {
         httpOnly: true,
         maxAge: 60000,
         sameSite: 'strict',
-        signed: true,
         secure: isProd,
       });
 
@@ -455,13 +470,18 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Exchange SSO cookie for tokens' })
   oidcExchange(@Req() req: Request, @Res() res: Response) {
-    const ssoAuth = String(req.signedCookies?.sso_auth || '');
-    if (!ssoAuth) {
+    const encryptedSso = String(req.cookies?.sso_auth || '');
+    if (!encryptedSso) {
       return res.status(401).json({ message: 'No SSO session found' });
     }
 
     try {
-      const authResult = JSON.parse(ssoAuth) as Record<string, unknown>;
+      const decryptedSso = decryptCookieValue(encryptedSso, this.getEncryptionSecret());
+      if (!decryptedSso) {
+        res.clearCookie('sso_auth');
+        return res.status(401).json({ message: 'Invalid SSO session' });
+      }
+      const authResult = JSON.parse(decryptedSso) as Record<string, unknown>;
       res.clearCookie('sso_auth');
 
       // Set refresh token as httpOnly cookie
