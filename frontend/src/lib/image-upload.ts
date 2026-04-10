@@ -12,6 +12,7 @@ const IMAGE_UPLOAD_CONFIG = {
 // Upload response interface
 export interface ImageUploadResponse {
   message: string;
+  id: string | null;  // MediaAsset ID (UUID)
   url: string | null;
   key: string;
   size: number;
@@ -89,15 +90,15 @@ export async function uploadImage(
  * For local storage, returns the full URL via uploads endpoint
  */
 export function getImageUrl(response: ImageUploadResponse): string {
-  // For local storage, url is relative path like "/editor-images/userId/filename.png"
+  // For local storage, url is relative path like "/editor-images/uuid-timestamp.png"
   // We need to serve it via the backend API
   if (response.url) {
     // Remove leading slash if present: "/editor-images/..." -> "editor-images/..."
     const cleanUrl = response.url.startsWith('/') ? response.url.substring(1) : response.url;
-    
+
     // Get the backend API base URL (e.g., http://localhost:3000/api)
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
-    
+
     // Construct full URL to backend
     return `${apiBaseUrl}/uploads/${cleanUrl}`;
   }

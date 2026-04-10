@@ -167,22 +167,16 @@ export class FilesController {
   }
 
   @Public()
-  @Get('editor-images/:userId/:filename')
+  @Get('editor-images/:filename')
   @ApiOperation({ summary: 'Serve editor image file' })
-  @ApiParam({ name: 'userId', description: 'User ID' })
   @ApiParam({ name: 'filename', description: 'Image filename' })
   @ApiResponse({ status: 200, description: 'File served successfully' })
   @ApiResponse({ status: 404, description: 'File not found' })
-  async serveEditorImage(
-    @Param('userId') userId: string,
-    @Param('filename') filename: string,
-    @Res() res: Response,
-  ) {
+  async serveEditorImage(@Param('filename') filename: string, @Res() res: Response) {
     // Sanitize path components to prevent path injection
-    const safeUserId = this.sanitizePathComponent(userId);
     const safeFilename = this.sanitizePathComponent(filename);
 
-    const key = `editor-images/${safeUserId}/${safeFilename}`;
+    const key = `editor-images/${safeFilename}`;
 
     // Check if using S3 or local storage
     if (this.storageService.isUsingS3()) {

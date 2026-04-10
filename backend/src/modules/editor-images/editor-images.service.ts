@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { StorageService } from '../storage/storage.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -11,6 +12,7 @@ export class EditorImagesService {
   constructor(
     private readonly storageService: StorageService,
     private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
   ) {
     // Default to 5MB if not configured
     this.maxFileSize =
@@ -48,31 +50,31 @@ export class EditorImagesService {
 
   /**
    * Generate unique filename for uploaded image
-   * Format: {timestamp}-{uuid}.{ext}
+   * Format: {uuid}-{timestamp}.{ext}
    */
   generateUniqueFilename(originalName: string): string {
-    const timestamp = Date.now();
     const uuid = crypto.randomUUID();
+    const timestamp = Date.now();
     const extension = originalName.split('.').pop()?.toLowerCase() || 'png';
-    return `${timestamp}-${uuid}.${extension}`;
+    return `${uuid}-${timestamp}.${extension}`;
   }
 
   /**
    * Upload and save editor image
-   * Returns upload result with URL or storage key
+   * Returns upload result with URL, storage key, and MediaAsset ID
    */
   async uploadImage(
     file: Express.Multer.File,
     userId: string,
-  ): Promise<{ url: string | null; key: string; size: number }> {
+  ): Promise<{ id: string; url: string | null; key: string; size: number }> {
     // Validate file
     this.validateImageFile(file);
 
     // Generate unique filename
     const uniqueFilename = this.generateUniqueFilename(file.originalname);
 
-    // Create folder structure: editor-images/{userId}
-    const folder = `editor-images/${userId}`;
+    // Store in flat editor-images folder (no userId)
+    const folder = `editor-images`;
 
     // Create modified file object with unique filename
     const fileWithUniqueName: Express.Multer.File = {
@@ -81,8 +83,26 @@ export class EditorImagesService {
     } as Express.Multer.File;
 
     // Save file using storage service
-    const result = await this.storageService.saveFile(fileWithUniqueName, folder);
+    const storageResult = await this.storageService.saveFile(fileWithUniqueName, folder);
 
-    return result;
+    // Create MediaAsset record
+    const mediaAsset = await this.prisma.mediaAsset.create({
+      data: {
+        userId,
+        assetType: 'editor-image',
+        storageKey: storageResult.key,
+        filename: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        inCloud: this.storageService.isUsingS3(),
+      },
+    });
+
+    return {
+      id: mediaAsset.id,
+      url: storageResult.url,
+      key: storageResult.key,
+      size: storageResult.size,
+    };
   }
 }

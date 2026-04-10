@@ -115,6 +115,9 @@ model User {
   // Settings Relations
   settings Settings[]
 
+  // Media Assets
+  mediaAssets MediaAsset[]
+
   // Public Task Shares
   createdPublicTaskShares PublicTaskShare[] @relation("PublicTaskShareCreatedBy")
 
@@ -1260,7 +1263,7 @@ model EmailSyncLog {
 
 model Settings {
   id          String   @id @default(uuid()) @db.Uuid
-  key         String   
+  key         String
   value       String?
   description String?
   category    String   @default("general")
@@ -1276,6 +1279,26 @@ model Settings {
   @@unique([userId, key])  // This allows same keys for different users, and also allows global settings (userId = null)
 
   @@map("settings")
+}
+
+// ============= MEDIA ASSETS =============
+model MediaAsset {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  assetType  String   // "editor-image", "avatar", "attachment", etc.
+  storageKey String   // Full storage path (e.g., "editor-images/uuid-timestamp.png")
+  filename   String   // Original filename (for display purposes)
+  mimeType   String   // File type (image/png, etc.)
+  size       Int      // File size in bytes
+  fileHash   String?  // SHA-256 hash for future deduplication
+  inCloud    Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([assetType])
+  @@map("media_assets")
 }
 
 // ============= PROJECT INBOX ENUMS =============

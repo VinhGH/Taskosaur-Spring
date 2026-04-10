@@ -55,6 +55,7 @@ export class EditorImagesController {
       type: 'object',
       properties: {
         message: { type: 'string', example: 'Image uploaded successfully' },
+        id: { type: 'string', description: 'MediaAsset ID (UUID)' },
         url: { type: 'string', nullable: true, description: 'Image URL (null for S3 storage)' },
         key: { type: 'string', description: 'Storage key for the image' },
         size: { type: 'number', description: 'File size in bytes' },
@@ -69,6 +70,7 @@ export class EditorImagesController {
     if (!file) {
       return {
         message: 'No file uploaded',
+        id: null,
         url: null,
         key: null,
         size: 0,
@@ -81,6 +83,7 @@ export class EditorImagesController {
     if (!userId) {
       return {
         message: 'User not authenticated',
+        id: null,
         url: null,
         key: null,
         size: 0,
@@ -95,6 +98,7 @@ export class EditorImagesController {
 
     return {
       message: 'Image uploaded successfully',
+      id: result.id,
       url: result.url,
       key: result.key,
       size: result.size,
