@@ -27,6 +27,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Underline from "@tiptap/extension-underline";
+import { UploadPlaceholder } from "@/lib/tiptap/upload-placeholder";
 
 // Dynamically import MDEditor to avoid SSR issues
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false });
@@ -226,6 +227,7 @@ function RichTextEditorInner({
       StarterKit,
       Underline,
       Image.configure({ inline: false, allowBase64: false }),
+      UploadPlaceholder,
     ],
     content: value || "",
     editable: !disabled,
@@ -269,25 +271,29 @@ function RichTextEditorInner({
     async (file: File) => {
       if (!editor) return;
 
-      // Upload with progress tracking
-      const toastId = toast.loading("Uploading image...", { description: file.name });
+      const placeholderId = generateUploadPlaceholderId();
 
+      // Insert placeholder immediately
+      editor.chain().focus().setUploadPlaceholder(placeholderId, file.name).run();
+
+      // Upload in background
       const imageUrl = await handleImageUpload(file, {
         showToasts: false,
       });
 
-      toast.dismiss(toastId);
-
       if (imageUrl) {
-        // Insert image directly
+        // Remove placeholder and insert real image
         editor
           .chain()
           .focus()
+          .removeUploadPlaceholder(placeholderId)
           .setImage({ src: imageUrl, alt: file.name })
           .run();
-        
+
         toast.success("Image uploaded successfully", { description: file.name });
       } else {
+        // Remove placeholder on failure
+        editor.chain().focus().removeUploadPlaceholder(placeholderId).run();
         toast.error("Image upload failed", { description: file.name });
       }
     },
