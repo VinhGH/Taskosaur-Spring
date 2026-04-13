@@ -263,7 +263,8 @@ export function ActivityFeedPanel({
                 {activity.entityId && activity.type !== "invitation_sent" && (() => {
                   const href = getEntityLink(activity, fallbackWorkspaceSlug);
                   const label = `View ${activity.entityType?.replace(/\s*Att[a]?chment$/i, "")}`;
-                  if (href !== "#") {
+                  const isSafePath = /^\/[^/]/.test(href) && !/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(href);
+                  if (href !== "#" && isSafePath) {
                     return (
                       <span>
                         <Link href={href} className="activity-content-link">
