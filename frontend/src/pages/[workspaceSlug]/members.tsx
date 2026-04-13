@@ -26,6 +26,7 @@ import InviteModal from "@/components/modals/InviteModal";
 import Tooltip from "@/components/common/ToolTip";
 import { roles } from "@/utils/data/projectData";
 import ConfirmationModal from "@/components/modals/ConfirmationModal";
+import { projectApi } from "@/utils/api/projectApi";
 import { ProjectMember, Workspace } from "@/types";
 import PendingInvitations, { PendingInvitationsRef } from "@/components/common/PendingInvitations";
 import WorkspaceMembersSkeleton from "@/components/skeletons/WorkspaceMembersSkeleton";
@@ -107,6 +108,7 @@ function WorkspaceMembersContent() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<any>(null);
+  const [workspaceProjects, setWorkspaceProjects] = useState<Array<{ id: string; name: string; slug: string }>>([]);
   const isMountedRef = useRef(true);
   const abortControllerRef = useRef<AbortController | null>(null);
   const requestIdRef = useRef<string>("");
@@ -131,6 +133,16 @@ function WorkspaceMembersContent() {
       })
       .catch((error) => {
         console.error("Error fetching user access:", error);
+      });
+
+    projectApi.getProjectsByWorkspace(workspace.id)
+      .then((projects) => {
+        setWorkspaceProjects(
+          (projects || []).map((p: any) => ({ id: p.id, name: p.name, slug: p.slug }))
+        );
+      })
+      .catch((error) => {
+        console.error("Error fetching workspace projects:", error);
       });
   }, [workspace]);
 
@@ -503,7 +515,7 @@ function WorkspaceMembersContent() {
     }
   };
 
-  const handleInvite = async (email: string, role: string) => {
+  const handleInvite = async (email: string, role: string, projectIds?: string[]) => {
     if (!workspace) {
       toast.error(t("workspace_not_found"));
       throw new Error("Workspace not found");
@@ -525,6 +537,7 @@ function WorkspaceMembersContent() {
         inviteeEmail: email,
         workspaceId: workspace.id,
         role: role,
+        ...(projectIds?.length ? { projectIds } : {}),
       });
 
       toast.success(t("invitation_sent", { email }));
@@ -542,10 +555,10 @@ function WorkspaceMembersContent() {
     }
   };
 
-  const handleInviteWithLoading = async (email: string, role: string) => {
+  const handleInviteWithLoading = async (email: string, role: string, projectIds?: string[]) => {
     setInviteLoading(true);
     try {
-      await handleInvite(email, role);
+      await handleInvite(email, role, projectIds);
     } finally {
       setInviteLoading(false);
     }
@@ -1002,6 +1015,7 @@ function WorkspaceMembersContent() {
         onClose={() => setShowInviteModal(false)}
         onInvite={handleInviteWithLoading}
         availableRoles={getAvailableRolesForMember()}
+        projects={workspaceProjects}
       />
 
       {memberToRemove && (

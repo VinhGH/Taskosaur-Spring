@@ -47,6 +47,27 @@ export class InvitationsService {
       );
     }
 
+    if (dto.projectIds?.length && !dto.workspaceId) {
+      throw new BadRequestException('projectIds can only be used with workspaceId');
+    }
+
+    if (dto.projectIds?.length && dto.workspaceId) {
+      const validProjects = await this.prisma.project.findMany({
+        where: {
+          id: { in: dto.projectIds },
+          workspaceId: dto.workspaceId,
+        },
+        select: { id: true },
+      });
+      const validProjectIds = validProjects.map((p) => p.id);
+      const invalidIds = dto.projectIds.filter((id) => !validProjectIds.includes(id));
+      if (invalidIds.length > 0) {
+        throw new BadRequestException(
+          `Some project IDs do not belong to this workspace: ${invalidIds.join(', ')}`,
+        );
+      }
+    }
+
     let owningOrgId: string;
     if (dto.organizationId) {
       owningOrgId = dto.organizationId;
@@ -89,7 +110,13 @@ export class InvitationsService {
       });
 
       if (isOrgMember) {
-        return await this.addExistingOrgMemberDirectly(dto, user.id, inviterId, owningOrgId);
+        return await this.addExistingOrgMemberDirectly(
+          dto,
+          user.id,
+          inviterId,
+          owningOrgId,
+          dto.projectIds,
+        );
       }
     }
 
@@ -132,6 +159,22 @@ export class InvitationsService {
         project: { select: { id: true, name: true, slug: true } },
       },
     });
+
+    if (dto.workspaceId && dto.projectIds?.length) {
+      for (const pid of dto.projectIds) {
+        const projectToken = crypto.randomBytes(32).toString('hex');
+        await this.prisma.invitation.create({
+          data: {
+            inviterId,
+            inviteeEmail: dto.inviteeEmail,
+            projectId: pid,
+            role: dto.role,
+            token: projectToken,
+            expiresAt,
+          },
+        });
+      }
+    }
 
     // Try to send the invitation email, but don't fail the entire operation if email fails
     let emailSent = false;
@@ -205,6 +248,7 @@ export class InvitationsService {
     userId: string,
     inviterId: string,
     organizationId: string,
+    projectIds?: string[],
   ) {
     return await this.prisma.$transaction(async (prisma) => {
       const user = await prisma.user.findUnique({
@@ -284,6 +328,19 @@ export class InvitationsService {
           );
         }
 
+        // Add to selected projects if projectIds provided
+        if (projectIds?.length) {
+          await prisma.projectMember.createMany({
+            data: projectIds.map((pid) => ({
+              userId,
+              projectId: pid,
+              role: dto.role as any,
+              createdBy: inviterId,
+            })),
+            skipDuplicates: true,
+          });
+        }
+
         this.logger.log(`Added user ${user.email} directly to workspace ${workspace.id}`);
 
         return {
@@ -300,6 +357,7 @@ export class InvitationsService {
             firstName: user.firstName,
             lastName: user.lastName,
           },
+          addedToProjects: projectIds || [],
         };
       } else if (dto.projectId) {
         const project = await prisma.project.findUnique({
@@ -481,6 +539,50 @@ export class InvitationsService {
           role: invitation.role as Role,
           createdBy: invitation.inviterId,
         });
+      }
+
+      // Auto-accept related project invitations under this workspace
+      const relatedProjectInvitations = await this.prisma.invitation.findMany({
+        where: {
+          inviteeEmail: invitation.inviteeEmail,
+          status: 'PENDING',
+          projectId: { not: null },
+          project: {
+            workspaceId: invitation.workspaceId,
+          },
+        },
+        include: {
+          project: true,
+        },
+      });
+
+      for (const projInvitation of relatedProjectInvitations) {
+        if (projInvitation.projectId) {
+          const existingProjectMember = await this.prisma.projectMember.findFirst({
+            where: { userId, projectId: projInvitation.projectId },
+          });
+
+          if (!existingProjectMember) {
+            await this.prisma.projectMember.create({
+              data: {
+                userId,
+                projectId: projInvitation.projectId,
+                role: projInvitation.role as Role,
+                createdBy: projInvitation.inviterId,
+              },
+            });
+          }
+
+          // Mark as accepted
+          await this.prisma.invitation.update({
+            where: { id: projInvitation.id },
+            data: { status: 'ACCEPTED' },
+          });
+
+          this.logger.log(
+            `Auto-accepted project invitation ${projInvitation.id} for project ${projInvitation.project?.name}`,
+          );
+        }
       }
     }
     // Project invitation

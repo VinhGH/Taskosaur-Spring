@@ -79,10 +79,11 @@ export function InvitationModal({ userId, isOpen, onAccept }: InvitationModalPro
         new Promise((resolve) => setTimeout(resolve, 2000)),
       ]);
 
-      if (action === "accept") {
+      const remaining = await invitationApi.getUserInvitations({ status: "PENDING" });
+      setPendingInvites(remaining);
+
+      if (remaining.length === 0) {
         window.location.href = "/dashboard";
-      } else {
-        setPendingInvites((prev) => prev.filter((invite) => invite.token !== token));
       }
     } catch (error) {
       console.error(`Failed to ${action} invitation:`, error);

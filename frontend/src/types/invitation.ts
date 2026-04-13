@@ -34,6 +34,7 @@ export interface CreateInvitationData {
   organizationId?: string;
   workspaceId?: string;
   projectId?: string;
+  projectIds?: string[];
   role: string;
 }
 

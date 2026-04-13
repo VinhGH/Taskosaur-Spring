@@ -1,5 +1,5 @@
 // src/modules/invitations/dto/create-invitation.dto.ts
-import { IsEmail, IsString, IsOptional, IsUUID } from 'class-validator';
+import { IsEmail, IsString, IsOptional, IsUUID, IsArray } from 'class-validator';
 
 export class CreateInvitationDto {
   @IsEmail()
@@ -16,6 +16,11 @@ export class CreateInvitationDto {
   @IsOptional()
   @IsUUID()
   projectId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  projectIds?: string[];
 
   @IsString()
   role: string;
