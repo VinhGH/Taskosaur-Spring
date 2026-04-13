@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { formatDateTimeForDisplay } from "@/utils/date";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { HiXMark } from "react-icons/hi2";
 import { ArrowDownToLine } from "lucide-react";
@@ -43,7 +44,7 @@ export function VideoPreviewModal({
 
   const formatDate = (dateString: string) => {
     try {
-      return new Date(dateString).toLocaleDateString("en-US", {
+      return formatDateTimeForDisplay(dateString, {
         year: "numeric",
         month: "short",
         day: "numeric",

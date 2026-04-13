@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { formatDateForDisplay, formatDateTimeForDisplay } from "@/utils/date";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -148,7 +149,7 @@ export default function CompletedConfigView({
               <p className="text-xs font-normal text-[var(--muted-foreground)]/60">
                 Last Sync:{" "}
                 {currentInbox.emailAccount?.lastSyncAt
-                  ? new Date(currentInbox.emailAccount.lastSyncAt).toLocaleString()
+                  ? formatDateTimeForDisplay(currentInbox.emailAccount.lastSyncAt)
                   : "Never"}
               </p>
               {hasUnsavedChanges && (

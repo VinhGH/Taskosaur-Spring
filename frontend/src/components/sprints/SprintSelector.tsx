@@ -1,4 +1,5 @@
 import React from "react";
+import { formatDateForDisplay } from "@/utils/date";
 import { Sprint } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -54,7 +55,7 @@ export default function SprintSelector({
   const { t } = useTranslation(["sprints"]);
   const formatDate = (dateString: string) => {
     try {
-      return new Date(dateString).toLocaleDateString("en-US", {
+      return formatDateForDisplay(dateString, {
         month: "short",
         day: "numeric",
       });

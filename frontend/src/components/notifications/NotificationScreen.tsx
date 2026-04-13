@@ -16,6 +16,7 @@ import {
 } from "react-icons/hi2";
 import { notificationApi } from "@/utils/api/notificationApi";
 import { PageHeader } from "@/components/common/PageHeader";
+import { formatDateForDisplay } from "@/utils/date";
 import ActionButton from "@/components/common/ActionButton";
 import Pagination from "@/components/common/Pagination";
 import ErrorState from "@/components/common/ErrorState";
@@ -113,7 +114,7 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
     if (diffInHours < 24) return `${diffInHours}h ago`;
     if (diffInDays < 7) return `${diffInDays}d ago`;
-    return date.toLocaleDateString();
+    return formatDateForDisplay(date);
   };
 
   const handleNotificationClick = async (notification: Notification) => {

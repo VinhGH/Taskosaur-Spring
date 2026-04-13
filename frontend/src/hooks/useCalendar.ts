@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatDateTimeForDisplay } from "@/utils/date";
 
 export interface CalendarEvent {
   id: string;
@@ -98,7 +99,7 @@ export function useCalendar() {
   // Format time for display
   const formatEventTime = (start: Date, end: Date) => {
     const formatTime = (date: Date) => {
-      return date.toLocaleTimeString("en-US", {
+      return formatDateTimeForDisplay(date, {
         hour: "numeric",
         minute: "2-digit",
         hour12: true,

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { formatDateForDisplay } from "@/utils/date";
 import { userApi } from "@/utils/api/userApi";
 import { UserStatus, BulkUserStatus } from "@/types";
 
@@ -182,5 +183,5 @@ export const formatLastSeen = (lastSeen?: string | null): string => {
   if (diffHours < 24) return `Offline · ${diffHours}h ago`;
   if (diffDays < 7) return `Offline · ${diffDays}d ago`;
 
-  return `Offline · ${date.toLocaleDateString()}`;
+  return `Offline · ${formatDateForDisplay(date)}`;
 };

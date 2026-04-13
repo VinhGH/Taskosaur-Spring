@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { invitationApi } from "@/utils/api/invitationsApi";
 import { Invitation } from "@/types";
 import ActionButton from "../common/ActionButton";
+import { formatDateForDisplay } from "@/utils/date";
 
 interface InvitationModalProps {
   userId: string;
@@ -42,7 +43,7 @@ export function InvitationModal({ userId, isOpen, onAccept }: InvitationModalPro
   }, [userId, isOpen]);
 
   const formatInviteDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    return formatDateForDisplay(dateString, {
       year: "numeric",
       month: "short",
       day: "numeric",

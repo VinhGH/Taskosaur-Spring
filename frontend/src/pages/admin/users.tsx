@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/router";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { adminApi } from "@/lib/admin-api";
+import { formatDateForDisplay } from "@/utils/date";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -340,7 +341,7 @@ function AdminUsersContent() {
                       {user._count?.organizationMembers || 0}
                     </div>
                     <div className="col-span-2 text-xs text-[var(--muted-foreground)]">
-                      {new Date(user.createdAt).toLocaleDateString()}
+                      {formatDateForDisplay(user.createdAt)}
                     </div>
                     <div className="col-span-1" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>

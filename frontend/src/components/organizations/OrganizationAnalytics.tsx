@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import { formatDateForDisplay } from "@/utils/date";
 import {
   organizationAnalyticsWidgets,
   Widget,
@@ -406,7 +407,7 @@ export function OrganizationAnalytics({ organizationId }: OrganizationAnalyticsP
     }),
   ];
   const getCurrentDate = () => {
-    return new Date().toLocaleDateString("en-US", {
+    return formatDateForDisplay(new Date(), {
       weekday: "long",
       year: "numeric",
       month: "long",

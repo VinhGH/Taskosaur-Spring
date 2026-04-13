@@ -1,4 +1,5 @@
 import { Organization } from "@/types";
+import { formatDateForDisplay } from "@/utils/date";
 import { Badge, Card, CardContent } from "../ui";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { HiCalendar, HiCheck, HiClock } from "react-icons/hi";
@@ -63,7 +64,7 @@ const OrganizationSelectionCard = ({
               {organization.createdAt && (
                 <div className="organizations-selection-card-stat">
                   <HiCalendar size={12} />
-                  <span>{new Date(organization.createdAt).toLocaleDateString()}</span>
+                  <span>{formatDateForDisplay(organization.createdAt)}</span>
                 </div>
               )}
             </div>

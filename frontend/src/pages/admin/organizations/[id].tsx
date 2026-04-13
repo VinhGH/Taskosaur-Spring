@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { adminApi } from "@/lib/admin-api";
+import { formatDateForDisplay, formatDateTimeForDisplay } from "@/utils/date";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -108,7 +109,7 @@ function OrgDetailContent() {
                 { label: "Owner", value: org.owner ? `${org.owner.firstName} ${org.owner.lastName}` : "—", sub: org.owner?.email },
                 { label: "Members", value: org._count?.members || 0 },
                 { label: "Workspaces", value: org._count?.workspaces || 0 },
-                { label: "Created", value: new Date(org.createdAt).toLocaleDateString() },
+                { label: "Created", value: formatDateForDisplay(org.createdAt) },
               ].map((item) => (
                 <div key={item.label}>
                   <span className="text-xs text-[var(--muted-foreground)]">{item.label}</span>
@@ -248,7 +249,7 @@ function OrgDetailContent() {
                         </Badge>
                       </div>
                       <div className="col-span-2 text-xs text-[var(--muted-foreground)]">
-                        {new Date(m.createdAt).toLocaleDateString()}
+                        {formatDateForDisplay(m.createdAt)}
                       </div>
                     </div>
                   </div>

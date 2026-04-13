@@ -12,6 +12,7 @@ import { notificationApi } from "@/utils/api/notificationApi";
 import Tooltip from "../common/ToolTip";
 import { useRouter } from "next/router";
 import ActionButton from "../common/ActionButton";
+import { formatDateForDisplay } from "@/utils/date";
 
 interface Notification {
   id: string;
@@ -95,7 +96,7 @@ export default function NotificationDropdown({
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
     if (diffInHours < 24) return `${diffInHours}h ago`;
     if (diffInDays < 7) return `${diffInDays}d ago`;
-    return date.toLocaleDateString();
+    return formatDateForDisplay(date);
   };
 
   const getNotificationUserInitials = (user?: Notification["createdByUser"]) => {

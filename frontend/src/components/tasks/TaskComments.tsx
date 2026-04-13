@@ -13,6 +13,7 @@ import {
 } from "react-icons/hi2";
 import { TaskComment, User } from "@/types";
 import ActionButton from "../common/ActionButton";
+import { formatDateTimeForDisplay } from "@/utils/date";
 import ConfirmationModal from "../modals/ConfirmationModal";
 import { ShadowDomHtmlRenderer } from "@/components/common/ShadowDomHtmlRenderer";
 import { SafeMarkdownRenderer } from "@/components/common/SafeMarkdownRenderer";
@@ -349,7 +350,7 @@ export default function TaskComments({
     return {
       text: `${isEdited ? "updated" : "commented"} ${timeAgo}`,
       isEdited,
-      fullDate: (isEdited ? updated : created).toLocaleString(),
+      fullDate: formatDateTimeForDisplay(isEdited ? updated : created),
     };
   }, []);
 

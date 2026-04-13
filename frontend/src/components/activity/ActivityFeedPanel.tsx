@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { formatDateTimeForDisplay } from "@/utils/date";
 
 export interface ActivityFeedItem {
   id: string;
@@ -293,7 +294,7 @@ export function ActivityFeedPanel({
                 <div className="activity-meta-timestamp">
                   <HiClock className="activity-meta-timestamp-icon" />
                   <span className="activity-meta-timestamp-text">
-                    {new Date(activity.createdAt).toLocaleString()}
+                    {formatDateTimeForDisplay(activity.createdAt)}
                   </span>
                 </div>
               </div>

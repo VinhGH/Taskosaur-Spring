@@ -5,6 +5,7 @@ import { HiPaperClip, HiTrash } from "react-icons/hi2";
 import Tooltip from "../common/ToolTip";
 import { useAuth } from "@/contexts/auth-context";
 import { AttachmentPreview, AttachmentPreviewRef } from "./attachments";
+import { formatDateTimeForDisplay } from "@/utils/date";
 
 interface Attachment {
   id: string;
@@ -77,7 +78,7 @@ const TaskAttachments: React.FC<TaskAttachmentsProps> = ({
 
   const formatDate = (dateString: string) => {
     try {
-      return new Date(dateString).toLocaleDateString("en-US", {
+      return formatDateTimeForDisplay(dateString, {
         year: "numeric",
         month: "short",
         day: "numeric",

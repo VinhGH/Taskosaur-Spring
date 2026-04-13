@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { formatDateForDisplay } from "@/utils/date";
 import TaskColumn from "@/components/tasks/TaskColumn";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -319,7 +320,7 @@ export default function SprintBoard({ projectId, sprintId }: SprintBoardProps) {
   const formatDate = (dateString: string) => {
     if (!currentDate) return t("board.loading");
     try {
-      return new Date(dateString).toLocaleDateString("en-US", {
+      return formatDateForDisplay(dateString, {
         month: "short",
         day: "numeric",
         year: "numeric",

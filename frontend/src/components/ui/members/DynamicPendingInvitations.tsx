@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, Button } from "@/components/ui";
 import UserAvatar from "@/components/ui/avatars/UserAvatar";
 import { HiEnvelope, HiArrowPath } from "react-icons/hi2";
+import { formatDateForDisplay } from "@/utils/date";
 import { BsThreeDotsVertical } from "react-icons/bs";
 import { RxReset } from "react-icons/rx";
 import {
@@ -73,7 +74,7 @@ const getStatusBadgeClass = (status: string) => {
 
 const formatDate = (dateString?: string) => {
   if (!dateString) return "—";
-  return new Date(dateString).toLocaleDateString("en-US", {
+  return formatDateForDisplay(dateString, {
     year: "numeric",
     month: "short",
     day: "numeric",

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { formatDateForDisplay } from "@/utils/date";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Tooltip from "../common/ToolTip";
@@ -102,7 +103,7 @@ export default function InvitationManager({ userId, className = "" }: Invitation
   }, [searchParams]);
 
   const formatInviteDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    return formatDateForDisplay(dateString, {
       year: "numeric",
       month: "short",
       day: "numeric",

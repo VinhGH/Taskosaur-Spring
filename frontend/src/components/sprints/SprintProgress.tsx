@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { formatDateForDisplay } from "@/utils/date";
 import { Task, Sprint } from "@/types";
 import { useTranslation } from "react-i18next";
 
@@ -135,7 +136,7 @@ export default function SprintProgress({ selectedSprint }: SprintProgressProps) 
   const formatDate = (dateString: string) => {
     if (!currentDate) return t("board.loading");
     try {
-      return new Date(dateString).toLocaleDateString();
+      return formatDateForDisplay(dateString);
     } catch {
       return t("board.invalidDate");
     }

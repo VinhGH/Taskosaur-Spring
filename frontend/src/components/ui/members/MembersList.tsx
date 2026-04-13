@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDateForDisplay } from "@/utils/date";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -101,7 +102,7 @@ const getRoleBadgeClass = (role: string) => {
 
 const formatDate = (dateString: string | Date) => {
   const date = typeof dateString === "string" ? new Date(dateString) : dateString;
-  return date.toLocaleDateString("en-US", {
+  return formatDateForDisplay(date, {
     year: "numeric",
     month: "short",
     day: "numeric",

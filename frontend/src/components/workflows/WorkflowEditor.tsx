@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { formatDateForDisplay } from "@/utils/date";
 import { useOrganization } from "@/contexts/organization-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -376,8 +377,8 @@ export default function WorkflowEditor({
               </div>
 
               <div className="flex items-center gap-4 text-xs text-[var(--muted-foreground)]">
-                <span>{t("workflow_editor.created")} {new Date(workflow.createdAt).toLocaleDateString()}</span>
-                <span>{t("workflow_editor.updated")} {new Date(workflow.updatedAt).toLocaleDateString()}</span>
+                <span>{t("workflow_editor.created")} {formatDateForDisplay(workflow.createdAt)}</span>
+                <span>{t("workflow_editor.updated")} {formatDateForDisplay(workflow.updatedAt)}</span>
                 <span>{t("workflow_editor.statuses")} {workflow.statuses ? workflow.statuses.length : 0}</span>
               </div>
             </div>

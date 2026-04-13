@@ -1,4 +1,5 @@
 import { TimelineHeaderProps, ViewMode } from "@/types";
+import { formatDateForDisplay } from "@/utils/date";
 import { getViewModeWidth, isWeekend } from "@/utils/gantt";
 import { useCallback } from "react";
 
@@ -12,27 +13,16 @@ export const TimelineHeader: React.FC<TimelineHeaderProps> = ({
     try {
       switch (mode) {
         case "days":
-          return new Intl.DateTimeFormat("en-US", {
-            month: "short",
-            day: "numeric",
-          }).format(date);
-        case "weeks":
+          return formatDateForDisplay(date, { month: "short", day: "numeric" });
+        case "weeks": {
           const weekEnd = new Date(date);
           weekEnd.setDate(weekEnd.getDate() + 6);
-          return `${new Intl.DateTimeFormat("en-US", {
-            month: "short",
-            day: "numeric",
-          }).format(date)} - ${new Intl.DateTimeFormat("en-US", {
-            month: "short",
-            day: "numeric",
-          }).format(weekEnd)}`;
+          return `${formatDateForDisplay(date, { month: "short", day: "numeric" })} - ${formatDateForDisplay(weekEnd, { month: "short", day: "numeric" })}`;
+        }
         case "months":
-          return new Intl.DateTimeFormat("en-US", {
-            month: "long",
-            year: "numeric",
-          }).format(date);
+          return formatDateForDisplay(date, { month: "long", year: "numeric" });
         default:
-          return date.toLocaleDateString();
+          return formatDateForDisplay(date);
       }
     } catch (error) {
       console.error("Error formatting date:", error);

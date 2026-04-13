@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { formatDateForDisplay } from "@/utils/date";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { PriorityBadge } from "@/components/badges/PriorityBadge";
@@ -43,7 +44,7 @@ interface SimpleTaskCardProps {
 const SimpleTaskCard: React.FC<SimpleTaskCardProps> = ({ task, workspaceSlug, projectSlug }) => {
   const formatDate = (dateString: string) => {
     try {
-      return new Date(dateString).toLocaleDateString("en-US", {
+      return formatDateForDisplay(dateString, {
         month: "short",
         day: "numeric",
       });

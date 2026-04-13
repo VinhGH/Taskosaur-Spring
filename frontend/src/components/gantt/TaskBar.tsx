@@ -1,4 +1,5 @@
 import { Task } from "@/types";
+import { formatDateForDisplay } from "@/utils/date";
 import { TimeRange, ViewMode } from "@/types";
 import {
   calculateTaskPosition,
@@ -288,8 +289,8 @@ export const TaskBar: React.FC<TaskBarProps> = ({
           <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 bg-[var(--popover)] text-[var(--popover-foreground)] px-3 py-2 rounded-lg shadow-lg z-40 whitespace-nowrap max-w-xs border border-[var(--border)] text-sm">
             <div className="font-semibold truncate text-sm">{task.title || "Untitled Task"}</div>
             <div className="text-[var(--muted-foreground)] mt-1 text-xs">
-              {currentStart.toLocaleDateString()} -{" "}
-              {currentEnd.toLocaleDateString()}
+              {formatDateForDisplay(currentStart)} -{" "}
+              {formatDateForDisplay(currentEnd)}
             </div>
             <div className="mt-2 text-sm">
               <StatusBadge status={task.status.name} />

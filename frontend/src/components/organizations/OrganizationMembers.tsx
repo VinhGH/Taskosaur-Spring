@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDateForDisplay } from "@/utils/date";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -260,7 +261,7 @@ export default function OrganizationMembers({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    return formatDateForDisplay(dateString, {
       year: "numeric",
       month: "short",
       day: "numeric",

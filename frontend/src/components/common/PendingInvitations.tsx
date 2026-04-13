@@ -7,6 +7,7 @@ import { BsThreeDotsVertical } from "react-icons/bs";
 import { useOrganization } from "@/contexts/organization-context";
 import { invitationApi } from "@/utils/api/invitationsApi";
 import { toast } from "sonner";
+import { formatDateForDisplay } from "@/utils/date";
 import { RxReset } from "react-icons/rx";
 import {
   DropdownMenu,
@@ -71,7 +72,7 @@ const getStatusBadgeClass = (status: string) => {
 
 const formatDate = (dateString?: string) => {
   if (!dateString) return "—";
-  return new Date(dateString).toLocaleDateString("en-US", {
+  return formatDateForDisplay(dateString, {
     year: "numeric",
     month: "short",
     day: "numeric",

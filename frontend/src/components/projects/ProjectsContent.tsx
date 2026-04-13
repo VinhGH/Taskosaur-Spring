@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { formatDateForDisplay } from "@/utils/date";
 import { useWorkspaceContext } from "@/contexts/workspace-context";
 import { useProjectContext } from "@/contexts/project-context";
 import { useAuth } from "@/contexts/auth-context";
@@ -40,7 +41,7 @@ interface ProjectsContentProps {
 const formatDate = (dateString: string) => {
   if (!dateString) return "Unknown";
   try {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    return formatDateForDisplay(dateString, {
       year: "numeric",
       month: "short",
       day: "numeric",

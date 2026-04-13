@@ -3,6 +3,7 @@ import { Task, TimeEntry } from "@/types/tasks";
 import UserAvatar from "@/components/ui/avatars/UserAvatar";
 import { Button } from "@/components/ui";
 import ConfirmationModal from "@/components/modals/ConfirmationModal";
+import { formatDateForDisplay } from "@/utils/date";
 
 interface TimeTrackingProps {
   task: Task;
@@ -279,7 +280,7 @@ export default function TimeTracking({
                         {formatTime(entry.timeSpent)}
                       </span>
                       <span className="text-sm text-gray-500 dark:text-gray-400">
-                        on {new Date(entry.date).toLocaleDateString()}
+                        on {formatDateForDisplay(entry.date)}
                       </span>
                     </div>
                     {entry.description && (

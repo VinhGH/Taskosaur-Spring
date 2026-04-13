@@ -18,6 +18,7 @@ import {
 import Tooltip from "../common/ToolTip";
 import { useAuth } from "@/contexts/auth-context";
 import { Task } from "@/types";
+import { formatDateForDisplay } from "@/utils/date";
 import { Label, Select } from "../ui";
 import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { PRIORITY_OPTIONS, TASK_TYPE_OPTIONS } from "@/utils/data/taskData";
@@ -680,7 +681,7 @@ export default function Subtasks({
                           <Tooltip content={t("subtasks.dueDate")} position="top" color="primary">
                             <span className="text-xs text-[var(--muted-foreground)] flex items-center gap-1">
                               <HiCalendar className="w-3 h-3" />
-                              {new Date(subtask.dueDate).toLocaleDateString("en-US", {
+                              {formatDateForDisplay(subtask.dueDate, {
                                 year: "numeric",
                                 month: "short",
                                 day: "numeric",

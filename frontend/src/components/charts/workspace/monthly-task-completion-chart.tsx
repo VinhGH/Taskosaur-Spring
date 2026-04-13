@@ -1,4 +1,4 @@
-// components/charts/workspace/monthly-task-completion-chart.tsx
+import { formatDateForDisplay } from "@/utils/date";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, CartesianGrid } from "recharts";
 import {
   ChartTooltip,
@@ -19,7 +19,7 @@ interface MonthlyTaskCompletionChartProps {
 export function MonthlyTaskCompletionChart({ data }: MonthlyTaskCompletionChartProps) {
   const chartData = data
     ?.map((item) => ({
-      month: new Date(item.month + "-01").toLocaleDateString("en-US", {
+      month: formatDateForDisplay(new Date(item.month + "-01"), {
         month: "short",
         year: "2-digit",
       }),

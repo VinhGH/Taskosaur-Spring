@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { formatDateForDisplay } from "@/utils/date";
 import { useAuth } from "@/contexts/auth-context";
 import { useOrganization } from "@/contexts/organization-context";
 import { workflowsApi } from "@/utils/api/workflowsApi";
@@ -538,13 +539,13 @@ export default function WorkflowManager({
                               <span>
                                 {t("workflow_manager.created")}{" "}
                                 {selectedWorkflow.createdAt
-                                  ? new Date(selectedWorkflow.createdAt).toLocaleDateString()
+                                  ? formatDateForDisplay(selectedWorkflow.createdAt)
                                   : t("workflow_manager.unknown_date")}
                               </span>
                               <span>
                                 {t("workflow_manager.updated")}{" "}
                                 {selectedWorkflow.updatedAt
-                                  ? new Date(selectedWorkflow.updatedAt).toLocaleDateString()
+                                  ? formatDateForDisplay(selectedWorkflow.updatedAt)
                                   : t("workflow_manager.unknown_date")}
                               </span>
                             </div>

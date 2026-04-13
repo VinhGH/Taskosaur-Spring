@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { formatDateForDisplay } from "@/utils/date";
 import { useRouter } from "next/router";
 import { HiChevronLeft, HiChevronRight, HiCalendarDays } from "react-icons/hi2";
 import { HiX } from "react-icons/hi";
@@ -375,7 +376,7 @@ export default function TaskCalendarView({
               }`}
             >
               <div className="text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wide">
-                {day.date.toLocaleDateString("en-US", { weekday: "short" })}
+                {formatDateForDisplay(day.date, { weekday: "short" })}
               </div>
               <div
                 className={`text-sm font-bold mt-1 ${
@@ -429,7 +430,7 @@ export default function TaskCalendarView({
                     className={`h-16 hover:bg-[var(--accent)] transition-colors border-b border-r border-[var(--border)] last:border-r-0 cursor-pointer relative ${
                       day.isToday ? "bg-[var(--primary)]/2" : ""
                     }`}
-                    title={`${day.date.toLocaleDateString()} ${
+                    title={`${formatDateForDisplay(day.date)} ${
                       hour === 0
                         ? "12 AM"
                         : hour === 12
@@ -502,7 +503,7 @@ export default function TaskCalendarView({
               <HiCalendarDays className="w-4 h-4 text-[var(--muted-foreground)]" />
               {viewMode === "month"
                 ? currentMonth
-                : t("view.weekOf", { date: weekDays[0]?.date.toLocaleDateString() })}
+                : t("view.weekOf", { date: formatDateForDisplay(weekDays[0]?.date) })}
             </h3>
             <p className="text-xs text-[var(--muted-foreground)]">
               {viewMode === "month"
@@ -581,7 +582,7 @@ export default function TaskCalendarView({
         <div className="bg-[var(--muted)]/10 p-3 border-t border-[var(--border)]">
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-sm font-semibold text-[var(--foreground)]">
-              {selectedDay.toLocaleDateString("en-US", {
+              {formatDateForDisplay(selectedDay, {
                 weekday: "long",
                 year: "numeric",
                 month: "long",

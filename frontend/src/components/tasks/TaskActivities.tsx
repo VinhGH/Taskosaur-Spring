@@ -3,6 +3,7 @@ import { HiOutlineBolt } from "react-icons/hi2";
 import { useTask } from "@/contexts/task-context";
 import { TaskActivityType } from "@/types/tasks";
 import { useAuth } from "@/contexts/auth-context";
+import { formatDateTimeForDisplay } from "@/utils/date";
 
 interface TaskActivitiesProps {
   taskId: string;
@@ -127,11 +128,7 @@ const TaskActivities: React.FC<TaskActivitiesProps> = ({ taskId, setLoading }) =
     } else if (diffInMonths < 12) {
       return `${diffInMonths} ${diffInMonths === 1 ? "month" : "months"} ago`;
     } else {
-      return date.toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      });
+      return formatDateTimeForDisplay(date);
     }
   };
 

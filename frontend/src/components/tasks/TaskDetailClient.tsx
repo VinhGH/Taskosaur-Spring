@@ -30,6 +30,7 @@ import TaskActivities from "./TaskActivities";
 import ShareTaskDialog from "./ShareTaskDialog";
 import { TaskPriorities } from "@/utils/data/taskData";
 import { formatDateForApi } from "@/utils/handleDateChange";
+import { formatDateForDisplay } from "@/utils/date";
 import MemberSelect from "../common/MemberSelect";
 import Divider from "../common/Divider";
 import { ToggleSwitch } from "../common/ToggleButton";
@@ -1797,7 +1798,7 @@ export default function TaskDetailClient({
                         className="text-[13px] min-w-[120px] min-h-[29.33px] rounded-2xl  px-1.5 py-0.5 bg-[var(--muted)] border-[var(--border)] flex-shrink-0 cursor-pointer"
                       >
                         {editTaskData.startDate
-                          ? new Date(editTaskData.startDate).toLocaleDateString()
+                          ? formatDateForDisplay(editTaskData.startDate)
                           : t("detail.noStartDate")}
                       </Badge>
                     )}
@@ -1856,7 +1857,7 @@ export default function TaskDetailClient({
                         className="min-w-[120px] min-h-[29.33px] text-[13px] rounded-2xl  px-1.5 py-0.5 bg-[var(--muted)] border-[var(--border)] flex-shrink-0 cursor-pointer"
                       >
                         {editTaskData.dueDate
-                          ? new Date(editTaskData.dueDate).toLocaleDateString()
+                          ? formatDateForDisplay(editTaskData.dueDate)
                           : t("detail.noDueDate")}
                       </Badge>
                     )}
@@ -1957,7 +1958,7 @@ export default function TaskDetailClient({
                           <div className="flex justify-between items-center">
                             <span className="text-[var(--muted-foreground)]">{t("detail.nextDue")}</span>
                             <span className="font-medium">
-                              {new Date(task.recurringConfig.nextOccurrence).toLocaleDateString()}
+                              {formatDateForDisplay(task.recurringConfig.nextOccurrence)}
                             </span>
                           </div>
                         )}
@@ -1966,7 +1967,7 @@ export default function TaskDetailClient({
                             <span className="text-[var(--muted-foreground)]">{t("detail.ends")}</span>
                             <span className="font-medium">
                               {task.recurringConfig.endType === "ON_DATE" && task.recurringConfig.endDate
-                                ? new Date(task.recurringConfig.endDate).toLocaleDateString()
+                                ? formatDateForDisplay(task.recurringConfig.endDate)
                                 : t("detail.afterOccurrences", { count: task.recurringConfig.occurrenceCount })}
                             </span>
                           </div>

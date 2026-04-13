@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { formatDateTimeForDisplay } from "@/utils/date";
 import { HiXMark, HiPaperAirplane, HiSparkles, HiArrowPath, HiStop, HiMicrophone } from "react-icons/hi2";
 import { useChatContext } from "@/contexts/chat-context";
 import { mcpServer, extractContextFromPath } from "@/lib/mcp-server";
@@ -685,7 +686,7 @@ export default function ChatPanel() {
                     {message.timestamp && (
                       <div className="flex justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 -mt-2 mb-2">
                         <span className="text-xs text-gray-400 dark:text-gray-500">
-                          {message.timestamp.toLocaleTimeString([], {
+                          {formatDateTimeForDisplay(message.timestamp, {
                             hour: "2-digit",
                             minute: "2-digit",
                             hour12: true,

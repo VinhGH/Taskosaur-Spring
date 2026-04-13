@@ -1,4 +1,5 @@
 import { Sprint } from "@/types";
+import { formatDateForDisplay } from "@/utils/date";
 import { useMemo, useState } from "react";
 import { Button, Card, CardContent, CardHeader, CardTitle } from "../ui";
 import {
@@ -37,8 +38,7 @@ export const SprintCard = ({
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
+    return formatDateForDisplay(dateString, {
       month: "short",
       day: "numeric",
       year: "numeric",

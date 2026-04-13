@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
+import { formatDateForDisplay } from "@/utils/date";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -551,7 +552,7 @@ function WorkspaceMembersContent() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString(i18n.language || "en-US", {
+    return formatDateForDisplay(dateString, {
       year: "numeric",
       month: "short",
       day: "numeric",

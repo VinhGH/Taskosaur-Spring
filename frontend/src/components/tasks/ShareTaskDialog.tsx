@@ -18,6 +18,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { shareApi, ShareResponse } from '@/utils/api/shareApi';
 import { HiClipboard, HiTrash, HiCheck, HiGlobeAlt } from 'react-icons/hi2';
+import { formatDateTimeForDisplay } from '@/utils/date';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -91,7 +92,7 @@ export default function ShareTaskDialog({ taskId, isOpen, onClose }: ShareTaskDi
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString(undefined, {
+    return formatDateTimeForDisplay(dateString, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',

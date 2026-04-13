@@ -41,6 +41,7 @@ import { InfoPanel } from "@/components/common/InfoPanel";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useSlugRedirect, cacheSlugId } from "@/hooks/useSlugRedirect";
+import { formatDateTimeForDisplay } from "@/utils/date";
 
 interface WorkspacePaginationProps {
   currentPage: number;
@@ -228,7 +229,7 @@ function WorkspaceActivityContent() {
             action: item.action,
             target: item.description,
             project: undefined,
-            time: new Date(item.createdAt).toLocaleString(),
+            time: formatDateTimeForDisplay(item.createdAt),
             comment: item.metadata?.comment || undefined,
             type: item.entityType?.toLowerCase() as ActivityLog["type"],
             description: item.description,

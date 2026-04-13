@@ -15,7 +15,7 @@ import { Repeat, X } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatDateForDisplay } from "@/utils/date";
 
 export type RecurrenceType = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'CUSTOM';
 export type RecurrenceEndType = 'NEVER' | 'ON_DATE' | 'AFTER_OCCURRENCES';
@@ -259,7 +259,7 @@ export default function RecurrenceSelector({ value, onChange }: RecurrenceSelect
                                 className="w-full h-8 justify-start text-left text-xs font-normal border-[var(--border)] bg-[var(--background)]"
                             >
                                 <CalendarIcon className="mr-2 h-3 w-3" />
-                                {config.endDate ? format(config.endDate, 'PPP') : 'Pick a date'}
+                                {config.endDate ? formatDateForDisplay(config.endDate, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Pick a date'}
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0 border-[var(--border)] bg-[var(--popover)]">

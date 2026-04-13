@@ -9,6 +9,7 @@ import UserAvatar from "@/components/ui/avatars/UserAvatar";
 import { UserStatusIndicator } from "@/components/users/UserStatusIndicator";
 import { invitationApi } from "@/utils/api/invitationsApi";
 import { toast } from "sonner";
+import { formatDateForDisplay } from "@/utils/date";
 import {
   Select,
   SelectContent,
@@ -599,7 +600,7 @@ function ProjectMembersContent() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+    return formatDateForDisplay(dateString, {
       year: "numeric",
       month: "short",
       day: "numeric",

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback, type KeyboardEvent } from "react";
+import { formatDateForDisplay } from "@/utils/date";
 import { useRouter } from "next/router";
 import { HiCalendarDays, HiClipboardDocumentList } from "react-icons/hi2";
 import type { Task, TaskGanttViewProps, TimeRange, ViewMode } from "@/types";
@@ -348,7 +349,7 @@ export default function TaskGanttView({
                     tabIndex={0}
                     role="row"
                     aria-label={`Task: ${task.title}, Status: ${task.status?.name}, ${
-                      isOverdue ? "Overdue" : `Due ${new Date(task.dueDate!).toLocaleDateString()}`
+                      isOverdue ? "Overdue" : `Due ${formatDateForDisplay(task.dueDate!)}`
                     }`}
                   >
                     {/* Task Info Panel */}

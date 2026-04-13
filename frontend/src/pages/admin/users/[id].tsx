@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { adminApi } from "@/lib/admin-api";
+import { formatDateTimeForDisplay } from "@/utils/date";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -152,7 +153,7 @@ function UserDetailContent() {
             <div className="text-right hidden sm:block">
               <p className="text-xs text-[var(--muted-foreground)]">Last login</p>
               <p className="text-xs font-medium text-[var(--foreground)]">
-                {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : "Never"}
+                {user.lastLoginAt ? formatDateTimeForDisplay(user.lastLoginAt) : "Never"}
               </p>
             </div>
           </div>
@@ -170,7 +171,7 @@ function UserDetailContent() {
                 { label: "Language", value: user.language },
                 { label: "Email Verified", value: user.emailVerified ? "Yes" : "No" },
                 { label: "Source", value: user.source },
-                { label: "Joined", value: new Date(user.createdAt).toLocaleString() },
+                { label: "Joined", value: formatDateTimeForDisplay(user.createdAt) },
                 { label: "Organizations", value: `${user.organizationMembers?.length || 0} memberships` },
               ].map((item) => (
                 <div key={item.label}>

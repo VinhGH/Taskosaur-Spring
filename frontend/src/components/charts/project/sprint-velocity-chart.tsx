@@ -1,4 +1,4 @@
-// components/charts/project/sprint-velocity-chart.tsx
+import { formatDateForDisplay } from "@/utils/date";
 import {
   LineChart,
   Line,
@@ -64,7 +64,7 @@ export function SprintVelocityChart({ data }: SprintVelocityChartProps) {
   const chartData = data?.map((sprint) => ({
     sprint: sprint.name,
     velocity: sprint.velocity || 0,
-    date: sprint.startDate ? new Date(sprint.startDate).toLocaleDateString() : t("na"),
+    date: sprint.startDate ? formatDateForDisplay(sprint.startDate) : t("na"),
   }));
 
   // Calculate average velocity

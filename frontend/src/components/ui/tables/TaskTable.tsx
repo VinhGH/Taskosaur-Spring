@@ -15,6 +15,9 @@ import { PriorityBadge } from "@/components/badges/PriorityBadge";
 import { Badge } from "@/components/ui/badge";
 import { BulkActionBar } from "@/components/ui/tables/BulkActionBar";
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+import { getUserTimezone } from "@/utils/date";
 import { getRelativeDateLabel, formatDateForDisplay, isDateOverdue as checkDateOverdue } from "@/utils/date";
 import {
   CalendarDays,
@@ -124,7 +127,7 @@ function extractTaskValue(task: Task, columnId: string): any {
       };
 
     case "completedAt":
-      return task.completedAt ? dayjs(task.completedAt).format("MMM D, YYYY") : "";
+      return task.completedAt ? formatDayjsDate(task.completedAt, "MMM D, YYYY") : "";
 
     case "storyPoints":
       return task.storyPoints || 0;
@@ -151,10 +154,10 @@ function extractTaskValue(task: Task, columnId: string): any {
       return task.createdBy || "";
 
     case "createdAt":
-      return task.createdAt ? dayjs(task.createdAt).format("MMM D, YYYY") : "";
+      return task.createdAt ? formatDayjsDate(task.createdAt, "MMM D, YYYY") : "";
 
     case "updatedAt":
-      return task.updatedAt ? dayjs(task.updatedAt).format("MMM D, YYYY") : "";
+      return task.updatedAt ? formatDayjsDate(task.updatedAt, "MMM D, YYYY") : "";
 
     case "sprint":
       return task.sprint ? task.sprint.name : "";
@@ -192,18 +195,18 @@ function formatColumnValue(value: any, columnType: string): string {
       return value.toString();
     case "dateRange":
       if (typeof value === "object" && value.startDate && value.dueDate) {
-        const start = dayjs(value.startDate).format("MMM D, YYYY");
-        const end = dayjs(value.dueDate).format("MMM D, YYYY");
+        const start = formatDayjsDate(value.startDate, "MMM D, YYYY");
+        const end = formatDayjsDate(value.dueDate, "MMM D, YYYY");
         return `${start} - ${end}`;
       } else if (typeof value === "object" && value.startDate) {
-        return `${dayjs(value.startDate).format("MMM D, YYYY")} - TBD`;
+        return `${formatDayjsDate(value.startDate, "MMM D, YYYY")} - TBD`;
       } else if (typeof value === "object" && value.dueDate) {
-        return `TBD - ${dayjs(value.dueDate).format("MMM D, YYYY")}`;
+        return `TBD - ${formatDayjsDate(value.dueDate, "MMM D, YYYY")}`;
       }
       return "-";
     case "date":
       if (value instanceof Date || typeof value === "string") {
-        return dayjs(value).format("MMM D, YYYY");
+        return formatDayjsDate(value, "MMM D, YYYY");
       }
       return value?.toString?.() ?? "";
     case "number":
@@ -243,6 +246,17 @@ interface TaskTableProps {
   showBulkActionBar?: boolean;
   totalTask?: number;
 }
+
+// Extend dayjs with timezone support
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const formatDayjsDate = (date: string | Date | null | undefined, formatStr: string = "MMM D, YYYY"): string => {
+  if (!date) return "";
+  return dayjs(date).tz(getUserTimezone()).format(formatStr);
+};
+
+const getTodayDate = (): string => dayjs().tz(getUserTimezone()).format("YYYY-MM-DD");
 
 const TaskTable: React.FC<TaskTableProps> = ({
   tasks,
@@ -453,7 +467,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
     }
   }, [localAddTaskStatuses, isCreatingTask]);
 
-  const today = dayjs().format("YYYY-MM-DD");
+  const today = getTodayDate();
 
   const formatDate = (dateString: string) => {
     const label = getRelativeDateLabel(dateString);
@@ -996,7 +1010,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
   };
 
   const getToday = () => {
-    return dayjs().format("YYYY-MM-DD");
+    return getTodayDate();
   };
 
   // Helper to check if title is invalid
