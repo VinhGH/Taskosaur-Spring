@@ -1004,7 +1004,7 @@ function WorkspaceTasksContent() {
     }
   };
 
-  const showPagination = currentView === "list" && tasks.length > 0 && pagination.totalPages > 1;
+  const showPagination = currentView === "list" && tasks.length > 0 && pagination.totalPages >= 1;
 
   if (error) return <ErrorState error={error} onRetry={handleRetry} />;
 

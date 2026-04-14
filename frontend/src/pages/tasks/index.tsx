@@ -934,7 +934,7 @@ function TasksPageContent() {
     }
   };
 
-  const showPagination = tasks.length > 0 && pagination.totalPages > 1;
+  const showPagination = tasks.length > 0 && pagination.totalPages >= 1;
 
   if (error) {
     return <ErrorState error={error} onRetry={handleRetry} />;

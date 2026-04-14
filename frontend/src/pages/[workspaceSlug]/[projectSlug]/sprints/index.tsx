@@ -113,6 +113,8 @@ function SprintsPageContent() {
       if (!redirected) {
         setLocalError(err?.message || t("errors.loadingPageError"));
       }
+    } finally {
+      setIsInitialLoad(false);
     }
   };
 
@@ -199,9 +201,10 @@ function SprintsPageContent() {
 
   const { setShow404, show404 } = useLayout();
   const activeError = error || localError;
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   useEffect(() => {
-    if (activeError && !show404) {
+    if (activeError && !show404 && !isInitialLoad) {
       const is404Error =
         activeError.toLowerCase().includes("not found") ||
         activeError.toLowerCase().includes("404") ||
@@ -216,13 +219,13 @@ function SprintsPageContent() {
         setShow404(true);
       }
     }
-  }, [activeError, setShow404, show404]);
+  }, [activeError, setShow404, show404, isInitialLoad]);
 
   if (isLoading) {
     return <CardsSkeleton count={3} />;
   }
 
-  if (activeError) {
+  if (activeError && !isInitialLoad) {
     const is404Error =
       activeError.toLowerCase().includes("not found") ||
       activeError.toLowerCase().includes("404") ||

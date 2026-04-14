@@ -338,6 +338,8 @@ function ProjectTasksContent() {
       if (!redirected) {
         setLocalError(error instanceof Error ? error.message : "Failed to load initial data");
       }
+    } finally {
+      setIsInitialLoad(false);
     }
   }, [hasValidAuth, workspaceSlug, projectSlug, workspaceApi, projectApi, isAuth, handleSlugNotFound, workspace?.id, project?.id]);
 
@@ -1157,12 +1159,12 @@ function ProjectTasksContent() {
   };
 
   const showPagination =
-    currentView !== "kanban" && displayTasks.length > 0 && pagination.totalPages > 1;
+    currentView !== "kanban" && displayTasks.length > 0 && pagination.totalPages >= 1;
 
   const { setShow404, show404 } = useLayout();
 
   useEffect(() => {
-    if (error && !show404) {
+    if (error && !show404 && !isInitialLoad) {
       const is404Error =
         error.toLowerCase().includes("not found") ||
         error.toLowerCase().includes("404") ||
@@ -1177,9 +1179,9 @@ function ProjectTasksContent() {
         setShow404(true);
       }
     }
-  }, [error, setShow404, show404]);
+  }, [error, setShow404, show404, isInitialLoad]);
 
-  if (error) {
+  if (error && !isInitialLoad) {
     const is404Error =
       error.toLowerCase().includes("not found") ||
       error.toLowerCase().includes("404") ||
