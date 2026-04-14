@@ -247,6 +247,106 @@ describe('TasksController (e2e)', () => {
           expect(res.body.assignees.length).toBe(2);
         });
     });
+
+    it('should return 403 when user has no project access', async () => {
+      // Create a user without project membership
+      const unauthorizedUser = await prismaService.user.create({
+        data: {
+          email: `task-unauthorized-${Date.now()}@example.com`,
+          password: 'StrongPassword123!',
+          firstName: 'Unauthorized',
+          lastName: 'User',
+          username: `task_unauthorized_${Date.now()}`,
+          role: Role.MEMBER,
+        },
+      });
+      const unauthorizedToken = jwtService.sign({
+        sub: unauthorizedUser.id,
+        email: unauthorizedUser.email,
+        role: unauthorizedUser.role,
+      });
+
+      const createDto: CreateTaskDto = {
+        title: 'Unauthorized Task',
+        projectId: projectId,
+        statusId: statusId,
+      };
+
+      await request(app.getHttpServer())
+        .post('/api/tasks')
+        .set('Authorization', `Bearer ${unauthorizedToken}`)
+        .send(createDto)
+        .expect(HttpStatus.FORBIDDEN);
+
+      // Cleanup unauthorized user
+      await prismaService.user.delete({ where: { id: unauthorizedUser.id } });
+    });
+
+    it('should return 403 when project not found or no access', async () => {
+      // Note: When project doesn't exist, access control check fails first with 403
+      // This is because getProjectAccess returns false for non-existent projects
+      const invalidProjectId = '00000000-0000-0000-0000-000000000000';
+      const createDto: CreateTaskDto = {
+        title: 'Invalid Project Task',
+        projectId: invalidProjectId,
+        statusId: statusId,
+      };
+
+      return request(app.getHttpServer())
+        .post('/api/tasks')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(createDto)
+        .expect(HttpStatus.FORBIDDEN);
+    });
+
+    it('should return 400 when start date is after due date', async () => {
+      const createDto: CreateTaskDto = {
+        title: 'Invalid Dates Task',
+        projectId: projectId,
+        statusId: statusId,
+        startDate: new Date(Date.now() + 86400000 * 10).toISOString(), // 10 days in future
+        dueDate: new Date(Date.now() + 86400000).toISOString(), // 1 day in future
+      };
+
+      return request(app.getHttpServer())
+        .post('/api/tasks')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(createDto)
+        .expect(HttpStatus.BAD_REQUEST)
+        .expect((res) => {
+          expect(res.body.message).toContain('Start date must be before the due date');
+        });
+    });
+
+    it('should auto-assign default sprint when sprintId not provided', async () => {
+      // Create a default sprint for this project
+      const defaultSprint = await prismaService.sprint.create({
+        data: {
+          name: 'Default Sprint',
+          projectId: projectId,
+          status: 'ACTIVE',
+          isDefault: true,
+        },
+      });
+
+      const createDto: CreateTaskDto = {
+        title: 'Auto Sprint Task',
+        projectId: projectId,
+        statusId: statusId,
+        // No sprintId provided - should use default
+      };
+
+      return request(app.getHttpServer())
+        .post('/api/tasks')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(createDto)
+        .expect(HttpStatus.CREATED)
+        .expect((res) => {
+          expect(res.body).toHaveProperty('id');
+          expect(res.body.title).toBe(createDto.title);
+          expect(res.body.sprintId).toBe(defaultSprint.id);
+        });
+    });
   });
 
   describe('/tasks (GET)', () => {
