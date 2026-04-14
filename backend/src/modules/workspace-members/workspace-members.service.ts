@@ -638,6 +638,66 @@ export class WorkspaceMembersService {
     });
   }
 
+  async bulkRemove(memberIds: string[], actorId: string): Promise<{ removed: number }> {
+    if (!memberIds.length) {
+      throw new BadRequestException('No member IDs provided');
+    }
+    const members = await this.prisma.workspaceMember.findMany({
+      where: { id: { in: memberIds } },
+      include: {
+        workspace: {
+          select: {
+            id: true,
+            organizationId: true,
+            organization: { select: { ownerId: true } },
+          },
+        },
+      },
+    });
+
+    if (members.length === 0) {
+      throw new NotFoundException('No workspace members found for the given IDs');
+    }
+
+    const workspaceIds = [...new Set(members.map((m) => m.workspaceId))];
+    if (workspaceIds.length > 1) {
+      throw new BadRequestException('All members must belong to the same workspace');
+    }
+
+    const workspaceId = workspaceIds[0];
+
+    const selfMember = members.find((m) => m.userId === actorId);
+    if (selfMember) {
+      throw new BadRequestException('Cannot include yourself in bulk removal');
+    }
+
+    await this.checkActorPermissions(actorId, workspaceId, Role.MANAGER);
+
+    await this.prisma.$transaction(async (prisma) => {
+      const projects = await prisma.project.findMany({
+        where: { workspaceId },
+        select: { id: true },
+      });
+      const projectIds = projects.map((p) => p.id);
+      const userIds = members.map((m) => m.userId);
+
+      if (projectIds.length > 0) {
+        await prisma.projectMember.deleteMany({
+          where: {
+            userId: { in: userIds },
+            projectId: { in: projectIds },
+          },
+        });
+      }
+
+      await prisma.workspaceMember.deleteMany({
+        where: { id: { in: memberIds } },
+      });
+    });
+
+    return { removed: members.length };
+  }
+
   async getUserWorkspaces(userId: string, actorId?: string): Promise<WorkspaceMember[]> {
     if (actorId && userId !== actorId) {
       const actor = await this.prisma.user.findUnique({

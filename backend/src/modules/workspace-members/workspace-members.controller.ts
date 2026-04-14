@@ -144,4 +144,22 @@ export class WorkspaceMembersController {
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: User) {
     return this.workspaceMembersService.remove(id, user.id);
   }
+
+  @Post('bulk-remove')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Remove multiple members from workspace' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        memberIds: { type: 'array', items: { type: 'string', format: 'uuid' } },
+      },
+      required: ['memberIds'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Members removed successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request' })
+  bulkRemove(@Body() body: { memberIds: string[] }, @CurrentUser() user: User) {
+    return this.workspaceMembersService.bulkRemove(body.memberIds, user.id);
+  }
 }
