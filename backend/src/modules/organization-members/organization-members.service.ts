@@ -767,6 +767,106 @@ export class OrganizationMembersService {
     });
   }
 
+  async bulkRemove(memberIds: string[], requestUserId: string): Promise<{ removed: number }> {
+    if (!memberIds.length) {
+      throw new BadRequestException('No member IDs provided');
+    }
+
+    const members = await this.prisma.organizationMember.findMany({
+      where: { id: { in: memberIds } },
+      include: {
+        organization: {
+          select: { id: true, ownerId: true },
+        },
+      },
+    });
+
+    if (members.length === 0) {
+      throw new NotFoundException('No organization members found for the given IDs');
+    }
+
+    const orgIds = [...new Set(members.map((m) => m.organizationId))];
+    if (orgIds.length > 1) {
+      throw new BadRequestException('All members must belong to the same organization');
+    }
+
+    const organizationId = orgIds[0];
+    const organization = members[0].organization;
+
+    if (members.some((m) => m.userId === requestUserId)) {
+      throw new BadRequestException('Cannot include yourself in bulk removal');
+    }
+
+    if (members.some((m) => m.userId === organization.ownerId)) {
+      throw new BadRequestException('Cannot remove organization owner');
+    }
+
+    const requestUser = await this.prisma.user.findUnique({
+      where: { id: requestUserId },
+      select: { role: true },
+    });
+    const isSuperAdmin = requestUser?.role === OrganizationRole.SUPER_ADMIN;
+
+    if (!isSuperAdmin) {
+      const requesterMember = await this.prisma.organizationMember.findUnique({
+        where: {
+          userId_organizationId: { userId: requestUserId, organizationId },
+        },
+      });
+
+      if (!requesterMember) {
+        throw new ForbiddenException('You are not a member of this organization');
+      }
+
+      const isOwner = organization.ownerId === requestUserId;
+      const isAdmin = hasRequiredRole(requesterMember.role, OrganizationRole.MANAGER);
+
+      if (!isOwner && !isAdmin) {
+        throw new ForbiddenException('Only organization owners and admins can bulk remove members');
+      }
+    }
+
+    const userIds = members.map((m) => m.userId);
+
+    await this.prisma.$transaction(async (prisma) => {
+      const workspaces = await prisma.workspace.findMany({
+        where: { organizationId },
+        select: { id: true },
+      });
+      const workspaceIds = workspaces.map((w) => w.id);
+
+      if (workspaceIds.length > 0) {
+        const projects = await prisma.project.findMany({
+          where: { workspaceId: { in: workspaceIds } },
+          select: { id: true },
+        });
+        const projectIds = projects.map((p) => p.id);
+
+        if (projectIds.length > 0) {
+          await prisma.projectMember.deleteMany({
+            where: {
+              userId: { in: userIds },
+              projectId: { in: projectIds },
+            },
+          });
+        }
+
+        await prisma.workspaceMember.deleteMany({
+          where: {
+            userId: { in: userIds },
+            workspaceId: { in: workspaceIds },
+          },
+        });
+      }
+
+      await prisma.organizationMember.deleteMany({
+        where: { id: { in: memberIds } },
+      });
+    });
+
+    return { removed: members.length };
+  }
+
   async getUserOrganizations(userId: string, requestUserId?: string) {
     // 1. Get the requester to check their role
     let requesterRole = 'MEMBER';

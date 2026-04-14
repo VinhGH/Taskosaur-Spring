@@ -23,9 +23,10 @@ import {
 } from "@/components/ui/dialog";
 import ConfirmationModal from "@/components/modals/ConfirmationModal";
 import { toast } from "sonner";
-import { HiMagnifyingGlass, HiPlus, HiUsers, HiXMark } from "react-icons/hi2";
+import { HiMagnifyingGlass, HiPlus, HiUsers, HiXMark, HiTrash } from "react-icons/hi2";
 import { HiMail } from "react-icons/hi";
 import { invitationApi } from "@/utils/api/invitationsApi";
+import { organizationApi } from "@/utils/api/organizationApi";
 import { OrganizationMember, OrganizationRole } from "@/types";
 import Tooltip from "../common/ToolTip";
 import { X } from "lucide-react";
@@ -68,6 +69,9 @@ export default function OrganizationMembers({
     role: "",
     message: "",
   });
+  const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
+  const [bulkRemoving, setBulkRemoving] = useState(false);
+  const [showBulkRemoveConfirm, setShowBulkRemoveConfirm] = useState(false);
 
   const availableRoles = [
     {
@@ -268,6 +272,46 @@ export default function OrganizationMembers({
     });
   };
 
+  const toggleMemberSelection = (memberId: string) => {
+    setSelectedMembers((prev) => {
+      const next = new Set(prev);
+      if (next.has(memberId)) {
+        next.delete(memberId);
+      } else {
+        next.add(memberId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const selectableMembers = members.filter(
+      (m) => m.userId !== getCurrentUserId() && canRemoveMember(m)
+    );
+    if (selectedMembers.size === selectableMembers.length && selectableMembers.length > 0) {
+      setSelectedMembers(new Set());
+    } else {
+      setSelectedMembers(new Set(selectableMembers.map((m) => m.id)));
+    }
+  };
+
+  const handleBulkRemove = async () => {
+    if (selectedMembers.size === 0) return;
+    try {
+      setBulkRemoving(true);
+      await organizationApi.bulkRemoveOrganizationMembers(Array.from(selectedMembers));
+      toast.success(t("org_members.member_removed"));
+      setSelectedMembers(new Set());
+      setShowBulkRemoveConfirm(false);
+      onMembersChange();
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.message || err?.message || "Failed to remove members";
+      toast.error(errorMessage);
+    } finally {
+      setBulkRemoving(false);
+    }
+  };
+
   return (
     <div className="organizations-members-container">
       <CardHeader className="organizations-members-header">
@@ -338,6 +382,16 @@ export default function OrganizationMembers({
                   {t("org_members.invite_member")}
                 </Button>
               </div>
+              {selectedMembers.size > 0 && (
+                <Button
+                  onClick={() => setShowBulkRemoveConfirm(true)}
+                  disabled={bulkRemoving}
+                  className="h-9 px-4 border-none bg-[var(--destructive)] text-white hover:bg-[var(--destructive)]/90 hover:shadow-md transition-all duration-200 font-medium rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <HiTrash className="size-4" />
+                  Remove ({selectedMembers.size})
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -346,7 +400,20 @@ export default function OrganizationMembers({
       <div className="organizations-members-table overflow-x-auto">
         <div className="organizations-members-table-header">
           <div className="organizations-members-table-header-grid">
-            <div className="col-span-4">{t("org_members.table_member")}</div>
+            {canManageMembers && (
+              <div className="col-span-1 flex items-center">
+                <input
+                  type="checkbox"
+                  checked={
+                    members.filter((m) => m.userId !== getCurrentUserId() && canRemoveMember(m)).length > 0 &&
+                    selectedMembers.size === members.filter((m) => m.userId !== getCurrentUserId() && canRemoveMember(m)).length
+                  }
+                  onChange={toggleSelectAll}
+                  className="w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)]"
+                />
+              </div>
+            )}
+            <div className={canManageMembers ? "col-span-3" : "col-span-4"}>{t("org_members.table_member")}</div>
             <div className="col-span-2">{t("org_members.table_status")}</div>
             <div className="col-span-2">{t("org_members.table_joined")}</div>
             <div className="col-span-2">{t("org_members.table_role")}</div>
@@ -360,9 +427,23 @@ export default function OrganizationMembers({
             const isCurrentUser = member.userId === getCurrentUserId() && isCurrentUserOwner;
             const canRemove = canRemoveMember(member);
             return (
-              <div key={member.id} className="organizations-members-row">
+              <div key={member.id} className={`organizations-members-row ${selectedMembers.has(member.id) ? 'bg-[var(--primary)]/5' : ''}`}>
                 <div className="organizations-members-row-grid">
-                  <div className="organizations-member-info">
+                  {canManageMembers && (
+                    <div className="col-span-1 flex items-center">
+                      {!isCurrentUser && canRemove ? (
+                        <input
+                          type="checkbox"
+                          checked={selectedMembers.has(member.id)}
+                          onChange={() => toggleMemberSelection(member.id)}
+                          className="w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)]"
+                        />
+                      ) : (
+                        <div className="w-4" />
+                      )}
+                    </div>
+                  )}
+                  <div className={canManageMembers ? "col-span-3" : "organizations-member-info"}>
                     <div className="organizations-member-info-content">
                       <UserAvatar
                         user={{
@@ -674,6 +755,18 @@ export default function OrganizationMembers({
               })
           }
           confirmText={memberToRemove.userId === getCurrentUserId() ? t("org_members.confirm_leave") : t("org_members.confirm_remove")}
+          cancelText={t("common.cancel")}
+        />
+      )}
+
+      {showBulkRemoveConfirm && (
+        <ConfirmationModal
+          isOpen={true}
+          onClose={() => setShowBulkRemoveConfirm(false)}
+          onConfirm={handleBulkRemove}
+          title={`Remove ${selectedMembers.size} member${selectedMembers.size !== 1 ? "s" : ""}?`}
+          message={`Are you sure you want to remove ${selectedMembers.size} member${selectedMembers.size !== 1 ? "s" : ""} from this organization? They will also be removed from all workspaces and projects.`}
+          confirmText={bulkRemoving ? "Removing..." : "Remove All"}
           cancelText={t("common.cancel")}
         />
       )}

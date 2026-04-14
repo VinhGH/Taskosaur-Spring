@@ -151,6 +151,23 @@ export class OrganizationMembersController {
     return this.organizationMembersService.remove(id, user.id);
   }
 
+  @Post('bulk-remove')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Remove multiple members from organization' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        memberIds: { type: 'array', items: { type: 'string', format: 'uuid' } },
+      },
+      required: ['memberIds'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Members removed successfully' })
+  bulkRemove(@Body() body: { memberIds: string[] }, @CurrentUser() user: AuthenticatedUser) {
+    return this.organizationMembersService.bulkRemove(body.memberIds, user.id);
+  }
+
   @Get('user/:userId/organizations')
   @ApiOperation({ summary: 'Get all organizations for a user' })
   @ApiParam({ name: 'userId', description: 'User ID (UUID)' })

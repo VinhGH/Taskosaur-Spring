@@ -228,6 +228,21 @@ export const organizationApi = {
     }
   },
 
+  bulkRemoveOrganizationMembers: async (
+    memberIds: string[]
+  ): Promise<{ removed: number }> => {
+    try {
+      const response = await api.post<{ removed: number }>(
+        "/organization-members/bulk-remove",
+        { memberIds }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Bulk remove organization members error:", error);
+      throw error;
+    }
+  },
+
   deleteOrganization: async (organizationId: string): Promise<void> => {
     try {
       await api.delete(`/organizations/${organizationId}`);
