@@ -301,7 +301,7 @@ export default function WorkspacesPageContent({ organizationId }: WorkspacesPage
 
         {workspaces.length > 0 && (
           <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full min-h-[48px] flex items-center justify-center pb-4 pointer-events-none">
-            <p className="flex items-center gap-2 text-sm text-[var(--muted-foreground)] pointer-events-auto">
+            <div className="flex items-center gap-2 text-sm text-[var(--muted-foreground)] pointer-events-auto">
               {isLoading ? (
                 <div className="w-4 h-4 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
               ) : (
@@ -318,7 +318,7 @@ export default function WorkspacesPageContent({ organizationId }: WorkspacesPage
                   )}
                 </>
               )}
-            </p>
+            </div>
           </div>
         )}
       </div>
