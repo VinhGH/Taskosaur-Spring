@@ -904,6 +904,90 @@ export class ProjectMembersService {
     });
   }
 
+  async bulkRemove(memberIds: string[], requestUserId: string): Promise<{ removed: number }> {
+    if (!memberIds.length) {
+      throw new BadRequestException('No member IDs provided');
+    }
+
+    const members = await this.prisma.projectMember.findMany({
+      where: { id: { in: memberIds } },
+      include: {
+        project: {
+          select: {
+            id: true,
+            workspaceId: true,
+            workspace: {
+              select: {
+                organizationId: true,
+                organization: { select: { ownerId: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (members.length === 0) {
+      throw new NotFoundException('No project members found for the given IDs');
+    }
+
+    const projectIds = [...new Set(members.map((m) => m.projectId))];
+    if (projectIds.length > 1) {
+      throw new BadRequestException('All members must belong to the same project');
+    }
+
+    if (members.some((m) => m.userId === requestUserId)) {
+      throw new BadRequestException('Cannot include yourself in bulk removal');
+    }
+
+    const project = members[0].project;
+    const actor = await this.prisma.user.findUnique({
+      where: { id: requestUserId },
+      select: { role: true },
+    });
+
+    const isSuperAdmin = actor?.role === 'SUPER_ADMIN';
+
+    if (!isSuperAdmin) {
+      const [requesterProjectMember, requesterWorkspaceMember, requesterOrgMember] =
+        await Promise.all([
+          this.prisma.projectMember.findUnique({
+            where: { userId_projectId: { userId: requestUserId, projectId: project.id } },
+          }),
+          this.prisma.workspaceMember.findUnique({
+            where: {
+              userId_workspaceId: { userId: requestUserId, workspaceId: project.workspaceId },
+            },
+          }),
+          this.prisma.organizationMember.findUnique({
+            where: {
+              userId_organizationId: {
+                userId: requestUserId,
+                organizationId: project.workspace.organizationId,
+              },
+            },
+          }),
+        ]);
+
+      const isOrgOwner = project.workspace.organization.ownerId === requestUserId;
+      const isOrgAdmin = requesterOrgMember?.role === 'OWNER';
+      const isWorkspaceAdmin =
+        requesterWorkspaceMember?.role === 'OWNER' || requesterWorkspaceMember?.role === 'MANAGER';
+      const isProjectAdmin =
+        requesterProjectMember?.role === 'OWNER' || requesterProjectMember?.role === 'MANAGER';
+
+      if (!isOrgOwner && !isOrgAdmin && !isWorkspaceAdmin && !isProjectAdmin) {
+        throw new ForbiddenException('Only admins can bulk remove members');
+      }
+    }
+
+    await this.prisma.projectMember.deleteMany({
+      where: { id: { in: memberIds } },
+    });
+
+    return { removed: members.length };
+  }
+
   async getUserProjects(userId: string, requestUserId: string): Promise<ProjectMember[]> {
     // Users can always view their own projects
     if (userId === requestUserId) {

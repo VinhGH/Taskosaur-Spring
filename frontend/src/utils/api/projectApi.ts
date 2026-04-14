@@ -328,6 +328,21 @@ export const projectApi = {
       throw error;
     }
   },
+
+  bulkRemoveProjectMembers: async (
+    memberIds: string[]
+  ): Promise<{ removed: number }> => {
+    try {
+      const response = await api.post<{ removed: number }>(
+        "/project-members/bulk-remove",
+        { memberIds }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Bulk remove project members error:", error);
+      throw error;
+    }
+  },
   getMultipleCharts: async (
     projectSlug: string,
     chartTypes: ProjectChartType[],

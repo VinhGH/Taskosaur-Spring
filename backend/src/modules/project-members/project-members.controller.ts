@@ -164,4 +164,21 @@ export class ProjectMembersController {
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.projectMembersService.remove(id, user.id);
   }
+
+  @Post('bulk-remove')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Remove multiple members from project' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        memberIds: { type: 'array', items: { type: 'string', format: 'uuid' } },
+      },
+      required: ['memberIds'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Members removed successfully' })
+  bulkRemove(@Body() body: { memberIds: string[] }, @CurrentUser() user: AuthenticatedUser) {
+    return this.projectMembersService.bulkRemove(body.memberIds, user.id);
+  }
 }

@@ -24,7 +24,9 @@ import {
   HiCog,
   HiFolder,
   HiXMark,
+  HiTrash,
 } from "react-icons/hi2";
+import { projectApi } from "@/utils/api/projectApi";
 import { useWorkspaceContext } from "@/contexts/workspace-context";
 import { useProjectContext } from "@/contexts/project-context";
 import { useAuth } from "@/contexts/auth-context";
@@ -147,6 +149,9 @@ function ProjectMembersContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalMembers, setTotalMembers] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
+  const [bulkRemoving, setBulkRemoving] = useState(false);
+  const [showBulkRemoveConfirm, setShowBulkRemoveConfirm] = useState(false);
   useEffect(() => {
     if (!workspace?.id) return;
     getUserAccess({ name: "workspace", id: workspace?.id })
@@ -551,6 +556,46 @@ function ProjectMembersContent() {
     }
   };
 
+  const toggleMemberSelection = (memberId: string) => {
+    setSelectedMembers((prev) => {
+      const next = new Set(prev);
+      if (next.has(memberId)) {
+        next.delete(memberId);
+      } else {
+        next.add(memberId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const selectableMembers = activeMembers.filter(
+      (m) => m.userId !== getCurrentUserId() && canRemoveMember(m)
+    );
+    if (selectedMembers.size === selectableMembers.length && selectableMembers.length > 0) {
+      setSelectedMembers(new Set());
+    } else {
+      setSelectedMembers(new Set(selectableMembers.map((m) => m.id)));
+    }
+  };
+
+  const handleBulkRemove = async () => {
+    if (selectedMembers.size === 0) return;
+    try {
+      setBulkRemoving(true);
+      await projectApi.bulkRemoveProjectMembers(Array.from(selectedMembers));
+      toast.success(t("member_removed_success"));
+      setSelectedMembers(new Set());
+      setShowBulkRemoveConfirm(false);
+      await refreshMembers();
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.message || err?.message || "Failed to remove members";
+      toast.error(errorMessage);
+    } finally {
+      setBulkRemoving(false);
+    }
+  };
+
   const handleInvite = async (email: string, role: string) => {
     if (!project) {
       toast.error(t("project_not_found_for_invite"));
@@ -622,17 +667,29 @@ function ProjectMembersContent() {
         }
         actions={
           hasAccess && (
-            <ActionButton
-              primary
-              onClick={() => setShowInviteModal(true)}
-              showPlusIcon={true}
-              disabled={inviteLoading}
-            >
-              {inviteLoading ? (
-                <div className="w-4 h-4 border-2 border-[var(--primary-foreground)] border-t-transparent rounded-full animate-spin mr-2"></div>
-              ) : null}
-              {t("invite_member")}
-            </ActionButton>
+            <div className="flex items-center gap-2">
+              {selectedMembers.size > 0 && (
+                <Button
+                  onClick={() => setShowBulkRemoveConfirm(true)}
+                  disabled={bulkRemoving}
+                  className="h-9 px-4 border-none bg-[var(--destructive)] text-white hover:bg-[var(--destructive)]/90 hover:shadow-md transition-all duration-200 font-medium rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <HiTrash className="size-4" />
+                  Remove ({selectedMembers.size})
+                </Button>
+              )}
+              <ActionButton
+                primary
+                onClick={() => setShowInviteModal(true)}
+                showPlusIcon={true}
+                disabled={inviteLoading}
+              >
+                {inviteLoading ? (
+                  <div className="w-4 h-4 border-2 border-[var(--primary-foreground)] border-t-transparent rounded-full animate-spin mr-2"></div>
+                ) : null}
+                {t("invite_member")}
+              </ActionButton>
+            </div>
           )
         }
       />
@@ -676,7 +733,20 @@ function ProjectMembersContent() {
                 {/* Table Header - Desktop Only */}
                 <div className="hidden lg:block px-4 py-3 bg-[var(--muted)]/30 border-b border-[var(--border)]">
                   <div className="grid grid-cols-12 gap-3 text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wide">
-                    <div className="col-span-4">{t("table_member")}</div>
+                    {hasAccess && (
+                      <div className="col-span-1 flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={
+                            activeMembers.filter((m) => m.userId !== getCurrentUserId() && canRemoveMember(m)).length > 0 &&
+                            selectedMembers.size === activeMembers.filter((m) => m.userId !== getCurrentUserId() && canRemoveMember(m)).length
+                          }
+                          onChange={toggleSelectAll}
+                          className="w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)]"
+                        />
+                      </div>
+                    )}
+                    <div className={hasAccess ? "col-span-3" : "col-span-4"}>{t("table_member")}</div>
                     <div className="col-span-2">{t("table_status")}</div>
                     <div className="col-span-2">{t("table_joined")}</div>
                     <div className="col-span-2">{t("table_role")}</div>
@@ -806,11 +876,26 @@ function ProjectMembersContent() {
                             </div>
                           </div>
 
-                          {/* Desktop Layout (>= lg) - EXACT ORIGINAL */}
-                          <div className="hidden lg:block px-4 py-3 hover:bg-[var(--accent)]/30 transition-colors">
+                          {/* Desktop Layout (>= lg) */}
+                          <div className={`hidden lg:block px-4 py-3 hover:bg-[var(--accent)]/30 transition-colors ${selectedMembers.has(member.id) ? 'bg-[var(--primary)]/5' : ''}`}>
                             <div className="grid grid-cols-12 gap-3 items-center">
+                              {/* Checkbox */}
+                              {hasAccess && (
+                                <div className="col-span-1 flex items-center">
+                                  {!isCurrentUser && canRemove ? (
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedMembers.has(member.id)}
+                                      onChange={() => toggleMemberSelection(member.id)}
+                                      className="w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)]"
+                                    />
+                                  ) : (
+                                    <div className="w-4" />
+                                  )}
+                                </div>
+                              )}
                               {/* Member Info */}
-                              <div className="col-span-4">
+                              <div className={hasAccess ? "col-span-3" : "col-span-4"}>
                                 <div className="flex items-center gap-3">
                                   <UserAvatar
                                     user={{
@@ -1048,6 +1133,18 @@ function ProjectMembersContent() {
               : t("remove_confirm_message")
           }
           confirmText={memberToRemove.userId === getCurrentUserId() ? t("confirm_leave") : t("confirm_remove")}
+          cancelText={t("cancel")}
+        />
+      )}
+
+      {showBulkRemoveConfirm && (
+        <ConfirmationModal
+          isOpen={true}
+          onClose={() => setShowBulkRemoveConfirm(false)}
+          onConfirm={handleBulkRemove}
+          title={`Remove ${selectedMembers.size} member${selectedMembers.size !== 1 ? "s" : ""}?`}
+          message={`Are you sure you want to remove ${selectedMembers.size} member${selectedMembers.size !== 1 ? "s" : ""} from this project?`}
+          confirmText={bulkRemoving ? "Removing..." : "Remove All"}
           cancelText={t("cancel")}
         />
       )}
