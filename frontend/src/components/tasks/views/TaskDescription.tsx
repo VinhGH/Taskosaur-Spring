@@ -11,6 +11,7 @@ interface TaskDescriptionProps {
   editMode?: boolean;
   onSaveRequest?: (newValue: string) => void;
   emailThreadId?: boolean | null;
+  mentions?: any[];
 }
 
 const TaskDescription: React.FC<TaskDescriptionProps> = ({
@@ -19,6 +20,7 @@ const TaskDescription: React.FC<TaskDescriptionProps> = ({
   editMode = true,
   onSaveRequest,
   emailThreadId,
+  mentions = [],
 }) => {
   const { resolvedTheme } = useTheme();
   const [colorMode, setColorMode] = useState<"light" | "dark">("light");
@@ -189,6 +191,7 @@ const TaskDescription: React.FC<TaskDescriptionProps> = ({
           height={420}
           colorMode={colorMode}
           onModeChange={handleModeChange}
+          mentions={mentions}
         />
       </div>
     );

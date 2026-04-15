@@ -65,6 +65,7 @@ interface TaskCommentsProps {
   onTaskRefetch?: () => void;
   hasAccess?: boolean;
   setLoading?: (loading: boolean) => void;
+  mentions?: any[];
 }
 
 interface CommentWithAuthor extends TaskComment {
@@ -289,6 +290,7 @@ export default function TaskComments({
   onTaskRefetch,
   hasAccess = false,
   setLoading,
+  mentions = [],
 }: TaskCommentsProps) {
   const { isAuthenticated } = useAuth();
   const isAuth = isAuthenticated();
@@ -824,6 +826,7 @@ export default function TaskComments({
               height={200}
               colorMode={colorMode}
               disabled={isSubmitting}
+              mentions={mentions}
             />
             <div className="flex justify-end gap-2 mt-2">
               {editingCommentId && (

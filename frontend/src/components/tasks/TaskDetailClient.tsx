@@ -311,7 +311,7 @@ export default function TaskDetailClient({
                 email: member.user.email,
                 avatar: (member.user as any).avatar || null,
                 role: member.role,
-                username: `${member.user.firstName} ${member.user.lastName}`,
+                username: (member.user as any).username || `${member.user.firstName} ${member.user.lastName}`.replace(/\s+/g, ''),
                 status: (member.user as any).status || "active",
               }));
             setProjectMembers(validMembers);
@@ -1130,6 +1130,7 @@ export default function TaskDetailClient({
                     value={editTaskData.description}
                     onChange={(value) => handleTaskFieldChange("description", value)}
                     editMode={true}
+                    mentions={projectMembers.map(m => ({ id: m.id, label: m.username, avatar: m.avatar, email: m.email }))}
                   />
                   <div className="flex items-center justify-end gap-4 mt-4">
                     <ActionButton
@@ -1157,6 +1158,7 @@ export default function TaskDetailClient({
                   onChange={(value) => handleTaskFieldChange("description", value)}
                   onSaveRequest={handleCheckboxSave}
                   emailThreadId={task.emailThreadId}
+                  mentions={projectMembers.map(m => ({ id: m.id, label: m.username, avatar: m.avatar, email: m.email }))}
                 />
               )}
             </div>
@@ -1206,6 +1208,7 @@ export default function TaskDetailClient({
                 }}
                 hasAccess={hasAccess}
                 setLoading={setLoadingComments}
+                mentions={projectMembers.map(m => ({ id: m.id, label: m.username, avatar: m.avatar, email: m.email }))}
               />
             </div>
           </div>

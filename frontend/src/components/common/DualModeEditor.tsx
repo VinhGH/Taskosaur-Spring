@@ -28,6 +28,8 @@ import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Underline from "@tiptap/extension-underline";
 import { UploadPlaceholder } from "@/lib/tiptap/upload-placeholder";
+import Mention from "@tiptap/extension-mention";
+import getMentionSuggestion from "./mention/suggestion";
 
 // Dynamically import MDEditor to avoid SSR issues
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false });
@@ -70,6 +72,7 @@ interface DualModeEditorProps {
   colorMode?: "light" | "dark";
   disabled?: boolean;
   onModeChange?: (mode: EditorMode) => void;
+  mentions?: any[];
 }
 
 /**
@@ -129,6 +132,15 @@ function markdownToHtml(markdown: string): string {
     .replace(/^\s*\d+\.\s+(.*$)/gm, "<li>$1</li>")
     // Blockquotes
     .replace(/^>\s*(.*$)/gm, "<blockquote>$1</blockquote>")
+    // Links (handling mentions specifically if text starts with @)
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
+      if (text.startsWith("@")) {
+        const idMatch = url.match(/\/members.*$/) || url.match(/#user-([a-zA-Z0-9-]+)/);
+        const id = idMatch && idMatch[1] ? idMatch[1] : "unknown";
+        return `<a href="${url}" class="mention text-blue-500 font-medium cursor-pointer hover:underline" data-type="mention" data-id="${id}">${text}</a>`;
+      }
+      return `<a href="${url}">${text}</a>`;
+    })
     // Line breaks
     .replace(/\n/g, "<br>");
 
@@ -207,6 +219,7 @@ interface RichTextEditorInnerProps {
   placeholder: string;
   height: number;
   disabled: boolean;
+  mentions?: any[];
 }
 
 function RichTextEditorInner({
@@ -215,6 +228,7 @@ function RichTextEditorInner({
   placeholder,
   height,
   disabled,
+  mentions = [],
 }: RichTextEditorInnerProps) {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -228,6 +242,12 @@ function RichTextEditorInner({
       Underline,
       Image.configure({ inline: false, allowBase64: false }),
       UploadPlaceholder,
+      Mention.configure({
+        HTMLAttributes: {
+          class: "mention text-blue-500 font-medium cursor-pointer hover:underline",
+        },
+        suggestion: getMentionSuggestion(mentions),
+      }),
     ],
     content: value || "",
     editable: !disabled,
@@ -514,6 +534,7 @@ const DualModeEditor = forwardRef<DualModeEditorHandle, DualModeEditorProps>(fun
   colorMode = "light",
   disabled = false,
   onModeChange,
+  mentions = [],
 }, ref) {
   const [mode, setMode] = useState<EditorMode>("markdown");
   const [markdownValue, setMarkdownValue] = useState<string>("");
@@ -918,6 +939,7 @@ const DualModeEditor = forwardRef<DualModeEditorHandle, DualModeEditorProps>(fun
           placeholder={placeholder}
           height={height}
           disabled={disabled}
+          mentions={mentions}
         />
       )}
     </div>

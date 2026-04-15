@@ -174,7 +174,7 @@ export class TaskCommentsService {
     notifiedUserIds.add(authorId); // Don't notify author
 
     // 2. Handle Mentions
-    const mentionRegex = /(?:^|\s)@([\w.-]+)\b/g;
+    const mentionRegex = /(?:^|\s|>|\[)@([\w.-]+)\b/g;
     const matches = [...comment.content.matchAll(mentionRegex)];
     const usernames = [...new Set(matches.map((m) => m[1]))];
 
