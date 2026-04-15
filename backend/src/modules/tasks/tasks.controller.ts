@@ -720,6 +720,39 @@ export class TasksController {
     );
   }
 
+  @Patch('reorder/bulk')
+  @ApiOperation({
+    summary: 'Reorder tasks by updating display order',
+    description:
+      'Updates the display_order field for multiple tasks at once. Used for drag-and-drop reordering.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        tasks: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', format: 'uuid' },
+              displayOrder: { type: 'number' },
+            },
+            required: ['id', 'displayOrder'],
+          },
+        },
+      },
+      required: ['tasks'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Tasks reordered successfully' })
+  async bulkReorder(
+    @Body('tasks') tasks: { id: string; displayOrder: number }[],
+    @CurrentUser() user: User,
+  ) {
+    return this.tasksService.bulkReorder(tasks, user.id);
+  }
+
   @Patch(':id')
   @LogActivity({
     type: 'TASK_UPDATED',

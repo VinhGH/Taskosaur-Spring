@@ -301,6 +301,8 @@ model Task {
   isArchived        Boolean      @default(false) @map("is_archived")
   archivedBy        String?      @map("archived_by") @db.Uuid
 
+  displayOrder      Float?       @map("display_order")
+
   // Inbox Integration
   inboxMessageId    String? @unique @map("inbox_message_id") @db.Uuid
   emailThreadId     String? @map("email_thread_id")

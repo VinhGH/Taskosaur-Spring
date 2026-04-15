@@ -267,6 +267,8 @@ export const taskApi = {
       priorities?: string;
       statuses?: string;
       search?: string;
+      sortBy?: string;
+      sortOrder?: string;
       page?: number;
       limit?: number;
     }
@@ -291,6 +293,10 @@ export const taskApi = {
       if (params?.priorities) queryParams.append("priorities", params.priorities);
       if (params?.statuses) queryParams.append("statuses", params.statuses);
       if (params?.search) queryParams.append("search", params.search);
+
+      // Sorting
+      if (params?.sortBy) queryParams.append("sortBy", params.sortBy);
+      if (params?.sortOrder) queryParams.append("sortOrder", params.sortOrder);
 
       // Pagination
       if (params?.page !== undefined) queryParams.append("page", String(params.page));
@@ -559,6 +565,16 @@ export const taskApi = {
       return response.data;
     } catch (error) {
       console.error("Update task error:", error);
+      throw error;
+    }
+  },
+
+  reorderTasks: async (tasks: { id: string; displayOrder: number }[]): Promise<{ id: string; displayOrder: number }[]> => {
+    try {
+      const response = await api.patch<{ id: string; displayOrder: number }[]>("/tasks/reorder/bulk", { tasks });
+      return response.data;
+    } catch (error) {
+      console.error("Reorder tasks error:", error);
       throw error;
     }
   },
