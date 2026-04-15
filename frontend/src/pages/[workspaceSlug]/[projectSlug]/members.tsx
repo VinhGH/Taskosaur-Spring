@@ -157,7 +157,6 @@ function ProjectMembersContent() {
     getUserAccess({ name: "workspace", id: workspace?.id })
       .then((data) => {
         setHasAccess(
-          data?.canChange ||
           data?.role === "OWNER" ||
           data?.role === "MANAGER" ||
           data?.role === "SUPER_ADMIN"
@@ -174,7 +173,6 @@ function ProjectMembersContent() {
       .then((data) => {
         setUserAccess(data);
         setHasAccess(
-          data?.canChange ||
           data?.role === "OWNER" ||
           data?.role === "MANAGER" ||
           data?.role === "SUPER_ADMIN"
@@ -495,15 +493,6 @@ function ProjectMembersContent() {
     setLoading(true);
   };
 
-  function updateLocalStorageUser(newRole: string) {
-    const tampUser = localStorage.getItem("user");
-    const updateRole = JSON.parse(tampUser);
-    const finalUser = {
-      ...updateRole,
-      role: newRole,
-    };
-    localStorage.setItem("user", JSON.stringify(finalUser));
-  }
 
   const handleRoleUpdate = async (memberId: string, newRole: string) => {
     const currentUser = getCurrentUser();
@@ -515,7 +504,6 @@ function ProjectMembersContent() {
     try {
       setUpdatingMember(memberId);
       await updateProjectMemberRole(memberId, newRole);
-      updateLocalStorageUser(newRole);
       await refreshMembers();
       toast.success(t("role_updated_success"));
     } catch (err) {

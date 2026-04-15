@@ -132,7 +132,7 @@ function WorkspaceMembersContent() {
     if (!workspace?.id) return;
     getUserAccess({ name: "workspace", id: workspace?.id })
       .then((data) => {
-        setHasAccess(data?.canChange || data?.role === "OWNER" || data?.role === "MANAGER");
+        setHasAccess(data?.role === "OWNER" || data?.role === "MANAGER" || data?.role === "SUPER_ADMIN");
         setUserAccess(data);
       })
       .catch((error) => {
@@ -457,16 +457,6 @@ function WorkspaceMembersContent() {
     setLoading(true);
   };
 
-  function updateLocalStorageUser(newRole: string) {
-    const tampUser = localStorage.getItem("user");
-    const updateRole = JSON.parse(tampUser);
-    const finalUser = {
-      ...updateRole,
-      role: newRole,
-    };
-    localStorage.setItem("user", JSON.stringify(finalUser));
-  }
-
   const handleRoleUpdate = async (memberId: string, newRole: string) => {
     const currentUser = getCurrentUser();
     if (!currentUser) {
@@ -478,7 +468,6 @@ function WorkspaceMembersContent() {
       setUpdatingMember(memberId);
       await updateMemberRole(memberId, { role: newRole as any });
       await refreshMembers();
-      updateLocalStorageUser(newRole);
       toast.success(t("role_updated_success"));
     } catch (err) {
       const errorMessage = err.message || "Failed to update role";
