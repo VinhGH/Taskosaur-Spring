@@ -38,7 +38,7 @@ export function RegisterForm() {
   const { resolvedTheme } = useTheme();
 
   const searchParams = useSearchParams();
-  const { register } = useAuth();
+  const { register, checkOrganizationAndRedirect } = useAuth();
   const initialEmail = searchParams.get("email") ?? "";
   const [formData, setFormData] = useState<FormData>({
     firstName: "",
@@ -120,7 +120,9 @@ export function RegisterForm() {
       const response = await register(userData);
 
       if (response.access_token) {
-        router.push("/dashboard");
+        // Check if user has an organization and redirect accordingly
+        const redirectPath = await checkOrganizationAndRedirect();
+        router.push(redirectPath);
       } else {
         router.push("/login?message=Registration successful! Please log in.");
       }

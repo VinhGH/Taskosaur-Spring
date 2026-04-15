@@ -265,12 +265,16 @@ export class OidcService {
       });
     }
 
-    // Check if registration is enabled before creating a new account
-    const registrationValue = await this.settingsService.get('registration_enabled');
-    if (registrationValue === 'false') {
+    // Check if registration is allowed for new users
+    const registrationEnabledValue = await this.settingsService.get('registration_enabled');
+    const registrationEnabled = registrationEnabledValue !== 'false'; // Default to true if null
+
+    if (!registrationEnabled) {
       // Allow SSO auto-registration if explicitly enabled
-      const ssoAutoRegister = await this.settingsService.get('sso_auto_register');
-      if (ssoAutoRegister !== 'true') {
+      const ssoAutoRegisterValue = await this.settingsService.get('sso_auto_register');
+      const ssoAutoRegister = ssoAutoRegisterValue === 'true'; // Default to false if null
+
+      if (!ssoAutoRegister) {
         throw new BadRequestException(
           'User registration is currently disabled. Please contact your administrator to get an account.',
         );

@@ -105,9 +105,11 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
-    // Check if registration is enabled (default: enabled)
-    const registrationValue = await this.settingsService.get('registration_enabled');
-    if (registrationValue === 'false') {
+    // Check if registration is allowed (default: enabled)
+    const registrationEnabledValue = await this.settingsService.get('registration_enabled');
+    const registrationEnabled = registrationEnabledValue !== 'false';
+
+    if (!registrationEnabled) {
       // Allow registration if a valid pending invitation token is provided
       let hasValidInvitation = false;
       if (registerDto.invitationToken) {
@@ -125,7 +127,7 @@ export class AuthService {
       }
       if (!hasValidInvitation) {
         throw new BadRequestException(
-          'User registration is currently disabled. Please contact your administrator.',
+          'User registration is currently disabled. Please contact your administrator to get an account.',
         );
       }
     }
