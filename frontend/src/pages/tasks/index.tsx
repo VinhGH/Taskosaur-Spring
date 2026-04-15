@@ -375,6 +375,8 @@ function TasksPageContent() {
       setGanttLoading(true);
       const data = await getCalendarTask(currentOrganizationId, {
         includeSubtasks: true,
+        sortBy: "displayOrder",
+        sortOrder: "asc",
       });
       setGanttTasks(data || []);
     } catch (error) {
@@ -893,7 +895,7 @@ function TasksPageContent() {
       }
       return (
         <TaskGanttView
-          tasks={sortedTasks}
+          tasks={ganttTasks}
           workspaceSlug={defaultWorkspace.slug}
           projectSlug={defaultProject.slug}
           viewMode={ganttViewMode}

@@ -42,6 +42,7 @@ export interface UpdateTaskRequest {
   projectId?: string;
   allowEmailReplies?: boolean;
   sprintId?: string;
+  displayOrder?: number | null;
 }
 export interface TasksResponse {
   tasks: Task[];

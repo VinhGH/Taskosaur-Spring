@@ -418,6 +418,8 @@ function WorkspaceTasksContent() {
       const data = await getCalendarTask(workspace.organizationId, {
         workspaceId: workspace.id,
         includeSubtasks: true,
+        sortBy: "displayOrder",
+        sortOrder: "asc",
       });
       setGanttTasks(data || []);
       setIsInitialLoad(false);

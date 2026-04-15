@@ -142,6 +142,7 @@ const sprintId = resolvedSprintId;
 
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [isCsvImportOpen, setCsvImportOpen] = useState(false);
+  const [ganttTasks, setGanttTasks] = useState<any[]>([]);
 
   const handleTaskSelect = useCallback((taskId: string) => {
     setSelectedTasks((prev) =>
@@ -458,16 +459,20 @@ const sprintId = resolvedSprintId;
       };
 
       if (isAuth && currentOrganizationId) {
-        await getCalendarTask(currentOrganizationId, {
+        const data = await getCalendarTask(currentOrganizationId, {
           ...params,
           includeSubtasks: true,
+          sortBy: "displayOrder",
+          sortOrder: "asc",
         });
+        setGanttTasks(data || []);
       } else {
         console.warn("Gantt view not available for public access");
       }
       setIsInitialLoad(false);
     } catch (err) {
       console.error("Failed to load Gantt data", err);
+      setGanttTasks([]);
       setIsInitialLoad(false);
     }
   }, [
@@ -891,9 +896,9 @@ const sprintId = resolvedSprintId;
       case "gantt":
         return (
           <TaskGanttView
-            tasks={tasks}
-            workspaceSlug={tasks[0]?.project?.workspace?.slug || ""}
-            projectSlug={tasks[0]?.project?.slug || ""}
+            tasks={ganttTasks}
+            workspaceSlug={ganttTasks[0]?.project?.workspace?.slug || tasks[0]?.project?.workspace?.slug || ""}
+            projectSlug={ganttTasks[0]?.project?.slug || tasks[0]?.project?.slug || ""}
             viewMode={ganttViewMode}
             onViewModeChange={setGanttViewMode}
             onTaskUpdate={handleTaskUpdate}

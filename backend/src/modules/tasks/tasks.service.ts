@@ -608,6 +608,7 @@ export class TasksService {
       if (taskData.completedAt !== undefined) taskCreateData.completedAt = taskData.completedAt;
       if (taskData.allowEmailReplies !== undefined)
         taskCreateData.allowEmailReplies = taskData.allowEmailReplies;
+      if (taskData.displayOrder !== undefined) taskCreateData.displayOrder = taskData.displayOrder;
 
       // Only add assignees if there are any
       if (assigneeIds?.length) {
@@ -787,6 +788,24 @@ export class TasksService {
     return task ? this.flattenTaskRelations(task) : task;
   }
 
+  async bulkReorder(tasks: { id: string; displayOrder: number }[], userId: string) {
+    if (!tasks || tasks.length === 0) {
+      throw new BadRequestException('Tasks array is required and must not be empty');
+    }
+    const updates = tasks.map((task) =>
+      this.prisma.task.update({
+        where: { id: task.id },
+        data: {
+          displayOrder: task.displayOrder,
+          updatedBy: userId,
+        },
+        select: { id: true, displayOrder: true },
+      }),
+    );
+
+    return this.prisma.$transaction(updates);
+  }
+
   async findAll(
     organizationId: string,
     projectId?: string[],
@@ -960,8 +979,14 @@ export class TasksService {
         'storyPoints',
         'title',
         'taskNumber',
+        'displayOrder',
       ];
-      if (validSortFields.includes(sortBy)) {
+      if (sortBy === 'displayOrder') {
+        orderBy = [
+          { displayOrder: { sort: sortOrder === 'asc' ? 'asc' : 'desc', nulls: 'last' } },
+          { taskNumber: 'desc' },
+        ];
+      } else if (validSortFields.includes(sortBy)) {
         orderBy = { [sortBy]: sortOrder === 'asc' ? 'asc' : 'desc' };
       } else if (sortBy === 'status') {
         orderBy = { status: { name: sortOrder === 'asc' ? 'asc' : 'desc' } };
@@ -1274,8 +1299,14 @@ export class TasksService {
         'storyPoints',
         'title',
         'taskNumber',
+        'displayOrder',
       ];
-      if (validSortFields.includes(sortBy)) {
+      if (sortBy === 'displayOrder') {
+        orderBy = [
+          { displayOrder: { sort: sortOrder === 'asc' ? 'asc' : 'desc', nulls: 'last' } },
+          { taskNumber: 'desc' },
+        ];
+      } else if (validSortFields.includes(sortBy)) {
         orderBy = { [sortBy]: sortOrder === 'asc' ? 'asc' : 'desc' };
       } else if (sortBy === 'status') {
         orderBy = { status: { name: sortOrder === 'asc' ? 'asc' : 'desc' } };

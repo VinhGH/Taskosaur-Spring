@@ -135,6 +135,7 @@ function ProjectTasksContent() {
   const [kanbanLimit, setKanbanLimit] = useState(25);
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [ganttTasks, setGanttTasks] = useState<any[]>([]);
 
   const handleTaskSelect = (taskId: string) => {
     setSelectedTasks((prev) =>
@@ -553,14 +554,18 @@ function ProjectTasksContent() {
   const loadGanttData = useCallback(async () => {
     if (!currentOrganizationId || !project?.id || !isAuth) return;
     try {
-      await getCalendarTask(currentOrganizationId, {
+      const data = await getCalendarTask(currentOrganizationId, {
         projectId: project.id,
         workspaceId: workspace.id,
         includeSubtasks: true,
+        sortBy: "displayOrder",
+        sortOrder: "asc",
       });
+      setGanttTasks(data || []);
       setIsInitialLoad(false);
     } catch (error) {
       console.error("Failed to load Gantt data:", error);
+      setGanttTasks([]);
       setIsInitialLoad(false);
     }
   }, [currentOrganizationId, workspace?.id, project?.id, isAuth]);
@@ -1126,7 +1131,7 @@ function ProjectTasksContent() {
         }
         return (
           <TaskGanttView
-            tasks={displayTasks}
+            tasks={ganttTasks}
             workspaceSlug={workspaceSlug as string}
             projectSlug={projectSlug as string}
             viewMode={ganttViewMode}

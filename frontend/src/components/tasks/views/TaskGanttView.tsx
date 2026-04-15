@@ -9,12 +9,130 @@ import { TaskBar } from "@/components/gantt/TaskBar";
 import { TimelineHeader } from "@/components/gantt/TimelineHeader";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui";
 import TaskTableSkeleton from "@/components/skeletons/TaskTableSkeleton";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical } from "lucide-react";
+import { taskApi } from "@/utils/api/taskApi";
 
 const MINIMUM_ROWS = 9;
 
 // Utility to validate slug strings: alphanumeric and dash only
 function sanitizeSlug(slug: string | undefined): string | undefined {
   return slug && /^[a-zA-Z0-9\-]+$/.test(slug) ? slug : undefined;
+}
+
+// Sortable task row wrapper
+function SortableTaskRow({
+  task,
+  isCompact,
+  isOverdue,
+  isHovered,
+  isFocused,
+  safeWorkspaceSlug,
+  safeProjectSlug,
+  timeRange,
+  viewMode,
+  onHover,
+  onFocus,
+  onKeyDown,
+  onTaskUpdate,
+  taskRef,
+}: {
+  task: Task;
+  isCompact: boolean;
+  isOverdue: boolean;
+  isHovered: boolean;
+  isFocused: boolean;
+  safeWorkspaceSlug?: string;
+  safeProjectSlug?: string;
+  timeRange: TimeRange;
+  viewMode: ViewMode;
+  onHover: (id: string | null) => void;
+  onFocus: (id: string | null) => void;
+  onKeyDown: (e: KeyboardEvent<HTMLDivElement>, task: Task) => void;
+  onTaskUpdate?: (taskId: string, updates: Partial<Task>) => Promise<void>;
+  taskRef: (el: HTMLDivElement | null) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 50 : "auto" as const,
+  };
+
+  return (
+    <div
+      ref={(el) => {
+        setNodeRef(el);
+        taskRef(el);
+      }}
+      style={style}
+      className={`flex items-center border-b border-[var(--border)] hover:bg-[var(--accent)] focus-within:bg-[var(--accent)] 
+           ${isHovered ? "bg-[var(--accent)] " : ""} ${
+        isFocused ? "bg-[var(--accent)] ring-2 ring-[var(--ring)] ring-offset-2" : ""
+      } ${isOverdue ? "bg-red-50 dark:bg-red-900/10 " : ""} ${isDragging ? "shadow-lg rounded-md" : ""}`}
+      onMouseEnter={() => onHover(task.id)}
+      onMouseLeave={() => onHover(null)}
+      onKeyDown={(e) => onKeyDown(e, task)}
+      tabIndex={0}
+      role="row"
+      {...attributes}
+      {...listeners}
+    >
+
+      {/* Task Info Panel */}
+      <TaskInfoPanel
+        task={task}
+        isCompact={isCompact}
+        isOverdue={isOverdue}
+        workspaceSlug={safeWorkspaceSlug}
+        projectSlug={safeProjectSlug}
+        onFocus={onFocus}
+      />
+
+      {/* Task Bar */}
+      <TaskBar
+        task={task}
+        timeRange={timeRange}
+        viewMode={viewMode}
+        isCompact={isCompact}
+        isHovered={isHovered}
+        isFocused={isFocused}
+        workspaceSlug={safeWorkspaceSlug}
+        projectSlug={safeProjectSlug}
+        onHover={onHover}
+        onFocus={onFocus}
+        onKeyDown={onKeyDown}
+        onTaskUpdate={onTaskUpdate}
+      />
+    </div>
+  );
 }
 
 export default function TaskGanttView({
@@ -38,10 +156,23 @@ export default function TaskGanttView({
   const [isCompact, setIsCompact] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const taskRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [internalViewMode, setInternalViewMode] = useState<ViewMode>("days");
   const viewMode = externalViewMode !== undefined ? externalViewMode : internalViewMode;
+
+  // DND sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Sanitize slugs for security
   const safeWorkspaceSlug = sanitizeSlug(workspaceSlug);
@@ -148,7 +279,7 @@ export default function TaskGanttView({
   }, [processedTasksData, viewMode, generateTimeScale]);
 
   const displayRows = useMemo(() => {
-    const rows = [];
+    const rows: { type: string; data: Task | null }[] = [];
 
     // Add actual tasks
     for (const task of ganttTasks) {
@@ -165,6 +296,48 @@ export default function TaskGanttView({
 
     return rows;
   }, [ganttTasks]);
+
+  // Task IDs for sortable context
+  const taskIds = useMemo(() => ganttTasks.map((t) => t.id), [ganttTasks]);
+
+  // DND handlers
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  }, []);
+
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      setActiveId(null);
+
+      if (!over || active.id === over.id) return;
+
+      const oldIndex = ganttTasks.findIndex((t) => t.id === active.id);
+      const newIndex = ganttTasks.findIndex((t) => t.id === over.id);
+
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      // Optimistic update - reorder locally first
+      const reorderedTasks = arrayMove(ganttTasks, oldIndex, newIndex);
+      setGanttTasks(reorderedTasks);
+
+      // Calculate new displayOrder values for all tasks
+      const updates = reorderedTasks.map((task, index) => ({
+        id: task.id,
+        displayOrder: index + 1,
+      }));
+
+      // Persist to backend
+      try {
+        await taskApi.reorderTasks(updates);
+      } catch (error) {
+        console.error("Failed to persist task reorder:", error);
+        // Revert on failure
+        setGanttTasks(ganttTasks);
+      }
+    },
+    [ganttTasks]
+  );
 
   // Keyboard navigation
   const handleKeyDown = useCallback(
@@ -214,8 +387,11 @@ export default function TaskGanttView({
       role="row"
       aria-label={`Empty row ${index + 1}`}
     >
+      {/* Drag handle placeholder */}
+      <div className="flex-shrink-0 w-6 sticky left-0 z-20 bg-[var(--card)]" />
+
       {/* Empty Task Info Panel */}
-      <div className="flex-shrink-0 w-80 border-r border-[var(--border)] bg-[var(--card)] py-1 sticky left-0 z-10">
+      <div className="flex-shrink-0 w-80 border-r border-[var(--border)] bg-[var(--card)] py-1 sticky left-6 z-10">
         <div className={`${isCompact ? "p-6" : "p-7"} flex items-center gap-3 text-sm`}>
           {/* Empty row content */}
         </div>
@@ -317,74 +493,58 @@ export default function TaskGanttView({
             scrollToToday={scrollToToday}
           />
 
-          {/* Task Rows */}
-          {/* Task Rows */}
-          <div className="flex flex-col z-20" role="rowgroup">
-            {displayRows.map((row, index) => {
-              if (row.type === "task" && row.data) {
-                const task = row.data;
-                const taskEnd = parseDate(task.dueDate);
-                const isOverdue =
-                  taskEnd < new Date() && task.status?.name?.toLowerCase() !== "done";
-                const isHovered = hoveredTask === task.id;
-                const isFocused = focusedTask === task.id;
+          {/* Task Rows with DND */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
 
-                return (
-                  <div
-                    key={task.id}
-                    ref={(el) => {
-                      if (el) {
-                        taskRefs.current.set(task.id, el);
-                      } else {
-                        taskRefs.current.delete(task.id);
-                      }
-                    }}
-                    className={`flex items-center border-b border-[var(--border)] hover:bg-[var(--accent)] focus-within:bg-[var(--accent)] 
-           ${isHovered ? "bg-[var(--accent)] " : ""} ${
-             isFocused ? "bg-[var(--accent)] ring-2 ring-[var(--ring)] ring-offset-2" : ""
-           } ${isOverdue ? "bg-red-50 dark:bg-red-900/10 " : ""}`}
-                    onMouseEnter={() => setHoveredTask(task.id)}
-                    onMouseLeave={() => setHoveredTask(null)}
-                    onKeyDown={(e) => handleKeyDown(e, task)}
-                    tabIndex={0}
-                    role="row"
-                    aria-label={`Task: ${task.title}, Status: ${task.status?.name}, ${
-                      isOverdue ? "Overdue" : `Due ${formatDateForDisplay(task.dueDate!)}`
-                    }`}
-                  >
-                    {/* Task Info Panel */}
-                    <TaskInfoPanel
-                      task={task}
-                      isCompact={isCompact}
-                      isOverdue={isOverdue}
-                      workspaceSlug={safeWorkspaceSlug}
-                      projectSlug={safeProjectSlug}
-                      onFocus={setFocusedTask}
-                    />
+          >
+            <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
+              <div className="flex flex-col z-20" role="rowgroup">
+                {displayRows.map((row, index) => {
+                  if (row.type === "task" && row.data) {
+                    const task = row.data;
+                    const taskEnd = parseDate(task.dueDate);
+                    const isOverdue =
+                      taskEnd < new Date() && task.status?.name?.toLowerCase() !== "done";
+                    const isHovered = hoveredTask === task.id;
+                    const isFocused = focusedTask === task.id;
 
-                    {/* Task Bar */}
-                    <TaskBar
-                      task={task}
-                      timeRange={timeRange}
-                      viewMode={viewMode}
-                      isCompact={isCompact}
-                      isHovered={isHovered}
-                      isFocused={isFocused}
-                      workspaceSlug={safeWorkspaceSlug}
-                      projectSlug={safeProjectSlug}
-                      onHover={setHoveredTask}
-                      onFocus={setFocusedTask}
-                      onKeyDown={handleKeyDown}
-                      onTaskUpdate={onTaskUpdate}
-                    />
-                  </div>
-                );
-              }
+                    return (
+                      <SortableTaskRow
+                        key={task.id}
+                        task={task}
+                        isCompact={isCompact}
+                        isOverdue={isOverdue}
+                        isHovered={isHovered}
+                        isFocused={isFocused}
+                        safeWorkspaceSlug={safeWorkspaceSlug}
+                        safeProjectSlug={safeProjectSlug}
+                        timeRange={timeRange}
+                        viewMode={viewMode}
+                        onHover={setHoveredTask}
+                        onFocus={setFocusedTask}
+                        onKeyDown={handleKeyDown}
+                        onTaskUpdate={onTaskUpdate}
+                        taskRef={(el) => {
+                          if (el) {
+                            taskRefs.current.set(task.id, el);
+                          } else {
+                            taskRefs.current.delete(task.id);
+                          }
+                        }}
+                      />
+                    );
+                  }
 
-              // Empty row
-              return <EmptyRow key={`empty-${index}`} index={index} />;
-            })}
-          </div>
+                  // Empty row
+                  return <EmptyRow key={`empty-${index}`} index={index} />;
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
       </div>
     </div>

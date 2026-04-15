@@ -80,6 +80,7 @@ export interface Task {
     subTasks?: number;
     attachments?: number;
   };
+  displayOrder?: number | null;
 }
 export interface PaginationResponse<T> {
   data: T[];
