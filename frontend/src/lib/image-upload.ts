@@ -86,26 +86,34 @@ export async function uploadImage(
 
 /**
  * Get the correct image URL from upload response
- * For S3 storage, returns the key (will be resolved via presigned URL)
+ * For S3 storage with presigned URL, returns the presigned URL directly
+ * For S3 storage without presigned URL, returns the backend endpoint URL
  * For local storage, returns the full URL via uploads endpoint
  */
 export function getImageUrl(response: ImageUploadResponse): string {
-  // For local storage, url is relative path like "/editor-images/uuid-timestamp.png"
-  // We need to serve it via the backend API
-  if (response.url) {
-    // Remove leading slash if present: "/editor-images/..." -> "editor-images/..."
-    const cleanUrl = response.url.startsWith('/') ? response.url.substring(1) : response.url;
+  // Get the backend API base URL (e.g., http://localhost:3000/api)
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
 
-    // Get the backend API base URL (e.g., http://localhost:3000/api)
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
-
-    // Construct full URL to backend
-    return `${apiBaseUrl}/uploads/${cleanUrl}`;
+  // For S3 storage with presigned URL (url contains amazonaws.com or presigned query params)
+  if (response.url && (response.url.includes('amazonaws.com') || response.url.includes('X-Amz-'))) {
+    // Return presigned URL directly - no modification needed
+    return response.url;
   }
 
-  // For S3 storage, use the key (backend will handle presigned URL generation)
-  // Frontend will access via: /uploads/{key}
-  return `/uploads/${response.key}`;
+  // For S3 storage without presigned URL (url is null), use backend streaming endpoint
+  if (!response.url) {
+    // Key is like "editor-images/uuid-timestamp.png"
+    // Extract just the filename part after the folder
+    const filename = response.key.split('/').pop();
+    return `${apiBaseUrl}/uploads/editor-images/${filename}`;
+  }
+
+  // For local storage, url is relative path like "/editor-images/uuid-timestamp.png"
+  // Remove leading slash if present: "/editor-images/..." -> "editor-images/..."
+  const cleanUrl = response.url.startsWith('/') ? response.url.substring(1) : response.url;
+
+  // Construct full URL to backend
+  return `${apiBaseUrl}/uploads/${cleanUrl}`;
 }
 
 /**

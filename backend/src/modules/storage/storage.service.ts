@@ -1,5 +1,11 @@
 // src/modules/storage/storage.service.ts
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Service } from './s3.service';
 import * as fs from 'fs';
@@ -7,7 +13,8 @@ import * as path from 'path';
 import { Response } from 'express';
 
 @Injectable()
-export class StorageService {
+export class StorageService implements OnModuleInit {
+  private readonly logger = new Logger(StorageService.name);
   private useS3: boolean;
   private readonly uploadDir: string;
 
@@ -15,27 +22,37 @@ export class StorageService {
     private readonly configService: ConfigService,
     private readonly s3Service: S3Service,
   ) {
+    this.uploadDir = this.configService.get('UPLOAD_DEST', './uploads');
+    this.useS3 = false;
+  }
+
+  async onModuleInit() {
     const awsAccessKey = this.configService.get('AWS_ACCESS_KEY_ID');
     const awsSecretKey = this.configService.get('AWS_SECRET_ACCESS_KEY');
     const awsBucket = this.configService.get('AWS_BUCKET_NAME');
-    this.uploadDir = this.configService.get('UPLOAD_DEST', './uploads');
-    this.useS3 = false;
+
     if (awsAccessKey && awsSecretKey && awsBucket) {
-      this.checkS3Connection(awsBucket as string)
-        .then((connected) => {
-          this.useS3 = connected;
-          if (!connected && !fs.existsSync(this.uploadDir)) {
-            fs.mkdirSync(this.uploadDir, { recursive: true });
-          }
-        })
-        .catch(() => {
-          this.useS3 = false;
+      this.logger.log('AWS credentials detected, checking S3 connection...');
+      try {
+        const connected = await this.checkS3Connection(awsBucket as string);
+        this.useS3 = connected;
+        if (connected) {
+          this.logger.log(`✅ S3 storage enabled for bucket: ${awsBucket}`);
+        } else {
+          this.logger.warn('❌ S3 connection check failed, falling back to local storage');
           if (!fs.existsSync(this.uploadDir)) {
             fs.mkdirSync(this.uploadDir, { recursive: true });
           }
-        });
+        }
+      } catch (error) {
+        this.logger.error(`S3 connection check error: ${error.message}`);
+        this.useS3 = false;
+        if (!fs.existsSync(this.uploadDir)) {
+          fs.mkdirSync(this.uploadDir, { recursive: true });
+        }
+      }
     } else {
-      // fallback to local storage
+      this.logger.log('No AWS credentials found, using local storage');
       if (!fs.existsSync(this.uploadDir)) {
         fs.mkdirSync(this.uploadDir, { recursive: true });
       }
@@ -107,7 +124,11 @@ export class StorageService {
     const safeFileName = this.sanitizePathComponent(fileName);
 
     const key = `${safeFolder}/${safeFileName}`;
+
+    this.logger.log(`Saving file: ${key}, useS3=${this.useS3}`);
+
     if (this.useS3) {
+      this.logger.log('Uploading to S3 storage');
       await this.s3Service.uploadFile(file, key);
       return {
         url: null,

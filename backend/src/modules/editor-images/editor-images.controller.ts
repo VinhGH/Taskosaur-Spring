@@ -96,10 +96,22 @@ export class EditorImagesController {
     // Get S3 status directly from StorageService
     const isUsingS3 = this.storageService.isUsingS3();
 
+    // For S3 storage, generate a presigned URL for immediate access
+    let imageUrl = result.url;
+    if (isUsingS3 && result.key) {
+      try {
+        imageUrl = await this.storageService.getFileUrl(result.key);
+      } catch (error) {
+        // If presigned URL generation fails, fallback to streaming endpoint
+        console.error(`Failed to generate presigned URL for ${result.key}:`, error);
+        imageUrl = null;
+      }
+    }
+
     return {
       message: 'Image uploaded successfully',
       id: result.id,
-      url: result.url,
+      url: imageUrl, // Will be presigned URL for S3, or path for local
       key: result.key,
       size: result.size,
       inCloud: isUsingS3,
