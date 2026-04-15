@@ -20,7 +20,8 @@ export const SANITIZE_CONFIG = {
     'a', 'b', 'strong', 'i', 'em', 'u', 's', 'del', 'ins',
     'span', 'sub', 'sup', 'mark', 'kbd',
   ],
-  ALLOWED_ATTR: ['href', 'title', 'target', 'rel', 'class', 'className', 'src', 'alt', 'width', 'height'],
+  ALLOWED_ATTR: ['href', 'title', 'target', 'rel', 'class', 'className', 'src', 'alt', 'width', 'height', 'data-type', 'data-id'],
+  ALLOW_DATA_ATTR: true,
   // Prevent javascript: URLs and other dangerous protocols
   ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|ftp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
 };

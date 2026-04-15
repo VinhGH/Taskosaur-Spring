@@ -98,6 +98,17 @@ const EMAIL_STYLES = `
       border-top: 1px solid #eee;
       padding-top: 10px;
   }
+  
+  /* Mentions Styling */
+  .mention {
+    color: #3b82f6;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .mention:hover {
+    text-decoration: underline;
+  }
 `;
 
 const EMAIL_SANITIZE_CONFIG = {
