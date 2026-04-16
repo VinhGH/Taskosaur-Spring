@@ -228,8 +228,30 @@ export class TaskCommentsService {
                     key: task.slug,
                   },
                   content: comment.content
-                    .replace(/\[@([\w.-]+)\]\([^)]+\)/g, '[$1](/workspace/members)')
-                    .replace(/>@([\w.-]+)<\/a>/g, '>$1</a>'),
+                    .replace(
+                      /\[@([\w.-]+)\]\(([^)]+)\)/g,
+                      (match: string, username: string, path: string) => {
+                        const absoluteUrl = path.startsWith('http')
+                          ? path
+                          : `${this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001')}${path.startsWith('/') ? '' : '/'}${path}`;
+                        return `[${username}](${absoluteUrl})`;
+                      },
+                    )
+                    .replace(
+                      /<a([^>]+href="([^"]+)")([^>]*)>@([\w.-]+)<\/a>/g,
+                      (
+                        match: string,
+                        prefix: string,
+                        path: string,
+                        suffix: string,
+                        username: string,
+                      ) => {
+                        const absoluteUrl = path.startsWith('http')
+                          ? path
+                          : `${this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001')}${path.startsWith('/') ? '' : '/'}${path}`;
+                        return `<a href="${absoluteUrl}"${suffix}>${username}</a>`;
+                      },
+                    ),
                   textContent: comment.content
                     .replace(/\[@?([\w.-]+)\]\([^)]+\)/g, '$1')
                     .replace(/<a[^>]*>@?([\w.-]+)<\/a>/g, '$1')
