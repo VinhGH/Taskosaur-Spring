@@ -6,9 +6,10 @@ import { EmailReplyService } from '../inbox/services/email-reply.service';
 import { CryptoService } from 'src/common/crypto.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { UsersModule } from '../users/users.module';
+import { EmailModule } from '../email/email.module';
 
 @Module({
-  imports: [PrismaModule, NotificationsModule, UsersModule],
+  imports: [PrismaModule, NotificationsModule, UsersModule, EmailModule],
   controllers: [TaskCommentsController],
   providers: [TaskCommentsService, EmailReplyService, CryptoService],
   exports: [TaskCommentsService],

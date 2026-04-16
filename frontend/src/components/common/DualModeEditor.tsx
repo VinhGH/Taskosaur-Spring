@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
+import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle,useMemo } from "react";
 import dynamic from "next/dynamic";
 import {
   HiBold,
@@ -30,6 +30,7 @@ import Underline from "@tiptap/extension-underline";
 import { UploadPlaceholder } from "@/lib/tiptap/upload-placeholder";
 import Mention from "@tiptap/extension-mention";
 import getMentionSuggestion from "./mention/suggestion";
+import UserAvatar from "@/components/ui/avatars/UserAvatar";
 
 // Dynamically import MDEditor to avoid SSR issues
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false });
@@ -132,14 +133,12 @@ function markdownToHtml(markdown: string): string {
     .replace(/^\s*\d+\.\s+(.*$)/gm, "<li>$1</li>")
     // Blockquotes
     .replace(/^>\s*(.*$)/gm, "<blockquote>$1</blockquote>")
-    // Links (handling mentions specifically if text starts with @)
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
-      if (text.startsWith("@")) {
-        const idMatch = url.match(/\/members.*$/) || url.match(/#user-([a-zA-Z0-9-]+)/);
-        const id = idMatch && idMatch[1] ? idMatch[1] : "unknown";
-        return `<a href="${url}" class="mention text-blue-500 font-medium cursor-pointer hover:underline" data-type="mention" data-id="${id}">${text}</a>`;
+    .replace(/\[(.*?)\]\((.*?)\)/g, (match, label, url) => {
+      if ((url.includes('/members') || url.includes('/users')) && label.startsWith('@')) {
+        const id = url.split('/').pop();
+        return `<a class="mention text-blue-500 font-medium cursor-pointer hover:underline" href="${url}" data-type="mention" data-id="${id}">${label}</a>`;
       }
-      return `<a href="${url}">${text}</a>`;
+      return `<a href="${url}">${label}</a>`;
     })
     // Line breaks
     .replace(/\n/g, "<br>");
@@ -245,6 +244,14 @@ function RichTextEditorInner({
       Mention.configure({
         HTMLAttributes: {
           class: "mention text-blue-500 font-medium cursor-pointer hover:underline",
+        },
+        renderHTML({ options, node }) {
+          const workspaceSlug = typeof window !== 'undefined' ? window.location.pathname.split('/')[1] : '';
+          return [
+            "a",
+            { ...options.HTMLAttributes, href: `/${workspaceSlug}/members`, "data-type": "mention", "data-id": node.attrs.id },
+            `@${node.attrs.label}`,
+          ];
         },
         suggestion: getMentionSuggestion(mentions),
       }),
@@ -503,12 +510,17 @@ function RichTextEditorInner({
 
       {/* Editor area */}
       <div
-        className="overflow-y-auto cursor-text relative"
+        className="overflow-y-auto relative flex flex-col"
         style={{ height: height - 45 }}
         onPaste={handleRichTextPaste}
         onDrop={handleRichTextDrop}
         onDragOver={handleRichTextDragOver}
         onDragLeave={handleRichTextDragLeave}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).classList?.contains('tiptap-wrapper')) {
+            editor.commands.focus('end');
+          }
+        }}
       >
         {/* Drop zone overlay */}
         {isDragOver && (
@@ -520,7 +532,7 @@ function RichTextEditorInner({
           </div>
         )}
 
-        <EditorContent editor={editor} style={{ minHeight: height - 45 }} />
+        <EditorContent editor={editor} className="tiptap-wrapper flex-grow flex flex-col cursor-text min-h-full" />
       </div>
     </div>
   );
@@ -619,6 +631,87 @@ const DualModeEditor = forwardRef<DualModeEditorHandle, DualModeEditorProps>(fun
     }
   }, [value, mode, isInitialized, isMounted]);
 
+  const [markdownMention, setMarkdownMention] = useState<{ active: boolean; text: string; startPos: number; } | null>(null);
+  const [selectedMarkdownMentionIndex, setSelectedMarkdownMentionIndex] = useState(0);
+
+  // Handle markdown editor change
+  const handleMarkdownChange = useCallback(
+    (val: string | undefined, event?: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const newValue = val || "";
+      setMarkdownValue(newValue);
+      onChange(newValue);
+
+      // Check for mentions if we type or backspace
+      const textarea = event?.target || document.querySelector('.w-md-editor-text-input') as HTMLTextAreaElement;
+      if (textarea) {
+        const cursorPos = textarea.selectionEnd;
+        const textBeforeCursor = newValue.substring(0, cursorPos);
+        const match = textBeforeCursor.match(/(?:^|\s|>|\[)@([\w.-]*)$/);
+        
+        if (match) {
+          setMarkdownMention({ active: true, text: match[1], startPos: cursorPos - match[1].length });
+          setSelectedMarkdownMentionIndex(0);
+        } else {
+          setMarkdownMention(null);
+        }
+      }
+    },
+    [onChange]
+  );
+
+  const filteredMentions = useMemo(() => {
+    if (!markdownMention || !mentions) return [];
+    return mentions.filter(m => m.label.toLowerCase().includes(markdownMention.text.toLowerCase())).slice(0, 5);
+  }, [markdownMention, mentions]);
+
+  const insertMarkdownMention = useCallback((mention: any) => {
+    if (!markdownMention) return;
+    
+    const textarea = document.querySelector('.w-md-editor-text-input') as HTMLTextAreaElement;
+    const workspaceSlug = typeof window !== 'undefined' ? window.location.pathname.split('/')[1] : '';
+    
+    const replaceStart = Math.max(0, markdownMention.startPos - 1);
+    
+    const beforeText = markdownValue.substring(0, replaceStart);
+    
+    const mentionText = `[@${mention.label}](/${workspaceSlug}/members) `;
+    
+    const currentPos = textarea ? textarea.selectionEnd : markdownValue.length;
+    const afterText = markdownValue.substring(currentPos);
+    
+    const newText = beforeText + mentionText + afterText;
+    setMarkdownValue(newText);
+    onChange(newText);
+    setMarkdownMention(null);
+    
+    setTimeout(() => {
+      if (textarea) {
+        textarea.focus();
+        const newCursorPos = beforeText.length + mentionText.length;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 10);
+  }, [markdownMention, markdownValue, onChange]);
+
+  const handleMarkdownKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!markdownMention) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedMarkdownMentionIndex((prev) => (prev + 1) % Math.max(1, filteredMentions.length));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedMarkdownMentionIndex((prev) => (prev - 1 + filteredMentions.length) % Math.max(1, filteredMentions.length));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (filteredMentions.length > 0) {
+        insertMarkdownMention(filteredMentions[selectedMarkdownMentionIndex]);
+      }
+    } else if (e.key === 'Escape') {
+      setMarkdownMention(null);
+    }
+  }, [markdownMention, filteredMentions, selectedMarkdownMentionIndex, insertMarkdownMention]);
+
   // Handle mode switching
   const handleModeSwitch = useCallback(
     (newMode: EditorMode) => {
@@ -641,16 +734,6 @@ const DualModeEditor = forwardRef<DualModeEditorHandle, DualModeEditorProps>(fun
       onModeChange?.(newMode);
     },
     [mode, richTextValue, markdownValue, onChange, onModeChange]
-  );
-
-  // Handle markdown editor change
-  const handleMarkdownChange = useCallback(
-    (val: string | undefined) => {
-      const newValue = val || "";
-      setMarkdownValue(newValue);
-      onChange(newValue);
-    },
-    [onChange]
   );
 
   // Handle image upload and insert into markdown editor
@@ -927,9 +1010,38 @@ const DualModeEditor = forwardRef<DualModeEditorHandle, DualModeEditorProps>(fun
             textareaProps={{
               placeholder,
               disabled,
+              onKeyDown: handleMarkdownKeyDown,
             }}
             visibleDragbar={false}
           />
+          {markdownMention?.active && filteredMentions.length > 0 && (
+            <div className="absolute z-50 bottom-full left-6 mb-1 bg-white dark:bg-[#1a1b1e] shadow-lg border border-[var(--border)] rounded-md overflow-hidden min-w-[200px] max-h-[300px] overflow-y-auto">
+              {filteredMentions.map((item: any, index: number) => (
+                <button
+                  key={item.id || index}
+                  onMouseDown={(e) => { 
+                    e.preventDefault(); 
+                    insertMarkdownMention(item); 
+                  }}
+                  className={`flex items-center gap-2 w-full text-left px-3 py-2 text-sm transition-colors ${
+                    index === selectedMarkdownMentionIndex 
+                      ? 'bg-[var(--accent)] text-[var(--accent-foreground)]' 
+                      : 'hover:bg-[var(--muted)] text-[var(--foreground)]'
+                  }`}
+                >
+                  <UserAvatar 
+                    user={{ 
+                      firstName: item.label.split(' ')[0], 
+                      lastName: item.label.split(' ')[1] || '',
+                      avatar: item.avatar 
+                    }} 
+                    size="xs" 
+                  />
+                  <span className="font-medium">{item.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <RichTextEditorInner

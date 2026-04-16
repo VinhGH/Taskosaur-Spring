@@ -631,6 +631,7 @@ export class EmailProcessor implements OnModuleInit {
                 <p><strong>${data.entityType === 'task' ? 'Task' : 'Comment'}:</strong> ${data.entityName || data.entity?.title || 'Item'}</p>
                 ${data.entity?.key ? `<p><strong>Key:</strong> ${data.entity.key}</p>` : ''}
                 <p><strong>Mentioned by:</strong> ${data.mentioner.name}</p>
+                ${data.content ? `<div class="markdown-content"><strong>Message:</strong><br/>${sanitizeHtml(convertMarkdownToHtml(String(data.content)))}</div>` : ''}
               </div>
               
               <div class="button-container">
@@ -876,7 +877,7 @@ ${data.mentioner.name} mentioned you in a ${data.entityType === 'task' ? 'task' 
 
 ${data.entityType === 'task' ? 'Task' : 'Comment'}: ${data.entityName || data.entity?.title || 'Item'}
 ${data.entity?.key ? `Key: ${data.entity.key}` : ''}
-Mentioned by: ${data.mentioner.name}
+Mentioned by: ${data.mentioner.name}${data.textContent ? `\n\nMessage:\n${data.textContent}` : ''}
 
 View ${data.entityType === 'task' ? 'task' : 'comment'}: ${data.entityUrl}
 

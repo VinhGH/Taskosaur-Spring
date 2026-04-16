@@ -12,6 +12,9 @@ import { EmailReplyService } from '../inbox/services/email-reply.service';
 import { sanitizeHtml } from 'src/common/utils/sanitizer.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
+import { EmailService } from '../email/email.service';
+import { EmailTemplate, EmailPriority } from '../email/dto/email.dto';
+import { ConfigService } from '@nestjs/config';
 
 const AUTHOR_SELECT = {
   id: true,
@@ -35,6 +38,8 @@ export class TaskCommentsService {
     private emailReply: EmailReplyService,
     private notificationsService: NotificationsService,
     private usersService: UsersService,
+    private emailService: EmailService,
+    private configService: ConfigService,
   ) {}
 
   private getCommentIncludeClause(includeEmail = false) {
@@ -148,7 +153,7 @@ export class TaskCommentsService {
     comment: {
       content: string;
       taskId: string;
-      author: { firstName: string };
+      author: { firstName: string; lastName?: string | null };
     },
     authorId: string,
   ) {
@@ -183,14 +188,14 @@ export class TaskCommentsService {
         where: {
           username: { in: usernames },
         },
-        select: { id: true, username: true },
+        select: { id: true, username: true, email: true, firstName: true, lastName: true },
       });
 
       const mentionNotifications = mentionedUsers
         .filter((user) => !notifiedUserIds.has(user.id))
         .map((user) => {
           notifiedUserIds.add(user.id);
-          return this.notificationsService.createNotification({
+          const notificationPromise = this.notificationsService.createNotification({
             title: 'You were mentioned',
             message: `${comment.author.firstName} mentioned you in a comment on "${task.title}"`,
             type: NotificationType.MENTION,
@@ -198,10 +203,48 @@ export class TaskCommentsService {
             organizationId,
             entityType: 'Task',
             entityId: task.id,
-            actionUrl: `/tasks/${task.id}`,
+            actionUrl: `/tasks/${task.slug}`,
             priority: NotificationPriority.HIGH,
             createdBy: authorId,
           });
+          // 2. Send email notification if user has an email
+          let emailPromise = Promise.resolve();
+          if (user.email) {
+            emailPromise = this.emailService
+              .sendEmail({
+                to: user.email,
+                subject: `You were mentioned in task: ${sanitizeHtml(task.title)}`,
+                template: EmailTemplate.MENTION,
+                data: {
+                  mentioner: {
+                    name: `${comment.author.firstName} ${comment.author.lastName || ''}`.trim(),
+                  },
+                  mentionedUser: {
+                    name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username,
+                  },
+                  entityType: 'comment',
+                  entity: {
+                    title: sanitizeHtml(task.title),
+                    key: task.slug,
+                  },
+                  content: comment.content
+                    .replace(/\[@([\w.-]+)\]\([^)]+\)/g, '[$1](/workspace/members)')
+                    .replace(/>@([\w.-]+)<\/a>/g, '>$1</a>'),
+                  textContent: comment.content
+                    .replace(/\[@?([\w.-]+)\]\([^)]+\)/g, '$1')
+                    .replace(/<a[^>]*>@?([\w.-]+)<\/a>/g, '$1')
+                    .replace(/<[^>]*>?/gm, '')
+                    .replace(/&nbsp;/g, ' '),
+                  entityUrl: `${this.configService.get('FRONTEND_URL', 'http://localhost:3001')}/tasks/${task.slug}`,
+                },
+                priority: EmailPriority.HIGH,
+              })
+              .catch((error) => {
+                console.error(`Failed to send mention email to ${user.email}:`, error);
+              });
+          }
+
+          return Promise.all([notificationPromise, emailPromise]);
         });
 
       if (mentionNotifications.length > 0) {
@@ -226,7 +269,7 @@ export class TaskCommentsService {
           organizationId,
           entityType: 'Task',
           entityId: task.id,
-          actionUrl: `/tasks/${task.id}`,
+          actionUrl: `/tasks/${task.slug}`,
           priority: NotificationPriority.MEDIUM,
           createdBy: authorId,
         });

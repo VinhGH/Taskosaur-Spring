@@ -62,6 +62,17 @@ export const SafeMarkdownRenderer: React.FC<SafeMarkdownRendererProps> = ({
             }
             return <input {...props} />;
           },
+          a: ({ node, ...props }) => {
+            const isMention = props.href?.includes('/members') && props.children?.toString().startsWith('@');
+            if (isMention) {
+              return (
+                <a {...props} className={`mention text-blue-500 font-medium cursor-pointer hover:underline ${props.className || ''}`.trim()}>
+                  {props.children}
+                </a>
+              );
+            }
+            return <a {...props}>{props.children}</a>;
+          },
         }}
       >
         {decodedContent}
