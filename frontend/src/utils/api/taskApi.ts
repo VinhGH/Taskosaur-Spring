@@ -579,6 +579,16 @@ export const taskApi = {
     }
   },
 
+  reorderTasksByRank: async (tasks: { id: string; listRank: number }[]): Promise<{ id: string; listRank: number }[]> => {
+    try {
+      const response = await api.patch<{ id: string; listRank: number }[]>("/tasks/reorder-list-rank/bulk", { tasks });
+      return response.data;
+    } catch (error) {
+      console.error("Reorder tasks by rank error:", error);
+      throw error;
+    }
+  },
+
   deleteTask: async (taskId: string): Promise<void> => {
     try {
       if (!isValidUUID(taskId)) {

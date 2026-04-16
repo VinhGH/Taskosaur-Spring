@@ -302,6 +302,7 @@ model Task {
   archivedBy        String?      @map("archived_by") @db.Uuid
 
   displayOrder      Float?       @map("display_order")
+  listRank          Float?       @map("list_rank")
 
   // Inbox Integration
   inboxMessageId    String? @unique @map("inbox_message_id") @db.Uuid
@@ -336,6 +337,7 @@ model Task {
 
   @@unique([projectId, taskNumber])
   @@index([emailThreadId])
+  @@index([projectId, listRank])
   @@map("tasks")
 }
 

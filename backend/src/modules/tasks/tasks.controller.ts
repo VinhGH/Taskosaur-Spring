@@ -753,6 +753,39 @@ export class TasksController {
     return this.tasksService.bulkReorder(tasks, user.id);
   }
 
+  @Patch('reorder-list-rank/bulk')
+  @ApiOperation({
+    summary: 'Reorder tasks by updating list rank',
+    description:
+      'Updates the listRank field for multiple tasks at once. Used for drag-and-drop reordering in task list view.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        tasks: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', format: 'uuid' },
+              listRank: { type: 'number' },
+            },
+            required: ['id', 'listRank'],
+          },
+        },
+      },
+      required: ['tasks'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Tasks reordered successfully' })
+  async bulkReorderByRank(
+    @Body('tasks') tasks: { id: string; listRank: number }[],
+    @CurrentUser() user: User,
+  ) {
+    return this.tasksService.bulkReorderBylistRank(tasks, user.id);
+  }
+
   @Patch(':id')
   @LogActivity({
     type: 'TASK_UPDATED',

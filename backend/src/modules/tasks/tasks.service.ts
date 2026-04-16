@@ -806,6 +806,24 @@ export class TasksService {
     return this.prisma.$transaction(updates);
   }
 
+  async bulkReorderBylistRank(tasks: { id: string; listRank: number }[], userId: string) {
+    if (!tasks || tasks.length === 0) {
+      throw new BadRequestException('Tasks array is required and must not be empty');
+    }
+    const updates = tasks.map((task) =>
+      this.prisma.task.update({
+        where: { id: task.id },
+        data: {
+          listRank: task.listRank,
+          updatedBy: userId,
+        },
+        select: { id: true, listRank: true },
+      }),
+    );
+
+    return this.prisma.$transaction(updates);
+  }
+
   async findAll(
     organizationId: string,
     projectId?: string[],
@@ -980,10 +998,16 @@ export class TasksService {
         'title',
         'taskNumber',
         'displayOrder',
+        'listRank',
       ];
       if (sortBy === 'displayOrder') {
         orderBy = [
           { displayOrder: { sort: sortOrder === 'asc' ? 'asc' : 'desc', nulls: 'last' } },
+          { taskNumber: 'desc' },
+        ];
+      } else if (sortBy === 'listRank') {
+        orderBy = [
+          { listRank: { sort: sortOrder === 'asc' ? 'asc' : 'desc', nulls: 'last' } },
           { taskNumber: 'desc' },
         ];
       } else if (validSortFields.includes(sortBy)) {

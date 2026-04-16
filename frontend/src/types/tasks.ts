@@ -81,6 +81,7 @@ export interface Task {
     attachments?: number;
   };
   displayOrder?: number | null;
+  listRank?: number | null;
 }
 export interface PaginationResponse<T> {
   data: T[];
