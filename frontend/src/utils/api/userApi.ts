@@ -16,6 +16,11 @@ export const userApi = {
     return response.data;
   },
 
+  getPublicProfile: async (userId: string): Promise<Partial<User>> => {
+    const response = await api.get<Partial<User>>(`/users/${userId}/profile`);
+    return response.data;
+  },
+
   getUserStatus: async (userId: string): Promise<UserStatus> => {
     const response = await api.get<UserStatus>(`/users/${userId}/status`);
     return response.data;

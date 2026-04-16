@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -137,6 +138,66 @@ export class UsersService {
     }
 
     return user;
+  }
+
+  async getPublicProfile(identifier: string, requesterId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { username: identifier },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        avatar: true,
+        mobileNumber: true,
+        bio: true,
+        timezone: true,
+        role: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const requester = await this.prisma.user.findUnique({
+      where: { id: requesterId },
+      select: { role: true },
+    });
+
+    if (!requester) {
+      throw new NotFoundException('Requester not found');
+    }
+
+    if (requester.role !== Role.SUPER_ADMIN && user.id !== requesterId) {
+      const isSharedOrg = await this.prisma.organizationMember.findFirst({
+        where: {
+          userId: user.id,
+          organization: {
+            members: {
+              some: { userId: requesterId },
+            },
+          },
+        },
+      });
+
+      if (!isSharedOrg) {
+        throw new ForbiddenException(
+          'Profile access not allowed. You must belong to the same organization.',
+        );
+      }
+    }
+
+    let avatarUrl: string | null = null;
+    if (user.avatar) {
+      if (this.storageService.isUsingS3()) {
+        avatarUrl = await this.storageService.getFileUrl(user.avatar);
+      } else {
+        avatarUrl = user.avatar;
+      }
+    }
+
+    return { ...user, avatar: avatarUrl };
   }
 
   async getUserPassword(id: string): Promise<string | null> {

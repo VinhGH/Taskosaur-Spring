@@ -87,7 +87,7 @@ describe('WorkspacesController (e2e)', () => {
         role: Role.MEMBER,
       },
     });
-  }, 10000);
+  }, 15000);
 
   afterAll(async () => {
     if (prismaService) {

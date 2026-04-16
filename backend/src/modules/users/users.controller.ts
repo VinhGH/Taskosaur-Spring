@@ -103,6 +103,16 @@ export class UsersController {
     return this.usersService.findOne(id);
   }
 
+  @Get(':id/profile')
+  @ApiOperation({ summary: 'Retrieve public user profile for shared organization members' })
+  @ApiParam({ name: 'id', description: 'User ID (UUID)', type: String })
+  @ApiResponse({ status: 200, description: 'Public User Profile details.' })
+  @ApiResponse({ status: 403, description: 'Forbidden. Must share an organization.' })
+  @ApiResponse({ status: 404, description: 'User not found.' })
+  getPublicProfile(@Param('id') id: string, @Req() req: any) {
+    return this.usersService.getPublicProfile(id, String(req.user.id));
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Update a user by ID' })
   @ApiParam({ name: 'id', description: 'User ID (UUID)', type: String })

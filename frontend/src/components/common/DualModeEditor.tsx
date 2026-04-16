@@ -249,7 +249,7 @@ function RichTextEditorInner({
           const workspaceSlug = typeof window !== 'undefined' ? window.location.pathname.split('/')[1] : '';
           return [
             "a",
-            { ...options.HTMLAttributes, href: `/${workspaceSlug}/members`, "data-type": "mention", "data-id": node.attrs.id },
+            { ...options.HTMLAttributes, href: `/${workspaceSlug}/members/${node.attrs.label}`, "data-type": "mention", "data-id": node.attrs.label },
             `@${node.attrs.label}`,
           ];
         },
@@ -674,7 +674,7 @@ const DualModeEditor = forwardRef<DualModeEditorHandle, DualModeEditorProps>(fun
     
     const beforeText = markdownValue.substring(0, replaceStart);
     
-    const mentionText = `[@${mention.label}](/${workspaceSlug}/members) `;
+    const mentionText = `[@${mention.label}](/${workspaceSlug}/members/${mention.label}) `;
     
     const currentPos = textarea ? textarea.selectionEnd : markdownValue.length;
     const afterText = markdownValue.substring(currentPos);
