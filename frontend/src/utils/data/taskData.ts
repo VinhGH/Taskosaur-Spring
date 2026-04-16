@@ -8,6 +8,7 @@ import {
   Hash,
   ListChecks,
   FileText,
+  ArrowUpDown,
 } from "lucide-react";
 
 import {
@@ -72,6 +73,7 @@ export const TASK_TYPE_OPTIONS = [
 ];
 
 export const DEFAULT_SORT_FIELDS = [
+  { value: "listRank", label: "Rank", icon: ArrowUpDown, category: "number" },
   { value: "createdAt", label: "Created Date", icon: Clock, category: "date" },
   { value: "updatedAt", label: "Updated Date", icon: CalendarDays, category: "date" },
   { value: "dueDate", label: "Due Date", icon: CalendarDays, category: "date" },

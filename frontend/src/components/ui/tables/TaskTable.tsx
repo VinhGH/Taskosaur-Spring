@@ -75,6 +75,7 @@ import {
 } from "@/components/ui/command";
 import { useAuth } from "@/contexts/auth-context";
 import RecurringBadge from "@/components/common/RecurringBadge";
+import { taskApi } from "@/utils/api/taskApi";
 import {
   DndContext,
   closestCenter,
@@ -83,12 +84,15 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
 } from "@dnd-kit/core";
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   horizontalListSortingStrategy,
+  verticalListSortingStrategy,
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -108,6 +112,55 @@ const SortableHeader = ({ id, children, className }: { id: string; children: Rea
     <TableHead ref={setNodeRef} style={style} className={cn("cursor-grab active:cursor-grabbing", className)} {...attributes} {...listeners}>
       {children}
     </TableHead>
+  );
+};
+
+// Sortable Row Component
+const SortableRow = ({ 
+  task, 
+  workspaceSlug, 
+  projectSlug, 
+  columnOrder, 
+  renderTaskRowCell, 
+  handleRowClick 
+}: { 
+  task: any;
+  workspaceSlug?: string;
+  projectSlug?: string;
+  columnOrder: string[];
+  renderTaskRowCell: (colId: string, task: any, options?: { dragHandleProps?: any }) => React.ReactNode;
+  handleRowClick: (task: any) => void;
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 50 : "auto" as const,
+  };
+
+  return (
+    <TableRow
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "tasktable-row group/row h-12 odd:bg-[var(--odd-row)] cursor-pointer",
+        isDragging && "shadow-lg rounded-md"
+      )}
+      onClick={() => handleRowClick(task)}
+      {...attributes}
+    >
+      {/* Other columns */}
+      {columnOrder.map((colId) => renderTaskRowCell(colId, task, { dragHandleProps: listeners }))}
+    </TableRow>
   );
 };
 
@@ -304,6 +357,8 @@ const TaskTable: React.FC<TaskTableProps> = ({
   };
 
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [isReordering, setIsReordering] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -315,6 +370,23 @@ const TaskTable: React.FC<TaskTableProps> = ({
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Local state for optimistic updates
+  const [localTasks, setLocalTasks] = useState<Task[]>(tasks);
+  const prevTasksRef = useRef<Task[]>(tasks);
+
+  // Sync localTasks when tasks prop changes (but not during reordering)
+  useEffect(() => {
+    if (!isReordering) {
+      // Only sync if tasks actually changed (not initial render)
+      const prevIds = prevTasksRef.current.map(t => t.id).join(',');
+      const currentIds = tasks.map(t => t.id).join(',');
+      if (prevIds !== currentIds) {
+        setLocalTasks(tasks);
+      }
+      prevTasksRef.current = tasks;
+    }
+  }, [tasks, isReordering]);
 
   // Load column order from localStorage and sync with current columns
   useEffect(() => {
@@ -375,15 +447,62 @@ const TaskTable: React.FC<TaskTableProps> = ({
     }
   }, [columnOrder, projectSlug, workspaceSlug]); // Added projectSlug and workspaceSlug to dependencies
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(event.active.id as string);
+  };
 
-    if (active.id !== over?.id) {
-      setColumnOrder((items) => {
-        const oldIndex = items.indexOf(active.id as string);
-        const newIndex = items.indexOf(over?.id as string);
-        return arrayMove(items, oldIndex, newIndex);
-      });
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+    setIsReordering(false);
+
+    if (!over || active.id === over.id) return;
+
+    // Check if we're dragging a column or a row
+    const isColumnDrag = columnOrder.includes(active.id as string);
+    
+    if (isColumnDrag) {
+      // Handle column reordering
+      if (active.id !== over.id) {
+        setColumnOrder((items) => {
+          const oldIndex = items.indexOf(active.id as string);
+          const newIndex = items.indexOf(over.id as string);
+          return arrayMove(items, oldIndex, newIndex);
+        });
+      }
+    } else {
+      // Handle row reordering
+      const oldIndex = localTasks.findIndex((t) => t.id === active.id);
+      const newIndex = localTasks.findIndex((t) => t.id === over.id);
+
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      setIsReordering(true);
+
+      // Optimistic update - reorder locally first and update state
+      const reorderedTasks = arrayMove(localTasks, oldIndex, newIndex);
+      setLocalTasks(reorderedTasks);
+      
+      // Calculate new rank values for all tasks
+      const updates = reorderedTasks.map((task, index) => ({
+        id: task.id,
+        listRank: index + 1,
+      }));
+
+      // Persist to backend
+      try {
+        await taskApi.reorderTasksByRank(updates);
+        // Trigger refetch so parent gets fresh data with new ranks
+        if (onTaskRefetch) {
+          onTaskRefetch();
+        }
+      } catch (error) {
+        console.error("Failed to persist task reorder:", error);
+        // Revert to previous state on failure
+        setLocalTasks(tasks);
+      } finally {
+        setIsReordering(false);
+      }
     }
   };
 
@@ -1352,12 +1471,21 @@ const TaskTable: React.FC<TaskTableProps> = ({
     }
   };
 
-  const renderTaskRowCell = (colId: string, task: Task) => {
+  const renderTaskRowCell = (colId: string, task: Task, options?: { dragHandleProps?: any }) => {
     switch (colId) {
       case "task":
         return (
           <TableCell key={colId} className="tasktable-cell-task">
             <div className="flex items-start gap-3">
+              {/* Drag handle */}
+              {options?.dragHandleProps && (
+                <div 
+                  className="flex-shrink-0 mt-0.5 cursor-grab active:cursor-grabbing"
+                  {...options.dragHandleProps}
+                >
+                  <span className="text-muted-foreground">⋮⋮</span>
+                </div>
+              )}
               {!isOrgOrWorkspaceLevel && (onTaskSelect || onTasksSelect) && showBulkActionBar && (
                 <div className="flex-shrink-0 mt-0.5">
                   <Checkbox
@@ -1491,9 +1619,10 @@ const TaskTable: React.FC<TaskTableProps> = ({
     <div className="w-full">
       <div className="tasktable-container">
         <div className="tasktable-wrapper">
-          <DndContext
+           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
             <Table className="tasktable-table">
@@ -1534,27 +1663,38 @@ const TaskTable: React.FC<TaskTableProps> = ({
                       </TableCell>
                     </TableRow>
                   ))}
-                {tasks.map((task) => {
-                  const taskUrl = (() => {
-                    const wsSlug = workspaceSlug || task.project?.workspace?.slug;
-                    const pgSlug = projectSlug || task.project?.slug;
-                    const slug = task.slug || "";
-                    if (wsSlug && pgSlug) return `/${wsSlug}/${pgSlug}/tasks/${slug}`;
-                    if (wsSlug) return `/${wsSlug}/tasks/${slug}`;
-                    return `/tasks/${slug}`;
-                  })();
-                  return (
-                    <TableRow
+                <SortableContext
+                  items={localTasks.map(t => t.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {localTasks.map((task) => (
+                    <SortableRow
                       key={task.id}
-                      className="tasktable-row group/row h-12 odd:bg-[var(--odd-row)] cursor-pointer"
-                      onClick={() => handleRowClick(task)}
-                    >
-                      {columnOrder.map((colId) => renderTaskRowCell(colId, task))}
-                    </TableRow>
-                  );
-                })}
+                      task={task}
+                      workspaceSlug={workspaceSlug}
+                      projectSlug={projectSlug}
+                      columnOrder={columnOrder}
+                      renderTaskRowCell={renderTaskRowCell}
+                      handleRowClick={handleRowClick}
+                    />
+                  ))}
+                </SortableContext>
               </TableBody>
             </Table>
+            <DragOverlay>
+              {activeDragId && !columnOrder.includes(activeDragId) && (
+                <div className="bg-background border rounded-md shadow-lg opacity-80">
+                  <div className="p-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 text-muted-foreground">⋮⋮</div>
+                      <span className="text-sm font-medium">
+                        {localTasks.find(t => t.id === activeDragId)?.title || "Task"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </DragOverlay>
           </DndContext>
         </div>
 

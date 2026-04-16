@@ -159,12 +159,12 @@ function ProjectTasksContent() {
   const error = contextError || localError;
 
   const [sortField, setSortField] = useState<SortField>(() => {
-    return localStorage.getItem(SORT_FIELD_KEY) || "createdAt";
+    return localStorage.getItem(SORT_FIELD_KEY) || "listRank";
   });
 
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => {
     const stored = localStorage.getItem(SORT_ORDER_KEY);
-    return stored === "asc" || stored === "desc" ? stored : "desc";
+    return stored === "asc" || stored === "desc" ? stored : "asc";
   });
 
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {

@@ -69,8 +69,8 @@ const SortingManager: React.FC<SortingManagerProps> = ({
     if (onResetSort) {
       onResetSort();
     } else {
-      onSortFieldChange("createdAt");
-      onSortOrderChange("desc");
+      onSortFieldChange("listRank");
+      onSortOrderChange("asc");
     }
   };
 
