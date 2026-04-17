@@ -202,7 +202,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
 
       return result;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An error occurred";
+      const errorMessage = (error as any)?.message || (error instanceof Error ? error.message : "An error occurred");
       setOrganizationState((prev) => ({
         ...prev,
         isLoading: false,
@@ -575,8 +575,11 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
   // Initialize organizations when user is available
   const { user } = useAuth(); // Ensure this is available
 
+  const isInitFetchedRef = React.useRef(false);
+
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && !isInitFetchedRef.current) {
+       isInitFetchedRef.current = true;
        apiMethods.getUserOrganizations(user.id).then(orgs => {
            const currentOrgId = typeof window !== 'undefined' ? localStorage.getItem("currentOrganizationId") : null;
            
@@ -593,7 +596,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
            }
        });
     }
-  }, [user?.id]);
+  }, [user?.id, apiMethods, stateMethods]);
   const contextValue = useMemo(
     () => ({
       ...organizationState,

@@ -44,7 +44,13 @@ const OrganizationFormModal = ({
       onSuccess(newOrg);
       toast.success("Organization created successfully!");
     } catch (err) {
-      setError(err?.message ? err?.message[0] : "Failed to create organization");
+      const backendMessage = err?.message || err?.response?.data?.message;
+      const errorMessage = Array.isArray(backendMessage)
+        ? backendMessage[0]
+        : typeof backendMessage === "string"
+          ? backendMessage
+          : "Failed to create organization";
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -77,9 +83,6 @@ const OrganizationFormModal = ({
               <div className="flex items-center gap-3">
                 <HiExclamationTriangle className="w-5 h-5 text-[var(--destructive)] flex-shrink-0" />
                 <div>
-                  <h4 className="text-sm font-medium text-[var(--destructive)] mb-1">
-                    Error creating organization
-                  </h4>
                   <p className="text-sm text-[var(--destructive)]/80">{error}</p>
                 </div>
               </div>

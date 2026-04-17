@@ -107,6 +107,13 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // Check if a current orgId exists in local storage
       const savedOrgId = localStorage.getItem("currentOrganizationId");
+
+      // If org is already saved skip the API call.
+      if (savedOrgId) {
+        return;
+      }
+
+      // No org saved yet (e.g., first login), fetch and set one
       const organizations = await organizationApi.getUserOrganizations(userId);
 
       if (!organizations || organizations.length === 0) {
@@ -114,17 +121,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      let selectedOrg = organizations[0];
-
-      if (savedOrgId) {
-        const matchingOrg = organizations.find((org) => org.id === savedOrgId);
-        if (matchingOrg) {
-          selectedOrg = matchingOrg;
-          return; // Early return since the org is already set
-        } else {
-          selectedOrg = organizations[0];
-        }
-      }
+      const selectedOrg = organizations[0];
       localStorage.setItem("currentOrganizationId", selectedOrg.id);
       window.dispatchEvent(new CustomEvent("organizationChanged"));
     } catch (error) {
@@ -210,22 +207,20 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const user = authApi.getCurrentUser();
       if (!user) return "/login";
+      
+      // If we already have a saved organization, return early to avoid redundant API calls.
+      const savedOrgId = localStorage.getItem("currentOrganizationId");
+      if (savedOrgId) {
+        return "/dashboard";
+      }
+
       const organizations = await organizationApi.getUserOrganizations(user.id);
       if (!organizations || organizations.length === 0) {
         localStorage.removeItem("currentOrganizationId");
         return "/organization";
       }
-      const savedOrgId = localStorage.getItem("currentOrganizationId");
-      let selectedOrg = organizations[0];
-
-      if (savedOrgId) {
-        const matchingOrg = organizations.find((org) => org.id === savedOrgId);
-        if (matchingOrg) {
-          selectedOrg = matchingOrg;
-        } else {
-          selectedOrg = organizations[0];
-        }
-      }
+      
+      const selectedOrg = organizations[0];
       localStorage.setItem("currentOrganizationId", selectedOrg.id);
       return "/dashboard";
     } catch (err) {
