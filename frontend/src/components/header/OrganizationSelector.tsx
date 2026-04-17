@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/router";
 import { useOrganization } from "@/contexts/organization-context";
 import { setCurrentOrganizationId } from "@/utils/hierarchyContext";
@@ -24,12 +24,9 @@ export default function OrganizationSelector({
   onOrganizationChange?: (o: Organization) => void;
 }) {
   const router = useRouter();
-  const { getUserOrganizations } = useOrganization();
+  const { getUserOrganizations, organizations, currentOrganization, setCurrentOrganization: setContextCurrentOrganization, isLoading } = useOrganization();
   const { getCurrentUser } = useAuth();
 
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isFetchingOnOpen, setIsFetchingOnOpen] = useState(false);
 
@@ -38,52 +35,11 @@ export default function OrganizationSelector({
   const getInitials = (name?: string) => name?.charAt(0)?.toUpperCase() || "?";
 
   const setAndPersistOrganization = (org: Organization) => {
-    setCurrentOrganization(org);
-    localStorage.setItem("currentOrganizationId", org.id);
+    setContextCurrentOrganization(org);
     setCurrentOrganizationId(org.id);
-    window.dispatchEvent(new CustomEvent("organizationChanged"));
     onOrganizationChange?.(org);
   };
 
-  useEffect(() => {
-    if (!currentUser?.id) return;
-
-    const fetchOrganizations = async () => {
-      setIsLoading(true);
-      try {
-        const orgs: Organization[] = (await getUserOrganizations(currentUser.id)) ?? [];
-        setOrganizations(orgs);
-
-        if (orgs.length === 0) {
-          setIsLoading(false);
-          return;
-        }
-
-        let selectedOrg: Organization | undefined;
-
-        const savedOrgId = localStorage.getItem("currentOrganizationId");
-        if (savedOrgId) {
-          selectedOrg = orgs.find((org) => org.id === savedOrgId);
-        }
-        if (!selectedOrg) {
-          selectedOrg = orgs.find((org) => org.isDefault);
-        }
-
-        // If still no selection, pick the first org
-        if (!selectedOrg) {
-          selectedOrg = orgs[0];
-        }
-
-        setAndPersistOrganization(selectedOrg);
-      } catch (error) {
-        console.error("Error fetching organizations:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchOrganizations();
-  }, [currentUser?.id]);
 
   const fetchOrganizationsOnOpen = async () => {
     if (!currentUser?.id) return;
@@ -91,7 +47,6 @@ export default function OrganizationSelector({
     setIsFetchingOnOpen(true);
     try {
       const orgs: Organization[] = (await getUserOrganizations(currentUser.id)) ?? [];
-      setOrganizations(orgs);
 
       let selectedOrg: Organization | undefined;
 
