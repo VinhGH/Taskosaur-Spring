@@ -13,9 +13,10 @@ interface UserAvatarProps {
       };
   size?: "xs" | "sm" | "md" | "lg" | "xl";
   color?: "primary" | "secondary" | "success" | "danger" | "warning" | "info";
+  className?: string;
 }
 
-export default function UserAvatar({ user, size = "md", color = "primary" }: UserAvatarProps) {
+export default function UserAvatar({ user, size = "md", color = "primary", className }: UserAvatarProps) {
   const [imageError, setImageError] = useState(false);
 
   const sizeStyles = {
@@ -87,6 +88,7 @@ export default function UserAvatar({ user, size = "md", color = "primary" }: Use
     isValidUrl(avatarImage);
   return (
     <div
+      className={className}
       style={{
         ...sizeStyle,
         ...colorStyle,

@@ -6,9 +6,10 @@ import { RotateCcw } from "lucide-react";
 interface ErrorStateProps {
   error: string;
   onRetry?: () => void;
+  retryText?: string;
 }
 
-const ErrorState: React.FC<ErrorStateProps> = ({ error, onRetry }) => (
+const ErrorState: React.FC<ErrorStateProps> = ({ error, onRetry, retryText }) => (
   <div className="pt-[20%] bg-[var(--background)] flex flex-col items-center justify-center px-6 text-center">
     <div className="animate-fadeIn">
       {/* Icon */}
@@ -29,7 +30,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({ error, onRetry }) => (
             className="sm:w-auto w-full flex items-center justify-center gap-2"
           >
             <RotateCcw />
-            Retry
+            {retryText || "Retry"}
           </Button>
         )}
         <Button
