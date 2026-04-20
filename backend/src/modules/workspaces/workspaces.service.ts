@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { Role, Workspace } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -55,6 +56,28 @@ export class WorkspacesService {
     if (organization.archive) {
       throw new ForbiddenException('Cannot create workspace in an archived organization');
     }
+    // Validate parent workspace if provided
+    let parentPath = '';
+    if (createWorkspaceDto.parentWorkspaceId) {
+      const parentWorkspace = await this.prisma.workspace.findUnique({
+        where: { id: createWorkspaceDto.parentWorkspaceId },
+        select: { id: true, organizationId: true, path: true, archive: true },
+      });
+
+      if (!parentWorkspace) {
+        throw new NotFoundException('Parent workspace not found');
+      }
+
+      if (parentWorkspace.organizationId !== createWorkspaceDto.organizationId) {
+        throw new BadRequestException('Parent workspace must belong to the same organization');
+      }
+
+      if (parentWorkspace.archive) {
+        throw new BadRequestException('Cannot create a child workspace under an archived parent');
+      }
+      parentPath = parentWorkspace.path || `/${parentWorkspace.id}`;
+    }
+
     // Generate unique slug
     const uniqueSlug = await this.generateUniqueSlug(
       createWorkspaceDto.slug,
@@ -65,14 +88,24 @@ export class WorkspacesService {
       const workspace = await this.prisma.$transaction(async (tx) => {
         const workspace = await tx.workspace.create({
           data: {
-            ...createWorkspaceDto,
+            name: createWorkspaceDto.name,
             slug: uniqueSlug,
+            description: createWorkspaceDto.description,
+            avatar: createWorkspaceDto.avatar,
+            color: createWorkspaceDto.color,
+            settings: createWorkspaceDto.settings,
+            organizationId: createWorkspaceDto.organizationId,
+            parentWorkspaceId: createWorkspaceDto.parentWorkspaceId || null,
+            path: '',
             createdBy: userId,
             updatedBy: userId,
           },
           include: {
             organization: {
               select: { id: true, name: true, slug: true, avatar: true },
+            },
+            parentWorkspace: {
+              select: { id: true, name: true, slug: true },
             },
             createdByUser: {
               select: {
@@ -90,8 +123,15 @@ export class WorkspacesService {
                 lastName: true,
               },
             },
-            _count: { select: { members: true, projects: true } },
+            _count: { select: { members: true, projects: true, childWorkspaces: true } },
           },
+        });
+
+        const workspacePath = parentPath ? `${parentPath}/${workspace.id}` : `/${workspace.id}`;
+
+        await tx.workspace.update({
+          where: { id: workspace.id },
+          data: { path: workspacePath },
         });
         const membersToAdd = new Map<string, Role>();
         membersToAdd.set(userId, Role.OWNER);
@@ -168,6 +208,9 @@ export class WorkspacesService {
         organization: {
           select: { id: true, name: true, slug: true, avatar: true },
         },
+        parentWorkspace: {
+          select: { id: true, name: true, slug: true },
+        },
         members: userId
           ? {
               where: { userId },
@@ -177,6 +220,7 @@ export class WorkspacesService {
         _count: {
           select: {
             members: true,
+            childWorkspaces: true,
             projects: userId
               ? {
                   where: {
@@ -305,6 +349,22 @@ export class WorkspacesService {
         organization: {
           select: { id: true, name: true, slug: true, avatar: true },
         },
+        parentWorkspace: {
+          select: { id: true, name: true, slug: true },
+        },
+        childWorkspaces: {
+          where: { archive: false },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            description: true,
+            color: true,
+            path: true,
+            _count: { select: { members: true, projects: true, childWorkspaces: true } },
+          },
+          orderBy: { createdAt: 'asc' },
+        },
         members: {
           include: {
             user: {
@@ -348,6 +408,7 @@ export class WorkspacesService {
         _count: {
           select: {
             members: true,
+            childWorkspaces: true,
             projects: {
               where: {
                 archive: false,
@@ -441,10 +502,10 @@ export class WorkspacesService {
     await this.accessControl.getWorkspaceAccess(id, userId);
 
     try {
-      // Fetch current workspace to get organizationId
+      // Fetch current workspace to get organizationId and current parent info
       const currentWorkspace = await this.prisma.workspace.findUnique({
         where: { id },
-        select: { id: true, slug: true, organizationId: true },
+        select: { id: true, slug: true, organizationId: true, parentWorkspaceId: true, path: true },
       });
 
       if (!currentWorkspace) {
@@ -470,12 +531,119 @@ export class WorkspacesService {
         }
       }
 
+      // Check if parentWorkspaceId is being changed
+      const isParentChanging =
+        updateWorkspaceDto.parentWorkspaceId !== undefined &&
+        updateWorkspaceDto.parentWorkspaceId !== currentWorkspace.parentWorkspaceId;
+
+      if (isParentChanging) {
+        const newParentId = updateWorkspaceDto.parentWorkspaceId || null;
+
+        // Cannot make a workspace its own parent
+        if (newParentId === id) {
+          throw new BadRequestException('A workspace cannot be its own parent');
+        }
+
+        let newParentPath = '';
+
+        if (newParentId) {
+          const parentWorkspace = await this.prisma.workspace.findUnique({
+            where: { id: newParentId },
+            select: { id: true, organizationId: true, path: true, archive: true },
+          });
+
+          if (!parentWorkspace) {
+            throw new NotFoundException('Target parent workspace not found');
+          }
+
+          if (parentWorkspace.organizationId !== currentWorkspace.organizationId) {
+            throw new BadRequestException('Parent workspace must belong to the same organization');
+          }
+
+          if (parentWorkspace.archive) {
+            throw new BadRequestException('Cannot move to an archived workspace');
+          }
+
+          // Circular reference check: new parent must NOT be a descendant of this workspace
+          if (parentWorkspace.path && parentWorkspace.path.includes(`/${id}/`)) {
+            throw new BadRequestException(
+              'Cannot move a workspace under one of its own descendants',
+            );
+          }
+          if (parentWorkspace.path && parentWorkspace.path.endsWith(`/${id}`)) {
+            throw new BadRequestException(
+              'Cannot move a workspace under one of its own descendants',
+            );
+          }
+
+          newParentPath = parentWorkspace.path || `/${parentWorkspace.id}`;
+        }
+
+        // Update parent and recalculate paths in a transaction
+        const oldPath = currentWorkspace.path || `/${currentWorkspace.id}`;
+        const newPath = newParentId ? `${newParentPath}/${id}` : `/${id}`;
+
+        const otherUpdates = { ...updateWorkspaceDto };
+        delete otherUpdates.parentWorkspaceId;
+
+        const workspace = await this.prisma.$transaction(async (tx) => {
+          const updated = await tx.workspace.update({
+            where: { id },
+            data: {
+              ...otherUpdates,
+              parentWorkspaceId: newParentId,
+              path: newPath,
+              updatedBy: userId,
+            },
+            include: {
+              organization: {
+                select: { id: true, name: true, slug: true, avatar: true },
+              },
+              parentWorkspace: {
+                select: { id: true, name: true, slug: true },
+              },
+              createdByUser: {
+                select: { id: true, email: true, firstName: true, lastName: true },
+              },
+              updatedByUser: {
+                select: { id: true, email: true, firstName: true, lastName: true },
+              },
+              _count: { select: { members: true, projects: true, childWorkspaces: true } },
+            },
+          });
+
+          // Update all descendant paths
+          const descendants = await tx.workspace.findMany({
+            where: { path: { startsWith: `${oldPath}/` } },
+            select: { id: true, path: true },
+          });
+
+          for (const descendant of descendants) {
+            const updatedPath = (descendant.path || '').replace(oldPath, newPath);
+            await tx.workspace.update({
+              where: { id: descendant.id },
+              data: { path: updatedPath, updatedBy: userId },
+            });
+          }
+
+          return updated;
+        });
+
+        return workspace;
+      }
+
+      const safeUpdates = { ...updateWorkspaceDto };
+      delete safeUpdates.parentWorkspaceId;
+
       const workspace = await this.prisma.workspace.update({
         where: { id },
-        data: { ...updateWorkspaceDto, updatedBy: userId },
+        data: { ...safeUpdates, updatedBy: userId },
         include: {
           organization: {
             select: { id: true, name: true, slug: true, avatar: true },
+          },
+          parentWorkspace: {
+            select: { id: true, name: true, slug: true },
           },
           createdByUser: {
             select: { id: true, email: true, firstName: true, lastName: true },
@@ -483,7 +651,7 @@ export class WorkspacesService {
           updatedByUser: {
             select: { id: true, email: true, firstName: true, lastName: true },
           },
-          _count: { select: { members: true, projects: true } },
+          _count: { select: { members: true, projects: true, childWorkspaces: true } },
         },
       });
 
@@ -895,5 +1063,66 @@ export class WorkspacesService {
       select: { id: true },
     });
     return workspace ? workspace.id : null;
+  }
+  async getWorkspaceTree(organizationId: string, userId: string) {
+    const { isSuperAdmin } = await this.accessControl.getOrgAccess(organizationId, userId);
+
+    const whereClause: any = { archive: false, organizationId };
+    if (!isSuperAdmin) {
+      whereClause.members = { some: { userId } };
+    }
+
+    const workspaces = await this.prisma.workspace.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        color: true,
+        parentWorkspaceId: true,
+        path: true,
+        _count: { select: { members: true, projects: true, childWorkspaces: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return workspaces;
+  }
+
+  async getAncestors(id: string, userId: string) {
+    await this.accessControl.getWorkspaceAccess(id, userId);
+
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id },
+      select: { id: true, path: true },
+    });
+
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    if (!workspace.path) {
+      return [];
+    }
+
+    const ancestorIds = workspace.path.split('/').filter(Boolean);
+    ancestorIds.pop();
+
+    if (ancestorIds.length === 0) {
+      return [];
+    }
+
+    const ancestors = await this.prisma.workspace.findMany({
+      where: { id: { in: ancestorIds } },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        path: true,
+      },
+    });
+
+    return ancestors.sort((a, b) => (a.path?.length || 0) - (b.path?.length || 0));
   }
 }

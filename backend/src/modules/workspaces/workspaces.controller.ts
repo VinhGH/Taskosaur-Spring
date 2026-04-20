@@ -129,6 +129,23 @@ export class WorkspacesController {
     return this.workspacesService.findArchived(organizationId, user.id as string);
   }
 
+  @Get('tree')
+  @ApiOperation({
+    summary: 'Get workspace tree for an organization',
+    description:
+      'Returns all workspaces as a flat list with hierarchy data (parentWorkspaceId, path)',
+  })
+  @ApiQuery({ name: 'organizationId', required: true, description: 'Organization ID (UUID)' })
+  @ApiResponse({ status: 200, description: 'Workspace tree data' })
+  @Roles(Role.VIEWER, Role.MEMBER, Role.MANAGER, Role.OWNER)
+  @Scope('ORGANIZATION', 'organizationId')
+  getWorkspaceTree(
+    @Query('organizationId', ParseUUIDPipe) organizationId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.workspacesService.getWorkspaceTree(organizationId, user.id as string);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get workspace by ID' })
   @ApiParam({ name: 'id', description: 'Workspace ID (UUID)' })
@@ -294,5 +311,19 @@ export class WorkspacesController {
       user.id as string,
       query.types,
     );
+  }
+
+  @Get(':id/ancestors')
+  @ApiOperation({
+    summary: 'Get ancestor chain of a workspace',
+    description: 'Returns the ancestor workspace chain from root to parent (for breadcrumbs)',
+  })
+  @ApiParam({ name: 'id', description: 'Workspace ID (UUID)' })
+  @ApiResponse({ status: 200, description: 'Ancestor workspace list' })
+  @ApiResponse({ status: 404, description: 'Workspace not found' })
+  @Scope('WORKSPACE', 'id')
+  @Roles(Role.VIEWER, Role.MEMBER, Role.MANAGER, Role.OWNER)
+  getAncestors(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
+    return this.workspacesService.getAncestors(id, user.id as string);
   }
 }

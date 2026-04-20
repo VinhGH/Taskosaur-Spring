@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNotEmpty, IsObject, Matches } from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty, IsObject, Matches, IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateWorkspaceDto {
@@ -85,4 +85,14 @@ export class CreateWorkspaceDto {
   @IsString()
   @IsNotEmpty()
   organizationId: string;
+
+  @ApiProperty({
+    description: 'Optional parent workspace ID for creating nested workspaces',
+    example: 'a1b2c3d4-5678-9012-abcd-ef1234567890',
+    format: 'uuid',
+    required: false,
+  })
+  @IsUUID()
+  @IsOptional()
+  parentWorkspaceId?: string;
 }
