@@ -156,6 +156,7 @@ export class TaskCommentsService {
       author: { firstName: string; lastName?: string | null };
     },
     authorId: string,
+    oldContent?: string,
   ) {
     // 1. Fetch Task Details with Participants and Context
     const task = await this.prisma.task.findUnique({
@@ -181,7 +182,13 @@ export class TaskCommentsService {
     // 2. Handle Mentions
     const mentionRegex = /(?:^|\s|>|\[)@([\w.-]+)\b/g;
     const matches = [...comment.content.matchAll(mentionRegex)];
-    const usernames = [...new Set(matches.map((m) => m[1]))];
+    let usernames = [...new Set(matches.map((m) => m[1]))];
+
+    if (oldContent) {
+      const oldMatches = [...oldContent.matchAll(mentionRegex)];
+      const oldUsernames = [...new Set(oldMatches.map((m) => m[1]))];
+      usernames = usernames.filter((u) => !oldUsernames.includes(u));
+    }
 
     if (usernames.length > 0) {
       const mentionedUsers = await this.prisma.user.findMany({
@@ -275,27 +282,28 @@ export class TaskCommentsService {
     }
 
     // 3. Notify Assignees, Reporters, Watchers (Task Commented)
-    const participants = [
-      ...task.assignees.map((a) => ({ id: a.userId })),
-      ...task.reporters.map((r) => ({ id: r.userId })),
-      ...task.watchers.map((w) => ({ id: w.user.id })),
-    ];
-
-    for (const participant of participants) {
-      if (!notifiedUserIds.has(participant.id)) {
-        await this.notificationsService.createNotification({
-          title: 'New Comment',
-          message: `${comment.author.firstName} commented on "${task.title}"`,
-          type: NotificationType.TASK_COMMENTED,
-          userId: participant.id,
-          organizationId,
-          entityType: 'Task',
-          entityId: task.id,
-          actionUrl: `/tasks/${task.slug}`,
-          priority: NotificationPriority.MEDIUM,
-          createdBy: authorId,
-        });
-        notifiedUserIds.add(participant.id);
+    if (!oldContent) {
+      const participants = [
+        ...task.assignees.map((a) => ({ id: a.userId })),
+        ...task.reporters.map((r) => ({ id: r.userId })),
+        ...task.watchers.map((w) => ({ id: w.user.id })),
+      ];
+      for (const participant of participants) {
+        if (!notifiedUserIds.has(participant.id)) {
+          await this.notificationsService.createNotification({
+            title: 'New Comment',
+            message: `${comment.author.firstName} commented on "${task.title}"`,
+            type: NotificationType.TASK_COMMENTED,
+            userId: participant.id,
+            organizationId,
+            entityType: 'Task',
+            entityId: task.id,
+            actionUrl: `/tasks/${task.slug}`,
+            priority: NotificationPriority.MEDIUM,
+            createdBy: authorId,
+          });
+          notifiedUserIds.add(participant.id);
+        }
       }
     }
   }
@@ -548,7 +556,7 @@ export class TaskCommentsService {
     // Verify comment exists and user is the author
     const comment = await this.prisma.taskComment.findUnique({
       where: { id },
-      select: { id: true, authorId: true, taskId: true },
+      select: { id: true, authorId: true, taskId: true, content: true },
     });
 
     if (!comment) {
@@ -596,6 +604,9 @@ export class TaskCommentsService {
         },
       },
     });
+
+    // Handle any newly added mentions during the edit
+    await this.handleNotifications(updatedComment, userId, comment.content);
 
     return updatedComment;
   }
