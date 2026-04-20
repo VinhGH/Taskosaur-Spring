@@ -183,6 +183,8 @@ model Workspace {
   color           String?
   settings        Json?
   organizationId  String            @map("organization_id") @db.Uuid
+  parentWorkspaceId String?           @map("parent_workspace_id") @db.Uuid
+  path              String?           @map("path")
   createdBy       String?           @map("created_by_id") @db.Uuid
   updatedBy       String?           @map("updated_by_id") @db.Uuid
   createdAt       DateTime          @default(now()) @map("created_at")
@@ -192,11 +194,14 @@ model Workspace {
   projects        Project[]
   members         WorkspaceMember[]
   organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parentWorkspace   Workspace?        @relation("WorkspaceHierarchy", fields: [parentWorkspaceId], references: [id], onDelete: SetNull)
+  childWorkspaces   Workspace[]       @relation("WorkspaceHierarchy")
   createdByUser   User?             @relation("WorkspaceCreatedBy", fields: [createdBy], references: [id])
   updatedByUser   User?             @relation("WorkspaceUpdatedBy", fields: [updatedBy], references: [id])
   Invitation      Invitation[]
 
   @@unique([organizationId, slug])
+  @@index([parentWorkspaceId])
   @@map("workspaces")
 }
 
