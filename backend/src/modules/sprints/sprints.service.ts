@@ -135,7 +135,7 @@ export class SprintsService {
     if (createSprintDto.status === SprintStatus.ACTIVE) {
       const activeSprint = await this.prisma.sprint.findFirst({
         where: {
-          projectId: createSprintDto.projectId,
+          projectId: project.id,
           status: SprintStatus.ACTIVE,
         },
       });
