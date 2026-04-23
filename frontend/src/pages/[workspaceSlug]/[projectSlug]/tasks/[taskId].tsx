@@ -7,6 +7,7 @@ import TaskDetailClient from "@/components/tasks/TaskDetailClient";
 import ErrorState from "@/components/common/ErrorState";
 import { useLayout } from "@/contexts/layout-context";
 import NotFound from "@/pages/404";
+import { SEO } from "@/components/common/SEO";
 
 function TaskDetailContent() {
   const { t } = useTranslation(["tasks", "common"]);
@@ -89,16 +90,22 @@ function TaskDetailContent() {
   }
 
   return (
-    <div className="">
-      <Suspense fallback={<div className="p-4"><div className="animate-pulse h-96 bg-[var(--muted)] rounded"></div></div>}>
-        <TaskDetailClient
-          task={task}
-          workspaceSlug={workspaceSlug as string}
-          projectSlug={projectSlug as string}
-          taskId={task.id as string}
-        />
-      </Suspense>
-    </div>
+    <>
+      <SEO
+        title={task?.title || t("tasks:detail.placeholderTaskTitle")}
+        description={task?.description || t("tasks:description")}
+      />
+      <div className="">
+        <Suspense fallback={<div className="p-4"><div className="animate-pulse h-96 bg-[var(--muted)] rounded"></div></div>}>
+          <TaskDetailClient
+            task={task}
+            workspaceSlug={workspaceSlug as string}
+            projectSlug={projectSlug as string}
+            taskId={task.id as string}
+          />
+        </Suspense>
+      </div>
+    </>
   );
 }
 

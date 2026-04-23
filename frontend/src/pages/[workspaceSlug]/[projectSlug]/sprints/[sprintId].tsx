@@ -39,6 +39,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
 import { CsvImportModal } from "@/components/tasks/CsvImportModal";
+import { SEO } from "@/components/common/SEO";
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState<T>(value);
 
@@ -926,13 +927,18 @@ const sprintId = resolvedSprintId;
   };
 
   return (
-    <div className="dashboard-container flex flex-col">
-      {/* Unified Sticky Header */}
-      <div className="sticky top-0 z-50 bg-[var(--background)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--background)]/80 border-b border-[var(--border)]/10 -mx-4 px-4 pb-0 pt-4">
-        {/* PageHeader */}
-        <div className="pb-2">
-          <PageHeader
-            title={t("sprintTasks.title")}
+    <>
+      <SEO
+        title={t("sprintTasks.title")}
+        description={t("sprintTasks.description", { total: pagination.totalCount })}
+      />
+      <div className="dashboard-container flex flex-col">
+        {/* Unified Sticky Header */}
+        <div className="sticky top-0 z-50 bg-[var(--background)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--background)]/80 border-b border-[var(--border)]/10 -mx-4 px-4 pb-0 pt-4">
+          {/* PageHeader */}
+          <div className="pb-2">
+            <PageHeader
+              title={t("sprintTasks.title")}
             description={t("sprintTasks.description", { total: pagination.totalCount })}
             actions={
               <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 gap-2">
@@ -1086,18 +1092,19 @@ const sprintId = resolvedSprintId;
       <div className="rounded-md">{renderContent()}</div>
 
       {/* Natural Flow Pagination */}
-      {showPagination && (
-        <div className="mt-4 border-t border-[var(--border)]/50 py-4 -mx-4 px-4">
-          <Pagination
-            pagination={pagination}
-            pageSize={pageSize}
-            onPageSizeChange={handlePageSizeChange}
-            onPageChange={handlePageChange}
-            itemType="tasks"
-          />
-        </div>
-      )}
-    </div>
+        {showPagination && (
+          <div className="mt-4 border-t border-[var(--border)]/50 py-4 -mx-4 px-4">
+            <Pagination
+              pagination={pagination}
+              pageSize={pageSize}
+              onPageSizeChange={handlePageSizeChange}
+              onPageChange={handlePageChange}
+              itemType="tasks"
+            />
+          </div>
+        )}
+      </div>
+    </>
   );
 };
 

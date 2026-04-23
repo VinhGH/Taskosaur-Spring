@@ -40,6 +40,7 @@ import { TaskTypeIcon } from "@/utils/data/taskData";
 import { useLayout } from "@/contexts/layout-context";
 import NotFound from "@/pages/404";
 import { useSlugRedirect, cacheSlugId } from "@/hooks/useSlugRedirect";
+import { SEO } from "@/components/common/SEO";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState<T>(value);
@@ -1204,8 +1205,13 @@ function ProjectTasksContent() {
   }
 
   return (
-    <div className="dashboard-container flex flex-col">
-      {/* Unified Sticky Header */}
+    <>
+      <SEO
+        title={project ? t("projectTasks", { name: project.name }) : t("defaultProjectTasks")}
+        description={project ? t("projectTasksDescription", { name: project.name }) : t("defaultProjectTasksDescription")}
+      />
+      <div className="dashboard-container flex flex-col">
+        {/* Unified Sticky Header */}
       <div className="sticky top-0 z-40 bg-[var(--background)]/95 backdrop-blur supports-[backdrop-filter]:bg-[var(--background)]/80 border-b border-[var(--border)]/10 -mx-4 px-4 pb-0 pt-4">
         {/* PageHeader */}
         <div className="pb-2">
@@ -1448,7 +1454,8 @@ function ProjectTasksContent() {
           />
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 
