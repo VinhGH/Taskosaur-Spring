@@ -5,6 +5,7 @@ export interface WorkspaceData {
   description?: string;
   color?: string;
   slug?: string;
+  parentWorkspaceId?: string;
 }
 
 export interface Workspace {
@@ -14,6 +15,10 @@ export interface Workspace {
   description?: string;
   color?: string;
   organizationId: string;
+  parentWorkspaceId?: string;
+  path?: string;
+  parentWorkspace?: Partial<Workspace>;
+  childWorkspaces?: Partial<Workspace>[];
   memberCount?: number;
   projectCount?: number;
   createdAt: string;
@@ -24,6 +29,7 @@ export interface Workspace {
     members: number;
     projects: number;
     tasks?: number;
+    childWorkspaces?: number;
   };
   members?: {
     role: WorkspaceRole;

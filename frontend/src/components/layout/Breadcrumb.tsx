@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { ChevronRight } from "lucide-react";
 import api from "@/lib/api";
+import { useWorkspace } from "@/contexts/workspace-context";
 
 // Helper: Convert slug-like text into Title Case
 const formatSegment = (segment: string) => {
@@ -37,6 +38,7 @@ interface BreadcrumbItem {
 
 export default function Breadcrumb() {
   const pathname = usePathname();
+  const { workspaceTree } = useWorkspace();
   const [currentPath, setCurrentPath] = useState('');
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
 
@@ -213,9 +215,38 @@ export default function Breadcrumb() {
   }, [pathToUse]);
 
   const buildBreadcrumbFromSegments = (segments: string[]) => {
+    const baseItems: BreadcrumbItem[] = [];
+    const workspaceSegment = segments[0];
+
+    if (workspaceTree && workspaceTree.length > 0 && workspaceSegment) {
+      const workspace = workspaceTree.find(w => w.slug === workspaceSegment);
+      if (workspace && workspace.path) {
+        const ancestorIds = workspace.path.split('/').filter(Boolean);
+        if (ancestorIds[ancestorIds.length - 1] === workspace.id) {
+          ancestorIds.pop();
+        }
+
+        ancestorIds.forEach(id => {
+          const ancestor = workspaceTree.find(w => w.id === id);
+          if (ancestor) {
+            baseItems.push({
+              name: ancestor.name,
+              href: `/${ancestor.slug}`,
+              current: false,
+            });
+          }
+        });
+      }
+    }
+
     const items = segments.map((seg, idx) => {
       const href = "/" + segments.slice(0, idx + 1).join("/");
-      const displayName = formatSegment(seg);
+      let displayName = formatSegment(seg);
+
+      if (idx === 0 && workspaceTree && workspaceTree.length > 0) {
+        const ws = workspaceTree.find(w => w.slug === seg);
+        if (ws) displayName = ws.name;
+      }
 
       return {
         name: displayName,
@@ -224,7 +255,7 @@ export default function Breadcrumb() {
       };
     });
 
-    setBreadcrumbs(items);
+    setBreadcrumbs([...baseItems, ...items]);
   };
 
   if (

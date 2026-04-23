@@ -103,6 +103,29 @@ export const workspaceApi = {
     }
   },
 
+  getWorkspaceTree: async (organizationId: string): Promise<Workspace[]> => {
+    try {
+      if (!isValidUUID(organizationId)) {
+        throw new Error('Invalid organizationId: must be a valid UUID');
+      }
+      const response = await api.get<Workspace[]>(`/workspaces/tree?organizationId=${organizationId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Get workspace tree error:", error);
+      throw error;
+    }
+  },
+
+  getAncestors: async (workspaceId: string): Promise<Workspace[]> => {
+    try {
+      const response = await api.get<Workspace[]>(`/workspaces/${workspaceId}/ancestors`);
+      return response.data;
+    } catch (error) {
+      console.error("Get workspace ancestors error:", error);
+      throw error;
+    }
+  },
+
   getWorkspaceBySlug: async (slug: string, organizationId: string): Promise<Workspace> => {
     try {
       const sanitizedSlug = sanitizeSlug(slug);

@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
 import { getSidebarCollapsedState, toggleSidebar as toggleSidebarUtil } from "@/utils/sidebarUtils";
+import { Plus } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/router";
 import ResizableSidebar from "./ResizableSidebar";
 import WorkspaceSelector from "./WorkspaceSelector";
 import ProjectSelector from "./ProjectSelector";
+import WorkspaceTree from "./WorkspaceTree";
 
 import {
   HiHome,
@@ -91,6 +93,7 @@ export default function Sidebar() {
     }
     return false;
   });
+  const [showWorkspaceSwitcher, setShowWorkspaceSwitcher] = useState(false);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
   const { currentWorkspaceSlug, currentProjectSlug } = usePathnameParsing(pathname, isMounted);
@@ -557,6 +560,18 @@ export default function Sidebar() {
             );
           })}
         </ul>
+
+        {isAuth && currentWorkspaceSlug && !currentProjectSlug && (
+          <>
+            <div className="mt-4 mb-2 mx-3 border-t border-[var(--sidebar-border)]" />
+            <div className="flex items-center justify-between px-3 mb-1">
+              <span className="text-[10px] font-semibold text-[var(--sidebar-muted)] uppercase tracking-wider">
+              Workspaces
+              </span>
+            </div>
+            <WorkspaceTree currentWorkspaceSlug={currentWorkspaceSlug} />
+          </>
+        )}
       </nav>
     </div>
   );

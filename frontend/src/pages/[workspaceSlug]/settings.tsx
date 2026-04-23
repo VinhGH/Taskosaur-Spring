@@ -11,6 +11,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import DangerZoneModal from "@/components/common/DangerZoneModal";
 import { HiExclamationTriangle } from "react-icons/hi2";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -25,7 +32,7 @@ function WorkspaceSettingsContent() {
   const workspaceSlug = router.query.workspaceSlug;
   const initialWorkspaceSlug =
     typeof workspaceSlug === "string" ? workspaceSlug : workspaceSlug?.[0];
-  const { getWorkspaceBySlug, updateWorkspace, deleteWorkspace, archiveWorkspace } = useWorkspace();
+  const { getWorkspaceBySlug, updateWorkspace, deleteWorkspace, archiveWorkspace, workspaceTree } = useWorkspace();
   const { isAuthenticated } = useAuth();
   const [workspace, setWorkspace] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -40,6 +47,7 @@ function WorkspaceSettingsContent() {
     name: "",
     description: "",
     slug: "",
+    parentWorkspaceId: "",
   });
 
   const retryFetch = () => {
@@ -66,6 +74,7 @@ function WorkspaceSettingsContent() {
           name: workspaceData.name || "",
           description: workspaceData.description || "",
           slug: workspaceData.slug || "",
+          parentWorkspaceId: workspaceData.parentWorkspaceId || "",
         });
       } catch (err) {
         setError(err?.message ? err.message : t("workspace_settings.failed_to_load"));
@@ -167,6 +176,7 @@ function WorkspaceSettingsContent() {
           name: workspaceData.name || "",
           description: workspaceData.description || "",
           slug: workspaceData.slug || "",
+          parentWorkspaceId: workspaceData.parentWorkspaceId || "",
         });
       } catch (err) {
         if (!isActive) return;
@@ -219,6 +229,7 @@ function WorkspaceSettingsContent() {
         name: formData?.name?.trim(),
         slug: formData?.slug?.trim(),
         description: formData?.description?.trim(),
+        parentWorkspaceId: formData.parentWorkspaceId || null,
       });
 
       setWorkspace(updatedWorkspace);
@@ -357,6 +368,33 @@ function WorkspaceSettingsContent() {
                 rows={3}
                 disabled={saving || !hasAccess}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="parentWorkspaceId">Parent Workspace (Optional)</Label>
+              <Select
+                value={formData.parentWorkspaceId || "none"}
+                onValueChange={(value) => handleInputChange("parentWorkspaceId", value === "none" ? "" : value)}
+                disabled={saving || !hasAccess}
+              >
+                <SelectTrigger className="w-full bg-[var(--card)] border-[var(--border)]">
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent className="bg-[var(--card)] border-[var(--border)]">
+                  <SelectItem value="none">None</SelectItem>
+                  {workspaceTree
+                    ?.filter(w => w.id !== workspace?.id) // Don't let it be its own parent
+                    .map(ws => (
+                      <SelectItem key={ws.id} value={ws.id}>
+                        {ws.name}
+                      </SelectItem>
+                    ))
+                  }
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-[var(--muted-foreground)]">
+                Nest this workspace under another workspace.
+              </p>
             </div>
 
             <div className="flex justify-end pt-4">

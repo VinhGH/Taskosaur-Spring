@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useWorkspaceContext } from "@/contexts/workspace-context";
 import ActionButton from "@/components/common/ActionButton";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,15 @@ export default function WorkspacesPageContent({ organizationId }: WorkspacesPage
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [archivedWorkspaces, setArchivedWorkspaces] = useState<any[]>([]);
   const [unarchiving, setUnarchiving] = useState<string | null>(null);
+
+  // Compute parent hierarchy mapping
+  const parentMap = useMemo(() => {
+    const map = new Map<string, string>();
+    workspaces.forEach(ws => {
+      map.set(ws.id, ws.name);
+    });
+    return map;
+  }, [workspaces]);
 
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const currentOrganization = organizationId || getCurrentOrganizationId();
@@ -232,7 +241,11 @@ export default function WorkspacesPageContent({ organizationId }: WorkspacesPage
                   </div>
                 }
                 heading={ws.name}
-                subheading={ws.slug}
+                subheading={
+                  ws.parentWorkspaceId && parentMap.has(ws.parentWorkspaceId)
+                    ? `${parentMap.get(ws.parentWorkspaceId)} / ${ws.slug}`
+                    : ws.slug
+                }
                 description={ws.description}
                 footer={
                   <div className="flex items-center gap-4">

@@ -12,6 +12,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,6 +30,7 @@ import ActionButton from "../common/ActionButton";
 interface FormData {
   name: string;
   description: string;
+  parentWorkspaceId: string;
 }
 
 interface NewWorkspaceDialogProps {
@@ -53,6 +61,7 @@ export default function NewWorkspaceDialog({
   const [formData, setFormData] = useState<FormData>({
     name: "",
     description: "",
+    parentWorkspaceId: "",
   });
 
   const dialogOpen = open !== undefined ? open : isOpen;
@@ -72,7 +81,7 @@ export default function NewWorkspaceDialog({
   );
 
   const resetForm = useCallback(() => {
-    setFormData({ name: "", description: "" });
+    setFormData({ name: "", description: "", parentWorkspaceId: "" });
     setError(null);
     setIsSubmitting(false);
   }, []);
@@ -112,6 +121,7 @@ export default function NewWorkspaceDialog({
         const newWorkspace = await workspaceContext.createWorkspace({
           name: formData.name.trim(),
           description: formData.description.trim(),
+          ...(formData.parentWorkspaceId ? { parentWorkspaceId: formData.parentWorkspaceId } : {}),
         });
 
         if (onWorkspaceCreated) {
@@ -234,6 +244,35 @@ export default function NewWorkspaceDialog({
                 style={{ color: "hsl(var(--primary))" }}
               />
               Help team members understand what this workspace is for.
+            </p>
+          </div>
+
+          <div className="projects-form-field">
+            <Label htmlFor="parent-workspace" className="projects-form-label">
+              <HiBuildingOffice2
+                className="projects-form-label-icon"
+                style={{ color: "hsl(var(--primary))" }}
+              />
+              Parent Workspace <span className="text-muted-foreground font-normal">(Optional)</span>
+            </Label>
+            <Select
+              value={formData.parentWorkspaceId || "none"}
+              onValueChange={(value) => handleChange({ target: { name: "parentWorkspaceId", value: value === "none" ? "" : value } } as any)}
+            >
+              <SelectTrigger className="projects-form-input border-none">
+                <SelectValue placeholder="None" />
+              </SelectTrigger>
+              <SelectContent className="bg-[var(--card)] border-[var(--border)]">
+                <SelectItem value="none">None</SelectItem>
+                {workspaceContext?.workspaces.map((ws) => (
+                  <SelectItem key={ws.id} value={ws.id}>
+                    {ws.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="projects-form-hint mt-2">
+              Select a parent workspace to nest this workspace underneath it. Max depth is 5 levels.
             </p>
           </div>
 

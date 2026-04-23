@@ -25,6 +25,7 @@ interface AnalyticsData {
 }
 interface WorkspaceState {
   workspaces: Workspace[];
+  workspaceTree: Workspace[];
   currentWorkspace: Workspace | null;
   workspaceMembers: WorkspaceMember[];
   workspaceStats: WorkspaceStats | null;
@@ -42,6 +43,8 @@ interface WorkspaceContextType extends WorkspaceState {
   createWorkspace: (workspaceData: WorkspaceData) => Promise<Workspace>;
   getWorkspaces: () => Promise<Workspace[]>;
   getWorkspacesByOrganization: (organizationId?: string, search?: string) => Promise<Workspace[]>;
+  getWorkspaceTree: (organizationId: string) => Promise<Workspace[]>;
+  getAncestors: (workspaceId: string) => Promise<Workspace[]>;
   getWorkspaceById: (workspaceId: string) => Promise<Workspace>;
   getWorkspaceBySlug: (slug: string, organizationId?: string) => Promise<Workspace>;
   updateWorkspace: (
@@ -114,6 +117,7 @@ interface WorkspaceProviderProps {
 export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
   const [workspaceState, setWorkspaceState] = useState<WorkspaceState>({
     workspaces: [],
+    workspaceTree: [],
     currentWorkspace: null,
     workspaceMembers: [],
     workspaceStats: null,
@@ -366,6 +370,22 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
         }));
 
         return result;
+      },
+
+      getWorkspaceTree: async (organizationId: string): Promise<Workspace[]> => {
+        const result = await handleApiOperation(
+          () => workspaceApi.getWorkspaceTree(organizationId),
+          false
+        );
+        setWorkspaceState((prev) => ({
+          ...prev,
+          workspaceTree: result,
+        }));
+        return result;
+      },
+
+      getAncestors: async (workspaceId: string): Promise<Workspace[]> => {
+        return handleApiOperation(() => workspaceApi.getAncestors(workspaceId), false);
       },
 
       getWorkspaceById: async (workspaceId: string): Promise<Workspace> => {
