@@ -63,7 +63,8 @@
       "startDateRequired": "La fecha de inicio es obligatoria",
       "endDateRequired": "La fecha de finalización es obligatoria",
       "endDateAfterStart": "La fecha de finalización debe ser posterior a la fecha de inicio"
-    }
+    },
+    "saveFailed": "Error al guardar el sprint"
   },
   "board": {
     "loading": "Cargando...",

@@ -63,7 +63,8 @@
       "startDateRequired": "Start date is required",
       "endDateRequired": "End date is required",
       "endDateAfterStart": "End date must be after start date"
-    }
+    },
+    "saveFailed": "Failed to save sprint"
   },
   "board": {
     "loading": "Loading...",

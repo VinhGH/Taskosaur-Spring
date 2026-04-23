@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import ActionButton from "../common/ActionButton";
 import { getTodayDate } from "@/utils/handleDateChange";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 export const SprintFormModal = ({
   isOpen,
@@ -96,8 +97,10 @@ export const SprintFormModal = ({
 
       await onSave(submitData);
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving sprint:", error);
+      const errorMessage = error?.message || t("form.saveFailed");
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }

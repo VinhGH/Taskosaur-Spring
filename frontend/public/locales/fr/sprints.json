@@ -63,7 +63,8 @@
       "startDateRequired": "La date de début est requise",
       "endDateRequired": "La date de fin est requise",
       "endDateAfterStart": "La date de fin doit être postérieure à la date de début"
-    }
+    },
+    "saveFailed": "Échec de l'enregistrement du sprint"
   },
   "board": {
     "loading": "Chargement...",

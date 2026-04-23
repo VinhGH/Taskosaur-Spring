@@ -33,6 +33,7 @@ function SprintsPageContent() {
     deleteSprint,
     startSprint,
     completeSprint,
+    clearError,
   } = useSprint();
 
   const authContext = useAuth();
@@ -159,6 +160,7 @@ function SprintsPageContent() {
       setEditingSprint(null);
     } catch (error) {
       console.error("Error saving sprint:", error);
+      clearError();
       throw error;
     }
   };
