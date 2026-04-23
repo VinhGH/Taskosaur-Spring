@@ -6,6 +6,7 @@ export interface WorkspaceData {
   color?: string;
   slug?: string;
   parentWorkspaceId?: string;
+  inheritMembers?: boolean;
 }
 
 export interface Workspace {
@@ -90,6 +91,7 @@ export interface ActivityLog {
   taskSlug?: string | null;
   projectSlug?: string | null;
   workspaceSlug?: string | null;
+  sprintSlug?: string | null;
   metadata?: Record<string, any>;
   createdAt: string;
   updatedAt: string;

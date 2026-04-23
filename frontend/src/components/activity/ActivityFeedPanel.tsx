@@ -24,6 +24,7 @@ export interface ActivityFeedItem {
   taskSlug?: string | null;
   projectSlug?: string | null;
   workspaceSlug?: string | null;
+  sprintSlug?: string | null;
   createdAt: string | Date;
   metadata?: { comment?: string } & Record<string, unknown>;
   newValue?: {
@@ -98,6 +99,11 @@ function getEntityLink(activity: ActivityFeedItem, fallbackWorkspaceSlug?: strin
         return `/${wsSlug}/${activity.projectSlug}`;
       }
       return "#";
+    case "sprint":
+      if (wsSlug && activity.projectSlug && activity.sprintSlug) {
+        return `/${wsSlug}/${activity.projectSlug}/sprints/${activity.sprintSlug}`;
+      }
+      return "#";
     case "workspace":
       if (wsSlug) {
         return `/${wsSlug}`;
@@ -148,6 +154,7 @@ function normalizeActivity(activity: any): ActivityFeedItem {
     taskSlug,
     projectSlug,
     workspaceSlug,
+    sprintSlug: activity.sprintSlug || null,
     createdAt: activity.createdAt || "",
     user: {
       name: userName,

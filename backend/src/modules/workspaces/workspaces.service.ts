@@ -5,12 +5,13 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
-import { Role, Workspace } from '@prisma/client';
+import { ActivityType, Role, Workspace } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { AccessControlService } from 'src/common/access-control.utils';
 import { SettingsService } from '../settings/settings.service';
+import { ActivityLogService } from '../activity-log/activity-log.service';
 
 @Injectable()
 export class WorkspacesService {
@@ -18,6 +19,7 @@ export class WorkspacesService {
     private prisma: PrismaService,
     private accessControl: AccessControlService,
     private settingsService: SettingsService,
+    private activityLog: ActivityLogService,
   ) {}
 
   async create(createWorkspaceDto: CreateWorkspaceDto, userId: string): Promise<Workspace> {
@@ -136,11 +138,35 @@ export class WorkspacesService {
         const membersToAdd = new Map<string, Role>();
         membersToAdd.set(userId, Role.OWNER);
         membersToAdd.set(organization.ownerId, Role.OWNER);
-        organization.members.forEach((member) => {
-          if (!membersToAdd.has(member.userId)) {
-            membersToAdd.set(member.userId, member.role);
+
+        const shouldInherit = createWorkspaceDto.inheritMembers !== false;
+
+        if (shouldInherit) {
+          if (createWorkspaceDto.parentWorkspaceId) {
+            // Inherit from parent workspace
+            const parentWorkspace = await tx.workspace.findUnique({
+              where: { id: createWorkspaceDto.parentWorkspaceId },
+              select: {
+                members: {
+                  select: { userId: true, role: true },
+                },
+              },
+            });
+            parentWorkspace?.members.forEach((member) => {
+              if (!membersToAdd.has(member.userId)) {
+                membersToAdd.set(member.userId, member.role);
+              }
+            });
+          } else {
+            // Inherit from organization (existing behavior)
+            organization.members.forEach((member) => {
+              if (!membersToAdd.has(member.userId)) {
+                membersToAdd.set(member.userId, member.role);
+              }
+            });
           }
-        });
+        }
+
         await Promise.all(
           Array.from(membersToAdd.entries()).map(([memberId, memberRole]) =>
             tx.workspaceMember.create({
@@ -157,6 +183,24 @@ export class WorkspacesService {
 
         return workspace;
       });
+
+      try {
+        await this.activityLog.logActivity({
+          type: ActivityType.WORKSPACE_CREATED,
+          description: `Created workspace "${workspace.name}"`,
+          entityType: 'Workspace',
+          entityId: workspace.id,
+          userId,
+          organizationId: createWorkspaceDto.organizationId,
+          newValue: {
+            name: workspace.name,
+            slug: workspace.slug,
+            description: workspace.description,
+          },
+        });
+      } catch (error) {
+        console.error('Failed to log workspace creation activity:', error);
+      }
 
       return workspace;
     } catch (error) {

@@ -5,17 +5,19 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-import { Sprint, SprintStatus } from '@prisma/client';
+import { ActivityType, Sprint, SprintStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSprintDto } from './dto/create-sprint.dto';
 import { UpdateSprintDto } from './dto/update-sprint.dto';
 import { AccessControlService } from '../../common/access-control.utils';
+import { ActivityLogService } from '../activity-log/activity-log.service';
 
 @Injectable()
 export class SprintsService {
   constructor(
     private prisma: PrismaService,
     private accessControl: AccessControlService,
+    private activityLog: ActivityLogService,
   ) {}
 
   private async generateUniqueSlug(
@@ -147,7 +149,7 @@ export class SprintsService {
 
     // Generate slug from name
     const slug = await this.generateUniqueSlug(createSprintDto.name, project.id);
-    return this.prisma.sprint.create({
+    const sprint = await this.prisma.sprint.create({
       data: {
         name: createSprintDto.name,
         goal: createSprintDto.goal,
@@ -204,6 +206,28 @@ export class SprintsService {
         },
       },
     });
+
+    try {
+      const organizationId = (sprint as any).project?.workspace?.organization?.id;
+      await this.activityLog.logActivity({
+        type: ActivityType.SPRINT_CREATED,
+        description: `Created sprint "${sprint.name}" in project "${project.name}"`,
+        entityType: 'Sprint',
+        entityId: sprint.id,
+        userId,
+        organizationId,
+        newValue: {
+          name: sprint.name,
+          slug: sprint.slug,
+          status: sprint.status,
+          projectId: sprint.projectId,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to log sprint creation activity:', error);
+    }
+
+    return sprint;
   }
 
   async findAll(
@@ -524,6 +548,11 @@ export class SprintsService {
                   id: true,
                   name: true,
                   slug: true,
+                  organization: {
+                    select: {
+                      id: true,
+                    },
+                  },
                 },
               },
             },
@@ -551,6 +580,44 @@ export class SprintsService {
           },
         },
       });
+
+      // Log sprint update activity
+      try {
+        const organizationId = (sprint as any).project?.workspace?.organization?.id;
+        // Determine specific activity type based on status changes
+        let activityType: ActivityType = ActivityType.SPRINT_UPDATED;
+        let description = `Updated sprint "${sprint.name}"`;
+
+        if (updateSprintDto.status && updateSprintDto.status !== currentSprint.status) {
+          if (updateSprintDto.status === SprintStatus.ACTIVE) {
+            activityType = ActivityType.SPRINT_STARTED;
+            description = `Started sprint "${sprint.name}"`;
+          } else if (updateSprintDto.status === SprintStatus.COMPLETED) {
+            activityType = ActivityType.SPRINT_COMPLETED;
+            description = `Completed sprint "${sprint.name}"`;
+          } else if (updateSprintDto.status === SprintStatus.CANCELLED) {
+            activityType = ActivityType.SPRINT_CANCELLED;
+            description = `Cancelled sprint "${sprint.name}"`;
+          }
+        }
+
+        await this.activityLog.logActivity({
+          type: activityType,
+          description,
+          entityType: 'Sprint',
+          entityId: sprint.id,
+          userId,
+          organizationId,
+          oldValue: { status: currentSprint.status, projectId: currentSprint.projectId },
+          newValue: {
+            name: sprint.name,
+            status: sprint.status,
+            projectId: currentSprint.projectId,
+          },
+        });
+      } catch (error) {
+        console.error('Failed to log sprint update activity:', error);
+      }
 
       return sprint;
     } catch (error) {
@@ -620,7 +687,24 @@ export class SprintsService {
   async remove(id: string, requestUserId: string): Promise<void> {
     const sprint = await this.prisma.sprint.findUnique({
       where: { id },
-      select: { status: true, projectId: true },
+      select: {
+        name: true,
+        slug: true,
+        status: true,
+        projectId: true,
+        project: {
+          select: {
+            name: true,
+            workspace: {
+              select: {
+                organization: {
+                  select: { id: true },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!sprint) {
@@ -644,6 +728,27 @@ export class SprintsService {
       await this.prisma.sprint.delete({
         where: { id },
       });
+
+      // Log sprint deletion activity
+      try {
+        const organizationId = (sprint as any).project?.workspace?.organization?.id;
+        await this.activityLog.logActivity({
+          type: ActivityType.SPRINT_DELETED,
+          description: `Deleted sprint "${sprint.name}"`,
+          entityType: 'Sprint',
+          entityId: id,
+          userId: requestUserId,
+          organizationId,
+          oldValue: {
+            name: sprint.name,
+            slug: sprint.slug,
+            status: sprint.status,
+            projectId: sprint.projectId,
+          },
+        });
+      } catch (logError) {
+        console.error('Failed to log sprint deletion activity:', logError);
+      }
     } catch (error) {
       if (error.code === 'P2025') {
         throw new NotFoundException('Sprint not found');

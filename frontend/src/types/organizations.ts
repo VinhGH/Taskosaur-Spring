@@ -84,7 +84,7 @@ export interface CreateOrganizationData {
 export interface ActivityFilters {
   limit?: number;
   page?: number;
-  entityType?: "Task" | "Project" | "Workspace" | "Organization" | "User";
+  entityType?: "Task" | "Project" | "Workspace" | "Organization" | "User" | "Sprint";
   userId?: string;
 }
 
@@ -98,6 +98,7 @@ export interface ActivityItem {
   taskSlug?: string | null;
   projectSlug?: string | null;
   workspaceSlug?: string | null;
+  sprintSlug?: string | null;
   newValue?: any;
   user?: {
     id: string;

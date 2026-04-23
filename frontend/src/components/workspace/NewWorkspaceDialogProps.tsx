@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import ActionButton from "../common/ActionButton";
 
@@ -31,6 +32,7 @@ interface FormData {
   name: string;
   description: string;
   parentWorkspaceId: string;
+  inheritMembers: boolean;
 }
 
 interface NewWorkspaceDialogProps {
@@ -62,6 +64,7 @@ export default function NewWorkspaceDialog({
     name: "",
     description: "",
     parentWorkspaceId: "",
+    inheritMembers: true,
   });
 
   const dialogOpen = open !== undefined ? open : isOpen;
@@ -81,7 +84,7 @@ export default function NewWorkspaceDialog({
   );
 
   const resetForm = useCallback(() => {
-    setFormData({ name: "", description: "", parentWorkspaceId: "" });
+    setFormData({ name: "", description: "", parentWorkspaceId: "", inheritMembers: true });
     setError(null);
     setIsSubmitting(false);
   }, []);
@@ -121,6 +124,7 @@ export default function NewWorkspaceDialog({
         const newWorkspace = await workspaceContext.createWorkspace({
           name: formData.name.trim(),
           description: formData.description.trim(),
+          inheritMembers: formData.inheritMembers,
           ...(formData.parentWorkspaceId ? { parentWorkspaceId: formData.parentWorkspaceId } : {}),
         });
 
@@ -274,6 +278,28 @@ export default function NewWorkspaceDialog({
             <p className="projects-form-hint mt-2">
               Select a parent workspace to nest this workspace underneath it. Max depth is 5 levels.
             </p>
+          </div>
+
+          <div className="projects-form-field flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-[var(--card)] border-[var(--border)]">
+            <Checkbox
+              id="inherit-members"
+              checked={formData.inheritMembers}
+              onCheckedChange={(checked) =>
+                setFormData((prev) => ({ ...prev, inheritMembers: checked === true }))
+              }
+            />
+            <div className="space-y-1 leading-none">
+              <Label htmlFor="inherit-members" className="font-medium cursor-pointer">
+                {formData.parentWorkspaceId
+                  ? "Inherit members from parent workspace"
+                  : "Include all organization members"}
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                {formData.parentWorkspaceId
+                  ? "Automatically add all members from the selected parent workspace to this new workspace."
+                  : "All members of your organization will have access to this workspace."}
+              </p>
+            </div>
           </div>
 
           <div className="projects-form-actions flex gap-2 justify-end mt-6">

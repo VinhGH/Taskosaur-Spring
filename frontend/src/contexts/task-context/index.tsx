@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from "react";
 import { taskApi } from "@/utils/api/taskApi";
 import {
   getCurrentOrganizationId,
@@ -65,7 +65,7 @@ interface TaskContextType extends TaskState {
       page?: number;
       limit?: number;
     }
-  ) => Promise<Task[]>;
+  ) => Promise<PaginatedTaskResponse>;
 
   getPublicCalendarTask: (
     workspaceSlug: string,
@@ -154,6 +154,25 @@ interface TaskContextType extends TaskState {
     excludedIds?: string[]
   ) => Promise<{
     deletedCount: number;
+    failedTasks: Array<{ id: string; reason: string }>;
+  }>;
+  bulkUpdateTasksStatus: (params: {
+    taskIds?: string[];
+    projectId?: string;
+    all?: boolean;
+    excludedIds?: string[];
+    statusId?: string;
+    search?: string;
+    statuses?: string;
+    priorities?: string;
+    types?: string;
+    assignees?: string;
+    reporters?: string;
+    sprintId?: string;
+    workspaceId?: string;
+  }) => Promise<{
+    updatedCount: number;
+    updatedTasks: Task[];
     failedTasks: Array<{ id: string; reason: string }>;
   }>;
   getTaskActivity: (
@@ -297,10 +316,12 @@ export function TaskProvider({ children }: TaskProviderProps) {
     }
   }, []);
 
-  // Memoized context value
-  const contextValue = useMemo(
+  const taskStateRef = useRef(taskState);
+  taskStateRef.current = taskState;
+
+  // Memoized context methods - stable across renders
+  const methods = useMemo(
     () => ({
-      ...taskState,
       getTaskStatusByProject: async (params: {
         projectId: string;
       }): Promise<{ data: TaskStatus[] }> => {
@@ -503,7 +524,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
           page?: number;
           limit?: number;
         }
-      ): Promise<Task[]> => {
+      ): Promise<PaginatedTaskResponse> => {
         if (!organizationId) {
           throw new Error("organizationId is required for getCalendarTask");
         }
@@ -511,15 +532,14 @@ export function TaskProvider({ children }: TaskProviderProps) {
           () => taskApi.getCalendarTask(organizationId, params),
           false
         );
-        
-        const tasks = Array.isArray(result) ? result : [];
-        
+
         setTaskState((prev) => ({
           ...prev,
-          tasks: tasks,
+          tasks: result.data,
+          taskResponse: result,
         }));
-        
-        return tasks;
+
+        return result;
       },
 
       getPublicCalendarTask: async (
@@ -717,6 +737,52 @@ export function TaskProvider({ children }: TaskProviderProps) {
         return result;
       },
 
+      bulkUpdateTasksStatus: async (params: {
+        taskIds?: string[];
+        projectId?: string;
+        all?: boolean;
+        excludedIds?: string[];
+        statusId?: string;
+        search?: string;
+        statuses?: string;
+        priorities?: string;
+        types?: string;
+        assignees?: string;
+        reporters?: string;
+        sprintId?: string;
+        workspaceId?: string;
+      }): Promise<{
+        updatedCount: number;
+        updatedTasks: Task[];
+        failedTasks: Array<{ id: string; reason: string }>;
+      }> => {
+        const result = await handleApiOperation(
+          () => taskApi.bulkUpdateTasksStatus(params),
+          false
+        );
+
+        if (result.updatedTasks && result.updatedTasks.length > 0) {
+          setTaskState((prev) => {
+            const updatedTaskIds = result.updatedTasks.map((t: any) => t.id);
+            return {
+              ...prev,
+              tasks: prev.tasks.map((task) => {
+                const updatedTask = result.updatedTasks.find((t: any) => t.id === task.id);
+                return updatedTask ? { ...task, ...updatedTask } : task;
+              }),
+              currentTask: result.updatedTasks.find((t: any) => t.id === prev.currentTask?.id)
+                ? {
+                  ...prev.currentTask,
+                  ...result.updatedTasks.find((t: any) => t.id === prev.currentTask?.id),
+                }
+                : prev.currentTask,
+            };
+          });
+        }
+
+        return result;
+      },
+
       updateTaskStatus: async (taskId: string, statusId: string): Promise<Task> => {
         const result = await handleApiOperation(
           () => taskApi.updateTaskStatus(taskId, statusId),
@@ -773,8 +839,8 @@ export function TaskProvider({ children }: TaskProviderProps) {
 
         // Add comment to state if it's for the current task's comments
         if (
-          taskState.taskComments.length > 0 &&
-          taskState.taskComments.some((c) => c.taskId === commentData.taskId)
+          taskStateRef.current.taskComments.length > 0 &&
+          taskStateRef.current.taskComments.some((c) => c.taskId === commentData.taskId)
         ) {
           setTaskState((prev) => ({
             ...prev,
@@ -847,8 +913,8 @@ export function TaskProvider({ children }: TaskProviderProps) {
 
         // Add attachment to state if it's for the current task's attachments
         if (
-          taskState.taskAttachments.length > 0 &&
-          taskState.taskAttachments.some((a) => a.taskId === taskId)
+          taskStateRef.current.taskAttachments.length > 0 &&
+          taskStateRef.current.taskAttachments.some((a) => a.taskId === taskId)
         ) {
           setTaskState((prev) => ({
             ...prev,
@@ -991,11 +1057,11 @@ export function TaskProvider({ children }: TaskProviderProps) {
 
       // Helper methods
       getTasksByStatus: (statusId: string): Task[] => {
-        return taskState.tasks.filter((task) => task.statusId === statusId);
+        return taskStateRef.current.tasks.filter((task) => task.statusId === statusId);
       },
 
       getTasksByPriority: (priority: Task["priority"]): Task[] => {
-        return taskState.tasks.filter((task) => task.priority === priority);
+        return taskStateRef.current.tasks.filter((task) => task.priority === priority);
       },
 
       isTaskOverdue: (task: Task): boolean => {
@@ -1062,7 +1128,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
         if (!organizationId) {
           throw new Error("No organization selected. Please select an organization first.");
         }
-        return await contextValue.getTasksByProject(projectId, organizationId);
+        return await methods.getTasksByProject(projectId, organizationId);
       },
 
       getCurrentOrganizationTasks: async (params?: GetTasksParams): Promise<TasksResponse> => {
@@ -1070,7 +1136,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
         if (!organizationId) {
           throw new Error("No organization selected. Please select an organization first.");
         }
-        return await contextValue.getTasksByOrganization(organizationId, params);
+        return await methods.getTasksByOrganization(organizationId, params);
       },
 
       getCurrentWorkspaceTasks: async (): Promise<Task[]> => {
@@ -1078,7 +1144,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
         if (!workspaceId) {
           throw new Error("No workspace selected. Please select a workspace first.");
         }
-        return await contextValue.getTasksByWorkspace(workspaceId);
+        return await methods.getTasksByWorkspace(workspaceId);
       },
 
       getCurrentProjectLabels: async (): Promise<TaskLabel[]> => {
@@ -1086,7 +1152,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
         if (!projectId) {
           throw new Error("No project selected. Please select a project first.");
         }
-        return await contextValue.getProjectLabels(projectId);
+        return await methods.getProjectLabels(projectId);
       },
 
       assignTaskAssignees: async (taskId: string, assigneeIds: string[]): Promise<any> => {
@@ -1189,7 +1255,16 @@ export function TaskProvider({ children }: TaskProviderProps) {
         return result;
       },
     }),
-    [taskState, handleApiOperation]
+    [handleApiOperation]
+  );
+
+  // Final context value - state updates triggers re-renders, but methods remain stable
+  const contextValue = useMemo(
+    () => ({
+      ...taskState,
+      ...methods,
+    }),
+    [taskState, methods]
   );
 
   return <TaskContext.Provider value={contextValue}>{children}</TaskContext.Provider>;

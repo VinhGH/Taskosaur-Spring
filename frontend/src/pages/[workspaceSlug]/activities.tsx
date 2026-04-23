@@ -238,6 +238,7 @@ function WorkspaceActivityContent() {
             taskSlug: item.taskSlug || null,
             projectSlug: item.projectSlug || null,
             workspaceSlug: item.workspaceSlug || null,
+            sprintSlug: item.sprintSlug || null,
             createdAt: item.createdAt,
             updatedAt: item.updatedAt,
           })

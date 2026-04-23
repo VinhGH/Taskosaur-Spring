@@ -198,6 +198,24 @@ export class ActivityLogService {
         case 'organization':
           return entityId;
 
+        case 'sprint': {
+          const sprint = await this.prisma.sprint.findUnique({
+            where: { id: entityId },
+            select: {
+              project: {
+                select: {
+                  workspace: {
+                    select: {
+                      organizationId: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
+          return sprint?.project?.workspace?.organizationId || undefined;
+        }
+
         default:
           return undefined;
       }
@@ -323,6 +341,24 @@ export class ActivityLogService {
           JOIN projects p ON t.project_id = p.id 
           WHERE p.workspace_id = ${workspaceId}::uuid
         ))
+        OR
+        (al.entity_type = 'Sprint' AND (
+          al.entity_id IN (
+            SELECT s.id FROM sprints s
+            JOIN projects p ON s.project_id = p.id
+            WHERE p.workspace_id = ${workspaceId}::uuid
+          )
+          OR (
+            al.new_value->>'projectId' IN (
+              SELECT id::text FROM projects WHERE workspace_id = ${workspaceId}::uuid
+            )
+          )
+          OR (
+            al.old_value->>'projectId' IN (
+              SELECT id::text FROM projects WHERE workspace_id = ${workspaceId}::uuid
+            )
+          )
+        ))
     `;
     const totalCount = Number(totalResult[0]?.count ?? 0);
     const totalPages = Math.ceil(totalCount / limit);
@@ -346,7 +382,10 @@ export class ActivityLogService {
       tw.slug as task_workspace_slug,
       pp.slug as project_slug,
       pw.slug as project_workspace_slug,
-      ws.slug as workspace_slug
+      ws.slug as workspace_slug,
+      sp.slug as sprint_slug,
+      spp.slug as sprint_project_slug,
+      spw.slug as sprint_workspace_slug
     FROM activity_logs al
     JOIN users u ON al.user_id = u.id
     LEFT JOIN tasks t ON al.entity_type = 'Task' AND al.entity_id = t.id
@@ -355,6 +394,9 @@ export class ActivityLogService {
     LEFT JOIN projects pp ON al.entity_type = 'Project' AND al.entity_id = pp.id
     LEFT JOIN workspaces pw ON pp.workspace_id = pw.id
     LEFT JOIN workspaces ws ON al.entity_type = 'Workspace' AND al.entity_id = ws.id
+    LEFT JOIN sprints sp ON al.entity_type = 'Sprint' AND al.entity_id = sp.id
+    LEFT JOIN projects spp ON sp.project_id = spp.id
+    LEFT JOIN workspaces spw ON spp.workspace_id = spw.id
     WHERE
       (al.entity_type = 'Workspace' AND al.entity_id = ${workspaceId}::uuid)
       OR
@@ -366,6 +408,24 @@ export class ActivityLogService {
         SELECT t.id FROM tasks t
         JOIN projects p ON t.project_id = p.id
         WHERE p.workspace_id = ${workspaceId}::uuid
+      ))
+      OR
+      (al.entity_type = 'Sprint' AND (
+        al.entity_id IN (
+          SELECT s.id FROM sprints s
+          JOIN projects p ON s.project_id = p.id
+          WHERE p.workspace_id = ${workspaceId}::uuid
+        )
+        OR (
+          al.new_value->>'projectId' IN (
+            SELECT id::text FROM projects WHERE workspace_id = ${workspaceId}::uuid
+          )
+        )
+        OR (
+          al.old_value->>'projectId' IN (
+            SELECT id::text FROM projects WHERE workspace_id = ${workspaceId}::uuid
+          )
+        )
       ))
     ORDER BY al.created_at DESC
     LIMIT ${limit}::int
@@ -380,12 +440,15 @@ export class ActivityLogService {
       entityId: activity.entity_id,
       createdAt: activity.created_at,
       taskSlug: activity.task_slug || null,
-      projectSlug: activity.task_project_slug || activity.project_slug || null,
+      projectSlug:
+        activity.task_project_slug || activity.project_slug || activity.sprint_project_slug || null,
       workspaceSlug:
         activity.task_workspace_slug ||
         activity.project_workspace_slug ||
         activity.workspace_slug ||
+        activity.sprint_workspace_slug ||
         null,
+      sprintSlug: activity.sprint_slug || null,
       user: {
         id: activity.user_id,
         name: `${activity.first_name} ${activity.last_name}`,
@@ -656,6 +719,12 @@ export class ActivityLogService {
           JOIN workspaces w ON p.workspace_id = w.id
           WHERE w.organization_id = ${organizationId}::uuid
         ))
+        OR (al.entity_type = 'Sprint' AND al.entity_id IN (
+          SELECT s.id FROM sprints s
+          JOIN projects p ON s.project_id = p.id
+          JOIN workspaces w ON p.workspace_id = w.id
+          WHERE w.organization_id = ${organizationId}::uuid
+        ))
       )
       ${entityTypeFilter}
       ${userIdFilter}
@@ -685,7 +754,10 @@ export class ActivityLogService {
         tw.slug as task_workspace_slug,
         pp.slug as project_slug,
         pw.slug as project_workspace_slug,
-        ws.slug as workspace_slug
+        ws.slug as workspace_slug,
+        sp.slug as sprint_slug,
+        spp.slug as sprint_project_slug,
+        spw.slug as sprint_workspace_slug
       FROM activity_logs al
       JOIN users u ON al.user_id = u.id
       LEFT JOIN tasks t ON al.entity_type = 'Task' AND al.entity_id = t.id
@@ -694,6 +766,9 @@ export class ActivityLogService {
       LEFT JOIN projects pp ON al.entity_type = 'Project' AND al.entity_id = pp.id
       LEFT JOIN workspaces pw ON pp.workspace_id = pw.id
       LEFT JOIN workspaces ws ON al.entity_type = 'Workspace' AND al.entity_id = ws.id
+      LEFT JOIN sprints sp ON al.entity_type = 'Sprint' AND al.entity_id = sp.id
+      LEFT JOIN projects spp ON sp.project_id = spp.id
+      LEFT JOIN workspaces spw ON spp.workspace_id = spw.id
       WHERE (
         al.organization_id = ${organizationId}::uuid
         OR (al.entity_type = 'Workspace' AND al.entity_id IN (
@@ -707,6 +782,12 @@ export class ActivityLogService {
         OR (al.entity_type = 'Task' AND al.entity_id IN (
           SELECT t.id FROM tasks t
           JOIN projects p ON t.project_id = p.id
+          JOIN workspaces w ON p.workspace_id = w.id
+          WHERE w.organization_id = ${organizationId}::uuid
+        ))
+        OR (al.entity_type = 'Sprint' AND al.entity_id IN (
+          SELECT s.id FROM sprints s
+          JOIN projects p ON s.project_id = p.id
           JOIN workspaces w ON p.workspace_id = w.id
           WHERE w.organization_id = ${organizationId}::uuid
         ))
@@ -730,12 +811,18 @@ export class ActivityLogService {
         newValue: activity.new_value,
         createdAt: activity.created_at,
         taskSlug: activity.task_slug || null,
-        projectSlug: activity.task_project_slug || activity.project_slug || null,
+        projectSlug:
+          activity.task_project_slug ||
+          activity.project_slug ||
+          activity.sprint_project_slug ||
+          null,
         workspaceSlug:
           activity.task_workspace_slug ||
           activity.project_workspace_slug ||
           activity.workspace_slug ||
+          activity.sprint_workspace_slug ||
           null,
+        sprintSlug: activity.sprint_slug || null,
         user: {
           id: activity.user_id,
           name: `${activity.first_name} ${activity.last_name}`,

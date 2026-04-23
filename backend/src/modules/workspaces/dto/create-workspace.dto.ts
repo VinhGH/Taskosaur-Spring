@@ -1,4 +1,12 @@
-import { IsString, IsOptional, IsNotEmpty, IsObject, Matches, IsUUID } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNotEmpty,
+  IsObject,
+  Matches,
+  IsUUID,
+  IsBoolean,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateWorkspaceDto {
@@ -95,4 +103,14 @@ export class CreateWorkspaceDto {
   @IsUUID()
   @IsOptional()
   parentWorkspaceId?: string;
+
+  @ApiProperty({
+    description: 'Whether to inherit members from the organization or parent workspace',
+    example: true,
+    required: false,
+    default: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  inheritMembers?: boolean;
 }
