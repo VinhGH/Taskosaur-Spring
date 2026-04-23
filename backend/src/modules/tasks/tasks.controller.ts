@@ -53,7 +53,7 @@ export class TasksController {
   @LogActivity({
     type: 'TASK_CREATED',
     entityType: 'Task',
-    description: 'Create a new task',
+    description: 'Created a new task',
     includeOldValue: false,
     includeNewValue: true,
   })
@@ -446,7 +446,7 @@ export class TasksController {
   @LogActivity({
     type: 'TASK_CREATED',
     entityType: 'Task',
-    description: 'Created new task',
+    description: 'Created a new task',
     includeNewValue: true,
   })
   async createWithAttachments(

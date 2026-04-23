@@ -34,7 +34,9 @@ describe('sanitizeHtml', () => {
 
   it('should allow img tags with safe attributes', () => {
     const input = '<img src="https://example.com/image.png" alt="Test image">';
-    expect(sanitizeHtml(input)).toBe('<img src="https://example.com/image.png" alt="Test image" />');
+    expect(sanitizeHtml(input)).toBe(
+      '<img src="https://example.com/image.png" alt="Test image" />',
+    );
   });
 
   it('should allow img tags with width and height', () => {
@@ -48,8 +50,10 @@ describe('sanitizeHtml', () => {
   });
 
   it('should allow full editor image HTML', () => {
-    const input = '<p><img src="http://localhost:3000/api/uploads/editor-images/550e8400-e29b-41d4-a716-446655440000-1712345678901.png" alt="screenshot.png" /></p>';
-    const expected = '<p><img src="http://localhost:3000/api/uploads/editor-images/550e8400-e29b-41d4-a716-446655440000-1712345678901.png" alt="screenshot.png" /></p>';
+    const input =
+      '<p><img src="http://localhost:3000/api/uploads/editor-images/550e8400-e29b-41d4-a716-446655440000-1712345678901.png" alt="screenshot.png" /></p>';
+    const expected =
+      '<p><img src="http://localhost:3000/api/uploads/editor-images/550e8400-e29b-41d4-a716-446655440000-1712345678901.png" alt="screenshot.png" /></p>';
     expect(sanitizeHtml(input)).toBe(expected);
   });
 
