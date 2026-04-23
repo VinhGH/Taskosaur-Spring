@@ -91,7 +91,7 @@ export const SprintFormModal = ({
         status: formData.status,
         startDate: new Date(formData.startDate).toISOString(),
         endDate: new Date(formData.endDate).toISOString(),
-        projectId: projectSlug,
+        projectSlug: projectSlug,
       };
 
       await onSave(submitData);

@@ -41,7 +41,7 @@ export interface CreateSprintData {
   description?: string;
   startDate?: string;
   endDate?: string;
-  projectId: string;
+  projectSlug: string;
 }
 
 export interface UpdateSprintData {

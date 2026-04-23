@@ -116,8 +116,8 @@ export class SprintsService {
 
   async create(createSprintDto: CreateSprintDto, userId: string): Promise<Sprint> {
     // Check if project exists
-    const project = await this.prisma.project.findUnique({
-      where: { slug: createSprintDto.projectId },
+    const project = await this.prisma.project.findFirst({
+      where: { slug: createSprintDto.projectSlug },
       select: { id: true, name: true },
     });
 
@@ -147,10 +147,13 @@ export class SprintsService {
 
     // Generate slug from name
     const slug = await this.generateUniqueSlug(createSprintDto.name, project.id);
-
     return this.prisma.sprint.create({
       data: {
-        ...createSprintDto,
+        name: createSprintDto.name,
+        goal: createSprintDto.goal,
+        status: createSprintDto.status,
+        startDate: createSprintDto.startDate,
+        endDate: createSprintDto.endDate,
         slug,
         projectId: project.id,
         createdBy: userId,

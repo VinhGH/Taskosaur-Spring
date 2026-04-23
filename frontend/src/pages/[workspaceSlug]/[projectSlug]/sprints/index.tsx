@@ -140,12 +140,12 @@ function SprintsPageContent() {
   const handleSaveSprint = async (data: any) => {
     try {
       if (editingSprint) {
-        const { projectId, ...updateData } = data;
+        const { projectSlug: _slug, ...updateData } = data;
         await updateSprint(editingSprint.id, updateData);
       } else {
         const payload = {
           ...data,
-          projectId: projectId || data.projectId,
+          projectSlug: data.projectSlug || projectSlug,
         };
         await createSprint(payload);
       }
