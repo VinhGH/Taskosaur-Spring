@@ -29,6 +29,7 @@ interface KPIMetricsProps {
     activeProjects: number;
     completedProjects: number;
     totalTasks: number;
+    completedTasks: number;
     overdueTasks: number;
     completionRate: number;
   };
