@@ -11,8 +11,8 @@
   "empty_state_description_member": "No workspaces available. Contact your organization admin to create workspaces or get access.",
   "projects_count": "{{count}} projects",
   "members_count": "{{count}} members",
-  "showing_workspaces": "Showing {{count}} workspace",
-  "showing_workspaces_plural": "Showing {{count}} workspaces",
+  "showing_workspaces_one": "Showing {{count}} workspace",
+  "showing_workspaces_other": "Showing {{count}} workspaces",
   "matching": " matching \"{{query}}\"",
   "messages": {
     "no_org_selected": "No organization selected. Please select an organization first.",

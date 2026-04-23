@@ -11,8 +11,8 @@
   "empty_state_description_member": "No hay espacios de trabajo disponibles. Contacta al administrador de tu organización para crear espacios de trabajo u obtener acceso.",
   "projects_count": "{{count}} proyectos",
   "members_count": "{{count}} miembros",
-  "showing_workspaces": "Mostrando {{count}} espacio de trabajo",
-  "showing_workspaces_plural": "Mostrando {{count}} espacios de trabajo",
+  "showing_workspaces_one": "Mostrando {{count}} espacio de trabajo",
+  "showing_workspaces_other": "Mostrando {{count}} espacios de trabajo",
   "matching": " coincidente con \"{{query}}\"",
   "messages": {
     "no_org_selected": "No se ha seleccionado ninguna organización. Por favor, selecciona una organización primero.",
