@@ -1,5 +1,5 @@
 // components/charts/organization/task-distribution-chart.tsx
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, CartesianGrid } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
 import { ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { ChartWrapper } from "../chart-wrapper";
 
@@ -54,7 +54,11 @@ export function TaskDistributionChart({ data }: TaskDistributionChartProps) {
             content={<ChartTooltipContent className="border-0 bg-[var(--accent)]" />}
             cursor={{ fill: "rgba(0, 0, 0, 0.00)" }}
           />
-          <Bar dataKey="count" radius={[4, 4, 0, 0]} fill="fill" />
+          <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+            {chartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.fill} />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </ChartWrapper>

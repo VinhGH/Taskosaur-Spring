@@ -39,13 +39,13 @@ export function ProjectPortfolioChart({ data }: ProjectPortfolioChartProps) {
           <Pie
             data={chartData}
             cx="50%"
-            cy="50%"
-            innerRadius={60}
-            outerRadius={80}
+            cy="45%"
+            innerRadius={50}
+            outerRadius={70}
             paddingAngle={2}
             dataKey="value"
             label={({ name, value }) => `${name}: ${value}`}
-            labelLine={false}
+            labelLine={true}
           >
             {chartData?.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.fill} stroke="#fff" strokeWidth={2} />

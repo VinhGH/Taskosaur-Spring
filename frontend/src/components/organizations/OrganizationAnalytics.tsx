@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { formatDateForDisplay } from "@/utils/date";
 import {
   organizationAnalyticsWidgets,
@@ -124,10 +124,10 @@ export function OrganizationAnalytics({ organizationId }: OrganizationAnalyticsP
     })
   );
 
-  const handleFetchData = () => {
+  const handleFetchData = useCallback(() => {
     if (error) clearAnalyticsError();
     fetchAnalyticsData(organizationId);
-  };
+  }, [error, clearAnalyticsError, fetchAnalyticsData, organizationId]);
   const handleTodayTaskFetch = async () => {
     try {
       const result = await getTodayAgenda(organizationId);
@@ -139,21 +139,21 @@ export function OrganizationAnalytics({ organizationId }: OrganizationAnalyticsP
     }
   };
 
-  const toggleWidget = (widgetId: string) => {
+  const toggleWidget = useCallback((widgetId: string) => {
     setWidgets((prev) =>
       prev.map((widget) =>
         widget.id === widgetId ? { ...widget, visible: !widget.visible } : widget
       )
     );
-  };
+  }, []);
 
-  const toggleKPICard = (cardId: string) => {
+  const toggleKPICard = useCallback((cardId: string) => {
     setKpiCards((prev) =>
       prev.map((card) => (card.id === cardId ? { ...card, visible: !card.visible } : card))
     );
-  };
+  }, []);
 
-  const handleKPIOrderChange = (newOrder: string[]) => {
+  const handleKPIOrderChange = useCallback((newOrder: string[]) => {
     setKpiCards((prev) => {
       const cardMap = new Map(prev.map((c) => [c.id, c]));
       const newKpiCards: KPICard[] = [];
@@ -174,26 +174,26 @@ export function OrganizationAnalytics({ organizationId }: OrganizationAnalyticsP
 
       return newKpiCards;
     });
-  };
+  }, []);
 
-  const resetWidgets = () => {
+  const resetWidgets = useCallback(() => {
     setWidgets((prev) => prev.map((widget) => ({ ...widget, visible: true })));
-  };
+  }, []);
 
-  const resetKPICards = () => {
+  const resetKPICards = useCallback(() => {
     setKpiCards((prev) => prev.map((card) => ({ ...card, visible: card.isDefault })));
-  };
+  }, []);
 
-  const showAllKPICards = () => {
+  const showAllKPICards = useCallback(() => {
     setKpiCards((prev) => prev.map((card) => ({ ...card, visible: true })));
-  };
+  }, []);
 
   // DnD Handlers
-  const handleDragStart = (event: DragStartEvent) => {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as string);
-  };
+  }, []);
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
 
     if (active.id !== over?.id) {
@@ -230,7 +230,7 @@ export function OrganizationAnalytics({ organizationId }: OrganizationAnalyticsP
     }
 
     setActiveId(null);
-  };
+  }, []);
 
   // Save preferences to localStorage
   useEffect(() => {
@@ -372,78 +372,83 @@ export function OrganizationAnalytics({ organizationId }: OrganizationAnalyticsP
     fetchStatuses();
   }, [organizationId]);
 
-  if (loading) {
-    return <OrganizationAnalyticsSkeleton />;
-  }
+  // Memoized computed values (must be before early returns)
+  const visibleWidgets = useMemo(
+    () => widgets.filter((widget) => widget.visible).sort((a, b) => a.priority - b.priority),
+    [widgets]
+  );
 
-  const visibleWidgets = widgets
-    .filter((widget) => widget.visible)
-    .sort((a, b) => a.priority - b.priority);
+  const visibleCount = useMemo(() => widgets.filter((w) => w.visible).length, [widgets]);
 
-  const visibleCount = widgets.filter((w) => w.visible).length;
+  const activeWidget = useMemo(
+    () => (activeId ? widgets.find((w) => w.id === activeId) : null),
+    [activeId, widgets]
+  );
 
-  // Log rendering state for debugging
-  if (data && visibleCount > 0) {
-    console.log(
-      `[Dashboard] Rendering with KPI card order:`,
-      kpiCards.map((c) => `${c.id} (${c.visible ? "v" : "h"})`)
-    );
-  }
+  // Helper to render widget content
+  const renderWidgetContent = useCallback(
+    (widget: Widget) => {
+      if (!data) return null;
 
-  const settingSections = [
-    createKPISection(kpiCards, toggleKPICard, showAllKPICards, resetKPICards),
-    createWidgetsSection(widgets, toggleWidget, resetWidgets, () => {
-      setWidgets((prev) =>
-        prev.map((widget) => ({
-          ...widget,
-          visible:
-            widget.id === "kpi-metrics" ||
-            widget.id === "project-portfolio" ||
-            widget.id === "team-utilization" ||
-            widget.id === "task-distribution" ||
-            widget.id === "member-workload",
-        }))
+      const Component = widget.component;
+      const widgetData = data[widget.dataKey];
+
+      // Handle case where API request failed and data is null
+      if (widgetData === null) {
+        return (
+          <Card className="p-4 h-full flex items-center justify-center">
+            <div className="text-center text-muted-foreground">
+              <p>{t("analytics.failed_to_load_widget_data", { widgetTitle: widget.title })}</p>
+              <Button variant="outline" size="sm" onClick={handleFetchData} className="mt-2">
+                {t("analytics.retry_button")}
+              </Button>
+            </div>
+          </Card>
+        );
+      }
+
+      return widget.id === "kpi-metrics" ? (
+        <Component data={widgetData} visibleCards={kpiCards} onOrderChange={handleKPIOrderChange} taskStatuses={taskStatuses} />
+      ) : (
+        <Component data={widgetData} />
       );
-    }),
-  ];
-  const getCurrentDate = () => {
+    },
+    [data, kpiCards, handleKPIOrderChange, taskStatuses, handleFetchData, t]
+  );
+
+  const settingSections = useMemo(
+    () => [
+      createKPISection(kpiCards, toggleKPICard, showAllKPICards, resetKPICards),
+      createWidgetsSection(widgets, toggleWidget, resetWidgets, () => {
+        setWidgets((prev) =>
+          prev.map((widget) => ({
+            ...widget,
+            visible:
+              widget.id === "kpi-metrics" ||
+              widget.id === "project-portfolio" ||
+              widget.id === "team-utilization" ||
+              widget.id === "task-distribution" ||
+              widget.id === "member-workload",
+          }))
+        );
+      }),
+    ],
+    [kpiCards, toggleKPICard, showAllKPICards, resetKPICards, widgets, toggleWidget, resetWidgets, createKPISection, createWidgetsSection]
+  );
+
+  const getCurrentDate = useCallback(() => {
     return formatDateForDisplay(new Date(), {
       weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
     });
-  };
+  }, []);
 
-  // Helper to render widget content
-  const renderWidgetContent = (widget: Widget) => {
-    if (!data) return null;
-
-    const Component = widget.component;
-    const widgetData = data[widget.dataKey];
-
-    // Handle case where API request failed and data is null
-    if (widgetData === null) {
-      return (
-        <Card className="p-4 h-full flex items-center justify-center">
-          <div className="text-center text-muted-foreground">
-            <p>{t("analytics.failed_to_load_widget_data", { widgetTitle: widget.title })}</p>
-            <Button variant="outline" size="sm" onClick={handleFetchData} className="mt-2">
-              {t("analytics.retry_button")}
-            </Button>
-          </div>
-        </Card>
-      );
-    }
-
-    return widget.id === "kpi-metrics" ? (
-      <Component data={widgetData} visibleCards={kpiCards} onOrderChange={handleKPIOrderChange} taskStatuses={taskStatuses} />
-    ) : (
-      <Component data={widgetData} />
-    );
-  };
-
-  const activeWidget = activeId ? widgets.find((w) => w.id === activeId) : null;
+  // Early returns after all hooks
+  if (loading) {
+    return <OrganizationAnalyticsSkeleton />;
+  }
 
   if (error) {
     return (
