@@ -258,28 +258,38 @@ export class WorkspaceChartsService {
       },
     };
 
-    const [totalProjects, activeProjects, completedProjects, totalTasks, overdueTasks] =
-      await Promise.all([
-        this.prisma.project.count({ where: projectBase }),
-        this.prisma.project.count({
-          where: { ...projectBase, status: 'ACTIVE' },
-        }),
-        this.prisma.project.count({
-          where: { ...projectBase, status: 'COMPLETED' },
-        }),
-        this.prisma.task.count({ where: taskBase }),
-        this.prisma.task.count({
-          where: { ...taskBase, dueDate: { lt: new Date() }, completedAt: null },
-        }),
-      ]);
+    const [
+      totalProjects,
+      activeProjects,
+      completedProjects,
+      totalTasks,
+      completedTasks,
+      overdueTasks,
+    ] = await Promise.all([
+      this.prisma.project.count({ where: projectBase }),
+      this.prisma.project.count({
+        where: { ...projectBase, status: 'ACTIVE' },
+      }),
+      this.prisma.project.count({
+        where: { ...projectBase, status: 'COMPLETED' },
+      }),
+      this.prisma.task.count({ where: taskBase }),
+      this.prisma.task.count({
+        where: { ...taskBase, completedAt: { not: null } },
+      }),
+      this.prisma.task.count({
+        where: { ...taskBase, dueDate: { lt: new Date() }, completedAt: null },
+      }),
+    ]);
 
     return {
       totalProjects,
       activeProjects,
       completedProjects,
       totalTasks,
+      completedTasks,
       overdueTasks,
-      completionRate: this.calculatePercentage(completedProjects, totalProjects),
+      completionRate: this.calculatePercentage(completedTasks, totalTasks),
     };
   }
 

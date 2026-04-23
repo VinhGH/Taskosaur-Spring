@@ -92,6 +92,10 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+// Token expiry configuration (match backend JWT_EXPIRES_IN)
+const TOKEN_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
+const TOKEN_REFRESH_THRESHOLD_MS = 2 * 60 * 1000; // Refresh if less than 2 minutes remaining
+
 // Enhanced Token Manager
 const TokenManager = {
   getAccessToken: (): string | null => {
@@ -113,6 +117,23 @@ const TokenManager = {
     } catch (error) {
       console.error("Failed to set access token:", error);
     }
+  },
+
+  getTokenTimestamp: (): number | null => {
+    try {
+      if (typeof window === "undefined") return null;
+      const timestamp = localStorage.getItem("token_timestamp");
+      return timestamp ? parseInt(timestamp, 10) : null;
+    } catch (error) {
+      return null;
+    }
+  },
+
+  isTokenExpiringSoon: (): boolean => {
+    const timestamp = TokenManager.getTokenTimestamp();
+    if (!timestamp) return true; // No timestamp means we should refresh
+    const elapsed = Date.now() - timestamp;
+    return elapsed >= TOKEN_EXPIRY_MS - TOKEN_REFRESH_THRESHOLD_MS;
   },
 
   // Refresh token is now managed by the backend as an httpOnly cookie.
@@ -286,6 +307,40 @@ const refreshTokens = async (): Promise<string> => {
   }
 };
 
+// Proactive token refresh - ensures we have a valid token before making requests
+let proactiveRefreshPromise: Promise<string | null> | null = null;
+
+const ensureValidToken = async (): Promise<string | null> => {
+  const token = TokenManager.getAccessToken();
+
+  // No token - nothing to refresh proactively
+  if (!token) return null;
+
+  // Token is still fresh - no need to refresh
+  if (!TokenManager.isTokenExpiringSoon()) return token;
+
+  // Already refreshing - wait for it
+  if (isRefreshing || proactiveRefreshPromise) {
+    try {
+      return await (proactiveRefreshPromise || refreshPromise);
+    } catch {
+      return token; // Return old token, let the 401 handler deal with it
+    }
+  }
+
+  // Proactively refresh the token
+  try {
+    proactiveRefreshPromise = refreshTokens();
+    const newToken = await proactiveRefreshPromise;
+    return newToken;
+  } catch {
+    // Proactive refresh failed - return old token, let the 401 handler deal with it
+    return token;
+  } finally {
+    proactiveRefreshPromise = null;
+  }
+};
+
 // Create axios instance
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000/api",
@@ -296,21 +351,25 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Request interceptor
+// Request interceptor with proactive token refresh
 api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
+  async (config: InternalAxiosRequestConfig) => {
     try {
-      const token = TokenManager.getAccessToken();
       // Don't add token for public endpoints to avoid 401s from stale tokens
       const isPublicEndpoint =
         config.url?.includes("/public/") ||
         config.url?.includes("/users/exists") ||
         config.url?.includes("/auth/setup") ||
         config.url?.includes("/auth/registration-status") ||
-        config.url?.includes("/auth/oidc/");
+        config.url?.includes("/auth/oidc/") ||
+        config.url?.includes("/auth/refresh"); // Don't try to refresh during refresh
 
-      if (token && config.headers && !isPublicEndpoint) {
-        config.headers.Authorization = `Bearer ${token}`;
+      if (!isPublicEndpoint) {
+        // Proactively refresh token if it's about to expire
+        const token = await ensureValidToken();
+        if (token && config.headers) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
       }
 
       const orgId = TokenManager.getCurrentOrgId();
