@@ -1590,7 +1590,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
                     {task.title}
                   </h4>
                   <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 flex-shrink-0">
-                    <span className="text-muted text-xs">#{task.taskNumber}</span>
+                    <span className="text-muted text-[0.600rem]">{task.slug || `#${task.taskNumber}`}</span>
                   </Badge>
                   {task.isRecurring && <RecurringBadge />}
                   {task.isArchived && (

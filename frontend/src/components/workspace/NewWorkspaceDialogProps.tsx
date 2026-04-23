@@ -125,6 +125,8 @@ export default function NewWorkspaceDialog({
           name: formData.name.trim(),
           description: formData.description.trim(),
           inheritMembers: formData.inheritMembers,
+          inheritLabels: formData.inheritMembers,
+          inheritWorkflows: formData.inheritMembers,
           ...(formData.parentWorkspaceId ? { parentWorkspaceId: formData.parentWorkspaceId } : {}),
         });
 
@@ -261,7 +263,15 @@ export default function NewWorkspaceDialog({
             </Label>
             <Select
               value={formData.parentWorkspaceId || "none"}
-              onValueChange={(value) => handleChange({ target: { name: "parentWorkspaceId", value: value === "none" ? "" : value } } as any)}
+              onValueChange={(value) => {
+                const newParentId = value === "none" ? "" : value;
+                setFormData((prev) => ({
+                  ...prev,
+                  parentWorkspaceId: newParentId,
+                  inheritMembers: !!newParentId,
+                }));
+                if (error) setError(null);
+              }}
             >
               <SelectTrigger className="projects-form-input border-none">
                 <SelectValue placeholder="None" />
@@ -280,27 +290,25 @@ export default function NewWorkspaceDialog({
             </p>
           </div>
 
-          <div className="projects-form-field flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-[var(--card)] border-[var(--border)]">
-            <Checkbox
-              id="inherit-members"
-              checked={formData.inheritMembers}
-              onCheckedChange={(checked) =>
-                setFormData((prev) => ({ ...prev, inheritMembers: checked === true }))
-              }
-            />
-            <div className="space-y-1 leading-none">
-              <Label htmlFor="inherit-members" className="font-medium cursor-pointer">
-                {formData.parentWorkspaceId
-                  ? "Inherit members from parent workspace"
-                  : "Include all organization members"}
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                {formData.parentWorkspaceId
-                  ? "Automatically add all members from the selected parent workspace to this new workspace."
-                  : "All members of your organization will have access to this workspace."}
-              </p>
+          {formData.parentWorkspaceId && (
+            <div className="projects-form-field flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-[var(--card)] border-[var(--border)]">
+              <Checkbox
+                id="inherit-members"
+                checked={formData.inheritMembers}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({ ...prev, inheritMembers: checked === true }))
+                }
+              />
+              <div className="space-y-1 leading-none">
+                <Label htmlFor="inherit-members" className="font-medium cursor-pointer">
+                  Inherit from parent workspace
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Automatically copy member permissions, label templates, and workflow configuration from the selected parent workspace.
+                </p>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="projects-form-actions flex gap-2 justify-end mt-6">
             <ActionButton

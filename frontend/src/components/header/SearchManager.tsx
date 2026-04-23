@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useDeferredValue } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { HiMagnifyingGlass, HiXMark } from "react-icons/hi2";
 import { Button } from "../ui";
@@ -25,56 +25,70 @@ const SearchManager = () => {
   const { universalSearch } = useOrganization();
   const currentOrganizationId = TokenManager.getCurrentOrgId();
   const PAGE_SIZE = 10;
-
-  // Defer search term updates to keep the UI responsive
-  const deferredSearchTerm = useDeferredValue(searchTerm);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const paginatedResults = results;
   const totalPages = Math.ceil(totalResults / PAGE_SIZE);
 
   // Fetch results with deferred search term and page
   useEffect(() => {
-    const fetchResults = async () => {
-      const trimmed = deferredSearchTerm.trim();
-      if (trimmed === "" || !currentOrganizationId) {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (abortRef.current) abortRef.current.abort();
+    const trimmed = searchTerm.trim();
+    if (trimmed === "" || !currentOrganizationId) {
         setResults([]);
         setSelectedIndex(0);
         setError(null);
         setTotalResults(0);
-        return;
-      }
-      if (trimmed.length < 2) {
-        setResults([]);
-        setSelectedIndex(0);
-        setError("Query must be at least 2 characters long");
-        setTotalResults(0);
-        return;
-      }
+        setLoading(false);
+      return;
+    }
+    if (trimmed.length < 2) {
+      setResults([]);
+      setSelectedIndex(0);
+      setError("Query must be at least 2 characters long");
+      setTotalResults(0);
+      setLoading(false);
+      return;
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      const controller = new AbortController();
+      abortRef.current = controller;
 
       setLoading(true);
       setError(null);
 
       try {
         const response = await universalSearch(trimmed, currentOrganizationId, page, PAGE_SIZE);
-        setResults(response?.results || []);
-        setTotalResults(response?.total || (response?.results?.length ?? 0));
-        setSelectedIndex(0);
+        if (!controller.signal.aborted) {
+          setResults(response?.results || []);
+          setTotalResults(response?.total || (response?.results?.length ?? 0));
+          setSelectedIndex(0);
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Search failed");
-        setResults([]);
-        setTotalResults(0);
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : "Search failed");
+          setResults([]);
+          setTotalResults(0);
+        }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
-    };
+    }, 300);
 
-    fetchResults();
-  }, [deferredSearchTerm, currentOrganizationId, universalSearch, page]);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [searchTerm, currentOrganizationId, universalSearch, page]);
 
   // Reset page when searchTerm changes
   useEffect(() => {
     setPage(1);
-  }, [deferredSearchTerm]);
+  }, [searchTerm]);
 
   // Handle opening the search
   const openSearch = () => {
@@ -256,16 +270,8 @@ const SearchManager = () => {
     }
   };
 
-  const TriggerButton = () => (
-    <Tooltip content="Search" position="bottom" color="primary">
-      <Button onClick={openSearch} className="header-mode-toggle shadow-none">
-        <HiMagnifyingGlass className="header-mode-toggle-icon" />
-        <span className="hidden max-[530px]:inline-block text-sm font-medium">Search</span>
-      </Button>
-    </Tooltip>
-  );
 
-  const SearchOverlay = () => (
+  const searchOverlay = (
     <div
       className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
       style={{ zIndex: 9999 }}
@@ -292,7 +298,7 @@ const SearchManager = () => {
             <div className="ml-2 animate-spin h-4 w-4 border-2 border-[var(--primary)] border-t-transparent rounded-full" />
           )}
           {/* Clear button when searchTerm is not empty and not loading */}
-          {searchTerm && !loading && (
+          {searchTerm && (
             <button
               onClick={() => {
                 setSearchTerm("");
@@ -310,40 +316,30 @@ const SearchManager = () => {
         </div>
 
         {/* Results Section */}
-        <div
-          className={`max-h-80 overflow-y-auto flex-1 ${
-            loading ||
-            error ||
-            (searchTerm && !loading && !error && results.length === 0) ||
-            (searchTerm === "" && !loading && !error)
-              ? "flex flex-col justify-center items-center"
-              : ""
-          }`}
-        >
-          {/* Loading state */}
-          {loading && (
-            <div className="flex flex-col items-center justify-center w-full h-full px-4 py-8 text-center text-[var(--muted-foreground)]">
+        <div className="max-h-80 min-h-[200px] overflow-y-auto flex-1 flex flex-col">
+          {loading && results.length === 0 && (
+            <div className="flex flex-col items-center justify-center flex-1 px-4 py-8 text-center text-[var(--muted-foreground)]">
               <div className="text-4xl mb-2 opacity-50">⏳</div>
               <div className="text-sm font-medium mb-1">Searching...</div>
             </div>
           )}
           {/* Error state */}
-          {error && (
-            <div className="flex flex-col items-center justify-center w-full h-full px-4 py-8 text-center text-[var(--muted-foreground)]">
+          {error && !loading && (
+            <div className="flex flex-col items-center justify-center flex-1 px-4 py-8 text-center text-[var(--muted-foreground)]">
               <div className="text-4xl mb-2 opacity-80 text-red-500">❌</div>
               <div className="text-base font-medium mb-1">{error}</div>
             </div>
           )}
           {/* No results state */}
           {searchTerm && !loading && !error && results.length === 0 && (
-            <div className="flex flex-col items-center justify-center w-full h-full px-4 py-8 text-center text-[var(--muted-foreground)]">
+            <div className="flex flex-col items-center justify-center flex-1 px-4 py-8 text-center text-[var(--muted-foreground)]">
               <div className="text-4xl mb-2 opacity-50">🔍</div>
               <div className="text-sm font-medium mb-1">No results found</div>
               <div className="text-xs">Try a different search term</div>
             </div>
           )}
           {/* Results list */}
-          {!loading && !error && paginatedResults.length > 0 && (
+          {!error && paginatedResults.length > 0 && (
             <div ref={resultsRef} className="py-1 w-full flex flex-col justify-start items-stretch">
               {paginatedResults.map((result, index) => (
                 <div
@@ -378,7 +374,7 @@ const SearchManager = () => {
           )}
           {/* Empty state */}
           {searchTerm === "" && !loading && !error && (
-            <div className="flex flex-col items-center justify-center w-full h-full px-4 py-8 text-center text-[var(--muted-foreground)]">
+            <div className="flex flex-col items-center justify-center flex-1 px-4 py-8 text-center text-[var(--muted-foreground)]">
               <div className="text-5xl mb-2 opacity-60">✨</div>
               <div className="text-base font-medium mb-1 text-[var(--foreground)]">
                 Spotlight Search
@@ -441,8 +437,13 @@ const SearchManager = () => {
 
   return (
     <>
-      <TriggerButton />
-      {isOpen && createPortal(<SearchOverlay />, document.body)}
+      <Tooltip content="Search" position="bottom" color="primary">
+        <Button onClick={openSearch} className="header-mode-toggle shadow-none">
+          <HiMagnifyingGlass className="header-mode-toggle-icon" />
+          <span className="hidden max-[530px]:inline-block text-sm font-medium">Search</span>
+        </Button>
+      </Tooltip>
+      {isOpen && createPortal(searchOverlay, document.body)}
     </>
   );
 };

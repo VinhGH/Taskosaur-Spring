@@ -181,6 +181,51 @@ export class WorkspacesService {
           ),
         );
 
+        // Handle label & workflow inheritance from parent workspace
+        const inheritanceSettings: Record<string, any> = {};
+
+        if (createWorkspaceDto.parentWorkspaceId) {
+          if (createWorkspaceDto.inheritLabels) {
+            // Fetch label definitions from parent workspace's projects
+            const parentLabels = await tx.label.findMany({
+              where: {
+                project: { workspaceId: createWorkspaceDto.parentWorkspaceId },
+              },
+              select: { name: true, color: true, description: true },
+            });
+            if (parentLabels.length > 0) {
+              inheritanceSettings.inheritedLabelTemplates = parentLabels;
+            }
+          }
+
+          if (createWorkspaceDto.inheritWorkflows) {
+            // Fetch workflow IDs used by parent workspace's projects
+            const parentProjects = await tx.project.findMany({
+              where: { workspaceId: createWorkspaceDto.parentWorkspaceId },
+              select: { workflowId: true },
+              distinct: ['workflowId'],
+            });
+            if (parentProjects.length > 0) {
+              // Use the first (or most common) workflow as default
+              inheritanceSettings.defaultWorkflowId = parentProjects[0].workflowId;
+            }
+          }
+        }
+
+        // Merge inheritance settings into workspace settings if any were collected
+        if (Object.keys(inheritanceSettings).length > 0) {
+          const currentSettings =
+            typeof workspace.settings === 'object' && workspace.settings !== null
+              ? (workspace.settings as Record<string, any>)
+              : {};
+          await tx.workspace.update({
+            where: { id: workspace.id },
+            data: {
+              settings: { ...currentSettings, ...inheritanceSettings },
+            },
+          });
+        }
+
         return workspace;
       });
 
@@ -1168,5 +1213,156 @@ export class WorkspacesService {
     });
 
     return ancestors.sort((a, b) => (a.path?.length || 0) - (b.path?.length || 0));
+  }
+
+  async applyInheritance(
+    workspaceId: string,
+    userId: string,
+    options: { inheritMembers?: boolean; inheritLabels?: boolean; inheritWorkflows?: boolean } = {},
+  ): Promise<{
+    membersAdded: number;
+    labelsAdded: number;
+    workflowsAdded: number;
+  }> {
+    const { isElevated, isSuperAdmin } = await this.accessControl.getWorkspaceAccess(
+      workspaceId,
+      userId,
+    );
+    if (!isElevated && !isSuperAdmin) {
+      throw new ForbiddenException(
+        'Insufficient permissions to apply inheritance. Requires MANAGER or OWNER role.',
+      );
+    }
+
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { id: true, parentWorkspaceId: true, settings: true, organizationId: true },
+    });
+
+    if (!workspace) throw new NotFoundException('Workspace not found');
+
+    if (!workspace.parentWorkspaceId) {
+      throw new BadRequestException(
+        'This workspace has no parent workspace. Set a parent workspace first.',
+      );
+    }
+
+    const parentWorkspaceId = workspace.parentWorkspaceId;
+    const { inheritMembers = true, inheritLabels = true, inheritWorkflows = true } = options;
+
+    const currentSettings: Record<string, any> =
+      typeof workspace.settings === 'object' && workspace.settings !== null
+        ? (workspace.settings as Record<string, any>)
+        : {};
+
+    let membersAdded = 0;
+    let labelsAdded = 0;
+    let workflowsAdded = 0;
+
+    await this.prisma.$transaction(async (tx) => {
+      // ── 1. MEMBERS ──────────────────────────────────────────────────────
+      if (inheritMembers) {
+        // Fetch all parent workspace members
+        const parentMembers = await tx.workspaceMember.findMany({
+          where: { workspaceId: parentWorkspaceId },
+          select: { userId: true, role: true },
+        });
+
+        // Fetch existing members of this workspace (for comparison)
+        const existingMemberIds = new Set(
+          (
+            await tx.workspaceMember.findMany({
+              where: { workspaceId },
+              select: { userId: true },
+            })
+          ).map((m) => m.userId),
+        );
+
+        // UPSERT: only add members that are missing
+        const toAdd = parentMembers.filter((m) => !existingMemberIds.has(m.userId));
+        if (toAdd.length > 0) {
+          await tx.workspaceMember.createMany({
+            data: toAdd.map((m) => ({
+              userId: m.userId,
+              workspaceId,
+              role: m.role,
+              createdBy: userId,
+              updatedBy: userId,
+            })),
+            skipDuplicates: true,
+          });
+          membersAdded = toAdd.length;
+        }
+      }
+
+      // ── 2. LABEL TEMPLATES ───────────────────────────────────────────────
+      if (inheritLabels) {
+        // Fetch all distinct label definitions from parent workspace's projects
+        const parentLabels = await tx.label.findMany({
+          where: { project: { workspaceId: parentWorkspaceId } },
+          select: { name: true, color: true, description: true },
+        });
+
+        if (parentLabels.length > 0) {
+          // Current inherited label templates (keyed by name for O(1) lookup)
+          const existingTemplates: Array<{ name: string; color: string; description?: string }> =
+            Array.isArray(currentSettings.inheritedLabelTemplates)
+              ? currentSettings.inheritedLabelTemplates
+              : [];
+          const existingNames = new Set(existingTemplates.map((l) => l.name));
+
+          // UPSERT: add only missing labels (compare by name)
+          const newLabels = parentLabels.filter((l) => !existingNames.has(l.name));
+          if (newLabels.length > 0) {
+            currentSettings.inheritedLabelTemplates = [...existingTemplates, ...newLabels];
+            labelsAdded = newLabels.length;
+          }
+        }
+      }
+
+      // ── 3. WORKFLOWS ─────────────────────────────────────────────────────
+      if (inheritWorkflows) {
+        // Fetch all distinct workflow IDs used by parent workspace's projects
+        const parentWorkflowIds = (
+          await tx.project.findMany({
+            where: { workspaceId: parentWorkspaceId },
+            select: { workflowId: true },
+            distinct: ['workflowId'],
+          })
+        ).map((p) => p.workflowId);
+
+        if (parentWorkflowIds.length > 0) {
+          // Set defaultWorkflowId only if not already set
+          const hasDefault = !!currentSettings.defaultWorkflowId;
+          if (!hasDefault) {
+            currentSettings.defaultWorkflowId = parentWorkflowIds[0];
+            workflowsAdded++;
+          }
+
+          // UPSERT: merge any new workflow IDs into the tracked set
+          const existingWorkflowIds: string[] = Array.isArray(currentSettings.knownWorkflowIds)
+            ? currentSettings.knownWorkflowIds
+            : hasDefault
+              ? [currentSettings.defaultWorkflowId]
+              : [];
+          const existingWfSet = new Set(existingWorkflowIds);
+          const newWorkflowIds = parentWorkflowIds.filter((id) => !existingWfSet.has(id));
+          if (newWorkflowIds.length > 0) {
+            currentSettings.knownWorkflowIds = [...existingWorkflowIds, ...newWorkflowIds];
+            workflowsAdded += newWorkflowIds.length;
+          }
+        }
+      }
+
+      // Persist updated settings if anything changed
+      if (membersAdded > 0 || labelsAdded > 0 || workflowsAdded > 0) {
+        await tx.workspace.update({
+          where: { id: workspaceId },
+          data: { settings: currentSettings },
+        });
+      }
+    });
+
+    return { membersAdded, labelsAdded, workflowsAdded };
   }
 }

@@ -7,6 +7,8 @@ export interface WorkspaceData {
   slug?: string;
   parentWorkspaceId?: string;
   inheritMembers?: boolean;
+  inheritLabels?: boolean;
+  inheritWorkflows?: boolean;
 }
 
 export interface Workspace {

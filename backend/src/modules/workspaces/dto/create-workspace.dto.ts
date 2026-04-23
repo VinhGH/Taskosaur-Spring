@@ -113,4 +113,24 @@ export class CreateWorkspaceDto {
   @IsBoolean()
   @IsOptional()
   inheritMembers?: boolean;
+
+  @ApiProperty({
+    description: 'Whether to inherit label templates from the parent workspace projects',
+    example: true,
+    required: false,
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  inheritLabels?: boolean;
+
+  @ApiProperty({
+    description: 'Whether to inherit workflow configuration from the parent workspace projects',
+    example: true,
+    required: false,
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  inheritWorkflows?: boolean;
 }
