@@ -220,6 +220,28 @@ export class WorkspacesController {
     return this.workspacesService.remove(id, user.id as string);
   }
 
+  @Post(':id/apply-inheritance')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Apply inheritance from parent workspace',
+    description:
+      'Syncs members, label templates, and workflow from the parent workspace into this workspace. Only adds, never removes.',
+  })
+  @ApiParam({ name: 'id', description: 'Workspace ID (UUID)' })
+  @ApiResponse({ status: 200, description: 'Inheritance applied successfully' })
+  @ApiResponse({ status: 400, description: 'Workspace has no parent' })
+  @ApiResponse({ status: 403, description: 'Insufficient permissions' })
+  @Scope('WORKSPACE', 'id')
+  @Roles(Role.MANAGER, Role.OWNER)
+  applyInheritance(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body()
+    body: { inheritMembers?: boolean; inheritLabels?: boolean; inheritWorkflows?: boolean } = {},
+    @CurrentUser() user: any,
+  ) {
+    return this.workspacesService.applyInheritance(id, user.id as string, body);
+  }
+
   @Patch('archive/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Archive a workspace' })

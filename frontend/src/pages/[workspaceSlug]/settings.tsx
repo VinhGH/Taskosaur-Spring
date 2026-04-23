@@ -3,9 +3,10 @@ import { useState, useEffect } from "react";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
+import { workspaceApi } from "@/utils/api/workspaceApi";
 
 // UI components
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import DangerZoneModal from "@/components/common/DangerZoneModal";
-import { HiExclamationTriangle } from "react-icons/hi2";
+import { HiExclamationTriangle, HiArrowPath } from "react-icons/hi2";
 import { PageHeader } from "@/components/common/PageHeader";
 import ErrorState from "@/components/common/ErrorState";
 import { SEO } from "@/components/common/SEO";
@@ -39,6 +40,7 @@ function WorkspaceSettingsContent() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [applyingInheritance, setApplyingInheritance] = useState(false);
   const { getUserAccess } = useAuth();
   const [hasAccess, setHasAccess] = useState(false);
   const { handleSlugNotFound } = useSlugRedirect();
@@ -250,6 +252,31 @@ function WorkspaceSettingsContent() {
     }
   };
 
+  const handleApplyInheritance = async () => {
+    if (!workspace?.id) return;
+    try {
+      setApplyingInheritance(true);
+      const result = await workspaceApi.applyInheritance(workspace.id);
+      const parts: string[] = [];
+      if (result.membersAdded > 0)
+        parts.push(`${result.membersAdded} member${result.membersAdded !== 1 ? "s" : ""} added`);
+      if (result.labelsAdded > 0)
+        parts.push(`${result.labelsAdded} label template${result.labelsAdded !== 1 ? "s" : ""} added`);
+      if (result.workflowsAdded > 0)
+        parts.push(`${result.workflowsAdded} workflow${result.workflowsAdded !== 1 ? "s" : ""} synced`);
+      toast.success(
+        parts.length > 0
+          ? `Sync complete: ${parts.join(", ")}.`
+          : "Already in sync — no new members, labels, or workflows to add."
+      );
+    } catch (err) {
+      const msg = (err as any)?.message || "Failed to apply inheritance";
+      toast.error(msg);
+    } finally {
+      setApplyingInheritance(false);
+    }
+  };
+
   const generateSlug = (name: string) => {
     return name
       .toLowerCase()
@@ -408,6 +435,51 @@ function WorkspaceSettingsContent() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Inherit from parent workspace — only shown when a parent is configured */}
+        {workspace?.parentWorkspaceId && (
+          <Card className="border-none bg-[var(--card)]">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <HiArrowPath className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
+                Inherit from parent workspace
+              </CardTitle>
+              <CardDescription>
+                Re-sync member permissions, label templates, and workflow configuration from the
+                parent workspace into this workspace. Existing members and settings are preserved —
+                only new items are added.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between rounded-md border border-[var(--border)] bg-[var(--background)] p-4">
+                <div className="text-sm text-muted-foreground">
+                  Applies inheritance from{" "}
+                  <span className="font-medium text-foreground">
+                    {workspaceTree?.find((w) => w.id === workspace.parentWorkspaceId)?.name ??
+                      "parent workspace"}
+                  </span>
+                </div>
+                <Button
+                  onClick={handleApplyInheritance}
+                  disabled={applyingInheritance || !hasAccess}
+                  className="h-9 px-4 bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-[var(--primary-foreground)] shadow-sm hover:shadow-md transition-all duration-200 font-medium cursor-pointer rounded-lg flex items-center gap-2"
+                >
+                  {applyingInheritance ? (
+                    <>
+                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                      Applying...
+                    </>
+                  ) : (
+                    <>
+                      <HiArrowPath className="w-4 h-4" />
+                      Apply Inheritance
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="bg-red-50 dark:bg-red-950/20 border-none rounded-md px-4 py-6">
           <div className="flex items-start gap-3">

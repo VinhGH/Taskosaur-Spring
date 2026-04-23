@@ -425,4 +425,21 @@ export const workspaceApi = {
       throw error;
     }
   },
+
+  applyInheritance: async (
+    workspaceId: string,
+    options: { inheritMembers?: boolean; inheritLabels?: boolean; inheritWorkflows?: boolean } = {}
+  ): Promise<{ membersAdded: number; labelsAdded: number; workflowsAdded: number }> => {
+    try {
+      const response = await api.post<{
+        membersAdded: number;
+        labelsAdded: number;
+        workflowsAdded: number;
+      }>(`/workspaces/${workspaceId}/apply-inheritance`, options);
+      return response.data;
+    } catch (error) {
+      console.error("Apply inheritance error:", error);
+      throw error;
+    }
+  },
 };
