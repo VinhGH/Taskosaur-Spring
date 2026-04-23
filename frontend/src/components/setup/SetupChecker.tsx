@@ -17,8 +17,29 @@ export default function SetupChecker({ children }: { children: React.ReactNode }
         return;
       }
 
-      // Already on setup page — just render it
+      // On setup page — verify setup is actually needed
       if (router.pathname === "/setup") {
+        try {
+          const setupStatus = await authApi.checkSetupStatus();
+          // If setup is not required OR cannot setup, redirect to login
+          if (!setupStatus.required || !setupStatus.canSetup) {
+            setStatus("redirecting");
+            router.replace("/login");
+            return;
+          }
+        } catch {
+          // API failed - try the users check as fallback
+          try {
+            const { exists } = await authApi.checkUsersExist();
+            if (exists) {
+              setStatus("redirecting");
+              router.replace("/login");
+              return;
+            }
+          } catch {
+            // Both checks failed - let the setup page handle it
+          }
+        }
         setStatus("ready");
         return;
       }

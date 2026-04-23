@@ -53,6 +53,7 @@ import { AdminModule } from './modules/admin/admin.module';
       isGlobal: true,
       load: [appConfig],
       cache: true,
+      envFilePath: ['../.env', '.env'],
     }),
     RouterModule.register([
       {
