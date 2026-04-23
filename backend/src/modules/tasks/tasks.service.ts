@@ -1826,10 +1826,13 @@ export class TasksService {
 
       return this.flattenTaskRelations(updatedTask);
     } catch (error: any) {
-      this.logger.error('Failed to update the task');
-      if (error.code === 'P2025') {
-        throw new NotFoundException('Task not found');
+      if (error.code === 'P2025' || error instanceof NotFoundException) {
+        if (error.code === 'P2025') {
+          throw new NotFoundException('Task not found');
+        }
+        throw error;
       }
+      this.logger.error(`Failed to update the task: ${error.message}`);
       throw error;
     }
   }

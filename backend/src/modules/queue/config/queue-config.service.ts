@@ -39,7 +39,7 @@ export class QueueConfigService {
           port: redisPort,
           password: redisPassword,
           db: redisDb,
-          maxRetriesPerRequest: 3,
+          maxRetriesPerRequest: null,
         },
         prefix: this.configService.get<string>('QUEUE_PREFIX', 'taskosaur'),
       },

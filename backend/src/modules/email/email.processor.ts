@@ -126,10 +126,17 @@ export class EmailProcessor implements OnModuleInit {
         `SMTP transporter initialized and VERIFIED successfully for ${smtpHost}:${smtpPort}`,
       );
     } catch (error) {
-      this.logger.error(
-        'CRITICAL: Failed to initialize SMTP transporter. Check your SMTP credentials and network connectivity:',
-        error,
-      );
+      const smtpHost = await this.getSmtpConfig('smtp_host', 'SMTP_HOST');
+      if (smtpHost === 'smtp.example.com') {
+        this.logger.warn(
+          `SMTP simulation enabled: Host 'smtp.example.com' is a placeholder. Emails will be simulated.`,
+        );
+      } else {
+        this.logger.error(
+          'CRITICAL: Failed to initialize SMTP transporter. Check your SMTP credentials and network connectivity:',
+          error,
+        );
+      }
       this.transporter = null;
     }
   }

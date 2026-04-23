@@ -84,7 +84,7 @@ export interface RedisConfig {
   password?: string;
   db?: number;
   tls?: any;
-  maxRetriesPerRequest?: number;
+  maxRetriesPerRequest?: number | null;
   retryStrategy?: (times: number) => number | void;
 }
 
