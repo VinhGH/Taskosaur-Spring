@@ -4,7 +4,14 @@ import * as request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
-import { Role, ProjectStatus, ProjectPriority, ProjectVisibility, TaskPriority, TaskType } from '@prisma/client';
+import {
+  Role,
+  ProjectStatus,
+  ProjectPriority,
+  ProjectVisibility,
+  TaskPriority,
+  TaskType,
+} from '@prisma/client';
 import { GlobalSearchDto, AdvancedSearchDto } from './../src/modules/search/dto/search.dto';
 import { hasRequiredRole } from './../src/constants/roles';
 
@@ -69,7 +76,11 @@ describe('SearchController (e2e)', () => {
     });
 
     // Generate token for other user
-    otherAccessToken = jwtService.sign({ sub: otherUser.id, email: otherUser.email, role: otherUser.role });
+    otherAccessToken = jwtService.sign({
+      sub: otherUser.id,
+      email: otherUser.email,
+      role: otherUser.role,
+    });
 
     // Create a MEMBER role user for testing role-based filtering
     memberUser = await prismaService.user.create({
@@ -82,7 +93,11 @@ describe('SearchController (e2e)', () => {
         role: Role.MEMBER,
       },
     });
-    memberAccessToken = jwtService.sign({ sub: memberUser.id, email: memberUser.email, role: memberUser.role });
+    memberAccessToken = jwtService.sign({
+      sub: memberUser.id,
+      email: memberUser.email,
+      role: memberUser.role,
+    });
 
     // Create a VIEWER role user for testing role-based filtering
     viewerUser = await prismaService.user.create({
@@ -95,7 +110,11 @@ describe('SearchController (e2e)', () => {
         role: Role.VIEWER,
       },
     });
-    viewerAccessToken = jwtService.sign({ sub: viewerUser.id, email: viewerUser.email, role: viewerUser.role });
+    viewerAccessToken = jwtService.sign({
+      sub: viewerUser.id,
+      email: viewerUser.email,
+      role: viewerUser.role,
+    });
 
     // Create Organization for primary user
     const organization = await prismaService.organization.create({
@@ -281,15 +300,29 @@ describe('SearchController (e2e)', () => {
     if (prismaService) {
       // Cleanup all test data
       await prismaService.task.deleteMany({ where: { id: { in: [taskId, otherTaskId] } } });
-      await prismaService.task.deleteMany({ where: { projectId: { in: [projectId, otherProjectId] } } });
-      await prismaService.projectMember.deleteMany({ where: { userId: { in: [user.id, otherUser.id, memberUser.id, viewerUser.id] } } });
-      await prismaService.project.deleteMany({ where: { id: { in: [projectId, otherProjectId] } } });
-      await prismaService.workspace.deleteMany({ where: { organizationId: { in: [organizationId, otherOrganizationId] } } });
+      await prismaService.task.deleteMany({
+        where: { projectId: { in: [projectId, otherProjectId] } },
+      });
+      await prismaService.projectMember.deleteMany({
+        where: { userId: { in: [user.id, otherUser.id, memberUser.id, viewerUser.id] } },
+      });
+      await prismaService.project.deleteMany({
+        where: { id: { in: [projectId, otherProjectId] } },
+      });
+      await prismaService.workspace.deleteMany({
+        where: { organizationId: { in: [organizationId, otherOrganizationId] } },
+      });
       await prismaService.taskStatus.delete({ where: { id: statusId } });
       await prismaService.workflow.delete({ where: { id: workflowId } });
-      await prismaService.organizationMember.deleteMany({ where: { userId: { in: [user.id, otherUser.id, memberUser.id, viewerUser.id] } } });
-      await prismaService.organization.deleteMany({ where: { id: { in: [organizationId, otherOrganizationId] } } });
-      await prismaService.user.deleteMany({ where: { id: { in: [user.id, otherUser.id, memberUser.id, viewerUser.id] } } });
+      await prismaService.organizationMember.deleteMany({
+        where: { userId: { in: [user.id, otherUser.id, memberUser.id, viewerUser.id] } },
+      });
+      await prismaService.organization.deleteMany({
+        where: { id: { in: [organizationId, otherOrganizationId] } },
+      });
+      await prismaService.user.deleteMany({
+        where: { id: { in: [user.id, otherUser.id, memberUser.id, viewerUser.id] } },
+      });
     }
     await app.close();
   });

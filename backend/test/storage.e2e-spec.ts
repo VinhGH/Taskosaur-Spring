@@ -52,7 +52,7 @@ describe('S3Controller (e2e)', () => {
   describe('/s3/presigned-put-url (GET)', () => {
     it('should get a presigned PUT URL', () => {
       const testKey = `test-uploads/${Date.now()}/test-file.pdf`;
-      
+
       return request(app.getHttpServer())
         .get('/api/s3/presigned-put-url')
         .query({ key: testKey })
@@ -70,7 +70,7 @@ describe('S3Controller (e2e)', () => {
   describe('/s3/presigned-get-url (GET)', () => {
     it('should get a presigned GET URL', () => {
       const testKey = `test-downloads/${Date.now()}/test-file.pdf`;
-      
+
       return request(app.getHttpServer())
         .get('/api/s3/presigned-get-url')
         .query({ key: testKey })
@@ -87,7 +87,7 @@ describe('S3Controller (e2e)', () => {
   describe('Authentication', () => {
     it('should return 401 without authentication', () => {
       const testKey = `test-uploads/${Date.now()}/test-file.pdf`;
-      
+
       return request(app.getHttpServer())
         .get('/api/s3/presigned-put-url')
         .query({ key: testKey })

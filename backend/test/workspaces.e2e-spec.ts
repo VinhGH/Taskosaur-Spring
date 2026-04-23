@@ -334,9 +334,7 @@ describe('WorkspacesController (e2e)', () => {
         .then((wsRes) => {
           const currentSlug = wsRes.body.slug;
           return request(app.getHttpServer())
-            .get(
-              `/api/workspaces/organization/${organizationId}/workspace/${currentSlug}/charts`,
-            )
+            .get(`/api/workspaces/organization/${organizationId}/workspace/${currentSlug}/charts`)
             .query({ types: 'kpi-metrics' })
             .set('Authorization', `Bearer ${accessToken}`)
             .expect(HttpStatus.OK)

@@ -64,16 +64,20 @@ describe('TaskLabelsController (e2e)', () => {
     });
 
     // Generate token for unauthorized user
-    const unauthorizedPayload = { sub: unauthorizedUser.id, email: unauthorizedUser.email, role: unauthorizedUser.role };
+    const unauthorizedPayload = {
+      sub: unauthorizedUser.id,
+      email: unauthorizedUser.email,
+      role: unauthorizedUser.role,
+    };
     unauthorizedToken = jwtService.sign(unauthorizedPayload);
 
     // Create Organization
     const organization = await prismaService.organization.create({
-        data: {
-            name: `TLabel Org ${Date.now()}`,
-            slug: `tlabel-org-${Date.now()}`,
-            ownerId: user.id,
-        }
+      data: {
+        name: `TLabel Org ${Date.now()}`,
+        slug: `tlabel-org-${Date.now()}`,
+        ownerId: user.id,
+      },
     });
     organizationId = organization.id;
 
@@ -225,7 +229,9 @@ describe('TaskLabelsController (e2e)', () => {
         .expect(HttpStatus.OK)
         .expect((res) => {
           expect(Array.isArray(res.body)).toBe(true);
-          const assignment = res.body.find((tl: any) => tl.taskId === taskId && tl.labelId === labelId);
+          const assignment = res.body.find(
+            (tl: any) => tl.taskId === taskId && tl.labelId === labelId,
+          );
           expect(assignment).toBeDefined();
         });
     });
@@ -238,10 +244,10 @@ describe('TaskLabelsController (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(HttpStatus.OK)
         .expect((res) => {
-            expect(res.body).toHaveProperty('taskId');
-            expect(res.body).toHaveProperty('labelId');
-            expect(res.body.taskId).toBe(taskId);
-            expect(res.body.labelId).toBe(labelId);
+          expect(res.body).toHaveProperty('taskId');
+          expect(res.body).toHaveProperty('labelId');
+          expect(res.body.taskId).toBe(taskId);
+          expect(res.body.labelId).toBe(labelId);
         });
     });
   });

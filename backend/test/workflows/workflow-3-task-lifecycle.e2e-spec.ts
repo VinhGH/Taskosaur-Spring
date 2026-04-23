@@ -4,11 +4,18 @@ import * as request from 'supertest';
 import { AppModule } from './../../src/app.module';
 import { PrismaService } from './../../src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
-import { Role, ProjectStatus, ProjectPriority, ProjectVisibility, TaskPriority, TaskType } from '@prisma/client';
+import {
+  Role,
+  ProjectStatus,
+  ProjectPriority,
+  ProjectVisibility,
+  TaskPriority,
+  TaskType,
+} from '@prisma/client';
 
 /**
  * Workflow 3: Complete Task Management Lifecycle
- * 
+ *
  * This test covers the full lifecycle of a task:
  * 1. Create task
  * 2. Add custom status
@@ -18,7 +25,7 @@ import { Role, ProjectStatus, ProjectPriority, ProjectVisibility, TaskPriority, 
  * 6. Add comments
  * 7. Add dependencies
  * 8. Complete task
- * 
+ *
  * Note: Watchers and attachments are skipped as they may require additional setup.
  */
 describe('Workflow 3: Complete Task Management Lifecycle (e2e)', () => {
@@ -70,13 +77,15 @@ describe('Workflow 3: Complete Task Management Lifecycle (e2e)', () => {
         await prismaService.task.deleteMany({ where: { projectId } });
       }
       if (labelId) await prismaService.label.delete({ where: { id: labelId } });
-      if (inReviewStatusId) await prismaService.taskStatus.delete({ where: { id: inReviewStatusId } });
+      if (inReviewStatusId)
+        await prismaService.taskStatus.delete({ where: { id: inReviewStatusId } });
       if (doneStatusId) await prismaService.taskStatus.delete({ where: { id: doneStatusId } });
       if (todoStatusId) await prismaService.taskStatus.delete({ where: { id: todoStatusId } });
       if (projectId) await prismaService.project.delete({ where: { id: projectId } });
       if (workspaceId) await prismaService.workspace.delete({ where: { id: workspaceId } });
       if (workflowId) await prismaService.workflow.delete({ where: { id: workflowId } });
-      if (organizationId) await prismaService.organization.delete({ where: { id: organizationId } });
+      if (organizationId)
+        await prismaService.organization.delete({ where: { id: organizationId } });
       if (owner) await prismaService.user.delete({ where: { id: owner.id } });
       if (member) await prismaService.user.delete({ where: { id: member.id } });
     }
@@ -98,7 +107,7 @@ describe('Workflow 3: Complete Task Management Lifecycle (e2e)', () => {
           role: Role.OWNER,
         })
         .expect(HttpStatus.CREATED);
-      
+
       owner = ownerReg.body.user;
       ownerToken = ownerReg.body.access_token;
 
@@ -115,7 +124,7 @@ describe('Workflow 3: Complete Task Management Lifecycle (e2e)', () => {
           role: Role.MEMBER,
         })
         .expect(HttpStatus.CREATED);
-      
+
       member = memberReg.body.user;
       memberToken = memberReg.body.access_token;
 
@@ -235,7 +244,7 @@ describe('Workflow 3: Complete Task Management Lifecycle (e2e)', () => {
         .get(`/api/task-statuses?workflowId=${workflowId}`)
         .set('Authorization', `Bearer ${ownerToken}`)
         .expect(HttpStatus.OK);
-      
+
       const status = statusesResponse.body.find((s: any) => s.name === 'In Review');
       expect(status).toBeDefined();
       inReviewStatusId = status.id;
@@ -300,7 +309,7 @@ describe('Workflow 3: Complete Task Management Lifecycle (e2e)', () => {
         .get(`/api/task-statuses?workflowId=${workflowId}`)
         .set('Authorization', `Bearer ${ownerToken}`)
         .expect(HttpStatus.OK);
-      
+
       const status = statusesResponse.body.find((s: any) => s.name === 'Done');
       expect(status).toBeDefined();
       doneStatusId = status.id;

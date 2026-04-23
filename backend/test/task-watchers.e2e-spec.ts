@@ -60,11 +60,11 @@ describe('TaskWatchersController (e2e)', () => {
 
     // Create Organization
     const organization = await prismaService.organization.create({
-        data: {
-            name: `Watcher Org ${Date.now()}`,
-            slug: `watcher-org-${Date.now()}`,
-            ownerId: user.id,
-        }
+      data: {
+        name: `Watcher Org ${Date.now()}`,
+        slug: `watcher-org-${Date.now()}`,
+        ownerId: user.id,
+      },
     });
     organizationId = organization.id;
 
@@ -116,7 +116,7 @@ describe('TaskWatchersController (e2e)', () => {
           projectId: projectId,
           userId: otherUser.id,
           role: Role.MEMBER,
-        }
+        },
       ],
     });
 
@@ -162,118 +162,117 @@ describe('TaskWatchersController (e2e)', () => {
   });
 
   describe('Watcher Operations', () => {
-    
     afterEach(async () => {
-        await prismaService.taskWatcher.deleteMany({ where: { taskId } });
+      await prismaService.taskWatcher.deleteMany({ where: { taskId } });
     });
 
     describe('/task-watchers/watch (POST)', () => {
-        it('should start watching a task', () => {
-          return request(app.getHttpServer())
-            .post('/api/task-watchers/watch')
-            .set('Authorization', `Bearer ${accessToken}`)
-            .send({ taskId, userId: user.id })
-            .expect(HttpStatus.CREATED)
-            .expect((res) => {
-              expect(res.body.taskId).toBe(taskId);
-              expect(res.body.userId).toBe(user.id);
-            });
-        });
-    
-        it('should return 409 if already watching', async () => {
-          await prismaService.taskWatcher.create({ data: { taskId, userId: user.id } });
-
-          return request(app.getHttpServer())
-            .post('/api/task-watchers/watch')
-            .set('Authorization', `Bearer ${accessToken}`)
-            .send({ taskId, userId: user.id })
-            .expect(HttpStatus.CONFLICT);
-        });
-      });
-    
-      describe('/task-watchers/check/:taskId/:userId (GET)', () => {
-        it('should check if user is watching task', async () => {
-          await prismaService.taskWatcher.create({ data: { taskId, userId: user.id } });
-
-          return request(app.getHttpServer())
-            .get(`/api/task-watchers/check/${taskId}/${user.id}`)
-            .set('Authorization', `Bearer ${accessToken}`)
-            .expect(HttpStatus.OK)
-            .expect((res) => {
-              expect(JSON.parse(res.text)).toBe(true);
-            });
-        });
-    
-        it('should return false if user is not watching', () => {
-            return request(app.getHttpServer())
-              .get(`/api/task-watchers/check/${taskId}/${otherUser.id}`)
-              .set('Authorization', `Bearer ${accessToken}`)
-              .expect(HttpStatus.OK)
-              .expect((res) => {
-                expect(JSON.parse(res.text)).toBe(false);
-              });
+      it('should start watching a task', () => {
+        return request(app.getHttpServer())
+          .post('/api/task-watchers/watch')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ taskId, userId: user.id })
+          .expect(HttpStatus.CREATED)
+          .expect((res) => {
+            expect(res.body.taskId).toBe(taskId);
+            expect(res.body.userId).toBe(user.id);
           });
       });
-    
-      describe('/task-watchers/task/:taskId (GET)', () => {
-        it('should list watchers for a task', async () => {
-          await prismaService.taskWatcher.create({ data: { taskId, userId: user.id } });
 
-          return request(app.getHttpServer())
-            .get(`/api/task-watchers/task/${taskId}`)
-            .set('Authorization', `Bearer ${accessToken}`)
-            .expect(HttpStatus.OK)
-            .expect((res) => {
-              expect(Array.isArray(res.body)).toBe(true);
-              expect(res.body.some((w: any) => w.userId === user.id)).toBe(true);
-            });
-        });
+      it('should return 409 if already watching', async () => {
+        await prismaService.taskWatcher.create({ data: { taskId, userId: user.id } });
+
+        return request(app.getHttpServer())
+          .post('/api/task-watchers/watch')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ taskId, userId: user.id })
+          .expect(HttpStatus.CONFLICT);
       });
-    
-      describe('/task-watchers/unwatch (POST)', () => {
-        it('should stop watching a task', async () => {
-          await prismaService.taskWatcher.create({ data: { taskId, userId: user.id } });
+    });
 
-          return request(app.getHttpServer())
-            .post('/api/task-watchers/unwatch')
-            .set('Authorization', `Bearer ${accessToken}`)
-            .send({ taskId, userId: user.id })
-            .expect(HttpStatus.NO_CONTENT);
-        });
-      });
-    
-      describe('/task-watchers/toggle (POST)', () => {
-        it('should toggle watch status to ON', () => {
-          return request(app.getHttpServer())
-            .post('/api/task-watchers/toggle')
-            .set('Authorization', `Bearer ${accessToken}`)
-            .send({ taskId, userId: otherUser.id })
-            .expect((res) => {
-                if (res.status !== 200 && res.status !== 201) {
-                    throw new Error(`Expected 200 or 201, got ${res.status}`);
-                }
-            })
-            .expect((res) => {
-               expect(res.body.isWatching).toBe(true);
-            });
-        });
-    
-        it('should toggle watch status to OFF', async () => {
-            await prismaService.taskWatcher.create({ data: { taskId, userId: otherUser.id } });
+    describe('/task-watchers/check/:taskId/:userId (GET)', () => {
+      it('should check if user is watching task', async () => {
+        await prismaService.taskWatcher.create({ data: { taskId, userId: user.id } });
 
-            return request(app.getHttpServer())
-              .post('/api/task-watchers/toggle')
-              .set('Authorization', `Bearer ${accessToken}`)
-              .send({ taskId, userId: otherUser.id })
-              .expect((res) => {
-                if (res.status !== 200 && res.status !== 201 && res.status !== 204) {
-                    throw new Error(`Expected 200, 201 or 204, got ${res.status}`);
-                }
-              })
-              .expect((res) => {
-                expect(res.body.isWatching).toBe(false);
-              });
+        return request(app.getHttpServer())
+          .get(`/api/task-watchers/check/${taskId}/${user.id}`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(HttpStatus.OK)
+          .expect((res) => {
+            expect(JSON.parse(res.text)).toBe(true);
           });
       });
+
+      it('should return false if user is not watching', () => {
+        return request(app.getHttpServer())
+          .get(`/api/task-watchers/check/${taskId}/${otherUser.id}`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(HttpStatus.OK)
+          .expect((res) => {
+            expect(JSON.parse(res.text)).toBe(false);
+          });
+      });
+    });
+
+    describe('/task-watchers/task/:taskId (GET)', () => {
+      it('should list watchers for a task', async () => {
+        await prismaService.taskWatcher.create({ data: { taskId, userId: user.id } });
+
+        return request(app.getHttpServer())
+          .get(`/api/task-watchers/task/${taskId}`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(HttpStatus.OK)
+          .expect((res) => {
+            expect(Array.isArray(res.body)).toBe(true);
+            expect(res.body.some((w: any) => w.userId === user.id)).toBe(true);
+          });
+      });
+    });
+
+    describe('/task-watchers/unwatch (POST)', () => {
+      it('should stop watching a task', async () => {
+        await prismaService.taskWatcher.create({ data: { taskId, userId: user.id } });
+
+        return request(app.getHttpServer())
+          .post('/api/task-watchers/unwatch')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ taskId, userId: user.id })
+          .expect(HttpStatus.NO_CONTENT);
+      });
+    });
+
+    describe('/task-watchers/toggle (POST)', () => {
+      it('should toggle watch status to ON', () => {
+        return request(app.getHttpServer())
+          .post('/api/task-watchers/toggle')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ taskId, userId: otherUser.id })
+          .expect((res) => {
+            if (res.status !== 200 && res.status !== 201) {
+              throw new Error(`Expected 200 or 201, got ${res.status}`);
+            }
+          })
+          .expect((res) => {
+            expect(res.body.isWatching).toBe(true);
+          });
+      });
+
+      it('should toggle watch status to OFF', async () => {
+        await prismaService.taskWatcher.create({ data: { taskId, userId: otherUser.id } });
+
+        return request(app.getHttpServer())
+          .post('/api/task-watchers/toggle')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ taskId, userId: otherUser.id })
+          .expect((res) => {
+            if (res.status !== 200 && res.status !== 201 && res.status !== 204) {
+              throw new Error(`Expected 200, 201 or 204, got ${res.status}`);
+            }
+          })
+          .expect((res) => {
+            expect(res.body.isWatching).toBe(false);
+          });
+      });
+    });
   });
 });

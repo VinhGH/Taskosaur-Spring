@@ -4,7 +4,13 @@ import * as request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
-import { Role, ProjectStatus, ProjectPriority, ProjectVisibility, DependencyType } from '@prisma/client';
+import {
+  Role,
+  ProjectStatus,
+  ProjectPriority,
+  ProjectVisibility,
+  DependencyType,
+} from '@prisma/client';
 import { CreateTaskDependencyDto } from './../src/modules/task-dependencies/dto/create-task-dependency.dto';
 
 describe('TaskDependenciesController (e2e)', () => {
@@ -50,11 +56,11 @@ describe('TaskDependenciesController (e2e)', () => {
 
     // Create Organization
     const organization = await prismaService.organization.create({
-        data: {
-            name: `Dep Org ${Date.now()}`,
-            slug: `dep-org-${Date.now()}`,
-            ownerId: user.id,
-        }
+      data: {
+        name: `Dep Org ${Date.now()}`,
+        slug: `dep-org-${Date.now()}`,
+        ownerId: user.id,
+      },
     });
     organizationId = organization.id;
 

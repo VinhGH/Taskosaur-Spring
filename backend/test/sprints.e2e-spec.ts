@@ -1,129 +1,137 @@
-  import { Test, TestingModule } from '@nestjs/testing';
-  import { INestApplication, HttpStatus } from '@nestjs/common';
-  import * as request from 'supertest';
-  import { AppModule } from './../src/app.module';
-  import { PrismaService } from './../src/prisma/prisma.service';
-  import { JwtService } from '@nestjs/jwt';
-  import { Role, SprintStatus } from '@prisma/client';
-  import { CreateSprintDto } from
-  './../src/modules/sprints/dto/create-sprint.dto';
-  import { UpdateSprintDto } from
-  './../src/modules/sprints/dto/update-sprint.dto';
-  import { CreateOrganizationDto } from
-  './../src/modules/organizations/dto/create-organization.dto'; // Required for setup
-  import { OrganizationsService } from
-  './../src/modules/organizations/organizations.service'; // Required for setup
+import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication, HttpStatus } from '@nestjs/common';
+import * as request from 'supertest';
+import { AppModule } from './../src/app.module';
+import { PrismaService } from './../src/prisma/prisma.service';
+import { JwtService } from '@nestjs/jwt';
+import { Role, SprintStatus } from '@prisma/client';
+import { CreateSprintDto } from './../src/modules/sprints/dto/create-sprint.dto';
+import { UpdateSprintDto } from './../src/modules/sprints/dto/update-sprint.dto';
+import { CreateOrganizationDto } from './../src/modules/organizations/dto/create-organization.dto'; // Required for setup
+import { OrganizationsService } from './../src/modules/organizations/organizations.service'; // Required for setup
 
-  describe('SprintsController (e2e)', () => {
-    jest.setTimeout(30000);
-    let app: INestApplication;
-    let prismaService: PrismaService;
-    let jwtService: JwtService;
-    let organizationsService: OrganizationsService;
+describe('SprintsController (e2e)', () => {
+  jest.setTimeout(30000);
+  let app: INestApplication;
+  let prismaService: PrismaService;
+  let jwtService: JwtService;
+  let organizationsService: OrganizationsService;
 
-    let user: any;
-    let accessToken: string;
-    let organizationId: string;
-    let workspaceId: string;
-    let projectId: string;
-    let projectSlug: string;
-    let sprintId: string; // For general purpose sprint
-    let planningSprintId: string;
-    let activeSprintId: string;
+  let user: any;
+  let accessToken: string;
+  let organizationId: string;
+  let workspaceId: string;
+  let projectId: string;
+  let projectSlug: string;
+  let sprintId: string; // For general purpose sprint
+  let planningSprintId: string;
+  let activeSprintId: string;
 
-    const password = 'StrongPassword123!';
+  const password = 'StrongPassword123!';
 
-    beforeAll(async () => {
-      const moduleFixture: TestingModule = await Test.createTestingModule({
-        imports: [AppModule],
-      }).compile();
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
 
-      app = moduleFixture.createNestApplication();
-      await app.init();
-      prismaService = app.get<PrismaService>(PrismaService);
-      jwtService = app.get<JwtService>(JwtService);
-      organizationsService =
-  app.get<OrganizationsService>(OrganizationsService); // Get service to create org
+    app = moduleFixture.createNestApplication();
+    await app.init();
+    prismaService = app.get<PrismaService>(PrismaService);
+    jwtService = app.get<JwtService>(JwtService);
+    organizationsService = app.get<OrganizationsService>(OrganizationsService); // Get service to create org
 
-      // 1. Create a test user via API registration to ensure everything is correct
-      const email = `sprint-test-${Date.now()}@example.com`;
-      const username = `sprint_tester_${Date.now()}`;
-      const regResponse = await request(app.getHttpServer())
-        .post('/api/auth/register')
-        .send({
-          email,
-          password,
-          firstName: 'Sprint',
-          lastName: 'Tester',
-          username,
-          role: Role.OWNER,
-        })
-        .expect(HttpStatus.CREATED);
+    // 1. Create a test user via API registration to ensure everything is correct
+    const email = `sprint-test-${Date.now()}@example.com`;
+    const username = `sprint_tester_${Date.now()}`;
+    const regResponse = await request(app.getHttpServer())
+      .post('/api/auth/register')
+      .send({
+        email,
+        password,
+        firstName: 'Sprint',
+        lastName: 'Tester',
+        username,
+        role: Role.OWNER,
+      })
+      .expect(HttpStatus.CREATED);
 
-      user = regResponse.body.user;
-      accessToken = regResponse.body.access_token;
+    user = regResponse.body.user;
+    accessToken = regResponse.body.access_token;
 
-      // 2. Create an Organization (using service to ensure all defaults are setup)
-      const createOrgDto: CreateOrganizationDto = {
-        name: `Sprint Test Org ${Date.now()}`,
-        ownerId: user.id,
-        defaultWorkspace: { name: 'Default Workspace' },
-        defaultProject: { name: 'Default Project' },
-      };
-      const organization = await organizationsService.create(createOrgDto,
-  user.id);
-      organizationId = organization.id;
+    // 2. Create an Organization (using service to ensure all defaults are setup)
+    const createOrgDto: CreateOrganizationDto = {
+      name: `Sprint Test Org ${Date.now()}`,
+      ownerId: user.id,
+      defaultWorkspace: { name: 'Default Workspace' },
+      defaultProject: { name: 'Default Project' },
+    };
+    const organization = await organizationsService.create(createOrgDto, user.id);
+    organizationId = organization.id;
 
-      // Retrieve the created workspace and project for the organization
-      const createdWorkspace = await prismaService.workspace.findFirst({
-        where: { organizationId },
-      });
-      if (!createdWorkspace) throw new Error('Workspace not found');
-      workspaceId = createdWorkspace.id;
-
-      const createdProject = await prismaService.project.findFirst({
-        where: { workspaceId },
-      });
-      if (!createdProject) throw new Error('Project not found');
-      projectId = createdProject.id;
-      projectSlug = createdProject.slug;
+    // Retrieve the created workspace and project for the organization
+    const createdWorkspace = await prismaService.workspace.findFirst({
+      where: { organizationId },
     });
+    if (!createdWorkspace) throw new Error('Workspace not found');
+    workspaceId = createdWorkspace.id;
 
-    afterAll(async () => {
-      if (prismaService) {
-        // Clean up in reverse order of creation due to foreign key constraints
-        await prismaService.task.deleteMany({ where: { projectId: projectId }
-  });
-        await prismaService.sprint.deleteMany({ where: { projectId: projectId }
-  });
-        await prismaService.projectMember.deleteMany({ where: { projectId:
-  projectId } });
-        await prismaService.project.deleteMany({ where: { id: projectId } });
-        await prismaService.workspaceMember.deleteMany({ where: { workspaceId:
-  workspaceId } });
-        await prismaService.workspace.deleteMany({ where: { id: workspaceId }
-  });
-        await prismaService.organizationMember.deleteMany({ where: {
-  organizationId: organizationId } });
-        await prismaService.workflow.deleteMany({ where: { organizationId:
-  organizationId } }); // Also deletes statuses and transitions due to cascade
-        await prismaService.organization.deleteMany({ where: { id:
-  organizationId } });
-        await prismaService.user.delete({ where: { id: user.id } });
-      }
-      await app.close();
+    const createdProject = await prismaService.project.findFirst({
+      where: { workspaceId },
     });
+    if (!createdProject) throw new Error('Project not found');
+    projectId = createdProject.id;
+    projectSlug = createdProject.slug;
+  });
 
-    // Helper to create a new sprint for isolated tests
-    const createTestSprint = async (name: string, status: SprintStatus =
-  SprintStatus.PLANNING) => {
+  afterAll(async () => {
+    if (prismaService) {
+      // Clean up in reverse order of creation due to foreign key constraints
+      await prismaService.task.deleteMany({ where: { projectId: projectId } });
+      await prismaService.sprint.deleteMany({ where: { projectId: projectId } });
+      await prismaService.projectMember.deleteMany({ where: { projectId: projectId } });
+      await prismaService.project.deleteMany({ where: { id: projectId } });
+      await prismaService.workspaceMember.deleteMany({ where: { workspaceId: workspaceId } });
+      await prismaService.workspace.deleteMany({ where: { id: workspaceId } });
+      await prismaService.organizationMember.deleteMany({
+        where: {
+          organizationId: organizationId,
+        },
+      });
+      await prismaService.workflow.deleteMany({ where: { organizationId: organizationId } }); // Also deletes statuses and transitions due to cascade
+      await prismaService.organization.deleteMany({ where: { id: organizationId } });
+      await prismaService.user.delete({ where: { id: user.id } });
+    }
+    await app.close();
+  });
+
+  // Helper to create a new sprint for isolated tests
+  const createTestSprint = async (name: string, status: SprintStatus = SprintStatus.PLANNING) => {
+    const createDto: CreateSprintDto = {
+      name,
+      projectSlug: projectSlug,
+      goal: `Goal for ${name}`,
+      startDate: new Date().toISOString(),
+      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      status: status,
+    };
+
+    const res = await request(app.getHttpServer())
+      .post('/api/sprints')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send(createDto)
+      .expect(HttpStatus.CREATED);
+
+    return res.body;
+  };
+
+  describe('POST /sprints', () => {
+    it('should create a sprint', async () => {
       const createDto: CreateSprintDto = {
-        name,
+        name: 'Test Sprint 1',
         projectSlug: projectSlug,
-        goal: `Goal for ${name}`,
+        goal: 'Complete initial features',
         startDate: new Date().toISOString(),
-        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        status: status,
+        endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
       };
 
       const res = await request(app.getHttpServer())
@@ -132,315 +140,270 @@
         .send(createDto)
         .expect(HttpStatus.CREATED);
 
-      return res.body;
-    };
-
-    describe('POST /sprints', () => {
-      it('should create a sprint', async () => {
-        const createDto: CreateSprintDto = {
-          name: 'Test Sprint 1',
-          projectSlug: projectSlug,
-          goal: 'Complete initial features',
-          startDate: new Date().toISOString(),
-          endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-        };
-
-        const res = await request(app.getHttpServer())
-          .post('/api/sprints')
-          .set('Authorization', `Bearer ${accessToken}`)
-          .send(createDto)
-          .expect(HttpStatus.CREATED);
-
-        expect(res.body).toHaveProperty('id');
-        expect(res.body.name).toBe(createDto.name);
-        expect(res.body.projectId).toBe(projectId);
-        expect(res.body.status).toBe(SprintStatus.PLANNING); // Default status if not provided
-        sprintId = res.body.id; // Save for later tests
-      });
-
-      it('should create a planning sprint', async () => {
-        const sprint = await createTestSprint('Planning Sprint',
-  SprintStatus.PLANNING);
-        planningSprintId = sprint.id;
-        expect(sprint.status).toBe(SprintStatus.PLANNING);
-      });
-
-      it('should return 404 if project ID does not exist', () => {
-        const createDto: CreateSprintDto = {
-          name: 'Sprint for NonExistent Project',
-          projectSlug: '00000000-0000-4000-8000-000000000000', // Non-existent  UUID
-          goal: 'Some goal',
-          startDate: new Date().toISOString(),
-          endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        };
-
-        return request(app.getHttpServer())
-          .post('/api/sprints')
-          .set('Authorization', `Bearer ${accessToken}`)
-          .send(createDto)
-          .expect(HttpStatus.NOT_FOUND);
-      });
+      expect(res.body).toHaveProperty('id');
+      expect(res.body.name).toBe(createDto.name);
+      expect(res.body.projectId).toBe(projectId);
+      expect(res.body.status).toBe(SprintStatus.PLANNING); // Default status if not provided
+      sprintId = res.body.id; // Save for later tests
     });
 
-    describe('GET /sprints', () => {
-      it('should return all non-archived sprints for the project', async () => {
-        const res = await request(app.getHttpServer())
-          .get(`/api/sprints?projectId=${projectId}`)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(HttpStatus.OK);
-
-        expect(Array.isArray(res.body)).toBe(true);
-        expect(res.body.length).toBeGreaterThanOrEqual(1); // At least the default sprint created
-        expect(res.body.some((s: any) => s.id === sprintId)).toBe(true);
-      });
-
-      it('should return sprints filtered by status (PLANNING)', async () => {
-        const res = await request(app.getHttpServer())
-
-  .get(`/api/sprints?projectId=${projectId}&status=${SprintStatus.PLANNING}`)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(HttpStatus.OK);
-
-        expect(Array.isArray(res.body)).toBe(true);
-        expect(res.body.some((s: any) => s.id === planningSprintId)).toBe(true);
-        expect(res.body.every((s: any) => s.status ===
-  SprintStatus.PLANNING)).toBe(true);
-      });
+    it('should create a planning sprint', async () => {
+      const sprint = await createTestSprint('Planning Sprint', SprintStatus.PLANNING);
+      planningSprintId = sprint.id;
+      expect(sprint.status).toBe(SprintStatus.PLANNING);
     });
 
-    describe('GET /sprints/slug', () => {
-      it('should return sprints filtered by project slug', async () => {
-        const res = await request(app.getHttpServer())
-          .get(`/api/sprints/slug?slug=${projectSlug}`)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(HttpStatus.OK);
+    it('should return 404 if project ID does not exist', () => {
+      const createDto: CreateSprintDto = {
+        name: 'Sprint for NonExistent Project',
+        projectSlug: '00000000-0000-4000-8000-000000000000', // Non-existent  UUID
+        goal: 'Some goal',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      };
 
-        expect(Array.isArray(res.body)).toBe(true);
-        expect(res.body.length).toBeGreaterThanOrEqual(2);
-        expect(res.body.every((s: any) => s.project.slug ===
-  projectSlug)).toBe(true);
-      });
-    });
-
-    describe('GET /sprints/:id', () => {
-      it('should return a specific sprint by ID', async () => {
-        const res = await request(app.getHttpServer())
-          .get(`/api/sprints/${sprintId}`)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(HttpStatus.OK);
-
-        expect(res.body).toHaveProperty('id', sprintId);
-        expect(res.body).toHaveProperty('name', 'Test Sprint 1');
-        expect(res.body).toHaveProperty('project');
-        expect(res.body.project.id).toBe(projectId);
-      });
-
-      it('should return 404 if sprint ID does not exist', () => {
-        return request(app.getHttpServer())
-          .get('/api/sprints/00000000-0000-4000-8000-000000000000')
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(HttpStatus.NOT_FOUND);
-      });
-    });
-
-    describe('GET /sprints/project/:projectId/active', () => {
-    });
-
-    describe('PATCH /sprints/:id', () => {
-      it('should update sprint details', async () => {
-        const updateDto: UpdateSprintDto = { goal: 'Updated sprint goal' };
-        const res = await request(app.getHttpServer())
-          .patch(`/api/sprints/${sprintId}`)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .send(updateDto)
-          .expect(HttpStatus.OK);
-
-        expect(res.body).toHaveProperty('id', sprintId);
-        expect(res.body.goal).toBe(updateDto.goal);
-      });
-
-      it('should return 404 if sprint ID does not exist', () => {
-        const updateDto: UpdateSprintDto = { name: 'NonExistent' };
-        return request(app.getHttpServer())
-          .patch('/api/sprints/00000000-0000-4000-8000-000000000000')
-          .set('Authorization', `Bearer ${accessToken}`)
-          .send(updateDto)
-          .expect(HttpStatus.NOT_FOUND);
-      });
-    });
-
-    describe('PATCH /sprints/archive/:id', () => {
-      let sprintToArchiveId: string;
-      beforeAll(async () => {
-        const sprint = await createTestSprint('Sprint to Archive',
-  SprintStatus.PLANNING);
-        sprintToArchiveId = sprint.id;
-      });
-
-      it('should archive a sprint', () => {
-        return request(app.getHttpServer())
-          .patch(`/api/sprints/archive/${sprintToArchiveId}`)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(HttpStatus.NO_CONTENT);
-      });
-
-      it('should not list archived sprints in findAll', async () => {
-        const res = await request(app.getHttpServer())
-          .get(`/api/sprints?projectId=${projectId}`)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(HttpStatus.OK);
-
-        expect(Array.isArray(res.body)).toBe(true);
-        expect(res.body.some((s: any) => s.id ===
-  sprintToArchiveId)).toBe(false);
-      });
-
-      it('should still be able to retrieve an archived sprint by ID', async () => {
-        const res = await request(app.getHttpServer())
-          .get(`/api/sprints/${sprintToArchiveId}`)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(HttpStatus.OK);
-        expect(res.body).toHaveProperty('id', sprintToArchiveId);
-        expect(res.body.archive).toBe(true);
-      });
-
-      it('should return 404 if sprint ID does not exist', () => {
-        return request(app.getHttpServer())
-          .patch('/api/sprints/archive/00000000-0000-4000-8000-000000000000')
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(HttpStatus.NOT_FOUND);
-      });
-    });
-
-    describe('PATCH /sprints/:id/start', () => {
-      it('should successfully start a planning sprint', async () => {
-        // Ensure no active sprints exist
-        await prismaService.sprint.updateMany({
-          where: { projectId: projectId, status: SprintStatus.ACTIVE },
-          data: { status: SprintStatus.COMPLETED },
-        });
-
-        const sprint = await createTestSprint(
-          'Sprint to Start',
-          SprintStatus.PLANNING,
-        );
-
-        const res = await request(app.getHttpServer())
-          .patch(`/api/sprints/${sprint.id}/start`)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(HttpStatus.OK);
-
-        expect(res.body.status).toBe(SprintStatus.ACTIVE);
-      });
-
-      it('should fail to start if another sprint is active', async () => {
-        // Ensure no active sprints exist initially
-        await prismaService.sprint.updateMany({
-          where: { projectId: projectId, status: SprintStatus.ACTIVE },
-          data: { status: SprintStatus.COMPLETED },
-        });
-
-        // Create and force-activate one sprint
-        const activeSprint = await createTestSprint(
-          'Existing Active Sprint',
-          SprintStatus.PLANNING,
-        );
-        await prismaService.sprint.update({
-          where: { id: activeSprint.id },
-          data: { status: SprintStatus.ACTIVE },
-        });
-
-        const newSprint = await createTestSprint(
-          'New Planning Sprint',
-          SprintStatus.PLANNING,
-        );
-
-        await request(app.getHttpServer())
-          .patch(`/api/sprints/${newSprint.id}/start`)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(HttpStatus.CONFLICT);
-      });
-    });
-
-    describe('PATCH /sprints/:id/complete', () => {
-      it('should successfully complete an active sprint', async () => {
-        const sprint = await createTestSprint(
-          'Sprint to Complete',
-          SprintStatus.PLANNING,
-        );
-        // Force status to active
-        await prismaService.sprint.update({
-          where: { id: sprint.id },
-          data: { status: SprintStatus.ACTIVE },
-        });
-
-        const res = await request(app.getHttpServer())
-          .patch(`/api/sprints/${sprint.id}/complete`)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(HttpStatus.OK);
-
-        expect(res.body.status).toBe(SprintStatus.COMPLETED);
-      });
-
-      it('should fail to complete a planning sprint', async () => {
-        const sprint = await createTestSprint(
-          'Planning Sprint Fail Complete',
-          SprintStatus.PLANNING,
-        );
-
-        await request(app.getHttpServer())
-          .patch(`/api/sprints/${sprint.id}/complete`)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(HttpStatus.BAD_REQUEST);
-      });
-    });
-
-    describe('DELETE /sprints/:id', () => {
-      let sprintToDeleteId: string;
-      let activeSprintForDeleteTestId: string;
-
-      beforeAll(async () => {
-          // Create a new sprint for deletion
-          const sprint = await createTestSprint('Sprint to Delete',
-  SprintStatus.PLANNING);
-          sprintToDeleteId = sprint.id;
-      });
-
-      it('should successfully delete a planning sprint', async () => {
-        await request(app.getHttpServer())
-          .delete(`/api/sprints/${sprintToDeleteId}`)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(HttpStatus.NO_CONTENT);
-
-        // Verify it's no longer retrievable
-        await request(app.getHttpServer())
-          .get(`/api/sprints/${sprintToDeleteId}`)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(HttpStatus.NOT_FOUND);
-      });
-
-      it('should fail to delete an active sprint', async () => {
-        const sprint = await createTestSprint(
-          'Active Sprint Delete Fail',
-          SprintStatus.PLANNING,
-        );
-        // Force status to active
-        await prismaService.sprint.update({
-          where: { id: sprint.id },
-          data: { status: SprintStatus.ACTIVE },
-        });
-
-        await request(app.getHttpServer())
-          .delete(`/api/sprints/${sprint.id}`)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(HttpStatus.BAD_REQUEST);
-      });
-
-      it('should return 404 if sprint ID does not exist', () => {
-        return request(app.getHttpServer())
-          .delete('/api/sprints/00000000-0000-4000-8000-000000000000')
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(HttpStatus.NOT_FOUND);
-      });
+      return request(app.getHttpServer())
+        .post('/api/sprints')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(createDto)
+        .expect(HttpStatus.NOT_FOUND);
     });
   });
+
+  describe('GET /sprints', () => {
+    it('should return all non-archived sprints for the project', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/sprints?projectId=${projectId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.OK);
+
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBeGreaterThanOrEqual(1); // At least the default sprint created
+      expect(res.body.some((s: any) => s.id === sprintId)).toBe(true);
+    });
+
+    it('should return sprints filtered by status (PLANNING)', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/sprints?projectId=${projectId}&status=${SprintStatus.PLANNING}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.OK);
+
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.some((s: any) => s.id === planningSprintId)).toBe(true);
+      expect(res.body.every((s: any) => s.status === SprintStatus.PLANNING)).toBe(true);
+    });
+  });
+
+  describe('GET /sprints/slug', () => {
+    it('should return sprints filtered by project slug', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/sprints/slug?slug=${projectSlug}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.OK);
+
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBeGreaterThanOrEqual(2);
+      expect(res.body.every((s: any) => s.project.slug === projectSlug)).toBe(true);
+    });
+  });
+
+  describe('GET /sprints/:id', () => {
+    it('should return a specific sprint by ID', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/sprints/${sprintId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.OK);
+
+      expect(res.body).toHaveProperty('id', sprintId);
+      expect(res.body).toHaveProperty('name', 'Test Sprint 1');
+      expect(res.body).toHaveProperty('project');
+      expect(res.body.project.id).toBe(projectId);
+    });
+
+    it('should return 404 if sprint ID does not exist', () => {
+      return request(app.getHttpServer())
+        .get('/api/sprints/00000000-0000-4000-8000-000000000000')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.NOT_FOUND);
+    });
+  });
+
+  describe('GET /sprints/project/:projectId/active', () => {});
+
+  describe('PATCH /sprints/:id', () => {
+    it('should update sprint details', async () => {
+      const updateDto: UpdateSprintDto = { goal: 'Updated sprint goal' };
+      const res = await request(app.getHttpServer())
+        .patch(`/api/sprints/${sprintId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(updateDto)
+        .expect(HttpStatus.OK);
+
+      expect(res.body).toHaveProperty('id', sprintId);
+      expect(res.body.goal).toBe(updateDto.goal);
+    });
+
+    it('should return 404 if sprint ID does not exist', () => {
+      const updateDto: UpdateSprintDto = { name: 'NonExistent' };
+      return request(app.getHttpServer())
+        .patch('/api/sprints/00000000-0000-4000-8000-000000000000')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(updateDto)
+        .expect(HttpStatus.NOT_FOUND);
+    });
+  });
+
+  describe('PATCH /sprints/archive/:id', () => {
+    let sprintToArchiveId: string;
+    beforeAll(async () => {
+      const sprint = await createTestSprint('Sprint to Archive', SprintStatus.PLANNING);
+      sprintToArchiveId = sprint.id;
+    });
+
+    it('should archive a sprint', () => {
+      return request(app.getHttpServer())
+        .patch(`/api/sprints/archive/${sprintToArchiveId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.NO_CONTENT);
+    });
+
+    it('should not list archived sprints in findAll', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/sprints?projectId=${projectId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.OK);
+
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.some((s: any) => s.id === sprintToArchiveId)).toBe(false);
+    });
+
+    it('should still be able to retrieve an archived sprint by ID', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/sprints/${sprintToArchiveId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.OK);
+      expect(res.body).toHaveProperty('id', sprintToArchiveId);
+      expect(res.body.archive).toBe(true);
+    });
+
+    it('should return 404 if sprint ID does not exist', () => {
+      return request(app.getHttpServer())
+        .patch('/api/sprints/archive/00000000-0000-4000-8000-000000000000')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.NOT_FOUND);
+    });
+  });
+
+  describe('PATCH /sprints/:id/start', () => {
+    it('should successfully start a planning sprint', async () => {
+      // Ensure no active sprints exist
+      await prismaService.sprint.updateMany({
+        where: { projectId: projectId, status: SprintStatus.ACTIVE },
+        data: { status: SprintStatus.COMPLETED },
+      });
+
+      const sprint = await createTestSprint('Sprint to Start', SprintStatus.PLANNING);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/api/sprints/${sprint.id}/start`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.OK);
+
+      expect(res.body.status).toBe(SprintStatus.ACTIVE);
+    });
+
+    it('should fail to start if another sprint is active', async () => {
+      // Ensure no active sprints exist initially
+      await prismaService.sprint.updateMany({
+        where: { projectId: projectId, status: SprintStatus.ACTIVE },
+        data: { status: SprintStatus.COMPLETED },
+      });
+
+      // Create and force-activate one sprint
+      const activeSprint = await createTestSprint('Existing Active Sprint', SprintStatus.PLANNING);
+      await prismaService.sprint.update({
+        where: { id: activeSprint.id },
+        data: { status: SprintStatus.ACTIVE },
+      });
+
+      const newSprint = await createTestSprint('New Planning Sprint', SprintStatus.PLANNING);
+
+      await request(app.getHttpServer())
+        .patch(`/api/sprints/${newSprint.id}/start`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.CONFLICT);
+    });
+  });
+
+  describe('PATCH /sprints/:id/complete', () => {
+    it('should successfully complete an active sprint', async () => {
+      const sprint = await createTestSprint('Sprint to Complete', SprintStatus.PLANNING);
+      // Force status to active
+      await prismaService.sprint.update({
+        where: { id: sprint.id },
+        data: { status: SprintStatus.ACTIVE },
+      });
+
+      const res = await request(app.getHttpServer())
+        .patch(`/api/sprints/${sprint.id}/complete`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.OK);
+
+      expect(res.body.status).toBe(SprintStatus.COMPLETED);
+    });
+
+    it('should fail to complete a planning sprint', async () => {
+      const sprint = await createTestSprint('Planning Sprint Fail Complete', SprintStatus.PLANNING);
+
+      await request(app.getHttpServer())
+        .patch(`/api/sprints/${sprint.id}/complete`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.BAD_REQUEST);
+    });
+  });
+
+  describe('DELETE /sprints/:id', () => {
+    let sprintToDeleteId: string;
+    let activeSprintForDeleteTestId: string;
+
+    beforeAll(async () => {
+      // Create a new sprint for deletion
+      const sprint = await createTestSprint('Sprint to Delete', SprintStatus.PLANNING);
+      sprintToDeleteId = sprint.id;
+    });
+
+    it('should successfully delete a planning sprint', async () => {
+      await request(app.getHttpServer())
+        .delete(`/api/sprints/${sprintToDeleteId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.NO_CONTENT);
+
+      // Verify it's no longer retrievable
+      await request(app.getHttpServer())
+        .get(`/api/sprints/${sprintToDeleteId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.NOT_FOUND);
+    });
+
+    it('should fail to delete an active sprint', async () => {
+      const sprint = await createTestSprint('Active Sprint Delete Fail', SprintStatus.PLANNING);
+      // Force status to active
+      await prismaService.sprint.update({
+        where: { id: sprint.id },
+        data: { status: SprintStatus.ACTIVE },
+      });
+
+      await request(app.getHttpServer())
+        .delete(`/api/sprints/${sprint.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.BAD_REQUEST);
+    });
+
+    it('should return 404 if sprint ID does not exist', () => {
+      return request(app.getHttpServer())
+        .delete('/api/sprints/00000000-0000-4000-8000-000000000000')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.NOT_FOUND);
+    });
+  });
+});

@@ -63,11 +63,11 @@ describe('ProjectsController (e2e)', () => {
 
     // Create Organization
     const organization = await prismaService.organization.create({
-        data: {
-            name: `Test Org ${Date.now()}`,
-            slug: `test-org-${Date.now()}`,
-            ownerId: user.id,
-        }
+      data: {
+        name: `Test Org ${Date.now()}`,
+        slug: `test-org-${Date.now()}`,
+        ownerId: user.id,
+      },
     });
     organizationId = organization.id;
 
@@ -114,7 +114,7 @@ describe('ProjectsController (e2e)', () => {
       },
     });
     workspaceId = workspace.id;
-    
+
     // Add user to workspace as OWNER
     await prismaService.workspaceMember.create({
       data: {
@@ -160,7 +160,7 @@ describe('ProjectsController (e2e)', () => {
   describe('/projects (POST)', () => {
     it('should create a new project', () => {
       createProjectDto.workspaceId = workspaceId;
-      
+
       return request(app.getHttpServer())
         .post('/api/projects')
         .set('Authorization', `Bearer ${accessToken}`)
@@ -177,7 +177,7 @@ describe('ProjectsController (e2e)', () => {
     it('should handle slug collision by modifying the slug', () => {
       // Attempt to create another project with the same slug
       const duplicateSlugDto = { ...createProjectDto };
-      
+
       return request(app.getHttpServer())
         .post('/api/projects')
         .set('Authorization', `Bearer ${accessToken}`)
@@ -354,42 +354,42 @@ describe('ProjectsController (e2e)', () => {
     let projectToArchiveId: string;
 
     beforeAll(async () => {
-        // Create a separate project for archiving test
-        const archiveDto = { ...createProjectDto, slug: `archive-test-${Date.now()}` };
-        const res = await request(app.getHttpServer())
-            .post('/api/projects')
-            .set('Authorization', `Bearer ${accessToken}`)
-            .send(archiveDto);
-        projectToArchiveId = res.body.id;
+      // Create a separate project for archiving test
+      const archiveDto = { ...createProjectDto, slug: `archive-test-${Date.now()}` };
+      const res = await request(app.getHttpServer())
+        .post('/api/projects')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(archiveDto);
+      projectToArchiveId = res.body.id;
     });
 
     it('should archive the project', () => {
-        return request(app.getHttpServer())
-            .patch(`/api/projects/archive/${projectToArchiveId}`)
-            .set('Authorization', `Bearer ${accessToken}`)
-            .expect(HttpStatus.NO_CONTENT);
+      return request(app.getHttpServer())
+        .patch(`/api/projects/archive/${projectToArchiveId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.NO_CONTENT);
     });
 
     it('should verify project is archived', async () => {
-        // Check direct access
-        const res = await request(app.getHttpServer())
-            .get(`/api/projects/${projectToArchiveId}`)
-            .set('Authorization', `Bearer ${accessToken}`)
-            .expect(HttpStatus.OK);
-        
-        expect(res.body.archive).toBe(true);
+      // Check direct access
+      const res = await request(app.getHttpServer())
+        .get(`/api/projects/${projectToArchiveId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.OK);
+
+      expect(res.body.archive).toBe(true);
     });
 
     it('should exclude archived project from lists', () => {
-        return request(app.getHttpServer())
-            .get('/api/projects')
-            .query({ workspaceId })
-            .set('Authorization', `Bearer ${accessToken}`)
-            .expect(HttpStatus.OK)
-            .expect((res) => {
-                const archivedProject = res.body.find((p: any) => p.id === projectToArchiveId);
-                expect(archivedProject).toBeUndefined();
-            });
+      return request(app.getHttpServer())
+        .get('/api/projects')
+        .query({ workspaceId })
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.OK)
+        .expect((res) => {
+          const archivedProject = res.body.find((p: any) => p.id === projectToArchiveId);
+          expect(archivedProject).toBeUndefined();
+        });
     });
   });
 

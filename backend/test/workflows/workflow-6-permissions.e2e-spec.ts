@@ -8,14 +8,14 @@ import { Role, ProjectStatus, ProjectPriority, ProjectVisibility } from '@prisma
 
 /**
  * Workflow 6: Permission & Access Control
- * 
+ *
  * This test covers different user roles and their access permissions:
  * 1. Owner operations (update organization, manage members)
  * 2. Admin operations (add members, update roles)
  * 3. Member operations (view projects, create tasks)
  * 4. Non-member access (should be denied)
  * 5. Workspace isolation
- * 
+ *
  * Note: Organization deletion is not tested to avoid cascading issues.
  */
 describe('Workflow 6: Permission & Access Control (e2e)', () => {
@@ -61,7 +61,8 @@ describe('Workflow 6: Permission & Access Control (e2e)', () => {
       if (projectId) await prismaService.project.delete({ where: { id: projectId } });
       if (workspaceId) await prismaService.workspace.delete({ where: { id: workspaceId } });
       if (workflowId) await prismaService.workflow.delete({ where: { id: workflowId } });
-      if (organizationId) await prismaService.organization.delete({ where: { id: organizationId } });
+      if (organizationId)
+        await prismaService.organization.delete({ where: { id: organizationId } });
       if (owner) await prismaService.user.delete({ where: { id: owner.id } });
       if (admin) await prismaService.user.delete({ where: { id: admin.id } });
       if (member) await prismaService.user.delete({ where: { id: member.id } });
@@ -191,7 +192,7 @@ describe('Workflow 6: Permission & Access Control (e2e)', () => {
       const wsMembersAdmin = await request(app.getHttpServer())
         .get(`/api/workspace-members?workspaceId=${workspaceId}&search=${admin.email}`)
         .set('Authorization', `Bearer ${ownerToken}`);
-      
+
       if (wsMembersAdmin.body.length === 0) {
         await request(app.getHttpServer())
           .post('/api/workspace-members')
@@ -233,7 +234,7 @@ describe('Workflow 6: Permission & Access Control (e2e)', () => {
       const projectMembersAdmin = await request(app.getHttpServer())
         .get(`/api/project-members?projectId=${projectId}&search=${admin.email}`)
         .set('Authorization', `Bearer ${ownerToken}`);
-      
+
       if (projectMembersAdmin.body.data?.length === 0 || projectMembersAdmin.body.length === 0) {
         await request(app.getHttpServer())
           .post('/api/project-members')

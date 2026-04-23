@@ -52,11 +52,11 @@ describe('TasksController (e2e)', () => {
 
     // Create Organization
     const organization = await prismaService.organization.create({
-        data: {
-            name: `Task Org ${Date.now()}`,
-            slug: `task-org-${Date.now()}`,
-            ownerId: user.id,
-        }
+      data: {
+        name: `Task Org ${Date.now()}`,
+        slug: `task-org-${Date.now()}`,
+        ownerId: user.id,
+      },
     });
     organizationId = organization.id;
 
@@ -407,8 +407,8 @@ describe('TasksController (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(HttpStatus.OK)
         .expect((res) => {
-          const includesUser2 = res.body.data.every((t: any) => 
-            t.assignees.some((a: any) => a.id === user2.id)
+          const includesUser2 = res.body.data.every((t: any) =>
+            t.assignees.some((a: any) => a.id === user2.id),
           );
           expect(includesUser2).toBe(true);
         });
@@ -421,8 +421,8 @@ describe('TasksController (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(HttpStatus.OK)
         .expect((res) => {
-          const includesUser = res.body.data.every((t: any) => 
-            t.reporters.some((r: any) => r.id === user.id)
+          const includesUser = res.body.data.every((t: any) =>
+            t.reporters.some((r: any) => r.id === user.id),
           );
           expect(includesUser).toBe(true);
         });
@@ -435,8 +435,8 @@ describe('TasksController (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(HttpStatus.OK)
         .expect((res) => {
-          const allInWorkspace = res.body.data.every((t: any) => 
-            t.project.workspace.id === workspaceId
+          const allInWorkspace = res.body.data.every(
+            (t: any) => t.project.workspace.id === workspaceId,
           );
           expect(allInWorkspace).toBe(true);
         });
@@ -461,9 +461,7 @@ describe('TasksController (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(HttpStatus.OK)
         .expect((res) => {
-          const allAreSubtasks = res.body.data.every((t: any) => 
-            t.parentTaskId === parentTaskId
-          );
+          const allAreSubtasks = res.body.data.every((t: any) => t.parentTaskId === parentTaskId);
           expect(allAreSubtasks).toBe(true);
           expect(res.body.data.length).toBeGreaterThanOrEqual(1);
         });
@@ -476,9 +474,7 @@ describe('TasksController (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(HttpStatus.OK)
         .expect((res) => {
-          const allAreMainTasks = res.body.data.every((t: any) => 
-            t.parentTaskId === null
-          );
+          const allAreMainTasks = res.body.data.every((t: any) => t.parentTaskId === null);
           expect(allAreMainTasks).toBe(true);
         });
     });
@@ -505,8 +501,9 @@ describe('TasksController (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(HttpStatus.OK)
         .expect((res) => {
-          expect(Array.isArray(res.body)).toBe(true);
-          expect(res.body.length).toBeGreaterThanOrEqual(2);
+          expect(res.body).toHaveProperty('data');
+          expect(Array.isArray(res.body.data)).toBe(true);
+          expect(res.body.data.length).toBeGreaterThanOrEqual(2);
         });
     });
   });
@@ -561,7 +558,7 @@ describe('TasksController (e2e)', () => {
     it('should get a task by its key', async () => {
       const task = await prismaService.task.findUnique({
         where: { id: taskId },
-        select: { slug: true }
+        select: { slug: true },
       });
       const key = task!.slug;
 
@@ -766,10 +763,22 @@ describe('TasksController (e2e)', () => {
   describe('/tasks/bulk-delete (POST)', () => {
     it('should delete multiple tasks', async () => {
       const t1 = await prismaService.task.create({
-        data: { title: 'Delete Me 1', projectId, statusId, taskNumber: 100, slug: `${projectSlug}-100` }
+        data: {
+          title: 'Delete Me 1',
+          projectId,
+          statusId,
+          taskNumber: 100,
+          slug: `${projectSlug}-100`,
+        },
       });
       const t2 = await prismaService.task.create({
-        data: { title: 'Delete Me 2', projectId, statusId, taskNumber: 101, slug: `${projectSlug}-101` }
+        data: {
+          title: 'Delete Me 2',
+          projectId,
+          statusId,
+          taskNumber: 101,
+          slug: `${projectSlug}-101`,
+        },
       });
 
       return request(app.getHttpServer())
@@ -784,10 +793,22 @@ describe('TasksController (e2e)', () => {
 
     it('should delete multiple tasks with excludedIds', async () => {
       const t1 = await prismaService.task.create({
-        data: { title: 'Delete Me 3', projectId, statusId, taskNumber: 103, slug: `${projectSlug}-103` }
+        data: {
+          title: 'Delete Me 3',
+          projectId,
+          statusId,
+          taskNumber: 103,
+          slug: `${projectSlug}-103`,
+        },
       });
       const t2 = await prismaService.task.create({
-        data: { title: 'Delete Me 4', projectId, statusId, taskNumber: 104, slug: `${projectSlug}-104` }
+        data: {
+          title: 'Delete Me 4',
+          projectId,
+          statusId,
+          taskNumber: 104,
+          slug: `${projectSlug}-104`,
+        },
       });
 
       return request(app.getHttpServer())
@@ -817,18 +838,18 @@ describe('TasksController (e2e)', () => {
           lastName: 'User',
           username: `other_user_${Date.now()}`,
           role: Role.MEMBER,
-        }
+        },
       });
 
       const tForbidden = await prismaService.task.create({
-        data: { 
-          title: 'Forbidden Task', 
-          projectId, 
-          statusId, 
-          taskNumber: 200, 
+        data: {
+          title: 'Forbidden Task',
+          projectId,
+          statusId,
+          taskNumber: 200,
           slug: `${projectSlug}-200`,
-          createdBy: otherUser.id
-        }
+          createdBy: otherUser.id,
+        },
       });
 
       const memberToken = jwtService.sign({ sub: user2.id, email: user2.email, role: user2.role });
@@ -847,7 +868,13 @@ describe('TasksController (e2e)', () => {
 
     it('should delete all tasks in project with all=true', async () => {
       await prismaService.task.create({
-        data: { title: 'Delete Via All', projectId, statusId, taskNumber: 102, slug: `${projectSlug}-102` }
+        data: {
+          title: 'Delete Via All',
+          projectId,
+          statusId,
+          taskNumber: 102,
+          slug: `${projectSlug}-102`,
+        },
       });
 
       return request(app.getHttpServer())
@@ -862,7 +889,13 @@ describe('TasksController (e2e)', () => {
 
     it('should delete all tasks in project except excludedIds with all=true', async () => {
       const tKeep = await prismaService.task.create({
-        data: { title: 'Keep Me', projectId, statusId, taskNumber: 105, slug: `${projectSlug}-105` }
+        data: {
+          title: 'Keep Me',
+          projectId,
+          statusId,
+          taskNumber: 105,
+          slug: `${projectSlug}-105`,
+        },
       });
 
       await request(app.getHttpServer())
@@ -870,7 +903,7 @@ describe('TasksController (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .send({ projectId, all: true, excludedIds: [tKeep.id] })
         .expect(HttpStatus.OK);
-      
+
       const keptTask = await prismaService.task.findUnique({ where: { id: tKeep.id } });
       expect(keptTask).not.toBeNull();
     });
@@ -882,9 +915,24 @@ describe('TasksController (e2e)', () => {
         projectId,
         statusId,
         tasks: [
-          { title: 'Bulk Task 1', description: 'First bulk task', type: 'TASK', priority: 'MEDIUM' },
-          { title: 'Bulk Task 2', description: 'Second bulk task', type: 'STORY', priority: 'HIGH' },
-          { title: 'Bulk Task 3', type: 'BUG', priority: 'CRITICAL', dueDate: new Date(Date.now() + 86400000).toISOString() },
+          {
+            title: 'Bulk Task 1',
+            description: 'First bulk task',
+            type: 'TASK',
+            priority: 'MEDIUM',
+          },
+          {
+            title: 'Bulk Task 2',
+            description: 'Second bulk task',
+            type: 'STORY',
+            priority: 'HIGH',
+          },
+          {
+            title: 'Bulk Task 3',
+            type: 'BUG',
+            priority: 'CRITICAL',
+            dueDate: new Date(Date.now() + 86400000).toISOString(),
+          },
         ],
       };
 
@@ -905,7 +953,12 @@ describe('TasksController (e2e)', () => {
         projectId,
         statusId,
         tasks: [
-          { title: 'Valid Task 1', description: 'This should succeed', type: 'TASK', priority: 'LOW' },
+          {
+            title: 'Valid Task 1',
+            description: 'This should succeed',
+            type: 'TASK',
+            priority: 'LOW',
+          },
           { title: '', description: 'Empty title should fail', type: 'TASK', priority: 'MEDIUM' },
           { title: 'Valid Task 2', type: 'STORY', priority: 'HIGH' },
           { title: 'A'.repeat(501), description: 'Title too long', type: 'TASK', priority: 'LOW' },
@@ -923,7 +976,9 @@ describe('TasksController (e2e)', () => {
           expect(res.body.failed).toBe(2);
           expect(res.body.failures.length).toBe(2);
           expect(res.body.failures.map((f: any) => f.reason)).toContain('Title is required');
-          expect(res.body.failures.map((f: any) => f.reason)).toContain('Title exceeds maximum length of 500 characters');
+          expect(res.body.failures.map((f: any) => f.reason)).toContain(
+            'Title exceeds maximum length of 500 characters',
+          );
         });
     });
 
@@ -1037,10 +1092,7 @@ describe('TasksController (e2e)', () => {
       const bulkCreateDto = {
         projectId,
         statusId,
-        tasks: [
-          { title: 'Minimal Task 1' },
-          { title: 'Minimal Task 2' },
-        ],
+        tasks: [{ title: 'Minimal Task 1' }, { title: 'Minimal Task 2' }],
       };
 
       return request(app.getHttpServer())
@@ -1123,19 +1175,21 @@ describe('TasksController (e2e)', () => {
     });
 
     it('should complete occurrence and generate next task (POST /tasks/:id/complete-occurrence)', async () => {
-      return request(app.getHttpServer())
-        .post(`/api/tasks/${recurringTaskId}/complete-occurrence`)
-        .set('Authorization', `Bearer ${accessToken}`)
-        .expect(HttpStatus.CREATED) // TasksService.create returns the created task, and completeOccurrenceAndGenerateNext returns {completedTask, nextTask}
-        // Wait, completeOccurrenceAndGenerateNext calls this.create which uses tx.task.create.
-        // But the controller doesn't specify HttpCode(201) for this, and it's a POST, so default is 201.
-        .expect((res) => {
-          expect(res.body).toHaveProperty('completedTask');
-          expect(res.body).toHaveProperty('nextTask');
-          expect(res.body.completedTask.id).toBe(recurringTaskId);
-          expect(res.body.completedTask.completedAt).not.toBeNull();
-          expect(res.body.nextTask.title).toBe(res.body.completedTask.title);
-        });
+      return (
+        request(app.getHttpServer())
+          .post(`/api/tasks/${recurringTaskId}/complete-occurrence`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(HttpStatus.CREATED) // TasksService.create returns the created task, and completeOccurrenceAndGenerateNext returns {completedTask, nextTask}
+          // Wait, completeOccurrenceAndGenerateNext calls this.create which uses tx.task.create.
+          // But the controller doesn't specify HttpCode(201) for this, and it's a POST, so default is 201.
+          .expect((res) => {
+            expect(res.body).toHaveProperty('completedTask');
+            expect(res.body).toHaveProperty('nextTask');
+            expect(res.body.completedTask.id).toBe(recurringTaskId);
+            expect(res.body.completedTask.completedAt).not.toBeNull();
+            expect(res.body.nextTask.title).toBe(res.body.completedTask.title);
+          })
+      );
     });
 
     it('should stop recurrence (DELETE /tasks/:id/recurrence)', () => {

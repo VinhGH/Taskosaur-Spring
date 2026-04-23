@@ -57,11 +57,11 @@ describe('TaskCommentsController (e2e)', () => {
 
     // Create Organization
     const organization = await prismaService.organization.create({
-        data: {
-            name: `Comment Org ${Date.now()}`,
-            slug: `comment-org-${Date.now()}`,
-            ownerId: user.id,
-        }
+      data: {
+        name: `Comment Org ${Date.now()}`,
+        slug: `comment-org-${Date.now()}`,
+        ownerId: user.id,
+      },
     });
     organizationId = organization.id;
 
@@ -308,16 +308,16 @@ describe('TaskCommentsController (e2e)', () => {
 
       // Check notifications for mentionedUser
       const notifications = await prismaService.notification.findMany({
-        where: { 
+        where: {
           userId: mentionedUser.id,
-          type: 'MENTION'
-        }
+          type: 'MENTION',
+        },
       });
 
       // Should have 1 notification for the valid mention, and 0 for the email address
       expect(notifications.length).toBe(1);
       expect(notifications[0].message).toContain(`mentioned you`);
-      
+
       // Also verify that "example.com" was not treated as a mention (if there was a user with that name)
       // This is implicit since we only have one MENTION notification for this user.
     });

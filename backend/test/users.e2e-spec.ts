@@ -62,8 +62,16 @@ describe('UsersController (e2e)', () => {
     createdUserIds.push(memberUser.id);
 
     // Generate tokens
-    accessToken = jwtService.sign({ sub: adminUser.id, email: adminUser.email, role: adminUser.role });
-    memberToken = jwtService.sign({ sub: memberUser.id, email: memberUser.email, role: memberUser.role });
+    accessToken = jwtService.sign({
+      sub: adminUser.id,
+      email: adminUser.email,
+      role: adminUser.role,
+    });
+    memberToken = jwtService.sign({
+      sub: memberUser.id,
+      email: memberUser.email,
+      role: memberUser.role,
+    });
   }, 10000);
 
   afterAll(async () => {
@@ -177,7 +185,9 @@ describe('UsersController (e2e)', () => {
           // The generated username should be based on the email base, with a counter appended
           expect(res.body.username).not.toBe(emailBase);
           // Pattern: emailBase-1, emailBase-2, etc.
-          expect(res.body.username).toMatch(new RegExp(`^${emailBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d+$`));
+          expect(res.body.username).toMatch(
+            new RegExp(`^${emailBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d+$`),
+          );
           createdUserIds.push(res.body.id);
         });
     });
@@ -194,10 +204,10 @@ describe('UsersController (e2e)', () => {
         .post('/api/users')
         .set('Authorization', `Bearer ${accessToken}`)
         .send(createUserDto);
-      
+
       // Should fail validation (either 400 from ValidationPipe or 500 from service)
       expect([HttpStatus.BAD_REQUEST, HttpStatus.INTERNAL_SERVER_ERROR]).toContain(response.status);
-      
+
       // If it's a validation error, check the message
       if (response.status === HttpStatus.BAD_REQUEST) {
         expect(response.body.message).toBeDefined();
@@ -216,7 +226,7 @@ describe('UsersController (e2e)', () => {
         .post('/api/users')
         .set('Authorization', `Bearer ${accessToken}`)
         .send(createUserDto);
-      
+
       // Should fail validation (either 400 from ValidationPipe or 500 from bcrypt error)
       expect([HttpStatus.BAD_REQUEST, HttpStatus.INTERNAL_SERVER_ERROR]).toContain(response.status);
     });
@@ -236,11 +246,13 @@ describe('UsersController (e2e)', () => {
         .post('/api/users')
         .set('Authorization', `Bearer ${accessToken}`)
         .send(createUserDto);
-      
+
       // Currently accepts invalid emails (201), should ideally return 400
       // This test documents the gap - email validation needs to be stricter
-      expect([HttpStatus.BAD_REQUEST, HttpStatus.CREATED, HttpStatus.CONFLICT]).toContain(response.status);
-      
+      expect([HttpStatus.BAD_REQUEST, HttpStatus.CREATED, HttpStatus.CONFLICT]).toContain(
+        response.status,
+      );
+
       if (response.status === HttpStatus.CREATED) {
         createdUserIds.push(response.body.id);
       }
@@ -384,7 +396,7 @@ describe('UsersController (e2e)', () => {
         });
     });
 
-    it('should get another user\'s online status (SUPER_ADMIN)', async () => {
+    it("should get another user's online status (SUPER_ADMIN)", async () => {
       return request(app.getHttpServer())
         .get(`/api/users/${memberUser.id}/status`)
         .set('Authorization', `Bearer ${accessToken}`)

@@ -3,11 +3,18 @@ import { INestApplication, HttpStatus } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from './../../src/app.module';
 import { PrismaService } from './../../src/prisma/prisma.service';
-import { Role, ProjectStatus, ProjectPriority, ProjectVisibility, TaskPriority, TaskType } from '@prisma/client';
+import {
+  Role,
+  ProjectStatus,
+  ProjectPriority,
+  ProjectVisibility,
+  TaskPriority,
+  TaskType,
+} from '@prisma/client';
 
 /**
  * Workflow 10: Collaborative Task Discussion
- * 
+ *
  * This test covers team collaboration on tasks:
  * 1. User A creates task and assigns to User B
  * 2. User A adds initial comment
@@ -64,7 +71,8 @@ describe('Workflow 10: Collaborative Task Discussion (e2e)', () => {
       if (projectId) await prismaService.project.delete({ where: { id: projectId } });
       if (workspaceId) await prismaService.workspace.delete({ where: { id: workspaceId } });
       if (workflowId) await prismaService.workflow.delete({ where: { id: workflowId } });
-      if (organizationId) await prismaService.organization.delete({ where: { id: organizationId } });
+      if (organizationId)
+        await prismaService.organization.delete({ where: { id: organizationId } });
       if (userA) await prismaService.user.delete({ where: { id: userA.id } });
       if (userB) await prismaService.user.delete({ where: { id: userB.id } });
       if (userC) await prismaService.user.delete({ where: { id: userC.id } });
@@ -160,7 +168,7 @@ describe('Workflow 10: Collaborative Task Discussion (e2e)', () => {
         .get(`/api/task-statuses?workflowId=${workflowId}`)
         .set('Authorization', `Bearer ${tokenA}`)
         .expect(HttpStatus.OK);
-      
+
       statusId = statusesResponse.body.find((s: any) => s.name === 'In Progress').id;
       doneStatusId = statusesResponse.body.find((s: any) => s.name === 'Done').id;
 
@@ -281,7 +289,8 @@ describe('Workflow 10: Collaborative Task Discussion (e2e)', () => {
         .patch(`/api/task-comments/${commentAId}`)
         .set('Authorization', `Bearer ${tokenA}`)
         .send({
-          content: 'Please review the requirements document before starting. Also check the API specs.',
+          content:
+            'Please review the requirements document before starting. Also check the API specs.',
         })
         .expect(HttpStatus.OK);
 

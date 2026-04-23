@@ -7,13 +7,13 @@ import { Role } from '@prisma/client';
 
 /**
  * Workflow 7: Profile & User Management
- * 
+ *
  * This test covers user profile operations:
  * 1. View current profile
  * 2. Update profile details
  * 3. Change password
  * 4. Verify updated profile
- * 
+ *
  * Note: Avatar upload is not tested as the endpoint may not be implemented.
  * The workflow focuses on profile viewing and updating.
  */

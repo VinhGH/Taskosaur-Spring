@@ -46,7 +46,7 @@ describe('ProjectMembersController (e2e)', () => {
         role: Role.OWNER,
       })
       .expect(HttpStatus.CREATED);
-    
+
     owner = ownerReg.body.user;
     ownerAccessToken = ownerReg.body.access_token;
 
@@ -62,17 +62,17 @@ describe('ProjectMembersController (e2e)', () => {
         role: Role.MEMBER,
       })
       .expect(HttpStatus.CREATED);
-    
+
     member = memberReg.body.user;
     memberAccessToken = memberReg.body.access_token;
 
     // Create Organization
     const organization = await prismaService.organization.create({
-        data: {
-            name: `PM Org ${Date.now()}`,
-            slug: `pm-org-${Date.now()}`,
-            ownerId: owner.id,
-        }
+      data: {
+        name: `PM Org ${Date.now()}`,
+        slug: `pm-org-${Date.now()}`,
+        ownerId: owner.id,
+      },
     });
     organizationId = organization.id;
 
@@ -217,7 +217,7 @@ describe('ProjectMembersController (e2e)', () => {
         .post('/api/project-members')
         .set('Authorization', `Bearer ${ownerAccessToken}`)
         .send(createDto);
-      
+
       membershipId = createRes.body.id;
 
       return request(app.getHttpServer())
@@ -239,7 +239,7 @@ describe('ProjectMembersController (e2e)', () => {
     it('should invite a member by email', async () => {
       // Clean up previous membership if exists
       await prismaService.projectMember.deleteMany({
-        where: { userId: member.id, projectId: projectId }
+        where: { userId: member.id, projectId: projectId },
       });
 
       const inviteDto = {
@@ -311,12 +311,12 @@ describe('ProjectMembersController (e2e)', () => {
 
       // Add them to the workspace
       await prismaService.workspaceMember.create({
-        data: { userId: managerUser.id, workspaceId, role: Role.MEMBER }
+        data: { userId: managerUser.id, workspaceId, role: Role.MEMBER },
       });
 
       // Add them to the project as MANAGER
       await prismaService.projectMember.create({
-        data: { userId: managerUser.id, projectId, role: Role.MANAGER }
+        data: { userId: managerUser.id, projectId, role: Role.MANAGER },
       });
     });
 
@@ -339,7 +339,7 @@ describe('ProjectMembersController (e2e)', () => {
       const memberMembership = await prismaService.projectMember.upsert({
         where: { userId_projectId: { userId: member.id, projectId } },
         update: { role: Role.MEMBER },
-        create: { userId: member.id, projectId, role: Role.MEMBER }
+        create: { userId: member.id, projectId, role: Role.MEMBER },
       });
 
       return request(app.getHttpServer())
@@ -390,7 +390,7 @@ describe('ProjectMembersController (e2e)', () => {
       wsMemberAccessToken = wsMemberReg.body.access_token;
 
       await prismaService.workspaceMember.create({
-        data: { userId: workspaceMember.id, workspaceId, role: Role.MEMBER }
+        data: { userId: workspaceMember.id, workspaceId, role: Role.MEMBER },
       });
 
       // Create an INTERNAL project
@@ -421,7 +421,7 @@ describe('ProjectMembersController (e2e)', () => {
     it('should deny a workspace member access if project visibility is PRIVATE', async () => {
       await prismaService.project.update({
         where: { id: internalProjectId },
-        data: { visibility: ProjectVisibility.PRIVATE }
+        data: { visibility: ProjectVisibility.PRIVATE },
       });
 
       return request(app.getHttpServer())
@@ -444,7 +444,7 @@ describe('ProjectMembersController (e2e)', () => {
         });
     });
 
-    it('should allow an owner to see someone else\'s membership', () => {
+    it("should allow an owner to see someone else's membership", () => {
       return request(app.getHttpServer())
         .get(`/api/project-members/user/${member.id}/project/${projectId}`)
         .set('Authorization', `Bearer ${ownerAccessToken}`)
@@ -647,11 +647,11 @@ describe('ProjectMembersController (e2e)', () => {
       await prismaService.projectMember.upsert({
         where: { userId_projectId: { userId: member.id, projectId } },
         update: { role: Role.MEMBER },
-        create: { userId: member.id, projectId, role: Role.MEMBER }
+        create: { userId: member.id, projectId, role: Role.MEMBER },
       });
 
       const memberMembership = await prismaService.projectMember.findUnique({
-        where: { userId_projectId: { userId: member.id, projectId } }
+        where: { userId_projectId: { userId: member.id, projectId } },
       });
 
       if (!memberMembership) {
@@ -689,7 +689,7 @@ describe('ProjectMembersController (e2e)', () => {
       for (const role of validRoles) {
         // Clean up before each iteration
         await prismaService.projectMember.deleteMany({
-          where: { userId: member.id, projectId }
+          where: { userId: member.id, projectId },
         });
 
         const dto = {
@@ -707,7 +707,7 @@ describe('ProjectMembersController (e2e)', () => {
 
       // Final cleanup
       await prismaService.projectMember.deleteMany({
-        where: { userId: member.id, projectId }
+        where: { userId: member.id, projectId },
       });
     });
   });
@@ -758,7 +758,7 @@ describe('ProjectMembersController (e2e)', () => {
           role: Role.MEMBER,
         });
       orgAdminUser = orgAdminReg.body.user;
-      
+
       // Then upgrade to OWNER role in organization via Prisma
       await prismaService.organizationMember.create({
         data: {
@@ -767,7 +767,7 @@ describe('ProjectMembersController (e2e)', () => {
           role: Role.OWNER,
         },
       });
-      
+
       // Generate new token with OWNER role explicitly set in payload
       const orgAdminPayload = { sub: orgAdminUser.id, email: orgAdminUser.email, role: Role.OWNER };
       orgAdminAccessToken = jwtService.sign(orgAdminPayload);
@@ -793,9 +793,13 @@ describe('ProjectMembersController (e2e)', () => {
           role: Role.OWNER,
         },
       });
-      
+
       // Generate new token with updated role
-      const wsAdminPayload = { sub: workspaceAdminUser.id, email: workspaceAdminUser.email, role: workspaceAdminUser.role };
+      const wsAdminPayload = {
+        sub: workspaceAdminUser.id,
+        email: workspaceAdminUser.email,
+        role: workspaceAdminUser.role,
+      };
       workspaceAdminAccessToken = jwtService.sign(wsAdminPayload);
 
       // Create a SUPER_ADMIN user directly via Prisma (registration doesn't allow SUPER_ADMIN)
@@ -809,9 +813,13 @@ describe('ProjectMembersController (e2e)', () => {
           role: Role.SUPER_ADMIN,
         },
       });
-      
+
       // Generate token with SUPER_ADMIN role
-      const superAdminPayload = { sub: superAdminUser.id, email: superAdminUser.email, role: Role.SUPER_ADMIN };
+      const superAdminPayload = {
+        sub: superAdminUser.id,
+        email: superAdminUser.email,
+        role: Role.SUPER_ADMIN,
+      };
       superAdminAccessToken = jwtService.sign(superAdminPayload);
 
       // Add all users to the project
@@ -850,7 +858,7 @@ describe('ProjectMembersController (e2e)', () => {
         });
     });
 
-    it('should deny regular user from viewing another user\'s projects', () => {
+    it("should deny regular user from viewing another user's projects", () => {
       return request(app.getHttpServer())
         .get(`/api/project-members/user/${member.id}/projects`)
         .set('Authorization', `Bearer ${regularUserAccessToken}`)
@@ -860,7 +868,7 @@ describe('ProjectMembersController (e2e)', () => {
     // Note: This test is skipped due to complexity in organization role inheritance
     // The security fix for admin access is working for SUPER_ADMIN and workspace admins
     // Organization admin access requires additional investigation into role propagation
-    it.skip('should allow organization admin to view another user\'s projects (known issue)', () => {
+    it.skip("should allow organization admin to view another user's projects (known issue)", () => {
       return request(app.getHttpServer())
         .get(`/api/project-members/user/${member.id}/projects`)
         .set('Authorization', `Bearer ${orgAdminAccessToken}`)
@@ -870,7 +878,7 @@ describe('ProjectMembersController (e2e)', () => {
         });
     });
 
-    it('should allow workspace admin to view another user\'s projects', () => {
+    it("should allow workspace admin to view another user's projects", () => {
       return request(app.getHttpServer())
         .get(`/api/project-members/user/${member.id}/projects`)
         .set('Authorization', `Bearer ${workspaceAdminAccessToken}`)
@@ -880,7 +888,7 @@ describe('ProjectMembersController (e2e)', () => {
         });
     });
 
-    it('should allow SUPER_ADMIN to view any user\'s projects', () => {
+    it("should allow SUPER_ADMIN to view any user's projects", () => {
       return request(app.getHttpServer())
         .get(`/api/project-members/user/${member.id}/projects`)
         .set('Authorization', `Bearer ${superAdminAccessToken}`)

@@ -8,14 +8,14 @@ import { EmailService } from './../../src/modules/email/email.service';
 
 /**
  * Workflow 8: Password Reset Flow
- * 
+ *
  * This test covers the password reset process:
  * 1. Request password reset
  * 2. Attempt login with old password (should fail)
  * 3. Reset password with token
  * 4. Login with new password (should succeed)
  * 5. Verify old token is invalid
- * 
+ *
  * Note: Email sending is mocked in test environment to capture the reset token
  */
 describe('Workflow 8: Password Reset Flow (e2e)', () => {
@@ -184,7 +184,7 @@ describe('Workflow 8: Password Reset Flow (e2e)', () => {
       const response = await request(app.getHttpServer())
         .get(`/api/auth/verify-reset-token/${resetToken}`)
         .expect(HttpStatus.OK);
-      
+
       expect(response.body).toHaveProperty('valid', false);
     });
   });

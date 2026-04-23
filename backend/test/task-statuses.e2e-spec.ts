@@ -48,11 +48,11 @@ describe('TaskStatusesController (e2e)', () => {
 
     // Create Organization
     const organization = await prismaService.organization.create({
-        data: {
-            name: `Status Org ${Date.now()}`,
-            slug: `status-org-${Date.now()}`,
-            ownerId: user.id,
-        }
+      data: {
+        name: `Status Org ${Date.now()}`,
+        slug: `status-org-${Date.now()}`,
+        ownerId: user.id,
+      },
     });
     organizationId = organization.id;
 
@@ -219,7 +219,7 @@ describe('TaskStatusesController (e2e)', () => {
     });
 
     afterAll(async () => {
-        await prismaService.taskStatus.deleteMany({ where: { id: secondStatusId }});
+      await prismaService.taskStatus.deleteMany({ where: { id: secondStatusId } });
     });
 
     it('should update task status positions', () => {
@@ -247,19 +247,19 @@ describe('TaskStatusesController (e2e)', () => {
 
   describe('/task-statuses (Conflict)', () => {
     it('should fail to create a duplicate status name', () => {
-        const createDto: CreateTaskStatusDto = {
-            name: 'New Status', // Same name as created in first test
-            color: '#0000ff',
-            category: 'TODO',
-            workflowId: workflowId,
-            position: 99,
-          };
-    
-          return request(app.getHttpServer())
-            .post('/api/task-statuses')
-            .set('Authorization', `Bearer ${accessToken}`)
-            .send(createDto)
-            .expect(HttpStatus.CONFLICT);
+      const createDto: CreateTaskStatusDto = {
+        name: 'New Status', // Same name as created in first test
+        color: '#0000ff',
+        category: 'TODO',
+        workflowId: workflowId,
+        position: 99,
+      };
+
+      return request(app.getHttpServer())
+        .post('/api/task-statuses')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(createDto)
+        .expect(HttpStatus.CONFLICT);
     });
   });
 
@@ -304,20 +304,20 @@ describe('TaskStatusesController (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(HttpStatus.OK)
         .expect((res) => {
-            expect(res.body.deletedAt).toBeNull();
+          expect(res.body.deletedAt).toBeNull();
         });
     });
 
     it('should find restored task status in normal list', () => {
-        return request(app.getHttpServer())
-          .get('/api/task-statuses')
-          .query({ workflowId })
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect(HttpStatus.OK)
-          .expect((res) => {
-            const restored = res.body.find((s: any) => s.id === statusId);
-            expect(restored).toBeDefined();
-          });
-      });
+      return request(app.getHttpServer())
+        .get('/api/task-statuses')
+        .query({ workflowId })
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(HttpStatus.OK)
+        .expect((res) => {
+          const restored = res.body.find((s: any) => s.id === statusId);
+          expect(restored).toBeDefined();
+        });
+    });
   });
 });

@@ -109,9 +109,7 @@ describe('AuthController (e2e)', () => {
     });
 
     it('should fail without token', () => {
-      return request(app.getHttpServer())
-        .get('/api/auth/profile')
-        .expect(HttpStatus.UNAUTHORIZED);
+      return request(app.getHttpServer()).get('/api/auth/profile').expect(HttpStatus.UNAUTHORIZED);
     });
   });
 

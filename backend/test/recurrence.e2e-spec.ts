@@ -5,7 +5,10 @@ import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { Role, ProjectStatus, ProjectPriority, ProjectVisibility } from '@prisma/client';
-import { RecurrenceType, RecurrenceEndType } from './../src/modules/tasks/dto/recurrence-config.dto';
+import {
+  RecurrenceType,
+  RecurrenceEndType,
+} from './../src/modules/tasks/dto/recurrence-config.dto';
 
 describe('RecurrenceService (e2e)', () => {
   let app: INestApplication;
@@ -140,7 +143,6 @@ describe('RecurrenceService (e2e)', () => {
     let taskId: string;
 
     beforeEach(async () => {
-      
       const task = await prismaService.task.create({
         data: {
           title: `Recurrence Task ${Date.now()}`,
@@ -150,10 +152,10 @@ describe('RecurrenceService (e2e)', () => {
           slug: `REC-${Date.now()}`,
           createdBy: user.id,
           dueDate: new Date().toISOString(),
-          
+
           assignees: {
-            create: [{ userId: user.id }]
-          }
+            create: [{ userId: user.id }],
+          },
         },
       });
       taskId = task.id;
@@ -173,10 +175,8 @@ describe('RecurrenceService (e2e)', () => {
         .expect(HttpStatus.CREATED)
         .expect((res) => {
           expect(res.body.recurrenceType).toBe(RecurrenceType.DAILY);
-          
+
           expect(res.body.interval).toBe(1);
-          
-          
         });
     });
 
@@ -184,7 +184,7 @@ describe('RecurrenceService (e2e)', () => {
       const recurrenceConfig = {
         recurrenceType: RecurrenceType.WEEKLY,
         interval: 2,
-        daysOfWeek: [1, 3, 5], 
+        daysOfWeek: [1, 3, 5],
         endType: RecurrenceEndType.AFTER_OCCURRENCES,
         occurrenceCount: 10,
       };
@@ -207,7 +207,7 @@ describe('RecurrenceService (e2e)', () => {
         interval: 1,
         dayOfMonth: 15,
         endType: RecurrenceEndType.ON_DATE,
-        endDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365).toISOString(), 
+        endDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365).toISOString(),
       };
 
       return request(app.getHttpServer())
@@ -222,7 +222,6 @@ describe('RecurrenceService (e2e)', () => {
     });
 
     it('should update existing recurrence', async () => {
-      
       await request(app.getHttpServer())
         .post(`/api/tasks/${taskId}/recurrence`)
         .set('Authorization', `Bearer ${accessToken}`)
@@ -232,11 +231,10 @@ describe('RecurrenceService (e2e)', () => {
           endType: RecurrenceEndType.NEVER,
         });
 
-      
       const updateConfig = {
         recurrenceType: RecurrenceType.WEEKLY,
         interval: 1,
-        daysOfWeek: [0, 6], 
+        daysOfWeek: [0, 6],
         endType: RecurrenceEndType.NEVER,
       };
 
@@ -252,49 +250,6 @@ describe('RecurrenceService (e2e)', () => {
     });
 
     it('should complete occurrence and generate next task', async () => {
-        
-        await request(app.getHttpServer())
-          .post(`/api/tasks/${taskId}/recurrence`)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .send({
-            recurrenceType: RecurrenceType.DAILY,
-            interval: 1,
-            endType: RecurrenceEndType.NEVER,
-          });
-  
-        
-        
-        
-        
-        const completeRes = await request(app.getHttpServer())
-          .post(`/api/tasks/${taskId}/complete-occurrence`)
-          .set('Authorization', `Bearer ${accessToken}`)
-          .expect((res) => {
-             
-             if (res.status !== 200 && res.status !== 201) {
-                 throw new Error(`Expected 200 or 201, got ${res.status} ${JSON.stringify(res.body)}`);
-             }
-          });
-          
-        
-        expect(completeRes.body).toHaveProperty('completedTask');
-        expect(completeRes.body).toHaveProperty('nextTask');
-        
-        const nextTask = completeRes.body.nextTask;
-        expect(nextTask.id).not.toBe(taskId);
-        expect(nextTask.projectId).toBe(projectId);
-        
-        
-        
-        
-        
-        const originalDueDate = new Date();
-        const nextDueDate = new Date(nextTask.dueDate);
-        expect(nextDueDate.getTime()).toBeGreaterThan(originalDueDate.getTime());
-      });
-
-    it('should stop recurrence', async () => {
-      
       await request(app.getHttpServer())
         .post(`/api/tasks/${taskId}/recurrence`)
         .set('Authorization', `Bearer ${accessToken}`)
@@ -304,37 +259,65 @@ describe('RecurrenceService (e2e)', () => {
           endType: RecurrenceEndType.NEVER,
         });
 
-      
+      const completeRes = await request(app.getHttpServer())
+        .post(`/api/tasks/${taskId}/complete-occurrence`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect((res) => {
+          if (res.status !== 200 && res.status !== 201) {
+            throw new Error(`Expected 200 or 201, got ${res.status} ${JSON.stringify(res.body)}`);
+          }
+        });
+
+      expect(completeRes.body).toHaveProperty('completedTask');
+      expect(completeRes.body).toHaveProperty('nextTask');
+
+      const nextTask = completeRes.body.nextTask;
+      expect(nextTask.id).not.toBe(taskId);
+      expect(nextTask.projectId).toBe(projectId);
+
+      const originalDueDate = new Date();
+      const nextDueDate = new Date(nextTask.dueDate);
+      expect(nextDueDate.getTime()).toBeGreaterThan(originalDueDate.getTime());
+    });
+
+    it('should stop recurrence', async () => {
+      await request(app.getHttpServer())
+        .post(`/api/tasks/${taskId}/recurrence`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          recurrenceType: RecurrenceType.DAILY,
+          interval: 1,
+          endType: RecurrenceEndType.NEVER,
+        });
+
       await request(app.getHttpServer())
         .delete(`/api/tasks/${taskId}/recurrence`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(HttpStatus.OK)
         .expect((res) => {
-          
           expect(res.body.isRecurring).toBe(false);
         });
     });
 
     it('should get recurring tasks for project', async () => {
-       
-       await request(app.getHttpServer())
-       .post(`/api/tasks/${taskId}/recurrence`)
-       .set('Authorization', `Bearer ${accessToken}`)
-       .send({
-         recurrenceType: RecurrenceType.DAILY,
-         interval: 1,
-         endType: RecurrenceEndType.NEVER,
-       });
+      await request(app.getHttpServer())
+        .post(`/api/tasks/${taskId}/recurrence`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          recurrenceType: RecurrenceType.DAILY,
+          interval: 1,
+          endType: RecurrenceEndType.NEVER,
+        });
 
-       return request(app.getHttpServer())
+      return request(app.getHttpServer())
         .get(`/api/tasks/recurring/project/${projectId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(HttpStatus.OK)
         .expect((res) => {
-            expect(Array.isArray(res.body)).toBe(true);
-            const task = res.body.find((t: any) => t.id === taskId);
-            expect(task).toBeDefined();
-            expect(task.isRecurring).toBe(true);
+          expect(Array.isArray(res.body)).toBe(true);
+          const task = res.body.find((t: any) => t.id === taskId);
+          expect(task).toBeDefined();
+          expect(task.isRecurring).toBe(true);
         });
     });
   });

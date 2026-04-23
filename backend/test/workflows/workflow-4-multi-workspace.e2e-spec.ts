@@ -4,11 +4,18 @@ import * as request from 'supertest';
 import { AppModule } from './../../src/app.module';
 import { PrismaService } from './../../src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
-import { Role, ProjectStatus, ProjectPriority, ProjectVisibility, TaskPriority, TaskType } from '@prisma/client';
+import {
+  Role,
+  ProjectStatus,
+  ProjectPriority,
+  ProjectVisibility,
+  TaskPriority,
+  TaskType,
+} from '@prisma/client';
 
 /**
  * Workflow 4: Multi-Workspace Project Management
- * 
+ *
  * This test covers working across multiple workspaces:
  * 1. List user's organizations
  * 2. Create multiple workspaces
@@ -54,12 +61,15 @@ describe('Workflow 4: Multi-Workspace Project Management (e2e)', () => {
       await prismaService.task.deleteMany({ where: { projectId: apiProjectId } });
       await prismaService.task.deleteMany({ where: { projectId: campaignProjectId } });
       if (apiProjectId) await prismaService.project.delete({ where: { id: apiProjectId } });
-      if (campaignProjectId) await prismaService.project.delete({ where: { id: campaignProjectId } });
+      if (campaignProjectId)
+        await prismaService.project.delete({ where: { id: campaignProjectId } });
       if (devWorkspaceId) await prismaService.workspace.delete({ where: { id: devWorkspaceId } });
-      if (marketingWorkspaceId) await prismaService.workspace.delete({ where: { id: marketingWorkspaceId } });
+      if (marketingWorkspaceId)
+        await prismaService.workspace.delete({ where: { id: marketingWorkspaceId } });
       if (statusId) await prismaService.taskStatus.delete({ where: { id: statusId } });
       if (workflowId) await prismaService.workflow.delete({ where: { id: workflowId } });
-      if (organizationId) await prismaService.organization.delete({ where: { id: organizationId } });
+      if (organizationId)
+        await prismaService.organization.delete({ where: { id: organizationId } });
       if (user) await prismaService.user.delete({ where: { id: user.id } });
     }
     await app.close();
@@ -80,7 +90,7 @@ describe('Workflow 4: Multi-Workspace Project Management (e2e)', () => {
           role: Role.OWNER,
         })
         .expect(HttpStatus.CREATED);
-      
+
       user = registerResponse.body.user;
       accessToken = registerResponse.body.access_token;
 

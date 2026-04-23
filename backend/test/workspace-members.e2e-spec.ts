@@ -336,7 +336,7 @@ describe('WorkspaceMembersController (e2e)', () => {
         });
     });
 
-    it('should fail when viewing someone else\'s workspaces', () => {
+    it("should fail when viewing someone else's workspaces", () => {
       return request(app.getHttpServer())
         .get(`/api/workspace-members/user/${ownerUser.id}/workspaces`)
         .set('Authorization', `Bearer ${memberAccessToken}`)

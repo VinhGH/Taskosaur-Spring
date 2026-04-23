@@ -145,10 +145,10 @@ describe('SettingsController (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(HttpStatus.OK)
         .expect((res) => {
-            // The controller returns { key, value: null } or similar if not found but no default provided?
-            // Actually service.get returns null if not found and no default.
-            // Controller returns { key, value }
-            expect(res.body.value).toBeNull(); 
+          // The controller returns { key, value: null } or similar if not found but no default provided?
+          // Actually service.get returns null if not found and no default.
+          // Controller returns { key, value }
+          expect(res.body.value).toBeNull();
         });
     });
   });

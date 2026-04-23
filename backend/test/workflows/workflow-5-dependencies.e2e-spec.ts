@@ -4,11 +4,18 @@ import * as request from 'supertest';
 import { AppModule } from './../../src/app.module';
 import { PrismaService } from './../../src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
-import { Role, ProjectStatus, ProjectPriority, ProjectVisibility, TaskPriority, TaskType } from '@prisma/client';
+import {
+  Role,
+  ProjectStatus,
+  ProjectPriority,
+  ProjectVisibility,
+  TaskPriority,
+  TaskType,
+} from '@prisma/client';
 
 /**
  * Workflow 5: Task Dependency & Workflow Management
- * 
+ *
  * This test covers complex task dependencies and workflow management:
  * 1. Create multiple custom statuses
  * 2. Create task chain (A -> B -> C -> D)
@@ -16,7 +23,7 @@ import { Role, ProjectStatus, ProjectPriority, ProjectVisibility, TaskPriority, 
  * 4. Attempt circular dependency (should fail)
  * 5. Progress through workflow
  * 6. Update status configuration
- * 
+ *
  * Note: This workflow demonstrates advanced task management features.
  */
 describe('Workflow 5: Task Dependency & Workflow Management (e2e)', () => {
@@ -31,20 +38,20 @@ describe('Workflow 5: Task Dependency & Workflow Management (e2e)', () => {
   let workspaceId: string;
   let projectId: string;
   let workflowId: string;
-  
+
   // Status IDs
   let backlogStatusId: string;
   let inProgressStatusId: string;
   let codeReviewStatusId: string;
   let testingStatusId: string;
   let doneStatusId: string;
-  
+
   // Task IDs
   let taskAId: string; // Design API
   let taskBId: string; // Implement API
   let taskCId: string; // Write Tests
   let taskDId: string; // Deploy
-  
+
   // Dependency IDs
   let depABId: string;
   let depBCId: string;
@@ -66,33 +73,38 @@ describe('Workflow 5: Task Dependency & Workflow Management (e2e)', () => {
   afterAll(async () => {
     if (prismaService) {
       // Cleanup dependencies first
-      await prismaService.taskDependency.deleteMany({ 
-        where: { 
+      await prismaService.taskDependency.deleteMany({
+        where: {
           OR: [
             { dependentTaskId: taskBId },
             { dependentTaskId: taskCId },
             { dependentTaskId: taskDId },
             { blockingTaskId: taskAId },
             { blockingTaskId: taskBId },
-            { blockingTaskId: taskCId }
-          ]
-        } 
+            { blockingTaskId: taskCId },
+          ],
+        },
       });
-      
+
       // Cleanup tasks
       await prismaService.task.deleteMany({ where: { projectId } });
-      
+
       // Cleanup statuses
-      if (backlogStatusId) await prismaService.taskStatus.delete({ where: { id: backlogStatusId } });
-      if (inProgressStatusId) await prismaService.taskStatus.delete({ where: { id: inProgressStatusId } });
-      if (codeReviewStatusId) await prismaService.taskStatus.delete({ where: { id: codeReviewStatusId } });
-      if (testingStatusId) await prismaService.taskStatus.delete({ where: { id: testingStatusId } });
+      if (backlogStatusId)
+        await prismaService.taskStatus.delete({ where: { id: backlogStatusId } });
+      if (inProgressStatusId)
+        await prismaService.taskStatus.delete({ where: { id: inProgressStatusId } });
+      if (codeReviewStatusId)
+        await prismaService.taskStatus.delete({ where: { id: codeReviewStatusId } });
+      if (testingStatusId)
+        await prismaService.taskStatus.delete({ where: { id: testingStatusId } });
       if (doneStatusId) await prismaService.taskStatus.delete({ where: { id: doneStatusId } });
-      
+
       if (projectId) await prismaService.project.delete({ where: { id: projectId } });
       if (workspaceId) await prismaService.workspace.delete({ where: { id: workspaceId } });
       if (workflowId) await prismaService.workflow.delete({ where: { id: workflowId } });
-      if (organizationId) await prismaService.organization.delete({ where: { id: organizationId } });
+      if (organizationId)
+        await prismaService.organization.delete({ where: { id: organizationId } });
       if (user) await prismaService.user.delete({ where: { id: user.id } });
     }
     await app.close();
@@ -113,7 +125,7 @@ describe('Workflow 5: Task Dependency & Workflow Management (e2e)', () => {
           role: Role.OWNER,
         })
         .expect(HttpStatus.CREATED);
-      
+
       user = registerResponse.body.user;
       accessToken = registerResponse.body.access_token;
 
@@ -174,7 +186,7 @@ describe('Workflow 5: Task Dependency & Workflow Management (e2e)', () => {
         .get(`/api/task-statuses?workflowId=${workflowId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(HttpStatus.OK);
-      
+
       inProgressStatusId = statusesResponse.body.find((s: any) => s.name === 'In Progress').id;
       doneStatusId = statusesResponse.body.find((s: any) => s.name === 'Done').id;
     });

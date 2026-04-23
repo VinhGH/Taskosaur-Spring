@@ -52,11 +52,11 @@ describe('TaskAttachmentsController (e2e)', () => {
 
     // Create Organization
     const organization = await prismaService.organization.create({
-        data: {
-            name: `Attach Org ${Date.now()}`,
-            slug: `attach-org-${Date.now()}`,
-            ownerId: user.id,
-        }
+      data: {
+        name: `Attach Org ${Date.now()}`,
+        slug: `attach-org-${Date.now()}`,
+        ownerId: user.id,
+      },
     });
     organizationId = organization.id;
 
@@ -148,7 +148,7 @@ describe('TaskAttachmentsController (e2e)', () => {
     }
 
     if (fs.existsSync(testFilePath)) {
-        fs.unlinkSync(testFilePath);
+      fs.unlinkSync(testFilePath);
     }
 
     await app.close();

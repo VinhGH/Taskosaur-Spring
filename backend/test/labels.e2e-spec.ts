@@ -61,16 +61,20 @@ describe('LabelsController (e2e)', () => {
     });
 
     // Generate token for unauthorized user
-    const unauthorizedPayload = { sub: unauthorizedUser.id, email: unauthorizedUser.email, role: unauthorizedUser.role };
+    const unauthorizedPayload = {
+      sub: unauthorizedUser.id,
+      email: unauthorizedUser.email,
+      role: unauthorizedUser.role,
+    };
     unauthorizedToken = jwtService.sign(unauthorizedPayload);
 
     // Create Organization
     const organization = await prismaService.organization.create({
-        data: {
-            name: `Label Org ${Date.now()}`,
-            slug: `label-org-${Date.now()}`,
-            ownerId: user.id,
-        }
+      data: {
+        name: `Label Org ${Date.now()}`,
+        slug: `label-org-${Date.now()}`,
+        ownerId: user.id,
+      },
     });
     organizationId = organization.id;
 

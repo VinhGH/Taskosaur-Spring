@@ -8,7 +8,7 @@ import { Role, ProjectStatus, ProjectPriority, ProjectVisibility } from '@prisma
 
 /**
  * Workflow 1: New User Onboarding & First Project
- * 
+ *
  * This test covers the complete journey of a new user:
  * 1. Create user account
  * 2. Login and get JWT token
@@ -17,7 +17,7 @@ import { Role, ProjectStatus, ProjectPriority, ProjectVisibility } from '@prisma
  * 5. Create workspace
  * 6. Create project
  * 7. Create first task
- * 
+ *
  * Note: Registration and logout endpoints are not tested as they may not be implemented.
  * This workflow focuses on the core onboarding flow using pre-created users.
  */
@@ -55,7 +55,8 @@ describe('Workflow 1: New User Onboarding & First Project (e2e)', () => {
       if (projectId) await prismaService.project.delete({ where: { id: projectId } });
       if (workspaceId) await prismaService.workspace.delete({ where: { id: workspaceId } });
       if (workflowId) await prismaService.workflow.delete({ where: { id: workflowId } });
-      if (organizationId) await prismaService.organization.delete({ where: { id: organizationId } });
+      if (organizationId)
+        await prismaService.organization.delete({ where: { id: organizationId } });
       if (user) await prismaService.user.delete({ where: { id: user.id } });
     }
     await app.close();
@@ -151,7 +152,7 @@ describe('Workflow 1: New User Onboarding & First Project (e2e)', () => {
           isDefault: true,
         })
         .expect(HttpStatus.CREATED);
-      
+
       workflowId = workflowResponse.body.id;
 
       // Fetch the created statuses to get the "To Do" status ID
@@ -159,7 +160,7 @@ describe('Workflow 1: New User Onboarding & First Project (e2e)', () => {
         .get(`/api/task-statuses?workflowId=${workflowId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(HttpStatus.OK);
-      
+
       const todoStatus = statusesResponse.body.find((s: any) => s.name === 'To Do');
       expect(todoStatus).toBeDefined();
       statusId = todoStatus.id;

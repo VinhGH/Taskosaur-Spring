@@ -8,7 +8,7 @@ import { Role } from '@prisma/client';
 
 /**
  * Workflow 9: Token Management & Session Handling
- * 
+ *
  * This test covers token lifecycle and session management:
  * 1. Login and receive tokens
  * 2. Access protected resource with access token
@@ -17,7 +17,7 @@ import { Role } from '@prisma/client';
  * 5. Use new access token
  * 6. Logout and invalidate tokens
  * 7. Verify invalidated token is rejected
- * 
+ *
  * Note: Token expiry is simulated by creating an expired token
  */
 describe('Workflow 9: Token Management & Session Handling (e2e)', () => {
@@ -107,9 +107,7 @@ describe('Workflow 9: Token Management & Session Handling (e2e)', () => {
     });
 
     it('Step 4: Attempt to access without token (should fail)', async () => {
-      await request(app.getHttpServer())
-        .get('/api/auth/profile')
-        .expect(HttpStatus.UNAUTHORIZED);
+      await request(app.getHttpServer()).get('/api/auth/profile').expect(HttpStatus.UNAUTHORIZED);
     });
 
     it('Step 5: Attempt to access with invalid token (should fail)', async () => {
@@ -123,7 +121,7 @@ describe('Workflow 9: Token Management & Session Handling (e2e)', () => {
       // Create a token that expired 1 hour ago
       const expiredToken = jwtService.sign(
         { sub: user.id, email: user.email, role: user.role },
-        { expiresIn: '-1h' }
+        { expiresIn: '-1h' },
       );
 
       await request(app.getHttpServer())
@@ -145,7 +143,7 @@ describe('Workflow 9: Token Management & Session Handling (e2e)', () => {
       expect(response.body).toHaveProperty('user');
 
       newAccessToken = response.body.access_token;
-      
+
       // Note: Some implementations may return the same token if it hasn't expired
       // This is a valid optimization to reduce token generation overhead
     });
@@ -203,11 +201,9 @@ describe('Workflow 9: Token Management & Session Handling (e2e)', () => {
 
     it('Step 13: Verify refresh token after logout', async () => {
       // Note: Refresh tokens should be invalidated on logout
-      const response = await request(app.getHttpServer())
-        .post('/api/auth/refresh')
-        .send({
-          refresh_token: refreshToken,
-        });
+      const response = await request(app.getHttpServer()).post('/api/auth/refresh').send({
+        refresh_token: refreshToken,
+      });
 
       // Accept either 401 (invalidated) or 200 (still valid in some implementations)
       expect([HttpStatus.OK, HttpStatus.UNAUTHORIZED]).toContain(response.status);
@@ -224,7 +220,7 @@ describe('Workflow 9: Token Management & Session Handling (e2e)', () => {
 
       expect(response.body).toHaveProperty('access_token');
       expect(response.body).toHaveProperty('refresh_token');
-      
+
       // Note: Implementation may return the same token if it hasn't expired yet
       // This is acceptable behavior - we just verify we can login again
     });
@@ -251,7 +247,7 @@ describe('Workflow 9: Token Management & Session Handling (e2e)', () => {
       // Both sessions should have valid tokens
       expect(session1.body.access_token).toBeDefined();
       expect(session2.body.access_token).toBeDefined();
-      
+
       // Note: Some implementations may return the same token for concurrent sessions
       // if the token hasn't expired yet. This is acceptable behavior.
       // We just verify both tokens work, regardless if they're the same or different

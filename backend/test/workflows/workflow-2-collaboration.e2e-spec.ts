@@ -8,7 +8,7 @@ import { Role, ProjectStatus, ProjectPriority, ProjectVisibility } from '@prisma
 
 /**
  * Workflow 2: Team Collaboration Setup
- * 
+ *
  * This test covers team member management:
  * 1. Login as owner
  * 2. Create organization
@@ -62,7 +62,8 @@ describe('Workflow 2: Team Collaboration Setup (e2e)', () => {
       if (projectId) await prismaService.project.delete({ where: { id: projectId } });
       if (workspaceId) await prismaService.workspace.delete({ where: { id: workspaceId } });
       if (workflowId) await prismaService.workflow.delete({ where: { id: workflowId } });
-      if (organizationId) await prismaService.organization.delete({ where: { id: organizationId } });
+      if (organizationId)
+        await prismaService.organization.delete({ where: { id: organizationId } });
       if (owner) await prismaService.user.delete({ where: { id: owner.id } });
       if (member1) await prismaService.user.delete({ where: { id: member1.id } });
       if (member2) await prismaService.user.delete({ where: { id: member2.id } });
@@ -85,7 +86,7 @@ describe('Workflow 2: Team Collaboration Setup (e2e)', () => {
           role: Role.OWNER,
         })
         .expect(HttpStatus.CREATED);
-      
+
       owner = ownerReg.body.user;
       ownerToken = ownerReg.body.access_token;
 
@@ -102,7 +103,7 @@ describe('Workflow 2: Team Collaboration Setup (e2e)', () => {
           role: Role.MEMBER,
         })
         .expect(HttpStatus.CREATED);
-      
+
       member1 = member1Reg.body.user;
       member1Token = member1Reg.body.access_token;
 
@@ -119,7 +120,7 @@ describe('Workflow 2: Team Collaboration Setup (e2e)', () => {
           role: Role.MEMBER,
         })
         .expect(HttpStatus.CREATED);
-      
+
       member2 = member2Reg.body.user;
     });
 
@@ -162,7 +163,7 @@ describe('Workflow 2: Team Collaboration Setup (e2e)', () => {
           isDefault: true,
         })
         .expect(HttpStatus.CREATED);
-      
+
       workflowId = workflowResponse.body.id;
 
       const response = await request(app.getHttpServer())
@@ -247,7 +248,7 @@ describe('Workflow 2: Team Collaboration Setup (e2e)', () => {
         .get(`/api/project-members/user/${member1.id}/project/${projectId}`)
         .set('Authorization', `Bearer ${ownerToken}`)
         .expect(HttpStatus.OK);
-      
+
       const memberId = memberResponse.body.id;
 
       const response = await request(app.getHttpServer())
