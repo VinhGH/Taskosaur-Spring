@@ -687,7 +687,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
     }
   };
 
-  const handleBulkStatusUpdate = async () => {
+  const handleBulkStatusUpdate = async (statusId: string) => {
     const finalSelectedCount = allDelete ? (totalTask ?? 0) - excludedTaskIds.length : selectedTasks.length;
     if (finalSelectedCount === 0) {
       toast.warning("No tasks selected for status update");
@@ -705,6 +705,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
         projectId: currentProject?.id,
         all: allDelete,
         excludedIds: excludedTaskIds,
+        statusId,
         search,
         statuses: selectedStatuses?.join(","),
         priorities: selectedPriorities?.join(","),
@@ -719,7 +720,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
 
       if (result.updatedCount > 0) {
         toast.success(
-          `Successfully marked ${result.updatedCount} task${result.updatedCount === 1 ? "" : "s"} as Done`
+          `Successfully updated status for ${result.updatedCount} task${result.updatedCount === 1 ? "" : "s"}`
         );
       }
 
@@ -1851,6 +1852,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
           allDelete={allDelete}
           excludedCount={excludedTaskIds.length}
           onStatusUpdate={handleBulkStatusUpdate}
+          availableStatuses={localAddTaskStatuses}
         />
       )}
 

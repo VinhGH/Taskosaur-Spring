@@ -139,11 +139,28 @@ function WorkspaceTasksContent() {
     }
   }, [router.isReady]);
 
-  const handleTaskSelect = (taskId: string) => {
+  const handleTaskSelect = useCallback((taskId: string) => {
     setSelectedTasks((prev) =>
       prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
     );
-  };
+  }, []);
+
+  const handleTasksSelect = useCallback(
+    (taskIds: string[], action: "add" | "remove" | "set") => {
+      setSelectedTasks((prev) => {
+        if (action === "set") return taskIds;
+        if (action === "add") {
+          const newIds = taskIds.filter((id) => !prev.includes(id));
+          return [...prev, ...newIds];
+        }
+        if (action === "remove") {
+          return prev.filter((id) => !taskIds.includes(id));
+        }
+        return prev;
+      });
+    },
+    []
+  );
 
   const [sortField, setSortField] = useState<SortField>(() => {
     return localStorage.getItem(SORT_FIELD_KEY) || "listRank";
@@ -230,7 +247,27 @@ function WorkspaceTasksContent() {
 
   useEffect(() => {
     const fetchMeta = async () => {
-      setAddTaskStatuses([]);
+      if (workspace?.organizationId) {
+        try {
+          const statuses = await getAllTaskStatuses({
+            organizationId: workspace.organizationId,
+          });
+          
+          const uniqueStatusesNames = new Set();
+          const uniqueStatuses = (statuses || []).filter((status) => {
+            if (uniqueStatusesNames.has(status.name)) {
+              return false;
+            }
+            uniqueStatusesNames.add(status.name);
+            return true;
+          });
+          
+          setAddTaskStatuses(uniqueStatuses);
+        } catch (error) {
+          console.error("Failed to fetch workspace statuses:", error);
+          setAddTaskStatuses([]);
+        }
+      }
     };
     fetchMeta();
   }, [workspace?.id, workspace?.organizationId]);
@@ -1043,6 +1080,7 @@ function WorkspaceTasksContent() {
             showAddTaskRow={userAccess?.role !== "VIEWER"}
             selectedTasks={selectedTasks}
             onTaskSelect={handleTaskSelect}
+            onTasksSelect={handleTasksSelect}
             showBulkActionBar={
               hasAccess || userAccess?.role === "OWNER" || userAccess?.role === "MANAGER"
             }

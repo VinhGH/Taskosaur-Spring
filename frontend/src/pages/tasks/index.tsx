@@ -83,7 +83,13 @@ function TasksPageContent() {
   const SORT_ORDER_KEY = "tasks_sort_order";
   const COLUMNS_KEY = "tasks_columns";
 
-  const currentOrganizationId = TokenManager.getCurrentOrgId();
+  const [currentOrganizationId, setCurrentOrganizationId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const orgId = TokenManager.getCurrentOrgId();
+    setCurrentOrganizationId(orgId);
+  }, []);
+
   const currentUser = getCurrentUser();
   const { getOrganizationMembers } = useProjectContext();
 
@@ -129,6 +135,30 @@ function TasksPageContent() {
   const [selectedTaskTypes, setSelectedTaskTypes] = useState<string[]>([]);
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [selectedReporters, setSelectedReporters] = useState<string[]>([]);
+  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+
+  const handleTaskSelect = useCallback((taskId: string) => {
+    setSelectedTasks((prev) =>
+      prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
+    );
+  }, []);
+
+  const handleTasksSelect = useCallback(
+    (taskIds: string[], action: "add" | "remove" | "set") => {
+      setSelectedTasks((prev) => {
+        if (action === "set") return taskIds;
+        if (action === "add") {
+          const newIds = taskIds.filter((id) => !prev.includes(id));
+          return [...prev, ...newIds];
+        }
+        if (action === "remove") {
+          return prev.filter((id) => !taskIds.includes(id));
+        }
+        return prev;
+      });
+    },
+    []
+  );
 
   const [sortField, setSortField] = useState<SortField>(() => {
     return localStorage.getItem(SORT_FIELD_KEY) || "listRank";
@@ -233,24 +263,41 @@ function TasksPageContent() {
   // Fetch statuses for selected project or for the entire organization
   useEffect(() => {
     const fetchStatusesList = async () => {
+      const orgId = currentOrganizationId || TokenManager.getCurrentOrgId();
+      if (!orgId && selectedProjects.length === 0) {
+        setAvailableStatuses([]);
+        setStatusFilterEnabled(false);
+        return;
+      }
+
       try {
         let statuses: TaskStatus[] = [];
         if (selectedProjects.length === 1) {
           statuses = await getTaskStatusByProject(selectedProjects[0]);
-        } else if (currentOrganizationId) {
-          statuses = await getAllTaskStatuses({ organizationId: currentOrganizationId });
+        } else if (orgId) {
+          statuses = await getAllTaskStatuses({ organizationId: orgId });
         }
 
-        if (statuses.length > 0) {
-          setAvailableStatuses(statuses);
-          setStatusFilterEnabled(true);
+        if (statuses && statuses.length > 0) {
+          // Filter to unique status names to avoid showing duplicate entries 
+          // like multiple "To Do" or "In Progress" from different workflows.
+          const uniqueStatusesNames = new Set();
+          const uniqueStatuses = statuses.filter((status) => {
+            if (uniqueStatusesNames.has(status.name)) {
+              return false;
+            }
+            uniqueStatusesNames.add(status.name);
+            return true;
+          });
 
-          // Handle category=COMPLETED from URL only if statuses aren't already set from URL params
+          setAvailableStatuses(uniqueStatuses);
+          setStatusFilterEnabled(true);
+          
+          // Apply category filtering logic if needed
           const params = new URLSearchParams(window.location.search);
           const categoryParam = params.get("category");
           const statusParams = params.get("statuses");
 
-          // Only apply category logic if we have a category param and no explicit status params
           if (categoryParam === "COMPLETED" && !statusParams) {
             const completedStatusIds = statuses
               .filter((s) => s.category === "DONE")
@@ -950,10 +997,14 @@ function TasksPageContent() {
             projects={projects}
             columns={columns}
             showAddTaskRow={false}
+            selectedTasks={selectedTasks}
+            onTaskSelect={handleTaskSelect}
+            onTasksSelect={handleTasksSelect}
             showBulkActionBar={
               hasAccess || userAccess?.role === "OWNER" || userAccess?.role === "MANAGER"
             }
             totalTask={pagination.totalCount}
+            addTaskStatuses={availableStatuses}
           />
         );
     }

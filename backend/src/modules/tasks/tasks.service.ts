@@ -3119,36 +3119,42 @@ export class TasksService {
           continue;
         }
 
-        let finalStatusId = statusId;
-        let statusToApply = globalTargetStatus;
+        let statusToApply: any = null;
 
-        if (!finalStatusId) {
+        if (!statusId) {
           // Find first status with category DONE in task's project workflow
-          const doneStatus = task.project.workflow?.statuses.find((s) => s.category === 'DONE');
-          if (!doneStatus) {
+          statusToApply = task.project.workflow?.statuses.find((s) => s.category === 'DONE');
+          if (!statusToApply) {
             failedTasks.push({
               id: task.id,
-              reason: 'No "Done" status found for this project',
+              reason: 'No "Done" status found for this project workflow',
             });
             continue;
           }
-          finalStatusId = doneStatus.id;
-          statusToApply = doneStatus;
         } else {
-          // Verify if the provided statusId is valid for this task's project
-          const projectStatus = task.project.workflow?.statuses.find((s) => s.id === statusId);
-          if (!projectStatus) {
+          // First, check if the provided statusId is directly available in this task's project workflow
+          statusToApply = task.project.workflow?.statuses.find((s) => s.id === statusId);
+
+          // If not directly available (common in multi-workflow/org-wide views),
+          // try to find a status with the same name in this project's workflow
+          if (!statusToApply && globalTargetStatus) {
+            const targetStatusName = (globalTargetStatus.name as string).toLowerCase();
+            statusToApply = task.project.workflow?.statuses.find(
+              (s: any) => (s.name as string).toLowerCase() === targetStatusName,
+            );
+          }
+
+          if (!statusToApply) {
             failedTasks.push({
               id: task.id,
-              reason: 'Provided status is not available for this project',
+              reason: `Status "${globalTargetStatus?.name || 'Unknown'}" is not available for this project's workflow`,
             });
             continue;
           }
-          statusToApply = projectStatus;
         }
 
         const updateData: any = {
-          statusId: finalStatusId,
+          statusId: statusToApply.id,
           updatedBy: userId,
         };
 

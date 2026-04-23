@@ -129,6 +129,8 @@ function ProjectTasksContent() {
     hasPrevPage: false,
   });
 
+  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+
   const [sortField, setSortField] = useState<SortField>(() => {
     return localStorage.getItem(SORT_FIELD_KEY) || "listRank";
   });
@@ -147,6 +149,29 @@ function ProjectTasksContent() {
       return [];
     }
   });
+
+  const handleTaskSelect = useCallback((taskId: string) => {
+    setSelectedTasks((prev) =>
+      prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
+    );
+  }, []);
+
+  const handleTasksSelect = useCallback(
+    (taskIds: string[], action: "add" | "remove" | "set") => {
+      setSelectedTasks((prev) => {
+        if (action === "set") return taskIds;
+        if (action === "add") {
+          const newIds = taskIds.filter((id) => !prev.includes(id));
+          return [...prev, ...newIds];
+        }
+        if (action === "remove") {
+          return prev.filter((id) => !taskIds.includes(id));
+        }
+        return prev;
+      });
+    },
+    []
+  );
 
   const error = contextError || localError;
 
@@ -845,6 +870,9 @@ function ProjectTasksContent() {
             showBulkActionBar={
               hasAccess || userAccess?.role === "OWNER" || userAccess?.role === "MANAGER"
             }
+            selectedTasks={selectedTasks}
+            onTaskSelect={handleTaskSelect}
+            onTasksSelect={handleTasksSelect}
             totalTask={pagination.totalCount}
             search={debouncedSearchQuery}
             selectedStatuses={selectedStatuses}
@@ -853,6 +881,7 @@ function ProjectTasksContent() {
             selectedAssignees={selectedAssignees}
             selectedReporters={selectedReporters}
             workspaceId={workspace?.id}
+            addTaskStatuses={availableStatuses}
           />
         );
     }

@@ -78,23 +78,42 @@ export default function TaskListView({
     }
   }, [externalOnTaskSelect]);
 
-  const handleTasksSelect = useCallback((taskIds: string[], action: "add" | "remove" | "set") => {
-    if (externalOnTasksSelect) {
-      externalOnTasksSelect(taskIds, action);
-    } else {
-      setInternalSelectedTasks((prev) => {
-        if (action === "set") return taskIds;
-        if (action === "add") {
-          const newIds = taskIds.filter((id) => !prev.includes(id));
-          return [...prev, ...newIds];
-        }
-        if (action === "remove") {
-          return prev.filter((id) => !taskIds.includes(id));
-        }
-        return prev;
-      });
-    }
-  }, [externalOnTasksSelect]);
+  const handleTasksSelect = useCallback(
+    (taskIds: string[], action: "add" | "remove" | "set") => {
+      if (externalOnTasksSelect) {
+        externalOnTasksSelect(taskIds, action);
+      } else if (externalOnTaskSelect && externalSelectedTasks !== undefined) {
+        // Fallback: If parent provided individual task selection but not bulk, loop through them
+        // This ensures parent state is updated even if bulk handler is missing
+        taskIds.forEach((taskId) => {
+          const isSelected = (externalSelectedTasks || []).includes(taskId);
+          if (action === "set") {
+            // Clearing selection
+            if (taskIds.length === 0 && isSelected) {
+              externalOnTaskSelect(taskId);
+            }
+          } else if (action === "add" && !isSelected) {
+            externalOnTaskSelect(taskId);
+          } else if (action === "remove" && isSelected) {
+            externalOnTaskSelect(taskId);
+          }
+        });
+      } else {
+        setInternalSelectedTasks((prev) => {
+          if (action === "set") return taskIds;
+          if (action === "add") {
+            const newIds = taskIds.filter((id) => !prev.includes(id));
+            return [...prev, ...newIds];
+          }
+          if (action === "remove") {
+            return prev.filter((id) => !taskIds.includes(id));
+          }
+          return prev;
+        });
+      }
+    },
+    [externalOnTasksSelect, externalOnTaskSelect, externalSelectedTasks]
+  );
 
   return (
     <div className="rounded-md">
