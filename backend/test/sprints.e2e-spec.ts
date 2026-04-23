@@ -119,7 +119,7 @@
   SprintStatus.PLANNING) => {
       const createDto: CreateSprintDto = {
         name,
-        projectId: projectSlug,
+        projectSlug: projectSlug,
         goal: `Goal for ${name}`,
         startDate: new Date().toISOString(),
         endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
@@ -139,7 +139,7 @@
       it('should create a sprint', async () => {
         const createDto: CreateSprintDto = {
           name: 'Test Sprint 1',
-          projectId: projectSlug,
+          projectSlug: projectSlug,
           goal: 'Complete initial features',
           startDate: new Date().toISOString(),
           endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
@@ -168,7 +168,7 @@
       it('should return 404 if project ID does not exist', () => {
         const createDto: CreateSprintDto = {
           name: 'Sprint for NonExistent Project',
-          projectId: '00000000-0000-4000-8000-000000000000', // Non-existent  UUID
+          projectSlug: '00000000-0000-4000-8000-000000000000', // Non-existent  UUID
           goal: 'Some goal',
           startDate: new Date().toISOString(),
           endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),

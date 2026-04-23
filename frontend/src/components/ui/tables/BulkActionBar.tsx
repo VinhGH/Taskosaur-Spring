@@ -1,4 +1,4 @@
-import { Trash2, X } from "lucide-react";
+import { Trash2, X, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ConfirmationModal from "@/components/modals/ConfirmationModal";
 import { useState } from "react";
@@ -12,6 +12,7 @@ interface BulkActionBarProps {
   currentTaskCount?: number;
   allDelete?: boolean;
   excludedCount?: number;
+  onStatusUpdate?: () => void;
 }
 
 export const BulkActionBar: React.FC<BulkActionBarProps> = ({
@@ -23,8 +24,10 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
   currentTaskCount,
   allDelete,
   excludedCount = 0,
+  onStatusUpdate,
 }) => {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [showStatusConfirmation, setShowStatusConfirmation] = useState(false);
 
   if (selectedCount === 0 && !allDelete) return null;
   // If allDelete is true, but everything is excluded, also return null (optional, usually unselecting all should toggle allDelete off)
@@ -42,6 +45,19 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
 
   const handleCancelDelete = () => {
     setShowDeleteConfirmation(false);
+  };
+
+  const handleStatusClick = () => {
+    setShowStatusConfirmation(true);
+  };
+
+  const handleConfirmStatus = () => {
+    if (onStatusUpdate) onStatusUpdate();
+    setShowStatusConfirmation(false);
+  };
+
+  const handleCancelStatus = () => {
+    setShowStatusConfirmation(false);
   };
 
   const allSelected = currentTaskCount && selectedCount >= currentTaskCount;
@@ -102,6 +118,18 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
               <span className="text-sm">Delete</span>
             </Button>
 
+            {onStatusUpdate && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleStatusClick}
+                className="text-primary hover:text-primary flex items-center justify-center hover:bg-primary/10 h-8 px-2"
+              >
+                <CheckCircle className="size-3 mr-1" />
+                <span className="text-sm">Mark as Done</span>
+              </Button>
+            )}
+
             <Button
               variant="ghost"
               size="sm"
@@ -125,6 +153,19 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
         confirmText="Delete"
         cancelText="Cancel"
         type="danger"
+      />
+
+      <ConfirmationModal
+        isOpen={showStatusConfirmation}
+        onClose={handleCancelStatus}
+        onConfirm={handleConfirmStatus}
+        title="Mark as Done"
+        message={`Are you sure you want to mark ${finalSelectedCount} ${
+          finalSelectedCount === 1 ? "task" : "tasks"
+        } as Done? This will update their status and set the completion date.`}
+        confirmText="Mark as Done"
+        cancelText="Cancel"
+        type="info"
       />
     </>
   );

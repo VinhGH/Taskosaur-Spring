@@ -1231,7 +1231,15 @@ export class TasksService {
     search?: string,
     sortBy?: string,
     sortOrder?: string,
-  ): Promise<Task[]> {
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<{
+    data: Task[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     if (!userId) {
       throw new ForbiddenException('User context required');
     }
@@ -1311,6 +1319,10 @@ export class TasksService {
     if (andConditions.length > 0) {
       whereClause.AND = andConditions;
     }
+
+    // Pagination calculation
+    const skip = (page - 1) * limit;
+
     let orderBy: any = { taskNumber: 'desc' };
     if (sortBy === 'dueIn' || sortBy === 'dueDate') {
       orderBy = { dueDate: sortOrder === 'asc' ? 'asc' : 'desc' };
@@ -1339,69 +1351,74 @@ export class TasksService {
       }
     }
 
-    const tasks = await this.prisma.task.findMany({
-      where: whereClause,
-      include: {
-        labels: {
-          select: {
-            taskId: true,
-            labelId: true,
-            label: {
-              select: { id: true, name: true, color: true, description: true },
-            },
-          },
-        },
-        project: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            workspace: {
-              select: { id: true, name: true, slug: true, organizationId: true },
-            },
-          },
-        },
-        assignees: {
-          select: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                firstName: true,
-                lastName: true,
-                avatar: true,
+    const [tasks, total] = await Promise.all([
+      this.prisma.task.findMany({
+        where: whereClause,
+        include: {
+          labels: {
+            select: {
+              taskId: true,
+              labelId: true,
+              label: {
+                select: { id: true, name: true, color: true, description: true },
               },
             },
           },
-        },
-        reporters: {
-          select: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                firstName: true,
-                lastName: true,
-                avatar: true,
+          project: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              workspace: {
+                select: { id: true, name: true, slug: true, organizationId: true },
               },
             },
           },
+          assignees: {
+            select: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  firstName: true,
+                  lastName: true,
+                  avatar: true,
+                },
+              },
+            },
+          },
+          reporters: {
+            select: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  firstName: true,
+                  lastName: true,
+                  avatar: true,
+                },
+              },
+            },
+          },
+          status: {
+            select: { id: true, name: true, color: true, category: true },
+          },
+          sprint: { select: { id: true, name: true, slug: true, status: true } },
+          parentTask: {
+            select: { id: true, title: true, slug: true, type: true },
+          },
+          _count: {
+            select: { childTasks: true, comments: true, attachments: true },
+          },
         },
-        status: {
-          select: { id: true, name: true, color: true, category: true },
-        },
-        sprint: { select: { id: true, name: true, slug: true, status: true } },
-        parentTask: {
-          select: { id: true, title: true, slug: true, type: true },
-        },
-        _count: {
-          select: { childTasks: true, comments: true, attachments: true },
-        },
-      },
-      orderBy,
-    });
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      this.prisma.task.count({ where: whereClause }),
+    ]);
 
-    return this.flattenTasksList(
+    const formattedTasks = this.flattenTasksList(
       tasks.map((task) => ({
         ...task,
         labels: task.labels.map((taskLabel) => ({
@@ -1413,6 +1430,14 @@ export class TasksService {
         })),
       })),
     );
+
+    return {
+      data: formattedTasks as any,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findOne(id: string, userId: string) {
@@ -2950,5 +2975,250 @@ export class TasksService {
       },
     });
     return this.flattenTasksList(recurringTasks);
+  }
+
+  async bulkUpdateTasksStatus(params: {
+    taskIds?: string[];
+    projectId?: string;
+    all?: boolean;
+    excludedIds?: string[];
+    statusId?: string;
+    userId: string;
+    search?: string;
+    statuses?: string;
+    priorities?: string;
+    types?: string;
+    assignees?: string;
+    reporters?: string;
+    sprintId?: string;
+    workspaceId?: string;
+  }): Promise<{
+    updatedCount: number;
+    updatedTasks: Task[];
+    failedTasks: Array<{ id: string; reason: string }>;
+  }> {
+    const {
+      taskIds,
+      projectId,
+      all,
+      excludedIds,
+      statusId,
+      userId,
+      search,
+      statuses,
+      priorities,
+      types,
+      assignees,
+      reporters,
+      sprintId,
+      workspaceId,
+    } = params;
+
+    if ((!taskIds || taskIds.length === 0) && !all) {
+      throw new BadRequestException('No task IDs provided and "all" flag not set');
+    }
+
+    // Build task filter
+    const taskFilter: any = {};
+    if (all) {
+      if (projectId) taskFilter.projectId = projectId;
+      if (workspaceId) taskFilter.project = { workspaceId };
+
+      const andConditions: any[] = [];
+
+      if (statuses) andConditions.push({ statusId: { in: statuses.split(',') } });
+      if (priorities) andConditions.push({ priority: { in: priorities.split(',') } });
+      if (types) andConditions.push({ type: { in: types.split(',') } });
+      if (sprintId) andConditions.push({ sprintId });
+
+      if (search?.trim()) {
+        andConditions.push({
+          OR: [
+            { title: { contains: search.trim(), mode: 'insensitive' } },
+            { description: { contains: search.trim(), mode: 'insensitive' } },
+          ],
+        });
+      }
+
+      if (assignees) {
+        andConditions.push({ assignees: { some: { userId: { in: assignees.split(',') } } } });
+      }
+
+      if (reporters) {
+        andConditions.push({ reporters: { some: { userId: { in: reporters.split(',') } } } });
+      }
+
+      if (excludedIds && excludedIds.length > 0) {
+        andConditions.push({ id: { notIn: excludedIds } });
+      }
+
+      if (andConditions.length > 0) {
+        taskFilter.AND = andConditions;
+      }
+    } else {
+      let finalTaskIds = taskIds || [];
+      if (excludedIds && excludedIds.length > 0) {
+        finalTaskIds = finalTaskIds.filter((id) => !excludedIds.includes(id));
+      }
+      taskFilter.id = { in: finalTaskIds };
+    }
+
+    const tasks = await this.prisma.task.findMany({
+      where: taskFilter,
+      include: {
+        project: {
+          include: {
+            workflow: {
+              include: {
+                statuses: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const updatedTasks: Task[] = [];
+    let failedTasks: Array<{ id: string; reason: string }>;
+
+    // Handle missing tasks when using specific IDs
+    if (taskIds && taskIds.length > 0 && !all) {
+      const foundTaskIds = tasks.map((t) => t.id);
+      const missingTaskIds = taskIds.filter((id) => !foundTaskIds.includes(id));
+      failedTasks = missingTaskIds.map((id) => ({
+        id,
+        reason: 'Task not found',
+      }));
+    } else {
+      failedTasks = [];
+    }
+
+    // Pre-fetch status if statusId is provided
+    let globalTargetStatus: any = null;
+    if (statusId) {
+      globalTargetStatus = await this.prisma.taskStatus.findUnique({
+        where: { id: statusId },
+      });
+      if (!globalTargetStatus) {
+        throw new NotFoundException('Target status not found');
+      }
+    }
+
+    for (const task of tasks) {
+      try {
+        // Permission check
+        const { canChange } = await this.accessControl.getTaskAccess(task.id, userId);
+        if (!canChange) {
+          failedTasks.push({
+            id: task.id,
+            reason: 'Insufficient permissions to update this task',
+          });
+          continue;
+        }
+
+        let finalStatusId = statusId;
+        let statusToApply = globalTargetStatus;
+
+        if (!finalStatusId) {
+          // Find first status with category DONE in task's project workflow
+          const doneStatus = task.project.workflow?.statuses.find((s) => s.category === 'DONE');
+          if (!doneStatus) {
+            failedTasks.push({
+              id: task.id,
+              reason: 'No "Done" status found for this project',
+            });
+            continue;
+          }
+          finalStatusId = doneStatus.id;
+          statusToApply = doneStatus;
+        } else {
+          // Verify if the provided statusId is valid for this task's project
+          const projectStatus = task.project.workflow?.statuses.find((s) => s.id === statusId);
+          if (!projectStatus) {
+            failedTasks.push({
+              id: task.id,
+              reason: 'Provided status is not available for this project',
+            });
+            continue;
+          }
+          statusToApply = projectStatus;
+        }
+
+        const updateData: any = {
+          statusId: finalStatusId,
+          updatedBy: userId,
+        };
+
+        // If it's a DONE category status, set completedAt
+        if (statusToApply.category === 'DONE') {
+          updateData.completedAt = new Date();
+        } else {
+          updateData.completedAt = null;
+        }
+
+        const updatedTask = await this.prisma.task.update({
+          where: { id: task.id },
+          data: updateData,
+          include: {
+            status: {
+              select: { id: true, name: true, color: true, category: true },
+            },
+            project: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                workspace: {
+                  select: { id: true, name: true, slug: true, organizationId: true },
+                },
+              },
+            },
+            assignees: {
+              select: {
+                user: {
+                  select: {
+                    id: true,
+                    email: true,
+                    firstName: true,
+                    lastName: true,
+                    avatar: true,
+                  },
+                },
+              },
+            },
+            reporters: {
+              select: {
+                user: {
+                  select: {
+                    id: true,
+                    email: true,
+                    firstName: true,
+                    lastName: true,
+                    avatar: true,
+                  },
+                },
+              },
+            },
+            sprint: { select: { id: true, name: true, slug: true, status: true } },
+            _count: {
+              select: { childTasks: true, comments: true, attachments: true },
+            },
+          },
+        });
+
+        updatedTasks.push(updatedTask as unknown as Task);
+      } catch (err: any) {
+        failedTasks.push({
+          id: task.id,
+          reason: err.message || 'Unknown error occurred during update',
+        });
+      }
+    }
+
+    return {
+      updatedCount: updatedTasks.length,
+      updatedTasks: this.flattenTasksList(updatedTasks),
+      failedTasks,
+    };
   }
 }

@@ -107,8 +107,16 @@ export class TaskStatusesService {
     }
   }
 
-  findAll(workflowId?: string): Promise<TaskStatus[]> {
-    const whereClause = workflowId ? { workflowId, deletedAt: null } : { deletedAt: null };
+  findAll(workflowId?: string, organizationId?: string): Promise<TaskStatus[]> {
+    const whereClause: any = { deletedAt: null };
+
+    if (workflowId) {
+      whereClause.workflowId = workflowId;
+    } else if (organizationId) {
+      whereClause.workflow = {
+        organizationId: organizationId,
+      };
+    }
 
     return this.prisma.taskStatus.findMany({
       where: whereClause,
@@ -133,9 +141,14 @@ export class TaskStatusesService {
           },
         },
       },
-      orderBy: {
-        position: 'asc',
-      },
+      orderBy: [
+        {
+          workflowId: 'asc',
+        },
+        {
+          position: 'asc',
+        },
+      ],
     });
   }
 

@@ -62,7 +62,7 @@ export class TaskStatusesController {
     name: 'organizationId',
     required: false,
     type: String,
-    description: 'Filter by organization ID (returns default workflow statuses)',
+    description: 'Filter by organization ID',
   })
   @Get()
   @ApiOperation({ summary: 'Get all task statuses' })
@@ -71,20 +71,7 @@ export class TaskStatusesController {
     @Query('workflowId') workflowId?: string,
     @Query('organizationId') organizationId?: string,
   ) {
-    if (workflowId) {
-      return this.taskStatusesService.findAll(workflowId);
-    }
-    if (organizationId) {
-      const defaultWorkflow =
-        await this.taskStatusesService.findDefaultWorkflowByOrganizationId(organizationId);
-      if (defaultWorkflow) {
-        return this.taskStatusesService.findAll(defaultWorkflow.id);
-      } else {
-        return [];
-      }
-    }
-
-    return this.taskStatusesService.findAll();
+    return this.taskStatusesService.findAll(workflowId, organizationId);
   }
   @Get('project')
   @ApiOperation({ summary: 'Get task statuses by project slug' })

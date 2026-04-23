@@ -35,6 +35,7 @@ import { Roles } from 'src/common/decorator/roles.decorator';
 import { Scope } from 'src/common/decorator/scope.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { BulkDeleteTasksDto } from './dto/bulk-delete-tasks.dto';
+import { BulkUpdateTasksStatusDto } from './dto/bulk-update-task-status.dto';
 import { BulkCreateTasksDto } from './dto/bulk-create-tasks.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { RecurrenceConfigDto } from './dto/recurrence-config.dto';
@@ -130,6 +131,38 @@ export class TasksController {
       projectId: bulkDeleteTasksDto.projectId,
       all: bulkDeleteTasksDto.all,
       excludedIds: bulkDeleteTasksDto.excludedIds,
+      userId: user.id,
+    });
+  }
+
+  @Post('bulk-status-update')
+  @ApiOperation({
+    summary: 'Bulk update task status',
+    description: 'Update status of multiple tasks at once.',
+  })
+  @ApiBody({ type: BulkUpdateTasksStatusDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Tasks updated successfully',
+    schema: {
+      example: {
+        updatedCount: 5,
+        failedTasks: [
+          {
+            id: '550e8400-e29b-41d4-a716-446655440002',
+            reason: 'Insufficient permissions to update this task',
+          },
+        ],
+      },
+    },
+  })
+  @HttpCode(200)
+  async bulkUpdateTasksStatus(
+    @Body() bulkUpdateDto: BulkUpdateTasksStatusDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.tasksService.bulkUpdateTasksStatus({
+      ...bulkUpdateDto,
       userId: user.id,
     });
   }
@@ -544,7 +577,7 @@ export class TasksController {
   }
 
   @Get('all-tasks')
-  @ApiOperation({ summary: 'Get all tasks with filters (no pagination)' })
+  @ApiOperation({ summary: 'Get all tasks with filters' })
   @ApiQuery({
     name: 'organizationId',
     required: true,
@@ -603,6 +636,16 @@ export class TasksController {
     required: false,
     description: 'Sort order (asc or desc)',
   })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Items per page',
+  })
   @Scope('ORGANIZATION', 'organizationId')
   @Roles(Role.VIEWER, Role.MEMBER, Role.MANAGER, Role.OWNER)
   getTasks(
@@ -618,6 +661,8 @@ export class TasksController {
     @Query('search') search?: string,
     @Query('sortBy') sortBy?: string,
     @Query('sortOrder') sortOrder?: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
   ) {
     return this.tasksService.getTasks(
       organizationId,
@@ -632,6 +677,8 @@ export class TasksController {
       search,
       sortBy,
       sortOrder,
+      Number(page),
+      Number(limit),
     );
   }
 
