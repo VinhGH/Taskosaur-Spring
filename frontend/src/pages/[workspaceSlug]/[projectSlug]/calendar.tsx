@@ -83,11 +83,11 @@ function ProjectTasksCalendarPageContent() {
   const handleTaskCreated = async () => {
     try {
       if (projectData?.id) {
-        const tasks = await taskContext.getCalendarTask(organizationId, {
+        const response = await taskContext.getCalendarTask(organizationId || "", {
           projectId: projectData.id,
           includeSubtasks: true,
         });
-        setProjectTasks(Array.isArray(tasks) ? tasks : []);
+        setProjectTasks(response?.data || []);
       }
     } catch (error) {
       console.error("Error refreshing tasks:", error);
@@ -131,11 +131,11 @@ function ProjectTasksCalendarPageContent() {
       setProjectData(project);
       cacheSlugId("project", projectSlug, project.id);
 
-      const tasks = await taskContext.getCalendarTask(organizationId, {
+      const response = await taskContext.getCalendarTask(organizationId || "", {
         projectId: project.id,
         includeSubtasks: true,
       });
-      setProjectTasks(tasks || []);
+      setProjectTasks(response?.data || []);
 
       setDataLoaded(true);
     } catch (err) {

@@ -1,19 +1,24 @@
 import { TimelineHeaderProps, ViewMode } from "@/types";
 import { formatDateForDisplay } from "@/utils/date";
 import { getViewModeWidth, isWeekend } from "@/utils/gantt";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
+
+interface ExtendedTimelineHeaderProps extends TimelineHeaderProps {
+  visibleRange?: { startIndex: number; endIndex: number };
+}
 
 // Timeline Header Component
-export const TimelineHeader: React.FC<TimelineHeaderProps> = ({
+export const TimelineHeader: React.FC<ExtendedTimelineHeaderProps> = ({
   timeRange,
   viewMode,
   isCompact,
+  visibleRange,
 }) => {
   const formatDateForView = useCallback((date: Date, mode: ViewMode): string => {
     try {
       switch (mode) {
         case "days":
-          return formatDateForDisplay(date, { month: "short", day: "numeric" });
+          return formatDateForDisplay(date, "MMM D");
         case "weeks": {
           const weekEnd = new Date(date);
           weekEnd.setDate(weekEnd.getDate() + 6);
@@ -30,6 +35,28 @@ export const TimelineHeader: React.FC<TimelineHeaderProps> = ({
     }
   }, []);
 
+  const cellWidth = getViewModeWidth(viewMode);
+  
+  const { visibleDays, spacerLeft, spacerRight } = useMemo(() => {
+    if (!visibleRange) {
+      return {
+        visibleDays: timeRange.days.map((day, index) => ({ day, index })),
+        spacerLeft: 0,
+        spacerRight: 0,
+      };
+    }
+
+    const { startIndex, endIndex } = visibleRange;
+    const visibleDays = timeRange.days
+      .slice(startIndex, endIndex + 1)
+      .map((day, i) => ({ day, index: startIndex + i }));
+    
+    const spacerLeft = startIndex * cellWidth;
+    const spacerRight = (timeRange.days.length - 1 - endIndex) * cellWidth;
+
+    return { visibleDays, spacerLeft, spacerRight };
+  }, [timeRange.days, visibleRange, cellWidth]);
+
   return (
     <div className="flex min-h-[64.98px] sticky top-0 z-20 bg-[var(--card)] border-b border-[var(--border)] shadow-sm">
       <div
@@ -41,9 +68,9 @@ export const TimelineHeader: React.FC<TimelineHeaderProps> = ({
         <span className="text-sm font-semibold text-[var(--foreground)]">Tasks</span>
       </div>
       <div className="flex flex-1" role="row">
-        {timeRange.days.map((day, index) => {
+        {spacerLeft > 0 && <div style={{ width: `${spacerLeft}px` }} className="shrink-0" />}
+        {visibleDays.map(({ day, index }) => {
           const isToday = new Date().toDateString() === day.toDateString();
-          const cellWidth = getViewModeWidth(viewMode);
           return (
             <div
               key={index}
@@ -57,11 +84,15 @@ export const TimelineHeader: React.FC<TimelineHeaderProps> = ({
               style={{ width: `${cellWidth}px` }}
               role="columnheader"
             >
-              <div className="break-words px-2">
-                {viewMode === "days"
-                  ? formatDateForView(day, viewMode).split(" ")[1] ||
-                    formatDateForView(day, viewMode)
-                  : formatDateForView(day, viewMode)}
+              <div className="break-words px-1">
+                <div className="font-medium">
+                  {formatDateForView(day, viewMode)}
+                </div>
+                {viewMode === "days" && (
+                  <div className="text-[10px] opacity-60">
+                    {formatDateForDisplay(day, "ddd")}
+                  </div>
+                )}
               </div>
               {isToday && viewMode === "days" && (
                 <div className="w-2 h-2 bg-blue-600 dark:bg-blue-400 rounded-full mx-auto mt-1"></div>
@@ -69,6 +100,7 @@ export const TimelineHeader: React.FC<TimelineHeaderProps> = ({
             </div>
           );
         })}
+        {spacerRight > 0 && <div style={{ width: `${spacerRight}px` }} className="shrink-0" />}
       </div>
     </div>
   );

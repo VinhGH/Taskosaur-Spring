@@ -36,6 +36,8 @@ interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retryCount?: number;
   _skipErrorHandling?: boolean;
   _handle404Redirect?: boolean; // NEW: Enable 404 redirect for specific requests
+  _useCache?: boolean; // NEW: Enable request deduplication and caching (default: true for GET)
+  _cacheTTL?: number; // NEW: Override default cache TTL (ms)
 }
 
 // Custom error classes
@@ -352,6 +354,96 @@ const api = axios.create({
 });
 
 // Request interceptor with proactive token refresh
+// --- Request Deduplication and Caching Logic ---
+const DEFAULT_CACHE_TTL = 2000; // 2 seconds
+const pendingRequests = new Map<string, Promise<AxiosResponse>>();
+const requestCache = new Map<string, { data: AxiosResponse; expiry: number }>();
+
+// Generate unique key for request caching/deduplication
+const generateCacheKey = (url: string, config?: AxiosRequestConfig) => {
+  const params = config?.params;
+  let paramsStr = "";
+
+  if (params && typeof params === "object") {
+    // Sort keys and filter out undefined/null to ensure consistent cache keys
+    const sortedParams = Object.keys(params)
+      .sort()
+      .filter((key) => params[key] !== undefined && params[key] !== null)
+      .reduce((acc: any, key) => {
+        acc[key] = params[key];
+        return acc;
+      }, {});
+    paramsStr = JSON.stringify(sortedParams);
+  }
+
+  // Normalize URL: Remove leading/trailing slashes and handle potential double slashes
+  const normalizedUrl = url.replace(/^\/+|\/+$/g, "").replace(/\/+/g, "/");
+
+  return `GET:${normalizedUrl}:${paramsStr}`;
+};
+
+// Original api.request reference
+const originalApiRequest = api.request.bind(api) as <T = any, R = AxiosResponse<T>, D = any>(
+  config: AxiosRequestConfig<D>
+) => Promise<R>;
+
+/**
+ * Enhanced api.request with deduplication and caching.
+ * Deduplication: Collapses identical concurrent requests into one.
+ * Caching: Briefly caches GET results to handle rapid duplicate mounts.
+ */
+api.request = (async function <T = any, R = AxiosResponse<T>, D = any>(
+  config: AxiosRequestConfig<D>
+): Promise<R> {
+  const method = (config.method || "GET").toUpperCase();
+  const useCache = (config as any)?._useCache !== false && method === "GET";
+  const cacheTTL = (config as any)?._cacheTTL || DEFAULT_CACHE_TTL;
+
+  if (!useCache) {
+    return originalApiRequest<T, R, D>(config);
+  }
+
+  const cacheKey = generateCacheKey(config.url || "", config);
+  const now = Date.now();
+
+  // 1. Check if we have a valid cached response
+  const cachedEntry = requestCache.get(cacheKey);
+  if (cachedEntry && cachedEntry.expiry > now) {
+    return Promise.resolve(cachedEntry.data as unknown as R);
+  }
+
+  // 2. Check if there's already an identical request in flight
+  const existingRequest = pendingRequests.get(cacheKey);
+  if (existingRequest) {
+    return existingRequest as unknown as Promise<R>;
+  }
+
+  // 3. Fire new request and store its promise for deduplication
+  const requestPromise = originalApiRequest<T, R, D>(config)
+    .then((response) => {
+      // Successful response: cache it
+      requestCache.set(cacheKey, {
+        data: response as unknown as AxiosResponse,
+        expiry: Date.now() + cacheTTL,
+      });
+      return response;
+    })
+    .catch((error) => {
+      // Errors are NOT cached to allow retry
+      throw error;
+    })
+    .finally(() => {
+      // Remove from pending once complete
+      pendingRequests.delete(cacheKey);
+    });
+
+  pendingRequests.set(cacheKey, requestPromise as unknown as Promise<AxiosResponse>);
+
+  return requestPromise as unknown as Promise<R>;
+} as any);
+// -----------------------------------------------
+
+// Request interceptor
 api.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     try {

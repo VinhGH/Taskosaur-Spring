@@ -5,11 +5,10 @@ import {
   calculateTaskPosition,
   getPriorityColors,
   getViewModeWidth,
-  isWeekend,
   parseDate,
 } from "@/utils/gantt";
 import { useRouter } from "next/router";
-import { type KeyboardEvent, useState, useEffect, useRef } from "react";
+import { type KeyboardEvent, useState, useEffect, useRef, memo, useMemo } from "react";
 import { StatusBadge } from "../ui";
 import { HiCheckCircle, HiClock } from "react-icons/hi";
 import { HiExclamationTriangle } from "react-icons/hi2";
@@ -31,7 +30,7 @@ interface TaskBarProps {
 }
 
 // Task Bar Component
-export const TaskBar: React.FC<TaskBarProps> = ({
+export const TaskBar: React.FC<TaskBarProps> = memo(({
   task,
   timeRange,
   viewMode,
@@ -47,31 +46,24 @@ export const TaskBar: React.FC<TaskBarProps> = ({
 }) => {
   const router = useRouter();
   
-  // State for resizing
+  // State for resizing/moving
   const [isResizing, setIsResizing] = useState(false);
-  const [resizeDirection, setResizeDirection] = useState<'left' | 'right' | null>(null);
+  const [resizeDirection, setResizeDirection] = useState<'left' | 'right' | 'move' | null>(null);
   const [dragStartX, setDragStartX] = useState(0);
-  const [initialStart, setInitialStart] = useState<Date | null>(null);
-  const [initialEnd, setInitialEnd] = useState<Date | null>(null);
-  const [tempStart, setTempStart] = useState<Date | null>(null);
-  const [tempEnd, setTempEnd] = useState<Date | null>(null);
+  const [deltaDays, setDeltaDays] = useState(0);
   const justResized = useRef(false);
 
-  const taskStart = parseDate(task.startDate);
-  const taskEnd = parseDate(task.dueDate);
+  const taskStart = useMemo(() => parseDate(task.startDate), [task.startDate]);
+  const taskEnd = useMemo(() => parseDate(task.dueDate), [task.dueDate]);
 
-  // Resize Handlers
-  const handleResizeStart = (e: React.MouseEvent, direction: 'left' | 'right') => {
-    e.stopPropagation(); // Prevent navigation click
-    e.preventDefault();
+  // Interaction Handlers
+  const handleInteractionStart = (e: React.MouseEvent, direction: 'left' | 'right' | 'move') => {
+    e.stopPropagation(); // Prevent navigation click and parent dragging
     setIsResizing(true);
     justResized.current = false;
     setResizeDirection(direction);
     setDragStartX(e.clientX);
-    setInitialStart(taskStart);
-    setInitialEnd(taskEnd);
-    setTempStart(taskStart);
-    setTempEnd(taskEnd);
+    setDeltaDays(0);
     onFocus(task.id);
   };
 
@@ -90,58 +82,49 @@ export const TaskBar: React.FC<TaskBarProps> = ({
       const deltaUnits = deltaX / cellWidth;
       const deltaDaysCalc = Math.round(deltaUnits * daysPerCell);
       
-      if (resizeDirection === 'left') {
-        if (initialStart && initialEnd) {
-          const newStart = new Date(initialStart);
-          newStart.setDate(newStart.getDate() + deltaDaysCalc);
-          // Limit: start cannot be after end (minus 1 day for minimum duration)
-          const maxStart = new Date(initialEnd);
-          maxStart.setDate(maxStart.getDate() - 1);
-          
-          if (newStart < maxStart) {
-            setTempStart(newStart);
-          } else {
-            setTempStart(maxStart);
-          }
-        }
-      } else {
-        if (initialEnd && initialStart) {
-          const newEnd = new Date(initialEnd);
-          newEnd.setDate(newEnd.getDate() + deltaDaysCalc);
-          // Limit: end cannot be before start (plus 1 day)
-          const minEnd = new Date(initialStart);
-          minEnd.setDate(minEnd.getDate() + 1);
-          
-          if (newEnd > minEnd) {
-            setTempEnd(newEnd);
-          } else {
-            setTempEnd(minEnd);
-          }
-        }
-      }
+      setDeltaDays(deltaDaysCalc);
     };
 
-    const handleMouseUp = async () => {
+    const handleMouseUp = async (e: MouseEvent) => {
       setIsResizing(false);
       setResizeDirection(null);
+      setDeltaDays(0);
       
-      // Only update if dates actually changed
-      const currentStart = tempStart || taskStart;
-      const currentEnd = tempEnd || taskEnd;
+      const deltaX = e.clientX - dragStartX;
+      const cellWidth = getViewModeWidth(viewMode);
+      let daysPerCell = 1;
+      if (viewMode === 'weeks') daysPerCell = 7;
+      if (viewMode === 'months') daysPerCell = 30;
+      const finalDeltaDays = Math.round((deltaX / cellWidth) * daysPerCell);
+      
+      let finalStart = new Date(taskStart);
+      let finalEnd = new Date(taskEnd);
+
+      if (resizeDirection === 'left') {
+        finalStart.setDate(finalStart.getDate() + finalDeltaDays);
+        if (finalStart > taskEnd) {
+          finalStart = new Date(taskEnd);
+        }
+      } else if (resizeDirection === 'right') {
+        finalEnd.setDate(finalEnd.getDate() + finalDeltaDays);
+        if (finalEnd < taskStart) {
+          finalEnd = new Date(taskStart);
+        }
+      } else if (resizeDirection === 'move') {
+        finalStart.setDate(finalStart.getDate() + finalDeltaDays);
+        finalEnd.setDate(finalEnd.getDate() + finalDeltaDays);
+      }
       
       const hasChanged = 
-        currentStart.getTime() !== taskStart.getTime() || 
-        currentEnd.getTime() !== taskEnd.getTime();
+        finalStart.getTime() !== taskStart.getTime() || 
+        finalEnd.getTime() !== taskEnd.getTime();
 
       if (onTaskUpdate && hasChanged) {
         await onTaskUpdate(task.id, {
-          startDate: currentStart.toISOString(),
-          dueDate: currentEnd.toISOString()
+          startDate: finalStart.toISOString(),
+          dueDate: finalEnd.toISOString()
         });
       }
-      // Reset temp states after update
-      setTempStart(null);
-      setTempEnd(null);
       setTimeout(() => {
         justResized.current = false;
       }, 100);
@@ -153,11 +136,28 @@ export const TaskBar: React.FC<TaskBarProps> = ({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing, dragStartX, initialStart, initialEnd, viewMode, onTaskUpdate, task.id, resizeDirection, taskStart, taskEnd, tempStart, tempEnd]);
+  }, [isResizing, dragStartX, taskStart, taskEnd, viewMode, onTaskUpdate, task.id, resizeDirection]);
 
-  // Use temp dates if resizing
-  const currentStart = isResizing && tempStart ? tempStart : taskStart;
-  const currentEnd = isResizing && tempEnd ? tempEnd : taskEnd;
+  // Derive current dates based on resize state
+  let currentStart = new Date(taskStart);
+  let currentEnd = new Date(taskEnd);
+
+  if (isResizing) {
+    if (resizeDirection === 'left') {
+      currentStart.setDate(currentStart.getDate() + deltaDays);
+      if (currentStart > taskEnd) {
+        currentStart = new Date(taskEnd);
+      }
+    } else if (resizeDirection === 'right') {
+      currentEnd.setDate(currentEnd.getDate() + deltaDays);
+      if (currentEnd < taskStart) {
+        currentEnd = new Date(taskStart);
+      }
+    } else if (resizeDirection === 'move') {
+      currentStart.setDate(currentStart.getDate() + deltaDays);
+      currentEnd.setDate(currentEnd.getDate() + deltaDays);
+    }
+  }
 
   // Use the new calculation function
   const { barLeft, finalBarWidth, actualDuration } = calculateTaskPosition(
@@ -198,29 +198,7 @@ export const TaskBar: React.FC<TaskBarProps> = ({
       }}
       role="cell"
     >
-      {/* Background Grid */}
-      <div className="absolute inset-0 flex">
-        {timeRange.days.map((day, index) => {
-          const isToday = new Date().toDateString() === day.toDateString();
-          return (
-            <div
-              key={index}
-              className={`border-r border-[var(--border)] shrink-0 ${
-                isWeekend(day) && viewMode === "days"
-                  ? "bg-[var(--muted)]"
-                  : isToday
-                    ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600"
-                    : "hover:bg-[var(--accent)]"
-              }`}
-              style={{ width: `${cellWidth}px` }}
-            >
-              {isToday && (
-                <div className="w-full h-full bg-blue-100 dark:bg-blue-900/30 border-l-2 border-blue-600 dark:border-blue-400"></div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      {/* Background Grid is now handled by GanttGrid layer at a higher level */}
 
       {/* Task Bar */}
       <div
@@ -246,12 +224,13 @@ export const TaskBar: React.FC<TaskBarProps> = ({
         onFocus={() => onFocus(task.id)}
         onBlur={() => onFocus(null)}
         onClick={handleNavigation}
+        onMouseDown={(e) => handleInteractionStart(e, 'move')}
       >
         {/* Resize Handle Left */}
         {!isDone && (
           <div 
             className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize opacity-0 group-hover:opacity-100 bg-black/10 hover:bg-black/20 z-20"
-            onMouseDown={(e) => handleResizeStart(e, 'left')}
+            onMouseDown={(e) => handleInteractionStart(e, 'left')}
             onClick={(e) => e.stopPropagation()}
           />
         )}
@@ -279,7 +258,7 @@ export const TaskBar: React.FC<TaskBarProps> = ({
         {!isDone && (
           <div 
             className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize opacity-0 group-hover:opacity-100 bg-black/10 hover:bg-black/20 z-20"
-            onMouseDown={(e) => handleResizeStart(e, 'right')}
+            onMouseDown={(e) => handleInteractionStart(e, 'right')}
             onClick={(e) => e.stopPropagation()}
           />
         )}
@@ -301,4 +280,6 @@ export const TaskBar: React.FC<TaskBarProps> = ({
       </div>
     </div>
   );
-};
+});
+
+TaskBar.displayName = "TaskBar";

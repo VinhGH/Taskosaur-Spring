@@ -298,6 +298,14 @@ interface TaskTableProps {
   workspaceMembers?: any[];
   showBulkActionBar?: boolean;
   totalTask?: number;
+  search?: string;
+  selectedStatuses?: string[];
+  selectedPriorities?: string[];
+  selectedTaskTypes?: string[];
+  selectedAssignees?: string[];
+  selectedReporters?: string[];
+  sprintId?: string;
+  workspaceId?: string;
 }
 
 // Extend dayjs with timezone support
@@ -330,10 +338,18 @@ const TaskTable: React.FC<TaskTableProps> = ({
   currentProject,
   showBulkActionBar = false,
   totalTask,
+  search,
+  selectedStatuses,
+  selectedPriorities,
+  selectedTaskTypes,
+  selectedAssignees,
+  selectedReporters,
+  sprintId,
+  workspaceId,
 }) => {
   const { t } = useTranslation("tasks");
   const router = useRouter();
-  const { createTask, getTaskById, currentTask, bulkDeleteTasks } = useTask();
+  const { createTask, getTaskById, currentTask, bulkDeleteTasks, bulkUpdateTasksStatus } = useTask();
   const { getTaskStatusByProject } = useProject();
   const { getProjectMembers } = useProject();
   const { isAuthenticated } = useAuth();
@@ -378,13 +394,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
   // Sync localTasks when tasks prop changes (but not during reordering)
   useEffect(() => {
     if (!isReordering) {
-      // Only sync if tasks actually changed (not initial render)
-      const prevIds = prevTasksRef.current.map(t => t.id).join(',');
-      const currentIds = tasks.map(t => t.id).join(',');
-      if (prevIds !== currentIds) {
-        setLocalTasks(tasks);
-      }
-      prevTasksRef.current = tasks;
+      setLocalTasks(tasks);
     }
   }, [tasks, isReordering]);
 
@@ -673,6 +683,75 @@ const TaskTable: React.FC<TaskTableProps> = ({
         error?.response?.data?.message ||
         error?.message ||
         "Failed to delete tasks. Please try again.";
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleBulkStatusUpdate = async () => {
+    const finalSelectedCount = allDelete ? (totalTask ?? 0) - excludedTaskIds.length : selectedTasks.length;
+    if (finalSelectedCount === 0) {
+      toast.warning("No tasks selected for status update");
+      return;
+    }
+
+    try {
+      const displayCount = finalSelectedCount;
+      const loadingToast = toast.loading(
+        `Updating status for ${displayCount} task${displayCount === 1 ? "" : "s"}...`
+      );
+
+      const result = await bulkUpdateTasksStatus({
+        taskIds: selectedTasks,
+        projectId: currentProject?.id,
+        all: allDelete,
+        excludedIds: excludedTaskIds,
+        search,
+        statuses: selectedStatuses?.join(","),
+        priorities: selectedPriorities?.join(","),
+        types: selectedTaskTypes?.join(","),
+        assignees: selectedAssignees?.join(","),
+        reporters: selectedReporters?.join(","),
+        sprintId,
+        workspaceId,
+      });
+
+      toast.dismiss(loadingToast);
+
+      if (result.updatedCount > 0) {
+        toast.success(
+          `Successfully marked ${result.updatedCount} task${result.updatedCount === 1 ? "" : "s"} as Done`
+        );
+      }
+
+      if (result.failedTasks && result.failedTasks.length > 0) {
+        const maxErrorsToShow = 3;
+        result.failedTasks.slice(0, maxErrorsToShow).forEach((failed) => {
+          toast.error(`Failed to update task status: ${failed.reason}`, {
+            duration: 5000,
+          });
+        });
+
+        if (result.failedTasks.length > maxErrorsToShow) {
+          toast.warning(
+            `...and ${result.failedTasks.length - maxErrorsToShow} more task${result.failedTasks.length - maxErrorsToShow === 1 ? "" : "s"
+            } could not be updated`,
+            { duration: 5000 }
+          );
+        }
+      }
+
+      if (onTaskRefetch) {
+        await onTaskRefetch();
+      }
+      
+      // Clear selection after successful bulk update
+      handleClearSelection();
+    } catch (error: any) {
+      console.error("Failed to update tasks status:", error);
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to update tasks status. Please try again.";
       toast.error(errorMessage);
     }
   };
@@ -1177,7 +1256,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
           >
-            {!isOrgOrWorkspaceLevel && (onTaskSelect || onTasksSelect) && showBulkActionBar && (
+            {(onTaskSelect || onTasksSelect) && showBulkActionBar && (
               <Checkbox
                 className="border-[var(--ring)] cursor-pointer"
                 checked={headerChecked}
@@ -1486,7 +1565,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
                   <span className="text-muted-foreground">⋮⋮</span>
                 </div>
               )}
-              {!isOrgOrWorkspaceLevel && (onTaskSelect || onTasksSelect) && showBulkActionBar && (
+              {(onTaskSelect || onTasksSelect) && showBulkActionBar && (
                 <div className="flex-shrink-0 mt-0.5">
                   <Checkbox
                     className="cursor-pointer border-[var(--ring)]"
@@ -1761,7 +1840,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
       </div>
 
       {/* BulkActionBar - appears as a toast/modal at bottom-center */}
-      {!isOrgOrWorkspaceLevel && (onTaskSelect || onTasksSelect) && showBulkActionBar && (
+      {(onTaskSelect || onTasksSelect) && showBulkActionBar && (
         <BulkActionBar
           selectedCount={selectedTasks.length}
           onDelete={handleBulkDelete}
@@ -1771,6 +1850,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
           currentTaskCount={Array.isArray(tasks) ? tasks.length : 0}
           allDelete={allDelete}
           excludedCount={excludedTaskIds.length}
+          onStatusUpdate={handleBulkStatusUpdate}
         />
       )}
 

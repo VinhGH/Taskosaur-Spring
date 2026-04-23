@@ -117,6 +117,7 @@ function WorkspaceTasksContent() {
   const [selectedPriorities, setSelectedPriorities] = useState<string[]>([]);
   const [selectedTaskTypes, setSelectedTaskTypes] = useState<string[]>([]);
   const [availableStatuses, setAvailableStatuses] = useState<any[]>([]);
+  const [statusesLoaded, setStatusesLoaded] = useState(false);
   const [availablePriorities] = useState(TaskPriorities);
   const [projectsLoaded, setProjectsLoaded] = useState(false);
   const [workspaceMembers, setWorkspaceMembers] = useState<any[]>([]);
@@ -341,14 +342,13 @@ function WorkspaceTasksContent() {
     try {
       setLocalError(null);
 
-      // When no status filter is selected on list view, exclude the last workflow status (completed/done)
+      // When no status filter is selected on list view, exclude DONE statuses
       let statusFilter: { statuses?: string } = {};
       if (selectedStatuses.length > 0) {
         statusFilter = { statuses: selectedStatuses.join(",") };
       } else if (currentView === "list" && availableStatuses.length > 0) {
-        const maxPosition = Math.max(...availableStatuses.map((s) => s.position ?? 0));
         const activeStatusIds = availableStatuses
-          .filter((s) => s.position !== maxPosition)
+          .filter((s) => s.category !== "DONE")
           .flatMap((s) => s.allIds || [s.id]);
         if (activeStatusIds.length > 0) {
           statusFilter = { statuses: activeStatusIds.join(",") };
@@ -415,31 +415,51 @@ function WorkspaceTasksContent() {
   const loadGanttData = useCallback(async () => {
     if (!workspace?.id) return;
     try {
-      const data = await getCalendarTask(workspace.organizationId, {
+      const res = await getCalendarTask(workspace.organizationId, {
         workspaceId: workspace.id,
         includeSubtasks: true,
         sortBy: "displayOrder",
         sortOrder: "asc",
+        page: currentPage,
+        limit: pageSize,
       });
-      setGanttTasks(data || []);
+      if (res) {
+        setGanttTasks(res.data || []);
+      }
       setIsInitialLoad(false);
     } catch (error) {
       console.error("Failed to load Gantt data:", error);
       setGanttTasks([]);
       setIsInitialLoad(false);
     }
-  }, [workspace?.id, getCalendarTask]);
+  }, [workspace?.id, workspace?.organizationId, getCalendarTask, currentPage, pageSize]);
 
   const handleTaskUpdate = useCallback(
     async (taskId: string, updates: any) => {
+      // Optimistic update for Gantt tasks
+      if (currentView === "gantt") {
+        setGanttTasks((prev) =>
+          prev.map((task) => (task.id === taskId ? { ...task, ...updates } : task))
+        );
+      }
+
       try {
         await updateTask(taskId, updates);
-        loadGanttData();
+        // If not Gantt view, or if we want a definitive sync, we could call loadGanttData
+        // but for smooth experience, the optimistic update plus occasional sync is better.
+        if (currentView === "gantt") {
+          // background silent refresh
+          loadGanttData();
+        }
       } catch (error) {
         console.error("Failed to update task:", error);
+        // Rollback by triggering a full reload if optimistic update fails
+        if (currentView === "gantt") {
+          loadGanttData();
+        }
       }
     },
-    [updateTask, loadGanttData]
+    [updateTask, loadGanttData, currentView]
   );
 
   useEffect(() => {
@@ -459,10 +479,10 @@ function WorkspaceTasksContent() {
 
   useEffect(() => {
     // For list view, wait for statuses to load so we can exclude the last workflow status
-    if (workspace?.organizationId && workspace?.id && (currentView !== "list" || availableStatuses.length > 0)) {
+    if (workspace?.organizationId && workspace?.id && (currentView !== "list" || statusesLoaded)) {
       loadTasks();
     }
-  }, [workspace?.organizationId, workspace?.id, selectedAssignees, selectedReporters, availableStatuses, currentView]);
+  }, [workspace?.organizationId, workspace?.id, selectedAssignees, selectedReporters, statusesLoaded, currentView]);
 
   const previousFiltersRef = useRef({
     page: currentPage,
@@ -627,7 +647,17 @@ function WorkspaceTasksContent() {
     const allIds = status?.allIds || [id];
 
     setSelectedStatuses((prev) => {
-      const newSelection = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      const isCurrentlySelected = allIds.some(aid => prev.includes(aid));
+      let newSelection;
+
+      if (isCurrentlySelected) {
+        // Remove all IDs in this group
+        newSelection = prev.filter(aid => !allIds.includes(aid));
+      } else {
+        // Add all IDs in this group
+        newSelection = [...prev, ...allIds];
+      }
+
       const newQuery = { ...router.query };
       if (newSelection.length > 0) {
         newQuery.statuses = newSelection.join(",");
@@ -638,7 +668,7 @@ function WorkspaceTasksContent() {
       return newSelection;
     });
     setCurrentPage(1);
-  }, [router]);
+  }, [router, availableStatuses]);
 
   const togglePriority = useCallback((id: string) => {
     setSelectedPriorities((prev) => {
@@ -687,26 +717,41 @@ function WorkspaceTasksContent() {
   // Fetch statuses for selected project or all statuses for organization
   useEffect(() => {
     const fetchStatuses = async () => {
-      if (selectedProjects.length === 1) {
-        try {
-          const statuses = await getTaskStatusByProject(selectedProjects[0]);
-          setAvailableStatuses(statuses || []);
-        } catch (error) {
-          console.error("Failed to fetch statuses for selected project:", error);
+      let statuses: any[] = [];
+      try {
+        if (selectedProjects.length === 1) {
+          statuses = await getTaskStatusByProject(selectedProjects[0]);
+        } else if (workspace?.organizationId) {
+          statuses = await getAllTaskStatuses({ organizationId: workspace.organizationId });
+        }
+
+        if (statuses && statuses.length > 0) {
+          // Group statuses by name and category to handle multiple workflows in workspace view
+          const groups: Record<string, any> = {};
+          statuses.forEach((status) => {
+            const key = `${status.name}-${status.category}`;
+            if (!groups[key]) {
+              groups[key] = {
+                ...status,
+                allIds: [status.id],
+              };
+            } else {
+              groups[key].allIds.push(status.id);
+            }
+          });
+          setAvailableStatuses(Object.values(groups));
+        } else {
           setAvailableStatuses([]);
         }
-      } else if (workspace?.organizationId) {
-        try {
-          const statuses = await getAllTaskStatuses({ organizationId: workspace.organizationId });
-          setAvailableStatuses(statuses || []);
-        } catch (error) {
-          console.error("Failed to fetch all task statuses:", error);
-          setAvailableStatuses([]);
-        }
+      } catch (error) {
+        console.error("Failed to fetch task statuses:", error);
+        setAvailableStatuses([]);
+      } finally {
+        setStatusesLoaded(true);
       }
     };
     fetchStatuses();
-  }, [selectedProjects, workspace?.organizationId]);
+  }, [selectedProjects, workspace?.organizationId, workspace?.id]);
 
   const filterSections = useMemo(
     () => [
@@ -1001,6 +1046,7 @@ function WorkspaceTasksContent() {
             showBulkActionBar={
               hasAccess || userAccess?.role === "OWNER" || userAccess?.role === "MANAGER"
             }
+            totalTask={pagination.totalCount}
           />
         );
     }

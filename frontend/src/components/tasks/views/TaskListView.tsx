@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import TaskTable from "@/components/ui/tables/TaskTable";
 import { ColumnConfig, Task } from "@/types";
 
@@ -20,6 +20,14 @@ interface TaskListViewProps {
   onTasksSelect?: (taskIds: string[], action: "add" | "remove" | "set") => void;
   showBulkActionBar?: boolean;
   totalTask?: number;
+  search?: string;
+  selectedStatuses?: string[];
+  selectedPriorities?: string[];
+  selectedTaskTypes?: string[];
+  selectedAssignees?: string[];
+  selectedReporters?: string[];
+  sprintId?: string;
+  workspaceId?: string;
 }
 
 export default function TaskListView({
@@ -31,7 +39,6 @@ export default function TaskListView({
   onTaskRefetch,
   columns,
   showAddTaskRow,
-
   addTaskStatuses,
   projectMembers,
   workspaceMembers,
@@ -40,21 +47,41 @@ export default function TaskListView({
   onTasksSelect: externalOnTasksSelect,
   showBulkActionBar,
   totalTask,
+  search,
+  selectedStatuses,
+  selectedPriorities,
+  selectedTaskTypes,
+  selectedAssignees,
+  selectedReporters,
+  sprintId,
+  workspaceId,
 }: TaskListViewProps) {
   const [internalSelectedTasks, setInternalSelectedTasks] = useState<string[]>([]);
+  
+  // Use external selected tasks if provided, otherwise use internal state
   const selectedTasks = externalSelectedTasks ?? internalSelectedTasks;
 
-  const handleTaskSelect =
-    externalOnTaskSelect ??
-    ((taskId: string) => {
+  // Sync internal state with external props if they change
+  useEffect(() => {
+    if (externalSelectedTasks !== undefined) {
+      setInternalSelectedTasks(externalSelectedTasks);
+    }
+  }, [externalSelectedTasks]);
+
+  const handleTaskSelect = useCallback((taskId: string) => {
+    if (externalOnTaskSelect) {
+      externalOnTaskSelect(taskId);
+    } else {
       setInternalSelectedTasks((prev) =>
         prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
       );
-    });
+    }
+  }, [externalOnTaskSelect]);
 
-  const handleTasksSelect =
-    externalOnTasksSelect ??
-    ((taskIds: string[], action: "add" | "remove" | "set") => {
+  const handleTasksSelect = useCallback((taskIds: string[], action: "add" | "remove" | "set") => {
+    if (externalOnTasksSelect) {
+      externalOnTasksSelect(taskIds, action);
+    } else {
       setInternalSelectedTasks((prev) => {
         if (action === "set") return taskIds;
         if (action === "add") {
@@ -66,7 +93,8 @@ export default function TaskListView({
         }
         return prev;
       });
-    });
+    }
+  }, [externalOnTasksSelect]);
 
   return (
     <div className="rounded-md">
@@ -91,6 +119,14 @@ export default function TaskListView({
         onTasksSelect={handleTasksSelect}
         showBulkActionBar={showBulkActionBar}
         totalTask={totalTask}
+        search={search}
+        selectedStatuses={selectedStatuses}
+        selectedPriorities={selectedPriorities}
+        selectedTaskTypes={selectedTaskTypes}
+        selectedAssignees={selectedAssignees}
+        selectedReporters={selectedReporters}
+        sprintId={sprintId}
+        workspaceId={workspaceId}
       />
     </div>
   );

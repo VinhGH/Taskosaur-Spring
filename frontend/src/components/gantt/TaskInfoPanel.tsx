@@ -1,6 +1,7 @@
 import { Task } from "@/types";
 import Link from "next/link";
 import { HiCalendarDays } from "react-icons/hi2";
+import { GripVertical } from "lucide-react";
 import { formatDateForDisplay } from "@/utils/date";
 
 interface TaskInfoPanelProps {
@@ -10,6 +11,8 @@ interface TaskInfoPanelProps {
   workspaceSlug: string;
   projectSlug?: string;
   onFocus: (taskId: string) => void;
+  dragAttributes?: any;
+  dragListeners?: any;
 }
 
 // Utility to validate slug strings: alphanumeric and dash only
@@ -25,6 +28,8 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
   workspaceSlug,
   projectSlug,
   onFocus,
+  dragAttributes,
+  dragListeners,
 }) => {
   const safeWorkspaceSlug = sanitizeSlug(workspaceSlug);
   const safeProjectSlug = sanitizeSlug(projectSlug);
@@ -33,10 +38,20 @@ export const TaskInfoPanel: React.FC<TaskInfoPanelProps> = ({
     <div
       className={`${
         isCompact ? "w-48" : "w-80"
-      } px-4 border-r border-[var(--border)] shrink-0 sticky left-0 z-[999999] py-2 bg-[var(--card)] `}
+      } px-4 border-r border-[var(--border)] shrink-0 sticky left-0 z-[999999] py-2 bg-[var(--card)] flex items-center gap-2`}
       role="cell"
     >
-      <div className="space-y-2">
+      {/* Drag Handle */}
+      <div
+        {...dragAttributes}
+        {...dragListeners}
+        className="cursor-grab active:cursor-grabbing text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors p-1 -ml-2 rounded-md hover:bg-[var(--accent)]"
+        title="Drag to reorder"
+      >
+        <GripVertical className="w-4 h-4 shrink-0" />
+      </div>
+
+      <div className="space-y-2 flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <Link
             href={

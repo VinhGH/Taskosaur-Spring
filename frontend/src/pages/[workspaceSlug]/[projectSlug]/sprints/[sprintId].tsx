@@ -460,13 +460,13 @@ const sprintId = resolvedSprintId;
       };
 
       if (isAuth && currentOrganizationId) {
-        const data = await getCalendarTask(currentOrganizationId, {
+        const data = (await getCalendarTask(currentOrganizationId, {
           ...params,
           includeSubtasks: true,
           sortBy: "displayOrder",
           sortOrder: "asc",
-        });
-        setGanttTasks(data || []);
+        })) as any;
+        setGanttTasks(data.data || []);
       } else {
         console.warn("Gantt view not available for public access");
       }
@@ -490,15 +490,28 @@ const sprintId = resolvedSprintId;
 
   const handleTaskUpdate = useCallback(
     async (taskId: string, updates: any) => {
+      // Optimistic update for Gantt tasks
+      if (currentView === "gantt") {
+        setGanttTasks((prev) =>
+          prev.map((task) => (task.id === taskId ? { ...task, ...updates } : task))
+        );
+      }
+
       try {
         await updateTask(taskId, updates);
         // Refresh Gantt data if needed
-        loadGanttData();
+        if (currentView === "gantt") {
+          loadGanttData();
+        }
       } catch (error) {
         console.error("Failed to update task:", error);
+        // Rollback by triggering a full reload if optimistic update fails
+        if (currentView === "gantt") {
+          loadGanttData();
+        }
       }
     },
-    [updateTask, loadGanttData]
+    [updateTask, loadGanttData, currentView]
   );
 
   useEffect(() => {

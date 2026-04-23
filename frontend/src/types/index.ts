@@ -15,3 +15,4 @@ export * from "./user-dto";
 export * from "./users";
 export * from "./workflow";
 export * from "./workspaces";
+export * from "./socket";

@@ -368,24 +368,35 @@ function TasksPageContent() {
   const [ganttLoading, setGanttLoading] = useState(false);
   const [ganttError, setGanttError] = useState<string | null>(null);
 
-  const loadGanttData = useCallback(async () => {
+  const loadGanttData = useCallback(async (isSilent = false) => {
     if (!currentOrganizationId) return;
     try {
       setGanttError(null);
-      setGanttLoading(true);
-      const data = await getCalendarTask(currentOrganizationId, {
+      if (!isSilent) setGanttLoading(true);
+      const res = await getCalendarTask(currentOrganizationId, {
         includeSubtasks: true,
         sortBy: "displayOrder",
         sortOrder: "asc",
+        page: currentPage,
+        limit: pageSize,
       });
-      setGanttTasks(data || []);
+      if (res) {
+        setGanttTasks(res.data || []);
+        setPagination({
+          currentPage: res.page,
+          totalPages: res.totalPages,
+          totalCount: res.total,
+          hasNextPage: res.page < res.totalPages,
+          hasPrevPage: res.page > 1,
+        });
+      }
     } catch (error) {
       setGanttError(error?.message ? error.message : "Failed to load Gantt data");
       setGanttTasks([]);
     } finally {
-      setGanttLoading(false);
+      if (!isSilent) setGanttLoading(false);
     }
-  }, [currentOrganizationId]);
+  }, [currentOrganizationId, currentPage, pageSize]);
 
   // Load data on mount and when organization changes
   useEffect(() => {
@@ -417,14 +428,25 @@ function TasksPageContent() {
 
   const handleTaskUpdate = useCallback(
     async (taskId: string, updates: any) => {
+      // Optimistic update for Gantt tasks
+      if (currentView === "gantt") {
+        setGanttTasks((prev) =>
+          prev.map((task) => (task.id === taskId ? { ...task, ...updates } : task))
+        );
+      }
+
       try {
         await updateTask(taskId, updates);
-        // Refresh Gantt data if needed
+        // Refresh Gantt data silently if needed
         if (currentView === "gantt") {
-          loadGanttData();
+          loadGanttData(true);
         }
       } catch (error) {
         console.error("Failed to update task:", error);
+        // Rollback by triggering a full reload if optimistic update fails
+        if (currentView === "gantt") {
+          loadGanttData();
+        }
       }
     },
     [updateTask, currentView, loadGanttData]
@@ -931,6 +953,7 @@ function TasksPageContent() {
             showBulkActionBar={
               hasAccess || userAccess?.role === "OWNER" || userAccess?.role === "MANAGER"
             }
+            totalTask={pagination.totalCount}
           />
         );
     }

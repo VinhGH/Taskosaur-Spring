@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback, type KeyboardEvent } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, type KeyboardEvent, memo } from "react";
 import { formatDateForDisplay } from "@/utils/date";
 import { useRouter } from "next/router";
 import { HiCalendarDays, HiClipboardDocumentList } from "react-icons/hi2";
@@ -7,6 +7,7 @@ import { TaskInfoPanel } from "@/components/gantt/TaskInfoPanel";
 import { getViewModeWidth, parseDate } from "@/utils/gantt";
 import { TaskBar } from "@/components/gantt/TaskBar";
 import { TimelineHeader } from "@/components/gantt/TimelineHeader";
+import { GanttGrid } from "@/components/gantt/GanttGrid";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui";
 import TaskTableSkeleton from "@/components/skeletons/TaskTableSkeleton";
 import {
@@ -18,7 +19,6 @@ import {
   useSensors,
   DragEndEvent,
   DragStartEvent,
-  DragOverlay,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -28,18 +28,18 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
 import { taskApi } from "@/utils/api/taskApi";
 
 const MINIMUM_ROWS = 9;
+const SCROLL_BUFFER = 5; // Reduced for precision while maintaining performance
 
 // Utility to validate slug strings: alphanumeric and dash only
 function sanitizeSlug(slug: string | undefined): string | undefined {
   return slug && /^[a-zA-Z0-9\-]+$/.test(slug) ? slug : undefined;
 }
 
-// Sortable task row wrapper
-function SortableTaskRow({
+// Optimized Sortable task row wrapper
+const SortableTaskRow = memo(({
   task,
   isCompact,
   isOverdue,
@@ -69,7 +69,7 @@ function SortableTaskRow({
   onKeyDown: (e: KeyboardEvent<HTMLDivElement>, task: Task) => void;
   onTaskUpdate?: (taskId: string, updates: Partial<Task>) => Promise<void>;
   taskRef: (el: HTMLDivElement | null) => void;
-}) {
+}) => {
   const {
     attributes,
     listeners,
@@ -102,21 +102,18 @@ function SortableTaskRow({
       onKeyDown={(e) => onKeyDown(e, task)}
       tabIndex={0}
       role="row"
-      {...attributes}
-      {...listeners}
     >
-
-      {/* Task Info Panel */}
       <TaskInfoPanel
         task={task}
         isCompact={isCompact}
         isOverdue={isOverdue}
-        workspaceSlug={safeWorkspaceSlug}
+        workspaceSlug={safeWorkspaceSlug || ""}
         projectSlug={safeProjectSlug}
         onFocus={onFocus}
+        dragAttributes={attributes}
+        dragListeners={listeners}
       />
 
-      {/* Task Bar */}
       <TaskBar
         task={task}
         timeRange={timeRange}
@@ -124,7 +121,7 @@ function SortableTaskRow({
         isCompact={isCompact}
         isHovered={isHovered}
         isFocused={isFocused}
-        workspaceSlug={safeWorkspaceSlug}
+        workspaceSlug={safeWorkspaceSlug || ""}
         projectSlug={safeProjectSlug}
         onHover={onHover}
         onFocus={onFocus}
@@ -133,7 +130,9 @@ function SortableTaskRow({
       />
     </div>
   );
-}
+});
+
+SortableTaskRow.displayName = "SortableTaskRow";
 
 export default function TaskGanttView({
   tasks,
@@ -156,392 +155,252 @@ export default function TaskGanttView({
   const [isCompact, setIsCompact] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeId, setActiveId] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const taskRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [internalViewMode, setInternalViewMode] = useState<ViewMode>("days");
   const viewMode = externalViewMode !== undefined ? externalViewMode : internalViewMode;
 
+  // Optimized virtualization state: only re-render when indices change
+  const [visibleRange, setVisibleRange] = useState({ startIndex: 0, endIndex: 20 });
+
+  const cellWidth = getViewModeWidth(viewMode);
+  const infoPanelWidth = isCompact ? 192 : 320; // Matches TimelineHeader logic (w-48 / w-80)
+
+  const handleScroll = useCallback(() => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, clientWidth } = scrollContainerRef.current;
+      // Adjust scrollLeft to be relative to the timeline area (start after info panel)
+      const relativeScrollLeft = Math.max(0, scrollLeft - infoPanelWidth);
+      
+      const startIndex = Math.max(0, Math.floor(relativeScrollLeft / cellWidth) - SCROLL_BUFFER);
+      const endIndex = Math.min(
+        timeRange.days.length - 1,
+        Math.ceil((relativeScrollLeft + clientWidth) / cellWidth) + SCROLL_BUFFER
+      );
+      
+      setVisibleRange(prev => {
+        if (prev.startIndex === startIndex && prev.endIndex === endIndex) return prev;
+        return { startIndex, endIndex };
+      });
+    }
+  }, [cellWidth, timeRange.days.length, infoPanelWidth]);
+
+  useEffect(() => {
+    handleScroll();
+    window.addEventListener("resize", handleScroll);
+    return () => window.removeEventListener("resize", handleScroll);
+  }, [handleScroll]);
+
   // DND sensors
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // Sanitize slugs for security
   const safeWorkspaceSlug = sanitizeSlug(workspaceSlug);
   const safeProjectSlug = sanitizeSlug(projectSlug);
   const safeTasks = tasks || [];
 
-  // Process tasks and generate time range
-  const processedTasksData = useMemo(() => {
-    try {
-      setError(null);
-      setIsLoading(true);
-
-      const processedTasks = safeTasks.map((task, index) => {
-        let startDate = task.startDate;
-        let dueDate = task.dueDate;
-
-        if (!startDate && !dueDate) {
-          if (task.createdAt) {
-            const createdDate = parseDate(task.createdAt);
-            startDate = createdDate.toISOString();
-            dueDate = new Date(createdDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-          } else {
-            const today = new Date();
-            startDate = new Date(today.getTime() + index * 24 * 60 * 60 * 1000).toISOString();
-            dueDate = new Date(today.getTime() + (index + 7) * 24 * 60 * 60 * 1000).toISOString();
-          }
-        } else if (!startDate && dueDate) {
-          const due = parseDate(dueDate);
-          startDate = new Date(due.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-        } else if (startDate && !dueDate) {
-          const start = parseDate(startDate);
-          dueDate = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-        }
-
-        return { ...task, startDate, dueDate };
-      });
-
-      let earliest = new Date();
-      let latest = new Date();
-
-      if (processedTasks.length > 0) {
-        const allDates = processedTasks.flatMap((task) => [
-          parseDate(task.startDate),
-          parseDate(task.dueDate),
-        ]);
-        earliest = new Date(Math.min(...allDates.map((d) => d.getTime())));
-        latest = new Date(Math.max(...allDates.map((d) => d.getTime())));
-        earliest.setDate(earliest.getDate() - 2);
-        latest.setDate(latest.getDate() + 2);
-      }
-
-      return { processedTasks, earliest, latest };
-    } catch (error) {
-      console.error("Error processing Gantt tasks:", error);
-      setError(error instanceof Error ? error.message : "Failed to process tasks");
-      return { processedTasks: [], earliest: new Date(), latest: new Date() };
-    } finally {
-      setIsLoading(false);
-    }
-  }, [safeTasks]);
-
-  // Generate time scale
   const generateTimeScale = useCallback((start: Date, end: Date, mode: ViewMode) => {
     const scale: Date[] = [];
     const current = new Date(start);
-
     try {
       switch (mode) {
         case "days":
-          while (current <= end && scale.length < 1000) {
+          while (current <= end && scale.length < 2000) {
             scale.push(new Date(current));
             current.setDate(current.getDate() + 1);
           }
           break;
         case "weeks":
           current.setDate(current.getDate() - current.getDay());
-          while (current <= end && scale.length < 200) {
+          while (current <= end && scale.length < 500) {
             scale.push(new Date(current));
             current.setDate(current.getDate() + 7);
           }
           break;
         case "months":
           current.setDate(1);
-          while (current <= end && scale.length < 60) {
+          while (current <= end && scale.length < 200) {
             scale.push(new Date(current));
             current.setMonth(current.getMonth() + 1);
           }
           break;
       }
-    } catch (error) {
-      console.error("Error generating time scale:", error);
+    } catch (e) {
       return [new Date()];
     }
-
     return scale;
   }, []);
 
-  // Update state when processed data changes
+  // Process tasks and generate time range
   useEffect(() => {
-    const { processedTasks, earliest, latest } = processedTasksData;
-    const days = generateTimeScale(earliest, latest, viewMode);
-    setGanttTasks(processedTasks);
-    setTimeRange({ start: earliest, end: latest, days });
-  }, [processedTasksData, viewMode, generateTimeScale]);
+    const processData = async () => {
+      try {
+        setIsLoading(true);
+        const processedTasks = safeTasks.map((task, index) => {
+          let startDate = task.startDate;
+          let dueDate = task.dueDate;
+
+          if (!startDate && !dueDate) {
+            const baseDate = task.createdAt ? parseDate(task.createdAt) : new Date();
+            startDate = new Date(baseDate.getTime() + index * 24 * 60 * 60 * 1000).toISOString();
+            dueDate = new Date(baseDate.getTime() + (index + 7) * 24 * 60 * 60 * 1000).toISOString();
+          } else if (!startDate && dueDate) {
+            const due = parseDate(dueDate);
+            startDate = new Date(due.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          } else if (startDate && !dueDate) {
+            const start = parseDate(startDate);
+            dueDate = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+          }
+
+          return { ...task, startDate, dueDate };
+        });
+
+        let earliest = new Date();
+        let latest = new Date();
+
+        if (processedTasks.length > 0) {
+          const allDates = processedTasks.flatMap((task) => [
+            parseDate(task.startDate),
+            parseDate(task.dueDate),
+          ]);
+          earliest = new Date(Math.min(...allDates.map((d) => d.getTime())));
+          latest = new Date(Math.max(...allDates.map((d) => d.getTime())));
+          earliest.setDate(earliest.getDate() - 5);
+          latest.setDate(latest.getDate() + 10);
+        }
+
+        const days = generateTimeScale(earliest, latest, viewMode);
+        setGanttTasks(processedTasks);
+        setTimeRange({ start: earliest, end: latest, days });
+        setError(null);
+      } catch (err) {
+        console.error("Error processing Gantt tasks:", err);
+        setError("Failed to process tasks");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    processData();
+  }, [safeTasks, viewMode, generateTimeScale]);
 
   const displayRows = useMemo(() => {
-    const rows: { type: string; data: Task | null }[] = [];
-
-    // Add actual tasks
-    for (const task of ganttTasks) {
-      rows.push({ type: "task", data: task });
-    }
-
-    // Only add empty rows if we have fewer than the minimum required
+    const rows: { type: string; data: Task | null }[] = ganttTasks.map(t => ({ type: "task", data: t }));
     if (ganttTasks.length < MINIMUM_ROWS) {
-      const emptyRowsNeeded = MINIMUM_ROWS - ganttTasks.length;
-      for (let i = 0; i < emptyRowsNeeded; i++) {
+      for (let i = 0; i < MINIMUM_ROWS - ganttTasks.length; i++) {
         rows.push({ type: "empty", data: null });
       }
     }
-
     return rows;
   }, [ganttTasks]);
 
-  // Task IDs for sortable context
   const taskIds = useMemo(() => ganttTasks.map((t) => t.id), [ganttTasks]);
 
-  // DND handlers
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  }, []);
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
 
-  const handleDragEnd = useCallback(
-    async (event: DragEndEvent) => {
-      const { active, over } = event;
-      setActiveId(null);
+    const oldIndex = ganttTasks.findIndex((t) => t.id === active.id);
+    const newIndex = ganttTasks.findIndex((t) => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
 
-      if (!over || active.id === over.id) return;
+    const reorderedTasks = arrayMove(ganttTasks, oldIndex, newIndex);
+    setGanttTasks(reorderedTasks);
 
-      const oldIndex = ganttTasks.findIndex((t) => t.id === active.id);
-      const newIndex = ganttTasks.findIndex((t) => t.id === over.id);
+    const updates = reorderedTasks.map((task, index) => ({ id: task.id, displayOrder: index + 1 }));
+    try { await taskApi.reorderTasks(updates); } catch (error) { setGanttTasks(ganttTasks); }
+  }, [ganttTasks]);
 
-      if (oldIndex === -1 || newIndex === -1) return;
+  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>, task: Task) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      const href = safeWorkspaceSlug && safeProjectSlug
+        ? `/${safeWorkspaceSlug}/${safeProjectSlug}/tasks/${task.slug}`
+        : safeWorkspaceSlug ? `/${safeWorkspaceSlug}/tasks/${task.slug}` : `/tasks/${task.slug}`;
+      router.push(href);
+    }
+  }, [safeWorkspaceSlug, safeProjectSlug, router]);
 
-      // Optimistic update - reorder locally first
-      const reorderedTasks = arrayMove(ganttTasks, oldIndex, newIndex);
-      setGanttTasks(reorderedTasks);
-
-      // Calculate new displayOrder values for all tasks
-      const updates = reorderedTasks.map((task, index) => ({
-        id: task.id,
-        displayOrder: index + 1,
-      }));
-
-      // Persist to backend
-      try {
-        await taskApi.reorderTasks(updates);
-      } catch (error) {
-        console.error("Failed to persist task reorder:", error);
-        // Revert on failure
-        setGanttTasks(ganttTasks);
-      }
-    },
-    [ganttTasks]
-  );
-
-  // Keyboard navigation
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent<HTMLDivElement>, task: Task) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        const href =
-          safeWorkspaceSlug && safeProjectSlug
-            ? `/${safeWorkspaceSlug}/${safeProjectSlug}/tasks/${task.slug}`
-            : safeWorkspaceSlug
-              ? `/${safeWorkspaceSlug}/tasks/${task.slug}`
-              : `/tasks/${task.slug}`;
-        router.push(href);
-      }
-    },
-    [safeWorkspaceSlug, safeProjectSlug, router]
-  );
-
-  // Scroll to today
   const scrollToToday = useCallback(() => {
     if (scrollContainerRef.current && timeRange.days.length > 0) {
-      try {
-        const today = new Date();
-        const todayIndex = timeRange.days.findIndex(
-          (day) => day.toDateString() === today.toDateString()
-        );
-        if (todayIndex !== -1) {
-          const cellWidth = getViewModeWidth(viewMode);
-          const scrollPosition = todayIndex * cellWidth;
-          const containerWidth = scrollContainerRef.current.clientWidth;
-          const targetPosition = Math.max(0, scrollPosition - containerWidth / 2);
-
-          scrollContainerRef.current.scrollTo({
-            left: targetPosition,
-            behavior: "smooth",
-          });
-        }
-      } catch (error) {
-        console.error("Error scrolling to today:", error);
+      const today = new Date();
+      const todayIndex = timeRange.days.findIndex(d => d.toDateString() === today.toDateString());
+      if (todayIndex !== -1) {
+        const scrollPosition = todayIndex * cellWidth;
+        const containerWidth = scrollContainerRef.current.clientWidth;
+        scrollContainerRef.current.scrollTo({ left: Math.max(0, scrollPosition + infoPanelWidth - containerWidth / 2), behavior: "smooth" });
       }
     }
-  }, [timeRange.days, viewMode]);
+  }, [timeRange.days, cellWidth, infoPanelWidth]);
 
-  const EmptyRow = ({ index }: { index: number }) => (
-    <div
-      className="flex items-center border-b border-[var(--border)] hover:bg-[var(--accent)]"
-      role="row"
-      aria-label={`Empty row ${index + 1}`}
-    >
-      {/* Drag handle placeholder */}
-      <div className="flex-shrink-0 w-6 sticky left-0 z-20 bg-[var(--card)]" />
-
-      {/* Empty Task Info Panel */}
-      <div className="flex-shrink-0 w-80 border-r border-[var(--border)] bg-[var(--card)] py-1 sticky left-6 z-10">
-        <div className={`${isCompact ? "p-6" : "p-7"} flex items-center gap-3 text-sm`}>
-          {/* Empty row content */}
-        </div>
-      </div>
-
-      {/* Empty Timeline */}
-      <div className="flex-1 relative">
-        <div>
-          {timeRange.days.map((day, dayIndex) => {
-            const cellWidth = getViewModeWidth(viewMode);
-            return (
-              <div
-                key={dayIndex}
-                className="border-r border-[var(--border)]/30 bg-[var(--card)]"
-                style={{ width: `${cellWidth}px` }}
-              />
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-
-  if (!safeTasks.length) {
-    return <TaskTableSkeleton />;
-  }
-
-  if (safeTasks.length === 0) {
+  const EmptyRow = memo(({ index }: { index: number }) => {
     return (
-      <Card className="border-none bg-[var(--card)]">
-        <CardContent className="p-8 text-center">
-          <HiClipboardDocumentList
-            size={48}
-            className="mx-auto text-[var(--muted-foreground)] mb-4"
-          />
-          <CardTitle className="text-lg font-medium mb-2 text-[var(--foreground)]">
-            No tasks yet
-          </CardTitle>
-          <CardDescription className="text-sm text-[var(--muted-foreground)] mb-6">
-            Create your first task to get started with project management.
-          </CardDescription>
-        </CardContent>
-      </Card>
+      <div className="flex items-center border-b border-[var(--border)]" role="row">
+        <div className={`${isCompact ? "w-48" : "w-80"} border-r border-[var(--border)] bg-[var(--card)] py-1 sticky left-0 z-10 h-12 shrink-0`} />
+        <div className="flex-1 relative h-12" />
+      </div>
     );
-  }
+  });
+  EmptyRow.displayName = "EmptyRow";
+
+  if (!safeTasks.length) return <TaskTableSkeleton />;
 
   return (
-    <div
-      className="w-full bg-[var(--card)] rounded-lg shadow-sm border border-[var(--border)] overflow-hidden"
-      role="main"
-      aria-label="Gantt chart timeline view"
-    >
-      {/* Error Display */}
-      {error && (
-        <div
-          className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm"
-          role="alert"
-          aria-live="polite"
-        >
-          {error}
-        </div>
-      )}
-
-      {/* Loading Overlay */}
+    <div className="w-full bg-[var(--card)] rounded-lg shadow-sm border border-[var(--border)] overflow-hidden relative">
       {isLoading && (
-        <div
-          className="absolute inset-0 bg-[var(--background)]/80 backdrop-blur-sm z-50 flex items-center justify-center"
-          role="status"
-          aria-label="Loading timeline"
-        >
-          <div className="bg-[var(--card)] rounded-lg p-4 shadow-lg border border-[var(--border)]">
-            <div className="flex items-center gap-3">
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-[var(--primary)] border-t-transparent"></div>
-              <span className="text-sm font-medium text-[var(--foreground)]">
-                Loading timeline...
-              </span>
-            </div>
-          </div>
+        <div className="absolute inset-0 bg-[var(--background)]/50 backdrop-blur-[1px] z-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-[var(--primary)] border-t-transparent"></div>
         </div>
       )}
 
-      {/* Timeline Container */}
       <div
         className="overflow-x-auto overflow-y-auto"
         ref={scrollContainerRef}
-        role="application"
-        aria-label="Interactive Gantt chart timeline"
-        tabIndex={0}
-        onScroll={() => {
-          setHoveredTask(null);
-        }}
+        onScroll={handleScroll}
       >
-        <div className="flex flex-col min-w-fit">
-          {/* Timeline Header */}
+        <div className="flex flex-col min-w-fit relative">
           <TimelineHeader
             timeRange={timeRange}
             viewMode={viewMode}
             isCompact={isCompact}
             scrollToToday={scrollToToday}
+            visibleRange={visibleRange}
           />
 
-          {/* Task Rows with DND */}
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-
-          >
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
-              <div className="flex flex-col z-20" role="rowgroup">
-                {displayRows.map((row, index) => {
-                  if (row.type === "task" && row.data) {
-                    const task = row.data;
-                    const taskEnd = parseDate(task.dueDate);
-                    const isOverdue =
-                      taskEnd < new Date() && task.status?.name?.toLowerCase() !== "done";
-                    const isHovered = hoveredTask === task.id;
-                    const isFocused = focusedTask === task.id;
+              <div className="flex flex-col z-20 relative" role="rowgroup">
+                {/* Unified Background Grid Layer - Massive optimization */}
+                <GanttGrid 
+                  timeRange={timeRange} 
+                  viewMode={viewMode} 
+                  visibleRange={visibleRange} 
+                  leftOffset={infoPanelWidth}
+                />
 
-                    return (
-                      <SortableTaskRow
-                        key={task.id}
-                        task={task}
-                        isCompact={isCompact}
-                        isOverdue={isOverdue}
-                        isHovered={isHovered}
-                        isFocused={isFocused}
-                        safeWorkspaceSlug={safeWorkspaceSlug}
-                        safeProjectSlug={safeProjectSlug}
-                        timeRange={timeRange}
-                        viewMode={viewMode}
-                        onHover={setHoveredTask}
-                        onFocus={setFocusedTask}
-                        onKeyDown={handleKeyDown}
-                        onTaskUpdate={onTaskUpdate}
-                        taskRef={(el) => {
-                          if (el) {
-                            taskRefs.current.set(task.id, el);
-                          } else {
-                            taskRefs.current.delete(task.id);
-                          }
-                        }}
-                      />
-                    );
-                  }
-
-                  // Empty row
-                  return <EmptyRow key={`empty-${index}`} index={index} />;
-                })}
+                {displayRows.map((row, index) => (
+                  row.type === "task" && row.data ? (
+                    <SortableTaskRow
+                      key={row.data.id}
+                      task={row.data}
+                      isCompact={isCompact}
+                      isOverdue={parseDate(row.data.dueDate) < new Date() && row.data.status?.name?.toLowerCase() !== "done"}
+                      isHovered={hoveredTask === row.data.id}
+                      isFocused={focusedTask === row.data.id}
+                      safeWorkspaceSlug={safeWorkspaceSlug}
+                      safeProjectSlug={safeProjectSlug}
+                      timeRange={timeRange}
+                      viewMode={viewMode}
+                      onHover={setHoveredTask}
+                      onFocus={setFocusedTask}
+                      onKeyDown={handleKeyDown}
+                      onTaskUpdate={onTaskUpdate}
+                      taskRef={(el) => { if (el) taskRefs.current.set(row.data!.id, el); else taskRefs.current.delete(row.data!.id); }}
+                    />
+                  ) : <EmptyRow key={`empty-${index}`} index={index} />
+                ))}
               </div>
             </SortableContext>
           </DndContext>

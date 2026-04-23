@@ -272,7 +272,7 @@ export const taskApi = {
       page?: number;
       limit?: number;
     }
-  ): Promise<Task[]> => {
+  ): Promise<PaginatedTaskResponse> => {
     try {
       const queryParams = new URLSearchParams();
 
@@ -305,7 +305,7 @@ export const taskApi = {
       const query = queryParams.toString();
       const url = `/tasks/all-tasks${query ? `?${query}` : ""}`;
 
-      const response = await api.get<Task[]>(url);
+      const response = await api.get<PaginatedTaskResponse>(url);
       return response.data;
     } catch (error) {
       console.error("Get all tasks error:", error);
@@ -1314,6 +1314,38 @@ export const taskApi = {
       return response.data;
     } catch (error: any) {
       console.error("Bulk delete tasks error:", error?.response || error);
+      throw error;
+    }
+  },
+
+  bulkUpdateTasksStatus: async (params: {
+    taskIds?: string[];
+    projectId?: string;
+    all?: boolean;
+    excludedIds?: string[];
+    statusId?: string;
+    search?: string;
+    statuses?: string;
+    priorities?: string;
+    types?: string;
+    assignees?: string;
+    reporters?: string;
+    sprintId?: string;
+  }): Promise<{
+    updatedCount: number;
+    updatedTasks: Task[];
+    failedTasks: Array<{ id: string; reason: string }>;
+  }> => {
+    try {
+      const response = await api.post<{
+        updatedCount: number;
+        updatedTasks: Task[];
+        failedTasks: Array<{ id: string; reason: string }>;
+      }>("/tasks/bulk-status-update", params);
+
+      return response.data;
+    } catch (error: any) {
+      console.error("Bulk update task status error:", error?.response || error);
       throw error;
     }
   },

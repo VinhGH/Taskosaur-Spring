@@ -54,16 +54,23 @@ export default function Breadcrumb() {
     // Listen to popstate (back/forward)
     window.addEventListener('popstate', updatePath);
     
-    // Monkey-patch history.pushState to detect URL changes
+    // Monkey-patch history.pushState and replaceState to detect URL changes
     const originalPushState = window.history.pushState;
     window.history.pushState = function(...args) {
       originalPushState.apply(this, args);
+      updatePath();
+    };
+
+    const originalReplaceState = window.history.replaceState;
+    window.history.replaceState = function(...args) {
+      originalReplaceState.apply(this, args);
       updatePath();
     };
     
     return () => {
       window.removeEventListener('popstate', updatePath);
       window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
     };
   }, []);
 
