@@ -143,7 +143,7 @@ export default function OrganizationSelector({
           <div className="header-org-profile-info">
             <div className="header-org-profile-name">{currentOrganization.name}</div>
             <div className="header-org-profile-meta">
-              {currentOrganization._count?.members ?? 0} members
+              {currentOrganization._count?.members ?? 0} {currentOrganization._count?.members === 1 ? 'member' : 'members'}
               <Badge variant="secondary" className="header-org-profile-badge">
                 Org
               </Badge>
@@ -180,7 +180,12 @@ export default function OrganizationSelector({
             </div>
           ) : (
             <>
-              {organizations.map((org) => (
+              {organizations
+                .filter((org, index, self) => 
+                  org.id !== currentOrganization.id && 
+                  self.findIndex(t => t.id === org.id) === index
+                )
+                .map((org) => (
                 <DropdownMenuItem
                   key={org.id}
                   onClick={() => handleOrganizationSelect(org)}
@@ -197,7 +202,7 @@ export default function OrganizationSelector({
                   </Avatar>
                   <div className="header-org-item-info">
                     <p className="header-org-item-name">{org.name}</p>
-                    <p className="header-org-item-members">{org._count?.members ?? 0} members</p>
+                    <p className="header-org-item-members">{org._count?.members ?? 0} {org._count?.members === 1 ? 'member' : 'members'}</p>
                   </div>
                   {currentOrganization.id === org.id && (
                     <HiCheck size={12} className="header-org-item-check" />

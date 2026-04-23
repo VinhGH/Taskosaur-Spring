@@ -53,11 +53,11 @@ const OrganizationSelectionCard = ({
                 <>
                   <div className="organizations-selection-card-stat">
                     <HiBuildingOffice2 size={12} />
-                    <span>{organization._count.members} members</span>
+                    <span>{organization._count.members} {organization._count.members === 1 ? 'member' : 'members'}</span>
                   </div>
                   <div className="organizations-selection-card-stat">
                     <HiRocketLaunch size={12} />
-                    <span>{organization._count.workspaces} workspaces</span>
+                    <span>{organization._count.workspaces} {organization._count.workspaces === 1 ? 'workspace' : 'workspaces'}</span>
                   </div>
                 </>
               )}

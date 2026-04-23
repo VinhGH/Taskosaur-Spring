@@ -363,7 +363,9 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
         );
         setOrganizationState((prev) => ({
           ...prev,
-          organizations: [...prev.organizations, result],
+          organizations: prev.organizations.some(o => o.id === result.id) 
+            ? prev.organizations 
+            : [...prev.organizations, result],
         }));
         return result;
       },
