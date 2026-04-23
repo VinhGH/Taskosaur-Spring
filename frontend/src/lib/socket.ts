@@ -1,17 +1,29 @@
 import { io, Socket } from "socket.io-client";
+import { SocketEvents, UserStatusPayload } from "@/types/socket";
 
+/**
+ * SocketService provides a singleton interface for WebSocket communication.
+ * It manages connection, event subscription, and disconnection.
+ */
 class SocketService {
   private socket: Socket | null = null;
   private connected = false;
+  private lastErrorLogTime = 0;
+  private readonly ERROR_LOG_INTERVAL = 60000; // Log once per minute
 
+  /**
+   * Initializes and connects to the WebSocket server.
+   * @param token Authentication token
+   * @param eventsNamespace Socket namespace (default: "/events")
+   */
   connect(token: string, eventsNamespace = "/events") {
     if (this.socket?.connected) {
       console.log("[SocketService] Socket already connected");
       return;
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-    const socketUrl = apiUrl.replace("/api", "");
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000/api";
+    const socketUrl = apiBaseUrl.replace("/api", "");
 
     console.log("[SocketService] Connecting to:", `${socketUrl}${eventsNamespace}`);
 
@@ -26,6 +38,15 @@ class SocketService {
       reconnectionAttempts: Infinity,
     });
 
+    this.setupEventListeners();
+  }
+
+  /**
+   * Configures core event listeners for the socket.
+   */
+  private setupEventListeners() {
+    if (!this.socket) return;
+
     this.socket.on("connect", () => {
       console.log("[SocketService] Socket connected:", this.socket?.id);
       this.connected = true;
@@ -37,27 +58,49 @@ class SocketService {
     });
 
     this.socket.on("connect_error", (error) => {
-      console.warn("[SocketService] Connection error — backend may be offline. Will retry automatically.");
+      const now = Date.now();
+      if (now - this.lastErrorLogTime > this.ERROR_LOG_INTERVAL) {
+        console.warn(
+          "[SocketService] Connection error — backend may be offline. Will retry automatically. Error:",
+          error.message
+        );
+        this.lastErrorLogTime = now;
+      }
       this.connected = false;
     });
 
-    // Listen for user status events and dispatch to window
-    this.socket.on("user:online", (data) => {
+    // Handle user status events
+    this.socket.on(SocketEvents.USER_ONLINE, (data: UserStatusPayload) => {
       console.log("[SocketService] User online event:", data);
-      window.dispatchEvent(new CustomEvent("user:online", { detail: data }));
+      this.dispatchCustomEvent(SocketEvents.USER_ONLINE, data);
     });
 
-    this.socket.on("user:offline", (data) => {
+    this.socket.on(SocketEvents.USER_OFFLINE, (data: UserStatusPayload) => {
       console.log("[SocketService] User offline event:", data);
-      window.dispatchEvent(new CustomEvent("user:offline", { detail: data }));
+      this.dispatchCustomEvent(SocketEvents.USER_OFFLINE, data);
     });
 
-    // Listen for other real-time events
-    this.socket.on("connected", (data) => {
-      console.log("[SocketService] Connected to socket:", data);
+    this.socket.on(SocketEvents.CONNECTED, (data) => {
+      console.log("[SocketService] Connected acknowledgement received:", data);
+    });
+
+    this.socket.on(SocketEvents.ERROR, (error) => {
+      console.error("[SocketService] Socket error:", error);
     });
   }
 
+  /**
+   * Dispatches a custom event to the window for cross-component communication.
+   */
+  private dispatchCustomEvent(event: string, detail: any) {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(event, { detail }));
+    }
+  }
+
+  /**
+   * Gracefully disconnects from the WebSocket server.
+   */
   disconnect() {
     if (this.socket) {
       this.socket.disconnect();
@@ -66,44 +109,66 @@ class SocketService {
     }
   }
 
+  /**
+   * Returns the underlying socket instance.
+   */
   getSocket(): Socket | null {
     return this.socket;
   }
 
+  /**
+   * Checks if the socket is currently connected.
+   */
   isConnected(): boolean {
     return this.connected && this.socket?.connected === true;
   }
 
-  // Join a room
-  joinRoom(room: string) {
+  /**
+   * Joins a specific room by emitting the appropriate join event.
+   * @param room The room type (e.g., 'project', 'workspace', 'organization', 'task')
+   * @param id The unique identifier for the room
+   */
+  joinRoom(room: "project" | "workspace" | "organization" | "task", id: string) {
     if (this.socket) {
-      this.socket.emit(`join:${room}`, { [`${room}Id`]: room });
+      const event = `join:${room}`;
+      this.socket.emit(event, { [`${room}Id`]: id });
     }
   }
 
-  // Leave a room
-  leaveRoom(room: string) {
+  /**
+   * Leaves a specific room by emitting the appropriate leave event.
+   * @param room The room type
+   * @param id The unique identifier (optional for some room types)
+   */
+  leaveRoom(room: "project" | "workspace" | "organization" | "task", id?: string) {
     if (this.socket) {
-      this.socket.emit(`leave:${room}`, { [`${room}Id`]: room });
+      const event = `leave:${room}`;
+      this.socket.emit(event, id ? { [`${room}Id`]: id } : {});
     }
   }
 
-  // Subscribe to events
-  on(event: string, callback: (...args: any[]) => void) {
+  /**
+   * Subscribes to a socket event.
+   */
+  on(event: string | SocketEvents, callback: (...args: any[]) => void) {
     if (this.socket) {
       this.socket.on(event, callback);
     }
   }
 
-  // Unsubscribe from events
-  off(event: string, callback?: (...args: any[]) => void) {
+  /**
+   * Unsubscribes from a socket event.
+   */
+  off(event: string | SocketEvents, callback?: (...args: any[]) => void) {
     if (this.socket) {
       this.socket.off(event, callback);
     }
   }
 
-  // Emit events
-  emit(event: string, ...args: any[]) {
+  /**
+   * Emits an event to the server.
+   */
+  emit(event: string | SocketEvents, ...args: any[]) {
     if (this.socket) {
       this.socket.emit(event, ...args);
     }
@@ -113,13 +178,21 @@ class SocketService {
 // Export singleton instance
 export const socketService = new SocketService();
 
-// Hook helper for React
+/**
+ * Convenience helper to initialize the socket connection.
+ */
 export const initializeSocket = (token: string) => {
   socketService.connect(token);
 };
 
+/**
+ * Convenience helper to disconnect the socket.
+ */
 export const disconnectSocket = () => {
   socketService.disconnect();
 };
 
+/**
+ * Convenience helper to get the socket instance.
+ */
 export const getSocket = () => socketService.getSocket();

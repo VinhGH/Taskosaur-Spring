@@ -9,7 +9,8 @@ const nextConfig: NextConfig = {
   },
   transpilePackages: ['@uiw/react-md-editor', '@uiw/react-markdown-preview'],
   env: {
-    NEXT_PUBLIC_API_BASE_URL: process.env.BUILD_DIST === 'true' ? '/api' : process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api'
+    NEXT_PUBLIC_API_BASE_URL: process.env.BUILD_DIST === 'true' ? '/api' : process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api',
+    NEXT_PUBLIC_SOCKET_URL: process.env.NEXT_PUBLIC_SOCKET_URL || (process.env.BUILD_DIST === 'true' ? '' : 'http://localhost:3000')
   }
 };
 

@@ -3,6 +3,8 @@ import { formatDateForDisplay } from "@/utils/date";
 import { userApi } from "@/utils/api/userApi";
 import { UserStatus, BulkUserStatus } from "@/types";
 
+import { SocketEvents } from "@/types/socket";
+
 /**
  * Hook to get online status for a single user
  */
@@ -51,13 +53,13 @@ export const useUserStatus = (userId: string | null) => {
       }
     };
 
-    // Listen for WebSocket events (you'll need to set this up in your socket connection)
-    window.addEventListener("user:online", handleUserOnline as EventListener);
-    window.addEventListener("user:offline", handleUserOffline as EventListener);
+    // Listen for WebSocket events dispatched from SocketService
+    window.addEventListener(SocketEvents.USER_ONLINE, handleUserOnline as EventListener);
+    window.addEventListener(SocketEvents.USER_OFFLINE, handleUserOffline as EventListener);
 
     return () => {
-      window.removeEventListener("user:online", handleUserOnline as EventListener);
-      window.removeEventListener("user:offline", handleUserOffline as EventListener);
+      window.removeEventListener(SocketEvents.USER_ONLINE, handleUserOnline as EventListener);
+      window.removeEventListener(SocketEvents.USER_OFFLINE, handleUserOffline as EventListener);
     };
   }, [userId]);
 
@@ -141,12 +143,12 @@ export const useUsersStatus = (userIds: string[]) => {
       }
     };
 
-    window.addEventListener("user:online", handleUserOnline as EventListener);
-    window.addEventListener("user:offline", handleUserOffline as EventListener);
+    window.addEventListener(SocketEvents.USER_ONLINE, handleUserOnline as EventListener);
+    window.addEventListener(SocketEvents.USER_OFFLINE, handleUserOffline as EventListener);
 
     return () => {
-      window.removeEventListener("user:online", handleUserOnline as EventListener);
-      window.removeEventListener("user:offline", handleUserOffline as EventListener);
+      window.removeEventListener(SocketEvents.USER_ONLINE, handleUserOnline as EventListener);
+      window.removeEventListener(SocketEvents.USER_OFFLINE, handleUserOffline as EventListener);
     };
   }, [userIds]);
 
