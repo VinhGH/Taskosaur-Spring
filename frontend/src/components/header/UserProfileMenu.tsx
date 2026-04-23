@@ -42,10 +42,12 @@ export default function UserProfileMenu({
   const [avatarSrc, setAvatar] = useState("");
   useEffect(() => {
     setIsClient(true);
-    if (/^https?:\/\//.test(user?.avatar)) {
-      setAvatar(user?.avatar);
+    if (!user?.avatar) {
+      setAvatar("");
+    } else if (/^https?:\/\//.test(user.avatar)) {
+      setAvatar(user.avatar);
     } else {
-      setAvatar(`${process.env.NEXT_PUBLIC_API_BASE_URL}/uploads/${user?.avatar}`);
+      setAvatar(`${process.env.NEXT_PUBLIC_API_BASE_URL}/uploads/${user.avatar}`);
     }
   }, [user]);
 
