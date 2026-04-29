@@ -2,12 +2,12 @@ import type { AppProps } from "next/app";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 import "@/styles/globals.css";
+import "@/styles/components/splash-screen.css";
 import "@/lib/i18n";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import AuthProvider from "@/contexts/auth-context";
-import SetupChecker from "@/components/setup/SetupChecker";
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import AppBootstrapper from "@/components/auth/AppBootstrapper";
 import ChatProvider from "@/contexts/chat-context";
 import ChatPanel from "@/components/chat/ChatPanel";
 import { Toaster } from "@/components/ui/sonner";
@@ -28,14 +28,12 @@ export default function MyApp({ Component, pageProps }: AppProps) {
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <SEO />
       <AuthProvider>
-        <SetupChecker>
+        <AppBootstrapper>
           <ChatProvider>
-            <ProtectedRoute>
-              <Component {...pageProps} />
-            </ProtectedRoute>
+            <Component {...pageProps} />
             <ChatPanel />
           </ChatProvider>
-        </SetupChecker>
+        </AppBootstrapper>
       </AuthProvider>
       <Toaster expand={false} richColors closeButton />
     </ThemeProvider>
