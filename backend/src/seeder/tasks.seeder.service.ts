@@ -8,12 +8,17 @@ import {
   User,
   TaskStatus,
   StatusCategory,
+  Prisma,
 } from '@prisma/client';
 import slugify from 'slugify';
+import { TaskRanksService } from '../modules/task-ranks/task-ranks.service';
 
 @Injectable()
 export class TasksSeederService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private taskRanksService: TaskRanksService,
+  ) {}
 
   async seed(projects: Project[], users: User[]) {
     console.log('🌱 Seeding tasks...');
@@ -32,6 +37,17 @@ export class TasksSeederService {
     for (const project of projects) {
       console.log(`\n📋 Creating tasks for project: ${project.name}`);
 
+      // Get project with workspace and organization info for ranking
+      const p = await this.prisma.project.findUnique({
+        where: { id: project.id },
+        include: { workspace: true },
+      });
+
+      if (!p) {
+        console.log(`⚠ Project ${project.id} not found, skipping ranking...`);
+        continue;
+      }
+
       // Get all available statuses for this project
       const availableStatuses = await this.getStatusesForProject(project.id);
 
@@ -39,6 +55,8 @@ export class TasksSeederService {
         console.log(`⚠ No statuses found for project ${project.name}, skipping tasks...`);
         continue;
       }
+      const organizationId = p.workspace.organizationId;
+      const workspaceId = p.workspaceId;
       const defaultSprint = await this.prisma.sprint.findFirst({
         where: {
           projectId: project.id,
@@ -109,6 +127,14 @@ export class TasksSeederService {
               },
             },
           });
+
+          await this.taskRanksService.seedForTask(
+            task.id,
+            project.id,
+            workspaceId,
+            organizationId,
+            this.prisma as unknown as Prisma.TransactionClient,
+          );
 
           createdTasks.push(task);
           console.log(

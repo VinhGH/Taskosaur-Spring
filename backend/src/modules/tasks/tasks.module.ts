@@ -3,8 +3,6 @@ import { TasksService } from './tasks.service';
 import { TasksController } from './tasks.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { AccessControlService } from 'src/common/access-control.utils';
-import { StorageService } from '../storage/storage.service';
-import { S3Service } from '../storage/s3.service';
 import { RecurrenceService } from './recurrence.service';
 import { RecurringTasksCronService } from './recurring-tasks-cron.service';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -14,6 +12,8 @@ import { PublicModule } from '../public/public.module';
 import { TaskSharesController } from './task-shares.controller';
 import { QueueModule } from '../queue/queue.module';
 import { BulkTaskImportProcessor } from './bulk-task-import.processor';
+import { TaskRanksModule } from '../task-ranks/task-ranks.module';
+import { S3Module } from '../storage/s3.module';
 
 @Module({
   imports: [
@@ -22,13 +22,13 @@ import { BulkTaskImportProcessor } from './bulk-task-import.processor';
     ScheduleModule.forRoot(),
     QueueModule,
     QueueModule.registerQueue({ name: 'bulk-task-import' }),
+    TaskRanksModule,
+    S3Module,
   ],
   controllers: [TasksController, TaskSharesController],
   providers: [
     TasksService,
     AccessControlService,
-    StorageService,
-    S3Service,
     RecurrenceService,
     RecurringTasksCronService,
     BulkTaskImportProcessor,

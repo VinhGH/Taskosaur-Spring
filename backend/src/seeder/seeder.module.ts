@@ -17,9 +17,10 @@ import { TimeEntriesSeederService } from './time-entries.seeder.service';
 import { AdminSeederService } from './admin-seeder.service';
 import { InboxRulesSeederService } from './inbox-rules.seeder.service';
 import { EmailTemplatesService } from './email-templates.service';
+import { TaskRanksModule } from '../modules/task-ranks/task-ranks.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, TaskRanksModule],
   providers: [
     SeederService,
     UsersSeederService,

@@ -62,6 +62,7 @@ interface TaskContextType extends TaskState {
       search?: string;
       sortBy?: string;
       sortOrder?: string;
+      viewType?: 'LIST' | 'BOARD' | 'GANTT';
       page?: number;
       limit?: number;
     }
@@ -84,6 +85,7 @@ interface TaskContextType extends TaskState {
     statuses?: string[];
     search?: string;
     priorities?: ("LOW" | "MEDIUM" | "HIGH" | "HIGHEST")[];
+    viewType?: 'LIST' | 'BOARD' | 'GANTT';
   }) => Promise<PaginatedTaskResponse>;
 
   updateTaskStatus: (taskId: string, statusId: string) => Promise<Task>;
@@ -170,6 +172,7 @@ interface TaskContextType extends TaskState {
     reporters?: string;
     sprintId?: string;
     workspaceId?: string;
+    organizationId?: string;
   }) => Promise<{
     updatedCount: number;
     updatedTasks: Task[];
@@ -257,6 +260,16 @@ interface TaskContextType extends TaskState {
   addRecurrence: (taskId: string, recurrenceConfig: any) => Promise<Task>;
   updateRecurrence: (taskId: string, recurrenceConfig: any) => Promise<Task>;
   stopRecurrence: (taskId: string) => Promise<Task>;
+  updateRelativeTaskRank: (
+    taskId: string,
+    reorderData: {
+      scopeType: 'ORGANIZATION' | 'WORKSPACE' | 'PROJECT';
+      scopeId: string;
+      viewType: 'LIST' | 'BOARD' | 'GANTT';
+      afterTaskId?: string | null;
+      beforeTaskId?: string | null;
+    }
+  ) => Promise<void>;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -339,6 +352,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
         statuses?: string[];
         search?: string;
         priorities?: ("LOW" | "MEDIUM" | "HIGH" | "HIGHEST")[];
+        viewType?: 'LIST' | 'BOARD' | 'GANTT';
       }): Promise<PaginatedTaskResponse> => {
         const organizationId =
           localStorage.getItem("currentOrganizationId") || taskApi.getCurrentOrganization();
@@ -357,6 +371,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
               statuses: params.statuses,
               search: params.search,
               priorities: params.priorities,
+              viewType: params.viewType,
             }),
           false
         );
@@ -521,6 +536,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
           search?: string;
           sortBy?: string;
           sortOrder?: string;
+          viewType?: 'LIST' | 'BOARD' | 'GANTT';
           page?: number;
           limit?: number;
         }
@@ -751,6 +767,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
         reporters?: string;
         sprintId?: string;
         workspaceId?: string;
+        organizationId?: string;
       }): Promise<{
         updatedCount: number;
         updatedTasks: Task[];
@@ -1253,6 +1270,18 @@ export function TaskProvider({ children }: TaskProviderProps) {
         }));
 
         return result;
+      },
+      updateRelativeTaskRank: async (
+        taskId: string,
+        reorderData: {
+          scopeType: 'ORGANIZATION' | 'WORKSPACE' | 'PROJECT';
+          scopeId: string;
+          viewType: 'LIST' | 'BOARD' | 'GANTT';
+          afterTaskId?: string | null;
+          beforeTaskId?: string | null;
+        }
+      ): Promise<void> => {
+        await handleApiOperation(() => taskApi.updateRelativeTaskRank(taskId, reorderData), false);
       },
     }),
     [handleApiOperation]

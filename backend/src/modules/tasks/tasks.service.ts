@@ -6,7 +6,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { Task, TaskPriority, TaskType, Prisma } from '@prisma/client';
+import { Task, TaskPriority, TaskType, Prisma, ViewType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -16,6 +16,8 @@ import { AccessControlService } from 'src/common/access-control.utils';
 import { StorageService } from '../storage/storage.service';
 import { sanitizeHtml, sanitizeText, sanitizeObject } from 'src/common/utils/sanitizer.util';
 import { RecurrenceService } from './recurrence.service';
+import { TaskRanksService } from '../task-ranks/task-ranks.service';
+import { ReorderDto } from '../task-ranks/dto/reorder.dto';
 import { RecurrenceConfigDto } from './dto/recurrence-config.dto';
 
 @Injectable()
@@ -27,6 +29,7 @@ export class TasksService {
     private accessControl: AccessControlService,
     private storageService: StorageService,
     private recurrenceService: RecurrenceService,
+    private taskRanksService: TaskRanksService,
   ) {}
 
   /**
@@ -275,6 +278,14 @@ export class TasksService {
           },
         },
       });
+
+      await this.taskRanksService.seedForTask(
+        task.id,
+        task.projectId,
+        task.project.workspace.id,
+        task.project.workspace.organization.id,
+        tx as unknown as Prisma.TransactionClient,
+      );
 
       // If this is a recurring task, create the recurrence configuration
       if (isRecurring && recurrenceConfig) {
@@ -608,7 +619,6 @@ export class TasksService {
       if (taskData.completedAt !== undefined) taskCreateData.completedAt = taskData.completedAt;
       if (taskData.allowEmailReplies !== undefined)
         taskCreateData.allowEmailReplies = taskData.allowEmailReplies;
-      if (taskData.displayOrder !== undefined) taskCreateData.displayOrder = taskData.displayOrder;
 
       // Only add assignees if there are any
       if (assigneeIds?.length) {
@@ -788,41 +798,9 @@ export class TasksService {
     return task ? this.flattenTaskRelations(task) : task;
   }
 
-  async bulkReorder(tasks: { id: string; displayOrder: number }[], userId: string) {
-    if (!tasks || tasks.length === 0) {
-      throw new BadRequestException('Tasks array is required and must not be empty');
-    }
-    const updates = tasks.map((task) =>
-      this.prisma.task.update({
-        where: { id: task.id },
-        data: {
-          displayOrder: task.displayOrder,
-          updatedBy: userId,
-        },
-        select: { id: true, displayOrder: true },
-      }),
-    );
-
-    return this.prisma.$transaction(updates);
-  }
-
-  async bulkReorderBylistRank(tasks: { id: string; listRank: number }[], userId: string) {
-    if (!tasks || tasks.length === 0) {
-      throw new BadRequestException('Tasks array is required and must not be empty');
-    }
-    const updates = tasks.map((task) =>
-      this.prisma.task.update({
-        where: { id: task.id },
-        data: {
-          listRank: task.listRank,
-          updatedBy: userId,
-        },
-        select: { id: true, listRank: true },
-      }),
-    );
-
-    return this.prisma.$transaction(updates);
-  }
+  /**
+   * bulkUpdateTasksStatus - moved after findAll for logical grouping
+   */
 
   async findAll(
     organizationId: string,
@@ -986,7 +964,24 @@ export class TasksService {
     const skip = (page - 1) * limit;
 
     let orderBy: any = { taskNumber: 'desc' };
-    if (sortBy === 'dueIn' || sortBy === 'dueDate') {
+    let isRankSort = false;
+    let scopeType = 'ORGANIZATION';
+    let scopeId = organizationId;
+    const viewType = 'LIST';
+
+    if (sortBy === 'listRank' || sortBy === 'workspaceListRank' || sortBy === 'displayOrder') {
+      isRankSort = true;
+      if (projectId && projectId.length > 0) {
+        scopeType = 'PROJECT';
+        scopeId = projectId[0];
+      } else if (workspaceId && workspaceId.length > 0) {
+        scopeType = 'WORKSPACE';
+        scopeId = workspaceId[0];
+      } else {
+        scopeType = 'ORGANIZATION';
+        scopeId = organizationId;
+      }
+    } else if (sortBy === 'dueIn' || sortBy === 'dueDate') {
       orderBy = { dueDate: sortOrder === 'asc' ? 'asc' : 'desc' };
     } else if (sortBy) {
       const validSortFields = [
@@ -997,20 +992,8 @@ export class TasksService {
         'storyPoints',
         'title',
         'taskNumber',
-        'displayOrder',
-        'listRank',
       ];
-      if (sortBy === 'displayOrder') {
-        orderBy = [
-          { displayOrder: { sort: sortOrder === 'asc' ? 'asc' : 'desc', nulls: 'last' } },
-          { taskNumber: 'desc' },
-        ];
-      } else if (sortBy === 'listRank') {
-        orderBy = [
-          { listRank: { sort: sortOrder === 'asc' ? 'asc' : 'desc', nulls: 'last' } },
-          { taskNumber: 'desc' },
-        ];
-      } else if (validSortFields.includes(sortBy)) {
+      if (validSortFields.includes(sortBy)) {
         orderBy = { [sortBy]: sortOrder === 'asc' ? 'asc' : 'desc' };
       } else if (sortBy === 'status') {
         orderBy = { status: { name: sortOrder === 'asc' ? 'asc' : 'desc' } };
@@ -1018,90 +1001,109 @@ export class TasksService {
         orderBy = { comments: { _count: sortOrder === 'asc' ? 'asc' : 'desc' } };
       }
     }
-    // Execute query and count in transaction
-    const [tasks, total] = await this.prisma.$transaction([
-      this.prisma.task.findMany({
-        where: whereClause,
-        include: {
-          labels: {
-            select: {
-              taskId: true,
-              labelId: true,
-              label: {
-                select: {
-                  id: true,
-                  name: true,
-                  color: true,
-                  description: true,
-                },
-              },
-            },
-          },
-          project: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-              workspace: {
-                select: {
-                  id: true,
-                  name: true,
-                  slug: true,
-                  organizationId: true,
-                },
-              },
-              inbox: true,
-            },
-          },
-          assignees: {
-            select: {
-              user: {
-                select: {
-                  id: true,
-                  email: true,
-                  firstName: true,
-                  lastName: true,
-                  avatar: true,
-                },
-              },
-            },
-          },
-          reporters: {
-            select: {
-              user: {
-                select: {
-                  id: true,
-                  email: true,
-                  firstName: true,
-                  lastName: true,
-                  avatar: true,
-                },
-              },
-            },
-          },
-          status: {
-            select: { id: true, name: true, color: true, category: true },
-          },
-          sprint: { select: { id: true, name: true, slug: true, status: true } },
-          parentTask: {
-            select: { id: true, title: true, slug: true, type: true },
-          },
-          _count: {
-            select: { childTasks: true, comments: true, attachments: true },
+
+    let tasks: (Task & { [key: string]: any })[] = [];
+    let total = 0;
+
+    const includeConfig = {
+      labels: {
+        select: {
+          taskId: true,
+          labelId: true,
+          label: {
+            select: { id: true, name: true, color: true, description: true },
           },
         },
-        orderBy,
-        skip,
-        take: limit,
-      }),
-      this.prisma.task.count({ where: whereClause }),
-    ]);
+      },
+      project: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          workspace: {
+            select: { id: true, name: true, slug: true, organizationId: true },
+          },
+          inbox: true,
+        },
+      },
+      assignees: {
+        select: {
+          user: {
+            select: { id: true, email: true, firstName: true, lastName: true, avatar: true },
+          },
+        },
+      },
+      reporters: {
+        select: {
+          user: {
+            select: { id: true, email: true, firstName: true, lastName: true, avatar: true },
+          },
+        },
+      },
+      status: { select: { id: true, name: true, color: true, category: true } },
+      sprint: { select: { id: true, name: true, slug: true, status: true } },
+      parentTask: { select: { id: true, title: true, slug: true, type: true } },
+      _count: { select: { childTasks: true, comments: true, attachments: true } },
+    };
+
+    if (isRankSort) {
+      const rankOrderDir = sortOrder === 'asc' ? 'ASC' : 'DESC';
+      const sqlLimit = limit;
+      const sqlOffset = skip;
+
+      const rankedTaskIds = await this.prisma.$queryRaw<{ id: string }[]>`
+        SELECT t.id
+        FROM tasks t
+        INNER JOIN task_ranks tr ON t.id = tr.task_id
+        INNER JOIN projects p ON t.project_id = p.id
+        INNER JOIN workspaces w ON p.workspace_id = w.id
+        WHERE tr."scope_type"::text = ${scopeType}
+          AND tr."scope_id"::uuid = ${scopeId}::uuid
+          AND tr."view_type"::text = ${viewType}
+          AND w."organization_id"::uuid = ${organizationId}::uuid
+        ORDER BY tr.rank ${Prisma.raw(rankOrderDir)}, t.id ${Prisma.raw(rankOrderDir)}
+        LIMIT ${Prisma.raw(sqlLimit.toString())} 
+        OFFSET ${Prisma.raw(sqlOffset.toString())}`;
+
+      const taskIds = rankedTaskIds.map((r) => r.id);
+
+      total = await this.prisma.task.count({ where: whereClause });
+
+      if (taskIds.length > 0) {
+        tasks = await this.prisma.task.findMany({
+          where: {
+            ...whereClause,
+            id: { in: taskIds },
+          },
+          include: includeConfig,
+        });
+
+        // Re-order Prisma's results to mirror exactly the $queryRaw ID ordering
+        const taskMap = new Map(tasks.map((t) => [t.id, t]));
+        tasks = taskIds
+          .map((id) => taskMap.get(id))
+          .filter((t): t is Task & { [key: string]: any } => !!t);
+      }
+    } else {
+      [tasks, total] = await this.prisma.$transaction([
+        this.prisma.task.findMany({
+          where: whereClause,
+          include: includeConfig,
+          orderBy,
+          skip,
+          take: limit,
+        }),
+        this.prisma.task.count({ where: whereClause }),
+      ]);
+    }
 
     // Transform the response
     const transformedTasks = tasks.map((task) => ({
       ...task,
       showEmailReply: task.project?.inbox?.enabled === true,
-      labels: task.labels.map((taskLabel) => ({
+      labels: (
+        (task.labels as Array<{ taskId: string; labelId: string; label: any }> | undefined) || []
+      ).map((taskLabel) => ({
         taskId: taskLabel.taskId,
         labelId: taskLabel.labelId,
         name: taskLabel.label.name,
@@ -1233,6 +1235,7 @@ export class TasksService {
     sortOrder?: string,
     page: number = 1,
     limit: number = 20,
+    viewType: ViewType = ViewType.LIST,
   ): Promise<{
     data: Task[];
     total: number;
@@ -1324,7 +1327,23 @@ export class TasksService {
     const skip = (page - 1) * limit;
 
     let orderBy: any = { taskNumber: 'desc' };
-    if (sortBy === 'dueIn' || sortBy === 'dueDate') {
+    let isRankSort = false;
+    let scopeType = 'ORGANIZATION';
+    let scopeId = organizationId;
+
+    if (sortBy === 'listRank' || sortBy === 'workspaceListRank' || sortBy === 'displayOrder') {
+      isRankSort = true;
+      if (projectId && projectId.length > 0) {
+        scopeType = 'PROJECT';
+        scopeId = projectId[0];
+      } else if (workspaceId && workspaceId.length > 0) {
+        scopeType = 'WORKSPACE';
+        scopeId = workspaceId[0];
+      } else {
+        scopeType = 'ORGANIZATION';
+        scopeId = organizationId;
+      }
+    } else if (sortBy === 'dueIn' || sortBy === 'dueDate') {
       orderBy = { dueDate: sortOrder === 'asc' ? 'asc' : 'desc' };
     } else if (sortBy) {
       const validSortFields = [
@@ -1335,14 +1354,8 @@ export class TasksService {
         'storyPoints',
         'title',
         'taskNumber',
-        'displayOrder',
       ];
-      if (sortBy === 'displayOrder') {
-        orderBy = [
-          { displayOrder: { sort: sortOrder === 'asc' ? 'asc' : 'desc', nulls: 'last' } },
-          { taskNumber: 'desc' },
-        ];
-      } else if (validSortFields.includes(sortBy)) {
+      if (validSortFields.includes(sortBy)) {
         orderBy = { [sortBy]: sortOrder === 'asc' ? 'asc' : 'desc' };
       } else if (sortBy === 'status') {
         orderBy = { status: { name: sortOrder === 'asc' ? 'asc' : 'desc' } };
@@ -1351,85 +1364,112 @@ export class TasksService {
       }
     }
 
-    const [tasks, total] = await Promise.all([
-      this.prisma.task.findMany({
-        where: whereClause,
-        include: {
-          labels: {
-            select: {
-              taskId: true,
-              labelId: true,
-              label: {
-                select: { id: true, name: true, color: true, description: true },
-              },
-            },
-          },
-          project: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-              workspace: {
-                select: { id: true, name: true, slug: true, organizationId: true },
-              },
-            },
-          },
-          assignees: {
-            select: {
-              user: {
-                select: {
-                  id: true,
-                  email: true,
-                  firstName: true,
-                  lastName: true,
-                  avatar: true,
-                },
-              },
-            },
-          },
-          reporters: {
-            select: {
-              user: {
-                select: {
-                  id: true,
-                  email: true,
-                  firstName: true,
-                  lastName: true,
-                  avatar: true,
-                },
-              },
-            },
-          },
-          status: {
-            select: { id: true, name: true, color: true, category: true },
-          },
-          sprint: { select: { id: true, name: true, slug: true, status: true } },
-          parentTask: {
-            select: { id: true, title: true, slug: true, type: true },
-          },
-          _count: {
-            select: { childTasks: true, comments: true, attachments: true },
+    const includeConfig = {
+      labels: {
+        select: {
+          taskId: true,
+          labelId: true,
+          label: {
+            select: { id: true, name: true, color: true, description: true },
           },
         },
-        orderBy,
-        skip,
-        take: limit,
-      }),
-      this.prisma.task.count({ where: whereClause }),
-    ]);
+      },
+      project: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          workspace: {
+            select: { id: true, name: true, slug: true, organizationId: true },
+          },
+        },
+      },
+      assignees: {
+        select: {
+          user: {
+            select: { id: true, email: true, firstName: true, lastName: true, avatar: true },
+          },
+        },
+      },
+      reporters: {
+        select: {
+          user: {
+            select: { id: true, email: true, firstName: true, lastName: true, avatar: true },
+          },
+        },
+      },
+      status: { select: { id: true, name: true, color: true, category: true } },
+      sprint: { select: { id: true, name: true, slug: true, status: true } },
+      parentTask: { select: { id: true, title: true, slug: true, type: true } },
+      _count: { select: { childTasks: true, comments: true, attachments: true } },
+    };
 
-    const formattedTasks = this.flattenTasksList(
-      tasks.map((task) => ({
-        ...task,
-        labels: task.labels.map((taskLabel) => ({
-          taskId: taskLabel.taskId,
-          labelId: taskLabel.labelId,
-          name: taskLabel.label.name,
-          color: taskLabel.label.color,
-          description: taskLabel.label.description,
-        })),
+    let tasks: (Task & { [key: string]: any })[] = [];
+    let total = 0;
+
+    if (isRankSort) {
+      const rankOrderDir = sortOrder === 'asc' ? 'ASC' : 'DESC';
+      const sqlLimit = limit;
+      const sqlOffset = skip;
+
+      const rankedTaskIds = await this.prisma.$queryRaw<{ id: string }[]>`
+        SELECT t.id
+        FROM tasks t
+        INNER JOIN task_ranks tr ON t.id = tr.task_id
+        INNER JOIN projects p ON t.project_id = p.id
+        INNER JOIN workspaces w ON p.workspace_id = w.id
+        WHERE tr."scope_type"::text = ${scopeType}
+          AND tr."scope_id"::uuid = ${scopeId}::uuid
+          AND tr."view_type"::text = ${viewType}
+          AND w."organization_id"::uuid = ${organizationId}::uuid
+        ORDER BY tr.rank ${Prisma.raw(rankOrderDir)}, t.id ${Prisma.raw(rankOrderDir)}
+        LIMIT ${Prisma.raw(sqlLimit.toString())} 
+        OFFSET ${Prisma.raw(sqlOffset.toString())}`;
+
+      const taskIds = rankedTaskIds.map((r) => r.id);
+
+      total = await this.prisma.task.count({ where: whereClause });
+
+      if (taskIds.length > 0) {
+        tasks = await this.prisma.task.findMany({
+          where: {
+            ...whereClause,
+            id: { in: taskIds },
+          },
+          include: includeConfig,
+        });
+
+        // Re-order Prisma's results to mirror exactly the $queryRaw ID ordering
+        const taskMap = new Map(tasks.map((t) => [t.id, t]));
+        tasks = taskIds
+          .map((id) => taskMap.get(id))
+          .filter((t): t is Task & { [key: string]: any } => !!t);
+      }
+    } else {
+      [tasks, total] = await Promise.all([
+        this.prisma.task.findMany({
+          where: whereClause,
+          include: includeConfig,
+          orderBy,
+          take: limit,
+          skip: skip,
+        }),
+        this.prisma.task.count({ where: whereClause }),
+      ]);
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    const formattedTasks = tasks.map((task: any) => ({
+      ...task,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      labels: task.labels.map((taskLabel: any) => ({
+        taskId: taskLabel.taskId,
+        labelId: taskLabel.labelId,
+        name: taskLabel.label.name,
+        color: taskLabel.label.color,
+        description: taskLabel.label.description,
       })),
-    );
+    }));
 
     return {
       data: formattedTasks as any,
@@ -2361,57 +2401,80 @@ export class TasksService {
         const totalCount = countMap.get(status.id) || 0;
         const totalPages = Math.ceil(totalCount / pageLimit);
 
-        const tasks = await this.prisma.task.findMany({
-          where: {
-            ...whereClause,
-            statusId: status.id,
-            sprintId,
-          },
-          include: {
-            status: {
-              select: {
-                id: true,
-                name: true,
-                color: true,
-                category: true,
-                position: true,
-              },
-            },
-            assignees: {
-              select: {
-                user: {
-                  select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true,
-                    avatar: true,
+        // Fetch IDs in order using ranks
+        const rankedIds = await this.prisma.$queryRaw<{ id: string }[]>`
+          SELECT t.id
+          FROM tasks t
+          LEFT JOIN task_ranks tr ON t.id = tr.task_id 
+            AND tr.scope_type = 'PROJECT'::"ScopeType"
+            AND tr.scope_id = ${status.id}::uuid
+            AND tr.view_type = 'BOARD'::"ViewType"
+          WHERE t.status_id = ${status.id}::uuid
+            AND t.project_id = ${project.id}::uuid
+            ${sprintId ? Prisma.raw(`AND t.sprint_id = '${sprintId}'::uuid`) : Prisma.empty}
+            ${!includeSubtasks ? Prisma.raw('AND t.parent_task_id IS NULL') : Prisma.empty}
+          ORDER BY COALESCE(tr.rank, t.task_number::float) DESC, t.task_number DESC
+          LIMIT ${Prisma.raw(pageLimit.toString())}
+          OFFSET ${Prisma.raw(skip.toString())}
+        `;
+
+        const taskIds = rankedIds.map((r) => r.id);
+
+        const tasks =
+          taskIds.length > 0
+            ? await this.prisma.task.findMany({
+                where: {
+                  id: { in: taskIds },
+                },
+                include: {
+                  status: {
+                    select: {
+                      id: true,
+                      name: true,
+                      color: true,
+                      category: true,
+                      position: true,
+                    },
+                  },
+                  assignees: {
+                    select: {
+                      user: {
+                        select: {
+                          id: true,
+                          firstName: true,
+                          lastName: true,
+                          avatar: true,
+                        },
+                      },
+                    },
+                  },
+                  reporters: {
+                    select: {
+                      user: {
+                        select: {
+                          id: true,
+                          firstName: true,
+                          lastName: true,
+                        },
+                      },
+                    },
                   },
                 },
-              },
-            },
-            reporters: {
-              select: {
-                user: {
-                  select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true,
-                  },
-                },
-              },
-            },
-          },
-          orderBy: [{ taskNumber: 'desc' }],
-          skip: skip,
-          take: pageLimit,
-        });
+              })
+            : [];
+
+        // Manual re-order to match rankedIds
+        const taskMap = new Map(tasks.map((t) => [t.id, t]));
+        const sortedTasks = taskIds
+          .map((id) => taskMap.get(id))
+          .filter((t): t is (typeof tasks)[0] => !!t);
 
         return {
           statusId: status.id,
           statusName: status.name,
           statusColor: status.color,
           statusCategory: status.category,
-          tasks: tasks.map((task) => ({
+          tasks: sortedTasks.map((task) => ({
             id: task.id,
             title: task.title,
             description: task.description || undefined,
@@ -3028,7 +3091,6 @@ export class TasksService {
       if (workspaceId) taskFilter.project = { workspaceId };
 
       const andConditions: any[] = [];
-
       if (statuses) andConditions.push({ statusId: { in: statuses.split(',') } });
       if (priorities) andConditions.push({ priority: { in: priorities.split(',') } });
       if (types) andConditions.push({ type: { in: types.split(',') } });
@@ -3046,11 +3108,9 @@ export class TasksService {
       if (assignees) {
         andConditions.push({ assignees: { some: { userId: { in: assignees.split(',') } } } });
       }
-
       if (reporters) {
         andConditions.push({ reporters: { some: { userId: { in: reporters.split(',') } } } });
       }
-
       if (excludedIds && excludedIds.length > 0) {
         andConditions.push({ id: { notIn: excludedIds } });
       }
@@ -3072,9 +3132,7 @@ export class TasksService {
         project: {
           include: {
             workflow: {
-              include: {
-                statuses: true,
-              },
+              include: { statuses: true },
             },
           },
         },
@@ -3082,7 +3140,7 @@ export class TasksService {
     });
 
     const updatedTasks: Task[] = [];
-    let failedTasks: Array<{ id: string; reason: string }>;
+    let failedTasks: Array<{ id: string; reason: string }> = [];
 
     // Handle missing tasks when using specific IDs
     if (taskIds && taskIds.length > 0 && !all) {
@@ -3092,8 +3150,6 @@ export class TasksService {
         id,
         reason: 'Task not found',
       }));
-    } else {
-      failedTasks = [];
     }
 
     // Pre-fetch status if statusId is provided
@@ -3120,7 +3176,6 @@ export class TasksService {
         }
 
         let statusToApply: any = null;
-
         if (!statusId) {
           // Find first status with category DONE in task's project workflow
           statusToApply = task.project.workflow?.statuses.find((s) => s.category === 'DONE');
@@ -3169,9 +3224,7 @@ export class TasksService {
           where: { id: task.id },
           data: updateData,
           include: {
-            status: {
-              select: { id: true, name: true, color: true, category: true },
-            },
+            status: { select: { id: true, name: true, color: true, category: true } },
             project: {
               select: {
                 id: true,
@@ -3185,26 +3238,14 @@ export class TasksService {
             assignees: {
               select: {
                 user: {
-                  select: {
-                    id: true,
-                    email: true,
-                    firstName: true,
-                    lastName: true,
-                    avatar: true,
-                  },
+                  select: { id: true, email: true, firstName: true, lastName: true, avatar: true },
                 },
               },
             },
             reporters: {
               select: {
                 user: {
-                  select: {
-                    id: true,
-                    email: true,
-                    firstName: true,
-                    lastName: true,
-                    avatar: true,
-                  },
+                  select: { id: true, email: true, firstName: true, lastName: true, avatar: true },
                 },
               },
             },
@@ -3229,5 +3270,9 @@ export class TasksService {
       updatedTasks: this.flattenTasksList(updatedTasks),
       failedTasks,
     };
+  }
+
+  reorderTask(taskId: string, dto: ReorderDto) {
+    return this.taskRanksService.reorder({ taskId, ...dto });
   }
 }
