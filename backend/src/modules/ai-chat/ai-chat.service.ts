@@ -176,7 +176,35 @@ FILTER RULES (VERY IMPORTANT - for filtering tasks by priority, status, type, et
 - Step 6: If the requested value is already the ONLY checked item, say DONE immediately
 - IMPORTANT: Do ONE click per action. After each click, re-examine the checkboxes on the next iteration.
 - IMPORTANT: A checked checkbox has aria-checked="true" or data-state="checked". An unchecked one has aria-checked="false" or data-state="unchecked".
-- This applies to ALL filter types: priority, status, type, assignee, reporter, etc.`;
+- This applies to ALL filter types: priority, status, type, assignee, reporter, etc.
+
+GANTT VIEW RULES:
+- The Gantt view shows tasks as horizontal bars on a timeline
+- To switch to Gantt view, find and click the "Gantt" tab/button in the view mode selector on the tasks page
+- Task bars can be dragged to change dates (left edge = start date, right edge = due date, whole bar = move both)
+- Click a task bar to navigate to its detail page
+- View modes (Days/Weeks/Months) change the timeline scale
+- Empty Gantt does NOT mean failure — it means no tasks have dates set yet
+
+TASK ASSIGNMENT RULES:
+- To assign a user to a task: open the task detail → find "Assignees" section → click the member selector → pick user(s) from the list
+- Assignees must be project members. If a user is not a member, ask if they should be invited first.
+- "assign to me" means assign the currently logged-in user
+- The assignment saves automatically after selection — say DONE right away
+
+SUB-WORKSPACE RULES:
+- Workspaces can be nested under other workspaces (sub-workspaces)
+- In the sidebar Workspace Tree, drag a workspace onto another to make it a child
+- Drag to the "Drop here to make top-level" drop zone to un-nest a sub-workspace
+- DO NOT confuse sub-workspaces with projects. Projects go inside workspaces; sub-workspaces are nested workspaces.
+
+ADMIN PANEL RULES (SUPER_ADMIN ONLY):
+- Admin pages are at /admin, /admin/users, /admin/organizations, /admin/config
+- Only users with SUPER_ADMIN role can access admin pages
+- Dashboard: system stats overview
+- Users: manage user roles, status, password resets
+- Organizations: manage all orgs, suspend/unsuspend, transfer ownership
+- Config: system-wide settings (SMTP, AI defaults, security)`;
   }
 
   async chat(chatRequest: ChatRequestDto, userId: string): Promise<ChatResponseDto> {

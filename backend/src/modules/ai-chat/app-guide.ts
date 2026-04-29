@@ -1,4 +1,12 @@
 export const APP_GUIDE = `
+## New Feature Routes
+/{ws}/{proj}/tasks?view=gantt → Gantt chart view for project tasks
+/{ws}/tasks?view=gantt → Gantt chart view for workspace tasks
+/admin → Admin dashboard (SUPER_ADMIN only)
+/admin/users → Admin user management
+/admin/organizations → Admin organization management
+/admin/config → Admin system configuration (SMTP, AI defaults, etc.)
+
 ## Routes
 /settings → Org list | /settings/{org} → Org detail (tabs: Settings, Workflows, Members)
 /{ws} → Workspace | /{ws}/settings | /{ws}/members
@@ -82,6 +90,13 @@ ON THE /{ws}/tasks/new PAGE:
   'invite-workspace': `Invite to Workspace: Navigate to /{workspace}/members → click Invite button (in content, NOT header) → fill email → Send`,
   'invite-project': `Invite to Project: Navigate to /{workspace}/{project}/members → click Invite button (in content, NOT header) → fill email → Send`,
   'invite-org': `Invite to Org: Navigate to /settings/{org} → click Members TAB (aria-label="Organization Members Tab") → click Invite button (in content, NOT header) → fill email → Send`,
+  'gantt-view': `Gantt View: Navigate to /{ws}/{proj}/tasks → click the Gantt tab (ViewMode selector) to switch to Gantt view. Tasks appear as horizontal bars on a timeline. Drag bar edges to resize dates, drag whole bar to move. Click a bar to navigate to task detail.`,
+  'assign-task': `Assign Task: Click a task to open detail → in the right sidebar find "Assignees" section → click the member dropdown → select user(s) from the project members list. The change saves automatically.`,
+  'admin-dashboard': `Admin Dashboard: Navigate to /admin. SUPER_ADMIN only. Shows system stats (users, orgs, projects, tasks counts).`,
+  'admin-users': `Admin Users: Navigate to /admin/users. Manage users: search, filter by status/role, change roles, activate/deactivate, delete, reset passwords.`,
+  'admin-organizations': `Admin Organizations: Navigate to /admin/organizations. Manage all organizations: search, suspend/activate (toggle archive), transfer ownership, delete.`,
+  'admin-config': `Admin Config: Navigate to /admin/config. Configure system-wide settings: SMTP email, AI defaults, security, etc. Settings are key-value pairs with optional encryption.`,
+  'create-sub-workspace': `Sub-workspace: On workspace page (/{ws}), create a new workspace and it can be nested under an existing workspace. In the sidebar Workspace Tree, drag a workspace onto another to make it a sub-workspace. Drag to the "Drop here to make top-level" zone to promote it back to root level.`,
 };
 
 export function getWorkflowGuide(taskType: string): string {
@@ -89,6 +104,12 @@ export function getWorkflowGuide(taskType: string): string {
 }
 
 export function getCurrentPageContext(url: string): string {
+  // Admin pages
+  if (url.includes('/admin/config')) return 'Admin configuration page';
+  if (url.includes('/admin/users')) return 'Admin user management page';
+  if (url.includes('/admin/organizations')) return 'Admin organization management page';
+  if (url.match(/\/admin\/?$/)) return 'Admin dashboard page';
+
   if (url.match(/\/settings\/[^/]+$/)) return `Org settings page: ${url.split('/settings/')[1]}`;
   if (url.includes('/settings/profile')) return 'Profile settings';
   if (url.includes('/settings')) return 'Org list page - click org card to manage';
@@ -97,6 +118,11 @@ export function getCurrentPageContext(url: string): string {
   if (url.match(/\/([^/]+)\/([^/]+)\/tasks\/new/))
     return 'Task creation page (/{ws}/{proj}/tasks/new)';
   if (url.match(/\/([^/]+)\/tasks\/new/)) return 'Task creation page (/{ws}/tasks/new)';
+  // Gantt view detection
+  if (url.match(/\/([^/]+)\/([^/]+)\/tasks/) && url.includes('view=gantt'))
+    return 'Project tasks page (Gantt view)';
+  if (url.match(/\/([^/]+)\/tasks/) && url.includes('view=gantt'))
+    return 'Workspace tasks page (Gantt view)';
   if (url.match(/\/([^/]+)\/([^/]+)\/tasks/)) return 'Project tasks page';
   if (url.match(/\/([^/]+)\/([^/]+)\/members/)) return 'Project members page';
   if (url.match(/\/([^/]+)\/settings$/)) return 'Workspace settings page';
@@ -202,6 +228,33 @@ export function enhancePromptWithContext(userRequest: string, currentUrl: string
       req.includes('reporter'))
   ) {
     hint = `FILTER BEHAVIOR: The filter dropdown uses checkboxes that TOGGLE. When the user says "filter by [value]", ensure ONLY that value ends up checked. First UNCHECK any other checked items in the same filter section, then CHECK the target value if not already checked. Look at data-state="checked" vs data-state="unchecked" on checkboxes to determine current state.`;
+  } else if (req.includes('gantt')) {
+    hint = getWorkflowGuide('gantt-view');
+    if (ctx.includes('Gantt view')) {
+      hint += `\nYou are already on the Gantt view. Tasks are displayed as horizontal bars on a timeline. Each bar is clickable and navigates to the task detail. Bars can be dragged to change dates. The left and right edges can be resized to change start/due dates.`;
+    } else if (ctx.includes('tasks page') || ctx.includes('Project tasks')) {
+      hint += `\nYou are on a tasks page. To switch to Gantt view, look for the view mode tabs/buttons (e.g. List, Kanban, Gantt) and click the Gantt option.`;
+    }
+  } else if (req.includes('assign') && !req.includes('task')) {
+    hint = getWorkflowGuide('assign-task');
+  } else if (
+    req.includes('sub-workspace') ||
+    req.includes('sub workspace') ||
+    req.includes('nested workspace') ||
+    req.includes('child workspace')
+  ) {
+    hint = getWorkflowGuide('create-sub-workspace');
+  } else if (req.includes('admin')) {
+    if (req.includes('user')) {
+      hint = getWorkflowGuide('admin-users');
+    } else if (req.includes('org')) {
+      hint = getWorkflowGuide('admin-organizations');
+    } else if (req.includes('config') || req.includes('smtp') || req.includes('system')) {
+      hint = getWorkflowGuide('admin-config');
+    } else {
+      hint = getWorkflowGuide('admin-dashboard');
+    }
+    hint += `\nIMPORTANT: Admin pages (/admin/*) require SUPER_ADMIN role. If the user is not a super admin, they will see an access denied screen.`;
   }
 
   return `Context: ${ctx} | URL: ${currentUrl}${hint ? `\nHint: ${hint}` : ''}\n${APP_GUIDE}`;

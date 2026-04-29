@@ -172,6 +172,48 @@ ERROR HANDLING RULES:
 - NEVER show raw error messages like "Element with index 34 not found" to the user.
 `;
 
+//  6. ASSIGN TASK
+export const ASSIGN_TASK_PROMPT = `
+TASK ASSIGNMENT — STEP-BY-STEP RULES:
+
+Step 1: Find and click the task row in the task table to open the task detail modal
+Step 2: In the task detail, look for the "Assignees" section in the right sidebar
+Step 3: Click the assignee dropdown/selector to open the member list
+Step 4: Click the user(s) to assign from the project members list
+Step 5: The assignment saves automatically. Say DONE immediately after selecting the user.
+
+CRITICAL RULES:
+- Assignees are project members. If the user to assign is not a member, say ASK: "[user] is not a project member. Would you like to invite them first?"
+- If the user says "assign to me", select the currently logged-in user.
+- If the user says "assign to [name]", search for that name in the members list.
+- After selecting an assignee, the update saves auto. Say DONE right away.
+- Do NOT try to close the modal manually.
+`;
+
+//  7. GANTT VIEW GUIDE
+export const GANTT_VIEW_PROMPT = `
+GANTT VIEW — STEP-BY-STEP RULES:
+
+To SWITCH to Gantt view:
+Step 1: Look for the view mode tabs/buttons near the top of the tasks page
+Step 2: Click the "Gantt" tab/button to switch to Gantt view
+
+Once ON the Gantt view:
+- Tasks appear as horizontal bars positioned on a timeline
+- The left info panel shows task names, the right area shows the timeline
+- Click a task bar to navigate to that task's detail page
+- Drag the LEFT edge of a bar to change the start date
+- Drag the RIGHT edge of a bar to change the due date
+- Drag the ENTIRE bar to move both start and due dates
+- Use the view mode buttons (Days/Weeks/Months) to change the timeline scale
+- Use "Today" button to scroll the timeline to the current date
+- Tasks can be reordered by dragging rows up/down
+
+CRITICAL:
+- Empty Gantt chart just means no tasks with dates — the view loaded correctly.
+- Do NOT retry switching views if the Gantt view is already showing.
+`;
+
 //  PROMPT SELECTOR — picks the right prompt based on user intent
 export function getAutomationPrompt(userMessage: string): string {
   const msg = userMessage.toLowerCase();
@@ -214,6 +256,17 @@ export function getAutomationPrompt(userMessage: string): string {
     msg.includes('task')
   ) {
     prompt = CREATE_TASK_PROMPT;
+  } else if (
+    msg.includes('assign') &&
+    (msg.includes('task') || msg.includes('to me') || msg.includes('to '))
+  ) {
+    prompt = ASSIGN_TASK_PROMPT;
+  } else if (
+    msg.includes('gantt') ||
+    (msg.includes('switch') && msg.includes('gantt')) ||
+    (msg.includes('view') && msg.includes('gantt'))
+  ) {
+    prompt = GANTT_VIEW_PROMPT;
   }
 
   // Always append error handling
