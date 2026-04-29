@@ -198,13 +198,13 @@ function TasksPageContent() {
   const hasValidUserAndOrg = !!currentUser?.id && !!currentOrganizationId;
 
   const defaultProject = useMemo(() => {
-    return projects.length > 0 ? projects[0] : { slug: "default-project" };
+    return projects.length > 0 ? projects[0] : { id: "", name: "", slug: "default-project" };
   }, [projects]);
 
   const defaultWorkspace = useMemo(() => {
     return projects.length > 0 && projects[0].workspace
       ? projects[0].workspace
-      : { slug: "default-workspace" };
+      : { id: "", name: "", slug: "default-workspace" };
   }, [projects]);
 
   useEffect(() => {
@@ -424,6 +424,7 @@ function TasksPageContent() {
         includeSubtasks: true,
         sortBy: "displayOrder",
         sortOrder: "asc",
+        viewType: "GANTT",
         page: currentPage,
         limit: pageSize,
       });
@@ -970,6 +971,9 @@ function TasksPageContent() {
           viewMode={ganttViewMode}
           onViewModeChange={setGanttViewMode}
           onTaskUpdate={handleTaskUpdate}
+          onTaskRefetch={loadTasks}
+          organizationId={currentOrganizationId || undefined}
+          workspaceId={defaultWorkspace?.id}
         />
       );
     }
@@ -1003,8 +1007,10 @@ function TasksPageContent() {
             showBulkActionBar={
               hasAccess || userAccess?.role === "OWNER" || userAccess?.role === "MANAGER"
             }
+            onTaskRefetch={loadTasks}
             totalTask={pagination.totalCount}
             addTaskStatuses={availableStatuses}
+            organizationId={currentOrganizationId || undefined}
           />
         );
     }

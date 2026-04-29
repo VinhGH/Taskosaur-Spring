@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Table,
@@ -61,6 +61,8 @@ import {
 } from "@/components/ui/select";
 import { useTask } from "@/contexts/task-context";
 import { useProject } from "@/contexts/project-context";
+import { useOrganization } from "@/contexts/organization-context";
+import { useWorkspaceContext } from "@/contexts/workspace-context";
 import { toast } from "sonner";
 import Tooltip from "@/components/common/ToolTip";
 import { Button } from "@/components/ui/button";
@@ -290,7 +292,7 @@ interface TaskTableProps {
     hasNextPage: boolean;
   };
   onPageChange?: (page: number) => void;
-  onTaskRefetch?: () => void;
+  onTaskRefetch?: () => Promise<void> | void;
   showAddTaskRow?: boolean;
   addTaskStatuses?: Array<{ id: string; name: string }>;
   projectMembers?: any[];
@@ -306,6 +308,7 @@ interface TaskTableProps {
   selectedReporters?: string[];
   sprintId?: string;
   workspaceId?: string;
+  organizationId?: string;
 }
 
 // Extend dayjs with timezone support
@@ -346,13 +349,51 @@ const TaskTable: React.FC<TaskTableProps> = ({
   selectedReporters,
   sprintId,
   workspaceId,
+  organizationId,
 }) => {
   const { t } = useTranslation("tasks");
   const router = useRouter();
-  const { createTask, getTaskById, currentTask, bulkDeleteTasks, bulkUpdateTasksStatus } = useTask();
+  const { user } = useAuth();
+  const { currentOrganization } = useOrganization();
+  const { currentProject: contextProject, getProjectMemberRole } = useProject();
+  const { getUserWorkspaceRole } = useWorkspaceContext();
+  const {
+    createTask,
+    getTaskById,
+    currentTask,
+    bulkDeleteTasks,
+    bulkUpdateTasksStatus,
+    updateRelativeTaskRank,
+  } = useTask();
   const { getTaskStatusByProject } = useProject();
   const { getProjectMembers } = useProject();
   const { isAuthenticated } = useAuth();
+
+  const userRole = useMemo(() => {
+    if (!user) return null;
+    if (user.role === 'SUPER_ADMIN') return 'SUPER_ADMIN';
+
+    // Priority 1: Project role if in project context
+    const projectToUse = currentProject || contextProject;
+    if (projectToUse?.id) {
+      const role = getProjectMemberRole(projectToUse.id, user.id);
+      if (role) return role;
+    }
+
+    // Priority 2: Workspace role if in workspace context
+    if (workspaceId) {
+      const role = getUserWorkspaceRole(workspaceId, user.id);
+      if (role) return role;
+    }
+
+    // Priority 3: Organization role
+    return user.role;
+  }, [user, currentProject, workspaceId, getProjectMemberRole, getUserWorkspaceRole]);
+
+  const canBulkAction = useMemo(() => {
+    if (!userRole) return false;
+    return ["SUPER_ADMIN", "OWNER", "MANAGER"].includes(userRole);
+  }, [userRole]);
 
   const isOrgOrWorkspaceLevel = (!workspaceSlug && !projectSlug) || (workspaceSlug && !projectSlug);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -493,22 +534,44 @@ const TaskTable: React.FC<TaskTableProps> = ({
       const reorderedTasks = arrayMove(localTasks, oldIndex, newIndex);
       setLocalTasks(reorderedTasks);
       
-      // Calculate new rank values for all tasks
-      const updates = reorderedTasks.map((task, index) => ({
-        id: task.id,
-        listRank: index + 1,
-      }));
+      // Identify neighbors for relative reordering
+      const prevTask = reorderedTasks[newIndex - 1];
+      const nextTask = reorderedTasks[newIndex + 1];
+      
+      const afterTaskId = prevTask ? prevTask.id : null;
+      const beforeTaskId = nextTask ? nextTask.id : null;
 
-      // Persist to backend
+      // Determine the polymorphic scope
+      let scopeType: "PROJECT" | "WORKSPACE" | "ORGANIZATION" = "ORGANIZATION";
+      let scopeId = organizationId;
+
+      if (projectSlug && (currentProject?.id || contextProject?.id)) {
+        scopeType = "PROJECT";
+        scopeId = currentProject?.id || contextProject?.id;
+      } else if (workspaceSlug && workspaceId) {
+        scopeType = "WORKSPACE";
+        scopeId = workspaceId;
+      }
+
+      const activeTask = localTasks[oldIndex];
+
+      // Persist to backend using professional relative ranking
       try {
-        await taskApi.reorderTasksByRank(updates);
-        // Trigger refetch so parent gets fresh data with new ranks
+        await updateRelativeTaskRank(activeTask.id, {
+          scopeType,
+          scopeId: scopeId!,
+          viewType: "LIST",
+          afterTaskId,
+          beforeTaskId,
+        });
+
+        // Trigger refetch to ensure pagination and order are perfectly synced
         if (onTaskRefetch) {
-          onTaskRefetch();
+          await onTaskRefetch();
         }
       } catch (error) {
         console.error("Failed to persist task reorder:", error);
-        // Revert to previous state on failure
+        // Revert UI to previous state on failure
         setLocalTasks(tasks);
       } finally {
         setIsReordering(false);
@@ -712,7 +775,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
         types: selectedTaskTypes?.join(","),
         assignees: selectedAssignees?.join(","),
         reporters: selectedReporters?.join(","),
-        sprintId,
+        organizationId: organizationId || currentOrganization?.id,
         workspaceId,
       });
 
@@ -1257,7 +1320,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
           >
-            {(onTaskSelect || onTasksSelect) && showBulkActionBar && (
+            {(onTaskSelect || onTasksSelect) && showBulkActionBar && canBulkAction && (
               <Checkbox
                 className="border-[var(--ring)] cursor-pointer"
                 checked={headerChecked}
@@ -1566,7 +1629,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
                   <span className="text-muted-foreground">⋮⋮</span>
                 </div>
               )}
-              {(onTaskSelect || onTasksSelect) && showBulkActionBar && (
+              {(onTaskSelect || onTasksSelect) && showBulkActionBar && canBulkAction && (
                 <div className="flex-shrink-0 mt-0.5">
                   <Checkbox
                     className="cursor-pointer border-[var(--ring)]"
@@ -1841,7 +1904,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
       </div>
 
       {/* BulkActionBar - appears as a toast/modal at bottom-center */}
-      {(onTaskSelect || onTasksSelect) && showBulkActionBar && (
+      {(onTaskSelect || onTasksSelect) && showBulkActionBar && canBulkAction && (
         <BulkActionBar
           selectedCount={selectedTasks.length}
           onDelete={handleBulkDelete}

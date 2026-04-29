@@ -23,6 +23,11 @@ export class BulkUpdateTasksStatusDto {
   @IsString()
   workspaceId?: string;
 
+  @ApiPropertyOptional({ description: 'Organization ID', example: 'org-123' })
+  @IsOptional()
+  @IsString()
+  organizationId?: string;
+
   @ApiPropertyOptional({
     description: 'Update all tasks under the given filters',
     example: false,

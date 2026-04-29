@@ -6,6 +6,7 @@ import { CsvImportModal } from "@/components/tasks/CsvImportModal";
 import { useProject } from "@/contexts/project-context";
 import { useTask } from "@/contexts/task-context";
 import { useAuth } from "@/contexts/auth-context";
+import { useSprint } from "@/contexts/sprint-context";
 import TaskListView from "@/components/tasks/views/TaskListView";
 import TaskGanttView from "@/components/tasks/views/TaskGanttView";
 import { KanbanBoard } from "@/components/tasks/KanbanBoard";
@@ -22,7 +23,7 @@ import Pagination from "@/components/common/Pagination";
 import { ColumnManager } from "@/components/tasks/ColumnManager";
 import SortingManager, { SortField, SortOrder } from "@/components/tasks/SortIngManager";
 import { FilterDropdown, useGenericFilters } from "@/components/common/FilterDropdown";
-import { CheckSquare, Flame, Shapes, User, Users, Download, Upload } from "lucide-react";
+import { CheckSquare, Flame, Shapes, User, Users, Download, Upload, Zap } from "lucide-react";
 import { TaskPriorities, TaskTypeIcon } from "@/utils/data/taskData";
 import Tooltip from "@/components/common/ToolTip";
 import TaskTableSkeleton from "@/components/skeletons/TaskTableSkeleton";
@@ -87,6 +88,7 @@ function ProjectTasksContent() {
   } = useTask();
 
   const { isAuthenticated, getUserAccess } = useAuth();
+  const { getSprintsByProject } = useSprint();
   const currentOrganizationId = TokenManager.getCurrentOrgId();
   const isAuth = isAuthenticated();
 
@@ -112,8 +114,10 @@ function ProjectTasksContent() {
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedPriorities, setSelectedPriorities] = useState<string[]>([]);
   const [selectedTaskTypes, setSelectedTaskTypes] = useState<string[]>([]);
+  const [selectedSprints, setSelectedSprints] = useState<string[]>([]);
   const [availableStatuses, setAvailableStatuses] = useState<any[]>([]);
   const [availablePriorities] = useState(TaskPriorities);
+  const [availableSprints, setAvailableSprints] = useState<any[]>([]);
   const [projectMembers, setProjectMembers] = useState<any[]>([]);
   const [kanban, setKanban] = useState<any[]>([]);
   const [ganttTasks, setGanttTasks] = useState<any[]>([]);
@@ -149,6 +153,19 @@ function ProjectTasksContent() {
       return [];
     }
   });
+
+  // Initialize filters from URL query params
+  useEffect(() => {
+    if (router.isReady) {
+      const { sprints, statuses, priorities, types, assignees, reporters } = router.query;
+      if (sprints) setSelectedSprints((Array.isArray(sprints) ? sprints : sprints.split(",")));
+      if (statuses) setSelectedStatuses((Array.isArray(statuses) ? statuses : statuses.split(",")));
+      if (priorities) setSelectedPriorities((Array.isArray(priorities) ? priorities : priorities.split(",")));
+      if (types) setSelectedTaskTypes((Array.isArray(types) ? types : types.split(",")));
+      if (assignees) setSelectedAssignees((Array.isArray(assignees) ? assignees : assignees.split(",")));
+      if (reporters) setSelectedReporters((Array.isArray(reporters) ? reporters : reporters.split(",")));
+    }
+  }, [router.isReady]);
 
   const handleTaskSelect = useCallback((taskId: string) => {
     setSelectedTasks((prev) =>
@@ -243,6 +260,27 @@ function ProjectTasksContent() {
     }
   }, [project?.id, isAuth]);
 
+  const loadProjectSprints = useCallback(async () => {
+    if (!projectSlug || !isAuth) return;
+    try {
+      const sprints = await getSprintsByProject(
+        projectSlug as string,
+        isAuth,
+        workspaceSlug as string
+      );
+      setAvailableSprints(sprints || []);
+    } catch (error) {
+      console.error("Failed to fetch project sprints:", error);
+      setAvailableSprints([]);
+    }
+  }, [projectSlug, workspaceSlug, isAuth, getSprintsByProject]);
+
+  useEffect(() => {
+    if (projectSlug && isAuth) {
+      loadProjectSprints();
+    }
+  }, [projectSlug, isAuth]);
+
   const { handleSlugNotFound } = useSlugRedirect();
 
   const loadInitialData = useCallback(async () => {
@@ -288,6 +326,7 @@ function ProjectTasksContent() {
         ...(selectedStatuses.length > 0 && { statuses: selectedStatuses.join(",") }),
         ...(selectedPriorities.length > 0 && { priorities: selectedPriorities.join(",") }),
         ...(selectedTaskTypes.length > 0 && { types: selectedTaskTypes.join(",") }),
+        ...(selectedSprints.length > 0 && { sprintId: selectedSprints.join(",") }),
         ...(debouncedSearchQuery.trim() && { search: debouncedSearchQuery.trim() }),
         ...(selectedAssignees.length > 0 && { assignees: selectedAssignees.join(",") }),
         ...(selectedReporters.length > 0 && { reporters: selectedReporters.join(",") }),
@@ -327,6 +366,7 @@ function ProjectTasksContent() {
     selectedStatuses,
     selectedPriorities,
     selectedTaskTypes,
+    selectedSprints,
     selectedAssignees,
     selectedReporters,
     workspaceSlug,
@@ -390,6 +430,7 @@ function ProjectTasksContent() {
         includeSubtasks: true,
         sortBy: "displayOrder",
         sortOrder: "asc",
+        viewType: "GANTT",
         page: currentPage,
         limit: pageSize,
       });
@@ -558,6 +599,19 @@ function ProjectTasksContent() {
     [selectedTaskTypes, tasks]
   );
 
+  const sprintFilters = useMemo(
+    () =>
+      availableSprints.map((sprint) => ({
+        id: sprint.id,
+        name: sprint.name,
+        value: sprint.id,
+        selected: selectedSprints.includes(sprint.id),
+        count: tasks.filter((task) => task.sprintId === sprint.id).length,
+        color: sprint.status === "ACTIVE" ? "#10b981" : "#6b7280",
+      })),
+    [availableSprints, selectedSprints, tasks]
+  );
+
   const assigneeFilters = useMemo(() => {
     return projectMembers.map((member) => ({
       id: member.user.id,
@@ -613,6 +667,21 @@ function ProjectTasksContent() {
     setCurrentPage(1);
   }, []);
 
+  const toggleSprint = useCallback((id: string) => {
+    setSelectedSprints((prev) => {
+      const newSelection = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      const newQuery = { ...router.query };
+      if (newSelection.length > 0) {
+        newQuery.sprints = newSelection.join(",");
+      } else {
+        delete newQuery.sprints;
+      }
+      router.push({ pathname: router.pathname, query: newQuery }, undefined, { shallow: true });
+      return newSelection;
+    });
+    setCurrentPage(1);
+  }, [router]);
+
   const toggleAssignee = useCallback((id: string) => {
     setSelectedAssignees((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -663,6 +732,27 @@ function ProjectTasksContent() {
         onClearAll: () => setSelectedTaskTypes([]),
       }),
       createSection({
+        id: "sprint",
+        title: t("filters.sprint"),
+        icon: Zap,
+        data: sprintFilters,
+        selectedIds: selectedSprints,
+        searchable: true,
+        onToggle: toggleSprint,
+        onSelectAll: () => {
+          const allValues = sprintFilters.map((s) => s.id);
+          setSelectedSprints(allValues);
+          const newQuery = { ...router.query, sprints: allValues.join(",") };
+          router.push({ pathname: router.pathname, query: newQuery }, undefined, { shallow: true });
+        },
+        onClearAll: () => {
+          setSelectedSprints([]);
+          const newQuery = { ...router.query };
+          delete newQuery.sprints;
+          router.push({ pathname: router.pathname, query: newQuery }, undefined, { shallow: true });
+        },
+      }),
+      createSection({
         id: "assignee",
         title: t("filters.assignee"),
         icon: User,
@@ -688,12 +778,14 @@ function ProjectTasksContent() {
     [
       priorityFilters,
       taskTypeFilters,
+      sprintFilters,
       statusFilters,
       assigneeFilters,
       reporterFilters,
       selectedStatuses,
       selectedPriorities,
       selectedTaskTypes,
+      selectedSprints,
       selectedAssignees,
       selectedReporters,
       toggleAssignee,
@@ -701,6 +793,7 @@ function ProjectTasksContent() {
       toggleStatus,
       togglePriority,
       toggleTaskType,
+      toggleSprint,
       createSection,
       t,
     ]
@@ -710,6 +803,7 @@ function ProjectTasksContent() {
     selectedStatuses.length +
     selectedPriorities.length +
     selectedTaskTypes.length +
+    selectedSprints.length +
     selectedAssignees.length +
     selectedReporters.length;
 
@@ -717,6 +811,7 @@ function ProjectTasksContent() {
     setSelectedStatuses([]);
     setSelectedPriorities([]);
     setSelectedTaskTypes([]);
+    setSelectedSprints([]);
     setSelectedAssignees([]);
     setSelectedReporters([]);
     setCurrentPage(1);
@@ -853,9 +948,13 @@ function ProjectTasksContent() {
             tasks={ganttTasks}
             workspaceSlug={workspaceSlug as string}
             projectSlug={projectSlug as string}
-            viewMode={ganttViewMode}
+             viewMode={ganttViewMode}
             onViewModeChange={setGanttViewMode}
             onTaskUpdate={handleTaskUpdate}
+            onTaskRefetch={loadTasks}
+            workspaceId={workspace?.id}
+            organizationId={currentOrganizationId || undefined}
+            currentProject={project}
           />
         );
       default:
@@ -881,6 +980,9 @@ function ProjectTasksContent() {
             selectedAssignees={selectedAssignees}
             selectedReporters={selectedReporters}
             workspaceId={workspace?.id}
+            organizationId={currentOrganizationId || undefined}
+            currentProject={project}
+            projectSlug={projectSlug as string}
             addTaskStatuses={availableStatuses}
           />
         );

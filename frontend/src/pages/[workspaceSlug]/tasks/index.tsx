@@ -986,8 +986,8 @@ function WorkspaceTasksContent() {
     await loadTasks();
   }, [loadTasks]);
 
-  const memoizedTaskRefetch = useCallback(() => {
-    handleTaskRefetch();
+  const memoizedTaskRefetch = useCallback(async () => {
+    await handleTaskRefetch();
   }, [handleTaskRefetch]);
 
   const handleRetry = useCallback(() => {
@@ -1085,6 +1085,8 @@ function WorkspaceTasksContent() {
               hasAccess || userAccess?.role === "OWNER" || userAccess?.role === "MANAGER"
             }
             totalTask={pagination.totalCount}
+            workspaceId={workspace?.id}
+            organizationId={workspace?.organizationId}
           />
         );
     }

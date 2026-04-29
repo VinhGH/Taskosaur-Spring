@@ -63,7 +63,7 @@ export const taskApi = {
         throw new Error("projectId is required");
       }
       const response = await api.get<{ data: TaskStatus[] }>(
-        `/task-statuses/project?projectId=${projectId}`
+        `/task-statuses/project?projectId=${encodeURIComponent(projectId)}`
       );
       return response.data;
     } catch (error) {
@@ -226,13 +226,13 @@ export const taskApi = {
       const queryParams = new URLSearchParams();
 
       // Required org id
-      queryParams.append("organizationId", organizationId);
+      queryParams.append("organizationId", encodeURIComponent(organizationId));
 
       // Optional filters
-      if (params?.workspaceId) queryParams.append("workspaceId", params.workspaceId);
-      if (params?.projectId) queryParams.append("projectId", params.projectId);
-      if (params?.sprintId) queryParams.append("sprintId", params.sprintId);
-      if (params?.parentTaskId) queryParams.append("parentTaskId", params.parentTaskId);
+      if (params?.workspaceId) queryParams.append("workspaceId", encodeURIComponent(params.workspaceId));
+      if (params?.projectId) queryParams.append("projectId", encodeURIComponent(params.projectId));
+      if (params?.sprintId) queryParams.append("sprintId", encodeURIComponent(params.sprintId));
+      if (params?.parentTaskId) queryParams.append("parentTaskId", encodeURIComponent(params.parentTaskId));
       if (params?.priorities) queryParams.append("priorities", params.priorities);
       if (params?.statuses) queryParams.append("statuses", params.statuses);
       if (params?.types) queryParams.append("types", params.types);
@@ -269,6 +269,7 @@ export const taskApi = {
       search?: string;
       sortBy?: string;
       sortOrder?: string;
+      viewType?: 'LIST' | 'BOARD' | 'GANTT';
       page?: number;
       limit?: number;
     }
@@ -297,6 +298,7 @@ export const taskApi = {
       // Sorting
       if (params?.sortBy) queryParams.append("sortBy", params.sortBy);
       if (params?.sortOrder) queryParams.append("sortOrder", params.sortOrder);
+      if (params?.viewType) queryParams.append("viewType", params.viewType);
 
       // Pagination
       if (params?.page !== undefined) queryParams.append("page", String(params.page));
@@ -344,7 +346,7 @@ export const taskApi = {
         throw new Error("organizationId is required");
       }
       const response = await api.get<Task[]>(
-        `/tasks?organizationId=${organizationId}&projectId=${projectId}`
+        `/tasks?organizationId=${encodeURIComponent(organizationId)}&projectId=${encodeURIComponent(projectId)}`
       );
       return response.data;
     } catch (error) {
@@ -400,7 +402,7 @@ export const taskApi = {
         throw new Error(`Invalid organizationId: ${organizationId}`);
       }
       const response = await api.get<Task[]>(
-        `/tasks?sprintId=${sprintId}&organizationId=${organizationId}`
+        `/tasks?sprintId=${encodeURIComponent(sprintId)}&organizationId=${encodeURIComponent(organizationId)}`
       );
       return response.data;
     } catch (error) {
@@ -428,7 +430,7 @@ export const taskApi = {
       if (params.search) queryParams.append("search", params.search); // ✅ Add search
 
       const queryString = queryParams.toString();
-      const url = `/tasks/organization/${organizationId}${queryString ? `?${queryString}` : ""}`;
+      const url = `/tasks/organization/${encodeURIComponent(organizationId)}${queryString ? `?${queryString}` : ""}`;
 
       const response = await api.get<TasksResponse>(url);
       return response.data;
@@ -496,7 +498,7 @@ export const taskApi = {
       }
       const organizationId = typeof window !== 'undefined' ? localStorage.getItem("currentOrganizationId") : null;
       let query = organizationId ? `?organizationId=${organizationId}` : "?";
-      if (projectId) query += `&projectId=${projectId}`;
+      if (projectId) query += `&projectId=${encodeURIComponent(projectId)}`;
       query += `&parentTaskId=null`;
       const response = await api.get<Task[]>(`/tasks${query}`);
       return response.data;
@@ -585,6 +587,27 @@ export const taskApi = {
       return response.data;
     } catch (error) {
       console.error("Reorder tasks by rank error:", error);
+      throw error;
+    }
+  },
+
+  updateRelativeTaskRank: async (
+    taskId: string,
+    reorderData: {
+      scopeType: 'ORGANIZATION' | 'WORKSPACE' | 'PROJECT';
+      scopeId: string;
+      viewType: 'LIST' | 'BOARD' | 'GANTT';
+      afterTaskId?: string | null;
+      beforeTaskId?: string | null;
+    }
+  ): Promise<void> => {
+    try {
+      if (!isValidUUID(taskId)) {
+        throw new Error('Invalid task ID format');
+      }
+      await api.patch(`/task-ranks/${encodeURIComponent(taskId)}/reorder`, reorderData);
+    } catch (error) {
+      console.error("Update relative task rank error:", error);
       throw error;
     }
   },
@@ -902,7 +925,7 @@ export const taskApi = {
       if (!isValidUUID(attachmentId)) {
         throw new Error('Invalid attachment ID format');
       }
-      const response = await api.get<TaskAttachment>(`/task-attachments/${attachmentId}`);
+      const response = await api.get<TaskAttachment>(`/task-attachments/${encodeURIComponent(attachmentId)}`);
       return response.data;
     } catch (error) {
       console.error("Get attachment by ID error:", error);
@@ -915,7 +938,7 @@ export const taskApi = {
       if (!isValidUUID(attachmentId)) {
         throw new Error('Invalid attachment ID format');
       }
-      const response = await api.get(`/task-attachments/${attachmentId}/download`, {
+      const response = await api.get(`/task-attachments/${encodeURIComponent(attachmentId)}/download`, {
         responseType: "blob",
       });
       return response.data;
@@ -930,7 +953,7 @@ export const taskApi = {
       if (!isValidUUID(attachmentId)) {
         throw new Error('Invalid attachment ID format');
       }
-      const response = await api.get(`/task-attachments/${attachmentId}/preview`, {
+      const response = await api.get(`/task-attachments/${encodeURIComponent(attachmentId)}/preview`, {
         responseType: "blob",
       });
       return response.data;
@@ -966,7 +989,7 @@ export const taskApi = {
       if (taskId && !isValidUUID(taskId)) {
         throw new Error('Invalid task ID format');
       }
-      const query = taskId ? `?taskId=${taskId}` : "";
+      const query = taskId ? `?taskId=${encodeURIComponent(taskId)}` : "";
       const response = await api.get<AttachmentStats>(`/task-attachments/stats${query}`);
       return response.data;
     } catch (error) {
@@ -983,7 +1006,7 @@ export const taskApi = {
       if (!isValidUUID(requestUserId)) {
         throw new Error('Invalid user ID format');
       }
-      await api.delete(`/task-attachments/${attachmentId}?requestUserId=${requestUserId}`);
+      await api.delete(`/task-attachments/${encodeURIComponent(attachmentId)}?requestUserId=${encodeURIComponent(requestUserId)}`);
     } catch (error) {
       console.error("Delete attachment error:", error);
       throw error;
@@ -1006,7 +1029,7 @@ export const taskApi = {
       if (!isValidUUID(projectId)) {
         throw new Error('Invalid project ID format');
       }
-      const response = await api.get<TaskLabel[]>(`/labels?projectId=${projectId}`);
+      const response = await api.get<TaskLabel[]>(`/labels?projectId=${encodeURIComponent(projectId)}`);
       return response.data;
     } catch (error) {
       console.error("Get project labels error:", error);
@@ -1019,7 +1042,7 @@ export const taskApi = {
       if (!isValidUUID(labelId)) {
         throw new Error('Invalid label ID format');
       }
-      const response = await api.get<TaskLabel>(`/labels/${labelId}`);
+      const response = await api.get<TaskLabel>(`/labels/${encodeURIComponent(labelId)}`);
       return response.data;
     } catch (error) {
       console.error("Get label by ID error:", error);
@@ -1032,7 +1055,7 @@ export const taskApi = {
       if (!isValidUUID(labelId)) {
         throw new Error('Invalid label ID format');
       }
-      const response = await api.patch<TaskLabel>(`/labels/${labelId}`, labelData);
+      const response = await api.patch<TaskLabel>(`/labels/${encodeURIComponent(labelId)}`, labelData);
       return response.data;
     } catch (error) {
       console.error("Update label error:", error);
@@ -1045,7 +1068,7 @@ export const taskApi = {
       if (!isValidUUID(labelId)) {
         throw new Error('Invalid label ID format');
       }
-      await api.delete(`/labels/${labelId}`);
+      await api.delete(`/labels/${encodeURIComponent(labelId)}`);
     } catch (error) {
       console.error("Delete label error:", error);
       throw error;
@@ -1087,7 +1110,7 @@ export const taskApi = {
       if (!isValidUUID(taskId)) {
         throw new Error('Invalid task ID format');
       }
-      const response = await api.get<TaskLabel[]>(`/task-labels?taskId=${taskId}`);
+      const response = await api.get<TaskLabel[]>(`/task-labels?taskId=${encodeURIComponent(taskId)}`);
       return response.data;
     } catch (error) {
       console.error("Get task labels error:", error);
@@ -1212,6 +1235,7 @@ export const taskApi = {
     search?: string;
     priorities?: ("LOW" | "MEDIUM" | "HIGH" | "HIGHEST")[];
     types?: string[];
+    viewType?: 'LIST' | 'BOARD' | 'GANTT';
   }): Promise<PaginatedTaskResponse> => {
     try {
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -1249,6 +1273,9 @@ export const taskApi = {
       }
       if (params.types && params.types.length > 0) {
         queryParams.append("types", params.types.join(","));
+      }
+      if (params.viewType) {
+        queryParams.append("viewType", params.viewType);
       }
 
       const query = queryParams.toString();
@@ -1331,6 +1358,8 @@ export const taskApi = {
     assignees?: string;
     reporters?: string;
     sprintId?: string;
+    organizationId?: string;
+    workspaceId?: string;
   }): Promise<{
     updatedCount: number;
     updatedTasks: Task[];

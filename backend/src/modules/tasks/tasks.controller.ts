@@ -27,7 +27,13 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
-import { NotificationPriority, NotificationType, TaskPriority, Role } from '@prisma/client';
+import {
+  NotificationPriority,
+  NotificationType,
+  TaskPriority,
+  Role,
+  ViewType,
+} from '@prisma/client';
 import { AutoNotify } from 'src/common/decorator/auto-notify.decorator';
 import { LogActivity } from 'src/common/decorator/log-activity.decorator';
 import { TasksByStatusParams } from './dto/task-by-status.dto';
@@ -141,6 +147,7 @@ export class TasksController {
     description: 'Update status of multiple tasks at once.',
   })
   @ApiBody({ type: BulkUpdateTasksStatusDto })
+  @Roles(Role.OWNER, Role.MANAGER)
   @ApiResponse({
     status: 200,
     description: 'Tasks updated successfully',
@@ -661,6 +668,7 @@ export class TasksController {
     @Query('search') search?: string,
     @Query('sortBy') sortBy?: string,
     @Query('sortOrder') sortOrder?: string,
+    @Query('viewType') viewType: ViewType = ViewType.LIST,
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '20',
   ) {
@@ -679,6 +687,7 @@ export class TasksController {
       sortOrder,
       Number(page),
       Number(limit),
+      viewType,
     );
   }
 
@@ -767,70 +776,14 @@ export class TasksController {
     );
   }
 
-  @Patch('reorder/bulk')
+  @Patch(':id/reorder')
   @ApiOperation({
-    summary: 'Reorder tasks by updating display order',
-    description:
-      'Updates the display_order field for multiple tasks at once. Used for drag-and-drop reordering.',
+    summary: 'Update relative task rank',
+    description: 'Updates a tasks rank relative to neighbors in a specific scope',
   })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        tasks: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'string', format: 'uuid' },
-              displayOrder: { type: 'number' },
-            },
-            required: ['id', 'displayOrder'],
-          },
-        },
-      },
-      required: ['tasks'],
-    },
-  })
-  @ApiResponse({ status: 200, description: 'Tasks reordered successfully' })
-  async bulkReorder(
-    @Body('tasks') tasks: { id: string; displayOrder: number }[],
-    @CurrentUser() user: User,
-  ) {
-    return this.tasksService.bulkReorder(tasks, user.id);
-  }
-
-  @Patch('reorder-list-rank/bulk')
-  @ApiOperation({
-    summary: 'Reorder tasks by updating list rank',
-    description:
-      'Updates the listRank field for multiple tasks at once. Used for drag-and-drop reordering in task list view.',
-  })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        tasks: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'string', format: 'uuid' },
-              listRank: { type: 'number' },
-            },
-            required: ['id', 'listRank'],
-          },
-        },
-      },
-      required: ['tasks'],
-    },
-  })
-  @ApiResponse({ status: 200, description: 'Tasks reordered successfully' })
-  async bulkReorderByRank(
-    @Body('tasks') tasks: { id: string; listRank: number }[],
-    @CurrentUser() user: User,
-  ) {
-    return this.tasksService.bulkReorderBylistRank(tasks, user.id);
+  async updateRelativeRank(@Param('id') taskId: string, @Body() dto: any) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    return this.tasksService.reorderTask(taskId, dto);
   }
 
   @Patch(':id')

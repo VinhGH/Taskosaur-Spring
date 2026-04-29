@@ -8,7 +8,7 @@ interface TaskListViewProps {
   projectSlug?: string;
   projects?: any[];
   projectsOfCurrentWorkspace?: any[];
-  onTaskRefetch?: () => void;
+  onTaskRefetch?: () => Promise<void> | void;
   columns?: ColumnConfig[];
   showAddTaskRow?: boolean;
   addTaskPriorities?: any[];
@@ -28,6 +28,8 @@ interface TaskListViewProps {
   selectedReporters?: string[];
   sprintId?: string;
   workspaceId?: string;
+  organizationId?: string;
+  currentProject?: any;
 }
 
 export default function TaskListView({
@@ -42,6 +44,7 @@ export default function TaskListView({
   addTaskStatuses,
   projectMembers,
   workspaceMembers,
+  currentProject,
   selectedTasks: externalSelectedTasks,
   onTaskSelect: externalOnTaskSelect,
   onTasksSelect: externalOnTasksSelect,
@@ -55,6 +58,7 @@ export default function TaskListView({
   selectedReporters,
   sprintId,
   workspaceId,
+  organizationId,
 }: TaskListViewProps) {
   const [internalSelectedTasks, setInternalSelectedTasks] = useState<string[]>([]);
   
@@ -146,6 +150,8 @@ export default function TaskListView({
         selectedReporters={selectedReporters}
         sprintId={sprintId}
         workspaceId={workspaceId}
+        organizationId={organizationId}
+        currentProject={currentProject}
       />
     </div>
   );
