@@ -305,10 +305,6 @@ model Task {
   updatedAt         DateTime     @updatedAt @map("updated_at")
   isArchived        Boolean      @default(false) @map("is_archived")
   archivedBy        String?      @map("archived_by") @db.Uuid
-
-  displayOrder      Float?       @map("display_order")
-  listRank          Float?       @map("list_rank")
-
   // Inbox Integration
   inboxMessageId    String? @unique @map("inbox_message_id") @db.Uuid
   emailThreadId     String? @map("email_thread_id")
@@ -339,10 +335,10 @@ model Task {
   assignees       TaskAssignee[]
   reporters       TaskReporter[]
   publicShares    PublicTaskShare[]
+  taskRanks       TaskRank[]
 
   @@unique([projectId, taskNumber])
   @@index([emailThreadId])
-  @@index([projectId, listRank])
   @@map("tasks")
 }
 
@@ -374,6 +370,21 @@ model RecurringTask {
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@map("recurring_tasks")
+}
+
+model TaskRank {
+  id                String    @id @default(uuid()) @db.Uuid
+  taskId            String    @map("task_id") @db.Uuid
+  scopeType         ScopeType @map("scope_type")
+  scopeId           String    @map("scope_id") @db.Uuid
+  viewType          ViewType  @map("view_type")
+  rank              Float?
+  
+  task              Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, scopeType, scopeId, viewType])
+  @@index([scopeType, scopeId, viewType, rank])
+  @@map("task_ranks")
 }
 
 model TaskDependency {
@@ -848,6 +859,25 @@ enum ProjectVisibility {
   PRIVATE
   INTERNAL
   PUBLIC
+}
+
+enum FileType {
+  IMAGE
+  DOCUMENT
+  VIDEO
+  OTHER
+}
+
+enum ScopeType {
+  ORGANIZATION
+  WORKSPACE
+  PROJECT
+}
+
+enum ViewType {
+  LIST
+  BOARD
+  GANTT
 }
 
 enum TaskType {

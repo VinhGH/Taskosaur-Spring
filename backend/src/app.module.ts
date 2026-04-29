@@ -42,6 +42,7 @@ import { InboxModule } from './modules/inbox/inbox.module';
 import { EmailModule } from './modules/email/email.module';
 import { QueueModule } from './modules/queue/queue.module';
 import { EditorImagesModule } from './modules/editor-images/editor-images.module';
+import { TaskRanksModule } from './modules/task-ranks/task-ranks.module';
 
 import { PublicModule } from './modules/public/public.module';
 import { HealthModule } from './modules/health/health.module';
@@ -92,6 +93,7 @@ import { AdminModule } from './modules/admin/admin.module';
           HealthModule,
           QueueModule,
           EditorImagesModule,
+          TaskRanksModule,
           AdminModule,
         ],
       },
@@ -133,6 +135,7 @@ import { AdminModule } from './modules/admin/admin.module';
     EmailModule,
     QueueModule,
     EditorImagesModule,
+    TaskRanksModule,
     AdminModule,
   ],
   controllers: [AppController],

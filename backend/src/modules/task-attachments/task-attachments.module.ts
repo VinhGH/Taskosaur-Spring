@@ -2,13 +2,12 @@ import { Module } from '@nestjs/common';
 import { TaskAttachmentsService } from './task-attachments.service';
 import { TaskAttachmentsController } from './task-attachments.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
-import { StorageService } from '../storage/storage.service';
-import { S3Service } from '../storage/s3.service';
+import { S3Module } from '../storage/s3.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, S3Module],
   controllers: [TaskAttachmentsController],
-  providers: [TaskAttachmentsService, StorageService, S3Service],
+  providers: [TaskAttachmentsService],
   exports: [TaskAttachmentsService],
 })
 export class TaskAttachmentsModule {}

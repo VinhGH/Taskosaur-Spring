@@ -1,14 +1,13 @@
 import { Module } from '@nestjs/common';
 import { EditorImagesController } from './editor-images.controller';
 import { EditorImagesService } from './editor-images.service';
-import { StorageService } from '../storage/storage.service';
-import { S3Service } from '../storage/s3.service';
+import { S3Module } from '../storage/s3.module';
 import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, S3Module],
   controllers: [EditorImagesController],
-  providers: [EditorImagesService, StorageService, S3Service],
+  providers: [EditorImagesService],
   exports: [EditorImagesService],
 })
 export class EditorImagesModule {}
