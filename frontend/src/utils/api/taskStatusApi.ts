@@ -36,7 +36,7 @@ export const taskStatusApi = {
   // Get all task statuses with optional workflow filter
   getTaskStatuses: async (workflowId?: string): Promise<TaskStatus[]> => {
     try {
-      const params = workflowId ? `?workflowId=${workflowId}` : "";
+      const params = workflowId ? `?workflowId=${encodeURIComponent(workflowId)}` : "";
       const response = await api.get<TaskStatus[]>(`/task-statuses${params}`);
       return response.data;
     } catch (error) {
@@ -46,7 +46,7 @@ export const taskStatusApi = {
   },
   getTaskStatusByProject: async (projectId: string): Promise<TaskStatus[]> => {
     try {
-      const params = `?projectId=${projectId}`;
+      const params = `?projectId=${encodeURIComponent(projectId)}`;
       const response = await api.get<TaskStatus[]>(`/task-statuses/project${params}`);
       return response.data;
     } catch (error) {
@@ -57,7 +57,7 @@ export const taskStatusApi = {
   // Get task status by ID
   getTaskStatusById: async (statusId: string): Promise<TaskStatus> => {
     try {
-      const response = await api.get<TaskStatus>(`/task-statuses/${statusId}`);
+      const response = await api.get<TaskStatus>(`/task-statuses/${encodeURIComponent(statusId)}`);
       return response.data;
     } catch (error) {
       console.error("Get task status by ID error:", error);
@@ -71,7 +71,7 @@ export const taskStatusApi = {
     taskStatusData: UpdateTaskStatusDto
   ): Promise<TaskStatus> => {
     try {
-      const response = await api.patch<TaskStatus>(`/task-statuses/${statusId}`, taskStatusData);
+      const response = await api.patch<TaskStatus>(`/task-statuses/${encodeURIComponent(statusId)}`, taskStatusData);
       return response.data;
     } catch (error) {
       console.error("Update task status error:", error);
@@ -93,7 +93,7 @@ export const taskStatusApi = {
   // Delete task status
   deleteTaskStatus: async (statusId: string): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await api.delete(`/task-statuses/${statusId}`);
+      const response = await api.delete(`/task-statuses/${encodeURIComponent(statusId)}`);
 
       const status = response.status;
       if (status === 204 || status === 200) {

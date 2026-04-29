@@ -12,17 +12,17 @@ export const userApi = {
   },
 
   getUserById: async (userId: string): Promise<User> => {
-    const response = await api.get<User>(`/users/${userId}`);
+    const response = await api.get<User>(`/users/${encodeURIComponent(userId)}`);
     return response.data;
   },
 
   getPublicProfile: async (userId: string): Promise<Partial<User>> => {
-    const response = await api.get<Partial<User>>(`/users/${userId}/profile`);
+    const response = await api.get<Partial<User>>(`/users/${encodeURIComponent(userId)}/profile`);
     return response.data;
   },
 
   getUserStatus: async (userId: string): Promise<UserStatus> => {
-    const response = await api.get<UserStatus>(`/users/${userId}/status`);
+    const response = await api.get<UserStatus>(`/users/${encodeURIComponent(userId)}/status`);
     return response.data;
   },
 
@@ -34,7 +34,7 @@ export const userApi = {
   },
 
   updateUser: async (userId: string, userData: UpdateUserData): Promise<User> => {
-    const response = await api.patch<User>(`/users/${userId}`, userData);
+    const response = await api.patch<User>(`/users/${encodeURIComponent(userId)}`, userData);
 
     const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
     if (currentUser.id === userId) {
@@ -46,7 +46,7 @@ export const userApi = {
   },
 
   updateUserEmail: async (userId: string, emailData: UpdateEmailData): Promise<User> => {
-    const response = await api.patch<User>(`/users/${userId}`, emailData);
+    const response = await api.patch<User>(`/users/${encodeURIComponent(userId)}`, emailData);
 
     const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
     if (currentUser.id === userId) {
@@ -58,7 +58,7 @@ export const userApi = {
   },
 
   deleteUser: async (userId: string): Promise<void> => {
-    await api.delete(`/users/${userId}`);
+    await api.delete(`/users/${encodeURIComponent(userId)}`);
 
     const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
     if (currentUser.id === userId) {

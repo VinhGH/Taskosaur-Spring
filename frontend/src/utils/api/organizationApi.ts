@@ -18,7 +18,7 @@ export const organizationApi = {
   getUserOrganizations: async (userId: string): Promise<Organization[]> => {
     try {
       const response = await api.get<OrganizationResponse>(
-        `/organization-members/user/${userId}/organizations`
+        `/organization-members/user/${encodeURIComponent(userId)}/organizations`
       );
 
       // Handle different response structures
@@ -96,7 +96,7 @@ export const organizationApi = {
 
   getOrganizationById: async (organizationId: string): Promise<Organization> => {
     try {
-      const response = await api.get<Organization>(`/organizations/${organizationId}`);
+      const response = await api.get<Organization>(`/organizations/${encodeURIComponent(organizationId)}`);
       return response.data;
     } catch (error) {
       console.error("Get organization by ID error:", error);
@@ -105,7 +105,7 @@ export const organizationApi = {
   },
   getOrganizationBySlug: async (slug: string): Promise<Organization> => {
     try {
-      const response = await api.get<Organization>(`/organizations/slug/${slug}`);
+      const response = await api.get<Organization>(`/organizations/slug/${encodeURIComponent(slug)}`);
       return response.data;
     } catch (error) {
       console.error("Get organization by slug error:", error);
@@ -171,7 +171,7 @@ export const organizationApi = {
   ): Promise<Organization> => {
     try {
       const response = await api.patch<Organization>(
-        `/organizations/${organizationId}`,
+        `/organizations/${encodeURIComponent(organizationId)}`,
         updateData
       );
       return response.data;
@@ -188,7 +188,7 @@ export const organizationApi = {
   ): Promise<OrganizationMember> => {
     try {
       const response = await api.patch<OrganizationMember>(
-        `/organization-members/${memberId}?requestUserId=${requestUserId}`,
+        `/organization-members/${encodeURIComponent(memberId)}?requestUserId=${encodeURIComponent(requestUserId)}`,
         {
           role: updateData.role,
         }
@@ -203,7 +203,7 @@ export const organizationApi = {
   setDefaultOrganization: async (organizationId: string): Promise<any> => {
     try {
       const response = await api.patch<any>(
-        `/organization-members/set-default?organizationId=${organizationId}`
+        `/organization-members/set-default?organizationId=${encodeURIComponent(organizationId)}`
       );
       return response.data;
     } catch (error) {
@@ -216,7 +216,7 @@ export const organizationApi = {
     requestUserId: string
   ): Promise<{ success: boolean; message: string }> => {
     try {
-      await api.delete(`/organization-members/${memberId}?requestUserId=${requestUserId}`);
+      await api.delete(`/organization-members/${encodeURIComponent(memberId)}?requestUserId=${encodeURIComponent(requestUserId)}`);
 
       return {
         success: true,
@@ -245,7 +245,7 @@ export const organizationApi = {
 
   deleteOrganization: async (organizationId: string): Promise<void> => {
     try {
-      await api.delete(`/organizations/${organizationId}`);
+      await api.delete(`/organizations/${encodeURIComponent(organizationId)}`);
     } catch (error) {
       console.error("Delete organization error:", error);
       throw error;
@@ -276,7 +276,7 @@ export const organizationApi = {
         throw new Error(`Invalid organizationId format: ${organizationId}. Expected UUID format.`);
       }
 
-      const response = await api.get<OrganizationStats>(`/organizations/${organizationId}/stats`);
+      const response = await api.get<OrganizationStats>(`/organizations/${encodeURIComponent(organizationId)}/stats`);
       return response.data;
     } catch (error) {
       console.error("Get organization stats error:", error);
@@ -308,7 +308,7 @@ export const organizationApi = {
         params.append("userId", filters.userId);
       }
       const response = await api.get(
-        `/activity-logs/organization/${organizationId}/recent?${params.toString()}`
+        `/activity-logs/organization/${encodeURIComponent(organizationId)}/recent?${params.toString()}`
       );
 
       return response.data;

@@ -13,6 +13,7 @@ import {
   Req,
   ForbiddenException,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -110,6 +111,9 @@ export class UsersController {
   @ApiResponse({ status: 403, description: 'Forbidden. Must share an organization.' })
   @ApiResponse({ status: 404, description: 'User not found.' })
   getPublicProfile(@Param('id') id: string, @Req() req: any) {
+    if (!/^[a-zA-Z0-9._-]+$/.test(id)) {
+      throw new BadRequestException('Invalid identifier format');
+    }
     return this.usersService.getPublicProfile(id, String(req.user.id));
   }
 

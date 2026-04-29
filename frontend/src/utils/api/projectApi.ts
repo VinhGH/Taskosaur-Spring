@@ -54,7 +54,7 @@ export const projectApi = {
 
   getProjectById: async (projectId: string): Promise<Project> => {
     try {
-      const response = await api.get<Project>(`/projects/${projectId}`);
+      const response = await api.get<Project>(`/projects/${encodeURIComponent(projectId)}`);
       return response.data;
     } catch (error) {
       console.error("Get project by ID error:", error);
@@ -141,7 +141,7 @@ export const projectApi = {
 
   updateProject: async (projectId: string, projectData: Partial<ProjectData>): Promise<Project> => {
     try {
-      const response = await api.patch<Project>(`/projects/${projectId}`, projectData);
+      const response = await api.patch<Project>(`/projects/${encodeURIComponent(projectId)}`, projectData);
       return response.data;
     } catch (error) {
       console.error("Update project error:", error);
@@ -151,7 +151,7 @@ export const projectApi = {
 
   deleteProject: async (projectId: string): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await api.delete(`/projects/${projectId}`);
+      const response = await api.delete(`/projects/${encodeURIComponent(projectId)}`);
 
       // Handle different response types
       const contentType = response.headers?.["content-type"] || "";
@@ -175,7 +175,7 @@ export const projectApi = {
   getProjectsByUserId: async (userId: string): Promise<Project[]> => {
     try {
       const response = await api.get<Project[]>(
-        `/project-members/user/${userId}/projects`
+        `/project-members/user/${encodeURIComponent(userId)}/projects`
       );
       return response.data;
     } catch (error) {
@@ -289,7 +289,7 @@ export const projectApi = {
   ): Promise<ProjectMember> => {
     try {
       const response = await api.patch<ProjectMember>(
-        `/project-members/${memberId}`,
+        `/project-members/${encodeURIComponent(memberId)}`,
         { role }
       );
       return response.data;
@@ -304,7 +304,7 @@ export const projectApi = {
   ): Promise<{ success: boolean; message: string }> => {
     try {
       const response = await api.delete(
-        `/project-members/${memberId}`
+        `/project-members/${encodeURIComponent(memberId)}`
       );
 
       // Handle different response types
@@ -353,9 +353,9 @@ export const projectApi = {
       chartTypes.forEach((type) => params.append("types", type));
       let response;
       if (isAuthenticated) {
-        response = await api.get(`/projects/${projectSlug}/charts?${params.toString()}`);
+        response = await api.get(`/projects/${encodeURIComponent(projectSlug)}/charts?${params.toString()}`);
       } else {
-        response = await api.get(`/public/workspaces/${projectSlug}/charts?${params.toString()}`);
+        response = await api.get(`/public/workspaces/${encodeURIComponent(projectSlug)}/charts?${params.toString()}`);
       }
 
       return response.data;
@@ -366,7 +366,7 @@ export const projectApi = {
   },
   getSingleChart: async (projectSlug: string, chartType: ProjectChartType): Promise<any> => {
     try {
-      const response = await api.get(`/projects/${projectSlug}/charts?types=${chartType}`);
+      const response = await api.get(`/projects/${encodeURIComponent(projectSlug)}/charts?types=${encodeURIComponent(chartType)}`);
       return response.data[chartType];
     } catch (error) {
       console.error(`Get ${chartType} chart error:`, error);
@@ -388,7 +388,7 @@ export const projectApi = {
   getProjectStats: async (projectId: string): Promise<ProjectStats> => {
     try {
       const response = await api.get<ProjectStats>(
-        `/project-members/project/${projectId}/stats`
+        `/project-members/project/${encodeURIComponent(projectId)}/stats`
       );
       return response.data;
     } catch (error) {
@@ -399,7 +399,7 @@ export const projectApi = {
 
   archiveProject: async (projectId: string): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await api.patch(`/projects/archive/${projectId}`);
+      const response = await api.patch(`/projects/archive/${encodeURIComponent(projectId)}`);
 
       // Handle different response types
       const contentType = response.headers?.["content-type"] || "";
@@ -422,7 +422,7 @@ export const projectApi = {
 
   unarchiveProject: async (projectId: string): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await api.patch(`/projects/unarchive/${projectId}`);
+      const response = await api.patch(`/projects/unarchive/${encodeURIComponent(projectId)}`);
       const status = response.status;
       if (status === 204 || status === 200) {
         return { success: true, message: "Project unarchived successfully" };

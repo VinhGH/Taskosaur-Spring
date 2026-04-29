@@ -20,7 +20,7 @@ export const inboxApi = {
       const payload = Object.fromEntries(
         Object.entries(data).filter(([_, value]) => value !== undefined && value !== "")
       );
-      const response = await api.post<ProjectInbox>(`/projects/${projectId}/inbox`, payload);
+      const response = await api.post<ProjectInbox>(`/projects/${encodeURIComponent(projectId)}/inbox`, payload);
       return response.data;
     } catch (error) {
       console.error("Create inbox error:", error);
@@ -30,7 +30,7 @@ export const inboxApi = {
 
   getInbox: async (projectId: string): Promise<ProjectInbox> => {
     try {
-      const response = await api.get<ProjectInbox>(`/projects/${projectId}/inbox`);
+      const response = await api.get<ProjectInbox>(`/projects/${encodeURIComponent(projectId)}/inbox`);
       return response.data;
     } catch (error) {
       console.error("Get inbox error:", error);
@@ -45,7 +45,7 @@ export const inboxApi = {
         Object.entries(data).filter(([_, value]) => value !== undefined && value !== "")
       );
 
-      const response = await api.put<ProjectInbox>(`/projects/${projectId}/inbox`, payload);
+      const response = await api.put<ProjectInbox>(`/projects/${encodeURIComponent(projectId)}/inbox`, payload);
       return response.data;
     } catch (error) {
       console.error("Update inbox error:", error);
@@ -56,7 +56,7 @@ export const inboxApi = {
   // Email Account Setup
   setupEmailAccount: async (projectId: string, data: SetupEmailDto): Promise<any> => {
     try {
-      const response = await api.put<any>(`/projects/${projectId}/inbox/email-account`, data);
+      const response = await api.put<any>(`/projects/${encodeURIComponent(projectId)}/inbox/email-account`, data);
       return response.data;
     } catch (error) {
       console.error("Setup email account error:", error);
@@ -70,7 +70,7 @@ export const inboxApi = {
   ): Promise<{ success: boolean; message: string }> => {
     try {
       const response = await api.post<{ success: boolean; message: string }>(
-        `/projects/${projectId}/inbox/test-email/${accountId}`
+        `/projects/${encodeURIComponent(projectId)}/inbox/test-email/${encodeURIComponent(accountId)}`
       );
       return response.data;
     } catch (error) {
@@ -82,7 +82,7 @@ export const inboxApi = {
   // Email Sync
   triggerSync: async (projectId: string): Promise<{ message: string }> => {
     try {
-      const response = await api.post<{ message: string }>(`/projects/${projectId}/inbox/sync`);
+      const response = await api.post<{ message: string }>(`/projects/${encodeURIComponent(projectId)}/inbox/sync`);
       return response.data;
     } catch (error) {
       console.error("Trigger sync error:", error);
@@ -115,7 +115,7 @@ export const inboxApi = {
         : "";
 
       const response = await api.get<InboxMessage[]>(
-        `/projects/${projectId}/inbox/messages${queryParams}`
+        `/projects/${encodeURIComponent(projectId)}/inbox/messages${queryParams}`
       );
       return response.data;
     } catch (error) {
@@ -127,7 +127,7 @@ export const inboxApi = {
   convertMessageToTask: async (projectId: string, messageId: string): Promise<any> => {
     try {
       const response = await api.post<any>(
-        `/projects/${projectId}/inbox/messages/${messageId}/convert`
+        `/projects/${encodeURIComponent(projectId)}/inbox/messages/${encodeURIComponent(messageId)}/convert`
       );
       return response.data;
     } catch (error) {
@@ -139,7 +139,7 @@ export const inboxApi = {
   // Rules Management
   getRules: async (projectId: string): Promise<InboxRule[]> => {
     try {
-      const response = await api.get<InboxRule[]>(`/projects/${projectId}/inbox/rules`);
+      const response = await api.get<InboxRule[]>(`/projects/${encodeURIComponent(projectId)}/inbox/rules`);
       return response.data;
     } catch (error) {
       console.error("Get rules error:", error);
@@ -149,7 +149,7 @@ export const inboxApi = {
 
   createRule: async (projectId: string, data: Partial<InboxRule>): Promise<InboxRule> => {
     try {
-      const response = await api.post<InboxRule>(`/projects/${projectId}/inbox/rules`, data);
+      const response = await api.post<InboxRule>(`/projects/${encodeURIComponent(projectId)}/inbox/rules`, data);
       return response.data;
     } catch (error) {
       console.error("Create rule error:", error);
@@ -164,7 +164,7 @@ export const inboxApi = {
   ): Promise<InboxRule> => {
     try {
       const response = await api.put<InboxRule>(
-        `/projects/${projectId}/inbox/rules/${ruleId}`,
+        `/projects/${encodeURIComponent(projectId)}/inbox/rules/${encodeURIComponent(ruleId)}`,
         data
       );
       return response.data;
@@ -179,7 +179,7 @@ export const inboxApi = {
     ruleId: string
   ): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await api.delete(`/projects/${projectId}/inbox/rules/${ruleId}`);
+      const response = await api.delete(`/projects/${encodeURIComponent(projectId)}/inbox/rules/${encodeURIComponent(ruleId)}`);
 
       const status = response.status;
       if (status === 204 || status === 200) {
@@ -215,7 +215,7 @@ export const inboxApi = {
         success: boolean;
         messageId: string;
         recipients: string[];
-      }>(`/tasks/${taskId}/comments/${commentId}/send-email`);
+      }>(`/tasks/${encodeURIComponent(taskId)}/comments/${encodeURIComponent(commentId)}/send-email`);
       return response.data;
     } catch (error) {
       console.error("Send comment as email error:", error);
