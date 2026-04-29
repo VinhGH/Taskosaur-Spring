@@ -141,6 +141,10 @@ export default function TaskGanttView({
   viewMode: externalViewMode,
   onViewModeChange,
   onTaskUpdate,
+  onTaskRefetch,
+  workspaceId,
+  organizationId,
+  currentProject,
 }: TaskGanttViewProps) {
   const router = useRouter();
 
@@ -306,12 +310,62 @@ export default function TaskGanttView({
     const newIndex = ganttTasks.findIndex((t) => t.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
+    const activeTask = ganttTasks[oldIndex];
     const reorderedTasks = arrayMove(ganttTasks, oldIndex, newIndex);
     setGanttTasks(reorderedTasks);
 
-    const updates = reorderedTasks.map((task, index) => ({ id: task.id, displayOrder: index + 1 }));
-    try { await taskApi.reorderTasks(updates); } catch (error) { setGanttTasks(ganttTasks); }
-  }, [ganttTasks]);
+    // Identify neighbors for relative reordering
+    const afterTask = newIndex > 0 ? reorderedTasks[newIndex - 1] : null;
+    const beforeTask = newIndex < reorderedTasks.length - 1 ? reorderedTasks[newIndex + 1] : null;
+
+    // Resolve reordering scope with robust fallbacks
+    let scopeType: 'PROJECT' | 'WORKSPACE' | 'ORGANIZATION' = 'ORGANIZATION';
+    let scopeId = "";
+
+    if (currentProject?.id) {
+      scopeType = "PROJECT";
+      scopeId = currentProject.id;
+    } else if (workspaceId) {
+      scopeType = "WORKSPACE";
+      scopeId = workspaceId;
+    } else if (organizationId) {
+      scopeType = "ORGANIZATION";
+      scopeId = organizationId;
+    }
+
+    // Fallback: If scopeId is still missing, try to get it from the task itself
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if ((!scopeId || !uuidRegex.test(scopeId)) && activeTask.projectId) {
+      console.log("Resolving scopeId from task projectId fallback");
+      scopeType = "PROJECT";
+      scopeId = activeTask.projectId;
+    }
+
+    if (!scopeId || !uuidRegex.test(scopeId)) {
+      console.warn("Invalid or missing scopeId for reordering. Reorder aborted.", { scopeType, scopeId });
+      // Revert optimism since we can't persist the change
+      setGanttTasks(ganttTasks);
+      return;
+    }
+
+    try {
+      console.log("Executing reorder API call:", { taskId: activeTask.id, scopeType, scopeId });
+      await taskApi.updateRelativeTaskRank(activeTask.id, {
+        scopeType,
+        scopeId,
+        viewType: "GANTT",
+        afterTaskId: afterTask?.id,
+        beforeTaskId: beforeTask?.id,
+      });
+      
+      // Auto refetch to sync with backend-calculated ranks (prevents drift)
+      if (onTaskRefetch) onTaskRefetch();
+    } catch (error) {
+      console.error("Gantt task reorder failed:", error);
+      // Revert optimism
+      setGanttTasks(ganttTasks);
+    }
+  }, [ganttTasks, organizationId, workspaceId, currentProject, onTaskRefetch]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>, task: Task) => {
     if (e.key === "Enter" || e.key === " ") {

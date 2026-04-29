@@ -12,8 +12,12 @@ export interface TaskGanttViewProps {
   workspaceSlug: string;
   projectSlug?: string;
   onTaskUpdate?: (taskId: string, updates: Partial<Task>) => Promise<void>;
+  onTaskRefetch?: () => void;
   viewMode?: ViewMode;
   onViewModeChange?: (mode: ViewMode) => void;
+  workspaceId?: string;
+  organizationId?: string;
+  currentProject?: any;
 }
 
 export interface TimelineHeaderProps {

@@ -39,6 +39,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
 import { CsvImportModal } from "@/components/tasks/CsvImportModal";
+import { NewTaskModal } from "@/components/tasks/NewTaskModal";
 import { SEO } from "@/components/common/SEO";
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState<T>(value);
@@ -143,6 +144,7 @@ const sprintId = resolvedSprintId;
 
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [isCsvImportOpen, setCsvImportOpen] = useState(false);
+  const [isNewTaskModalOpen, setNewTaskModalOpen] = useState(false);
   const [ganttTasks, setGanttTasks] = useState<any[]>([]);
 
   const handleTaskSelect = useCallback((taskId: string) => {
@@ -986,6 +988,18 @@ const sprintId = resolvedSprintId;
                     />
                   )}
                 </div>
+
+                {/* Create Task button */}
+                {hasAccess && isAuth && (
+                  <ActionButton
+                    primary
+                    showPlusIcon
+                    onClick={() => setNewTaskModalOpen(true)}
+                    disabled={!workspace?.id || !project?.id || !sprintId}
+                  >
+                    {t("tasks:createTask")}
+                  </ActionButton>
+                )}
               </div>
             }
           />
@@ -1117,6 +1131,30 @@ const sprintId = resolvedSprintId;
           </div>
         )}
       </div>
+
+      {/* New Task Modal */}
+      <NewTaskModal
+        isOpen={isNewTaskModalOpen}
+        onClose={() => {
+          setNewTaskModalOpen(false);
+          setLocalError(null);
+        }}
+        onTaskCreated={async () => {
+          try {
+            await loadTasks();
+            if (currentView === "kanban" && projectSlug && sprintId) {
+              await loadKanbanData(projectSlug as string, sprintId as string);
+            }
+            if (currentView === "gantt") {
+              await loadGanttData();
+            }
+          } catch (error) {
+            console.error("Error refreshing tasks after creation:", error);
+          }
+        }}
+        workspaceSlug={workspaceSlug as string}
+        projectSlug={projectSlug as string}
+      />
     </>
   );
 };
