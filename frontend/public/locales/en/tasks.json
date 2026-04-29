@@ -12,6 +12,7 @@
     "status": "Status",
     "priority": "Priority",
     "type": "Type",
+    "sprint": "Sprint",
     "assignee": "Assignee",
     "reporter": "Reporter"
   },

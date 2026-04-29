@@ -61,7 +61,7 @@ interface KanbanBoardProps {
   kanbanData: TasksByStatus[];
   projectId: string;
   onTaskMove?: (taskId: string, newStatusId: string) => void;
-  onRefresh?: () => void;
+  onRefresh?: () => Promise<void> | void;
   onLoadMore?: (statusId: string, page: number) => Promise<void>;
   isLoading?: boolean;
   kabBanSettingModal?: boolean;
@@ -131,11 +131,35 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const { dragState, handleDragStart, handleDragOver, handleDrop, handleDragEnd } = useDragAndDrop({
     onDrop: async (task: KanbanTask, fromStatusId: string, toStatusId: string) => {
       try {
+        // Optimistic update
+        setLocalKanbanData((prev) => {
+          const newData = [...prev];
+          const fromCol = newData.find((c) => c.statusId === fromStatusId);
+          const toCol = newData.find((c) => c.statusId === toStatusId);
+
+          if (fromCol && toCol) {
+            const taskIndex = fromCol.tasks.findIndex((t) => t.id === task.id);
+            if (taskIndex !== -1) {
+              const [movedTask] = fromCol.tasks.splice(taskIndex, 1);
+              // Update statusId on the moved task object to match its new column
+              const updatedTask = { ...movedTask, statusId: toStatusId };
+              toCol.tasks.push(updatedTask);
+              // Also update pagination counts
+              if (fromCol.pagination) fromCol.pagination.total -= 1;
+              if (toCol.pagination) toCol.pagination.total += 1;
+            }
+          }
+          return newData;
+        });
+
         await updateTaskStatus(task.id, toStatusId);
         onTaskMove?.(task.id, toStatusId);
-        onRefresh?.();
+        if (onRefresh) {
+          await onRefresh();
+        }
       } catch (err) {
         console.error("Failed to move task:", err);
+        // On error, the useEffect [kanbanData] will eventually revert to the server state
       }
     },
   });

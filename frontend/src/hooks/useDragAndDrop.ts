@@ -47,7 +47,7 @@ export function useDragAndDrop<T = unknown>(callbacks: DragCallbacks<T> = {}) {
       e.preventDefault();
 
       setDragState((prevState) => {
-        if (prevState.draggedItem && prevState.draggedFrom !== to) {
+        if (prevState.draggedItem) {
           onDrop?.(prevState.draggedItem, prevState.draggedFrom, to);
         }
 

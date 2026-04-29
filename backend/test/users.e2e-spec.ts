@@ -72,7 +72,7 @@ describe('UsersController (e2e)', () => {
       email: memberUser.email,
       role: memberUser.role,
     });
-  }, 10000);
+  });
 
   afterAll(async () => {
     if (prismaService && createdUserIds.length > 0) {

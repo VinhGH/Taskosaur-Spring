@@ -283,13 +283,4 @@ export class CreateTaskDto {
   @ValidateNested()
   @IsOptional()
   recurrenceConfig?: RecurrenceConfigDto;
-
-  @ApiProperty({
-    description: 'Display order for drag-and-drop reordering',
-    example: 1.5,
-    required: false,
-  })
-  @IsOptional()
-  @Transform(({ value }) => (value !== undefined && value !== null ? Number(value) : undefined))
-  displayOrder?: number;
 }
