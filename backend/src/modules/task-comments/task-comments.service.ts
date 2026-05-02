@@ -9,7 +9,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTaskCommentDto } from './dto/create-task-comment.dto';
 import { UpdateTaskCommentDto } from './dto/update-task-comment.dto';
 import { EmailReplyService } from '../inbox/services/email-reply.service';
-import { sanitizeHtml } from 'src/common/utils/sanitizer.util';
+import { sanitizeHtml, sanitizeText } from 'src/common/utils/sanitizer.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
 import { EmailService } from '../email/email.service';
@@ -259,10 +259,8 @@ export class TaskCommentsService {
                         return `<a href="${absoluteUrl}"${suffix}>${username}</a>`;
                       },
                     ),
-                  textContent: comment.content
+                  textContent: sanitizeText(comment.content)
                     .replace(/\[@?([\w.-]+)\]\([^)]+\)/g, '$1')
-                    .replace(/<a[^>]*>@?([\w.-]+)<\/a>/g, '$1')
-                    .replace(/<[^>]*>?/gm, '')
                     .replace(/&nbsp;/g, ' '),
                   entityUrl: `${this.configService.get('FRONTEND_URL', 'http://localhost:3001')}/tasks/${task.slug}`,
                 },
