@@ -22,14 +22,24 @@ import { UpdateProjectMemberDto } from './dto/update-project-member.dto';
 @Injectable()
 export class ProjectMembersService {
   private readonly logger = new Logger(ProjectMembersService.name);
+  private readonly uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
   constructor(private prisma: PrismaService) {}
+
+  private validateUuid(id: string, name: string = 'ID') {
+    if (!id || !this.uuidRegex.test(id)) {
+      throw new BadRequestException(`Invalid ${name} format`);
+    }
+  }
 
   async create(
     createProjectMemberDto: CreateProjectMemberDto,
     requestUserId: string,
   ): Promise<ProjectMember> {
     const { userId, projectId, role = ProjectRole.MEMBER } = createProjectMemberDto;
+
+    this.validateUuid(projectId, 'Project ID');
+    this.validateUuid(userId, 'User ID');
 
     // Verify project exists and get workspace/organization info
     const project = await this.prisma.project.findUnique({
@@ -59,8 +69,12 @@ export class ProjectMembersService {
       throw new NotFoundException('Project not found');
     }
 
+    if (!requestUserId) {
+      throw new BadRequestException('Request User ID is required');
+    }
+
     // Authorization check: requester must be admin/owner of project, workspace, or org, or a SUPER_ADMIN
-    const actor = await this.prisma.user.findUnique({
+    const actor = await this.prisma.user.findFirst({
       where: { id: requestUserId },
       select: { role: true },
     });
@@ -117,8 +131,10 @@ export class ProjectMembersService {
       }
     }
 
+    // Already validated above
+
     // Verify user exists and is a member of the workspace
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.user.findFirst({
       where: { id: userId },
       select: {
         id: true,
@@ -144,6 +160,11 @@ export class ProjectMembersService {
       throw new BadRequestException(
         'User must be a member of the workspace or organization to join this project',
       );
+    }
+
+    // Validate role
+    if (role && !Object.values(Role).includes(role)) {
+      throw new BadRequestException(`Invalid role: ${role}`);
     }
 
     try {
@@ -196,6 +217,9 @@ export class ProjectMembersService {
       if (error.code === 'P2002') {
         throw new ConflictException('User is already a member of this project');
       }
+      if (error instanceof Error && error.name === 'PrismaClientValidationError') {
+        throw new BadRequestException('Invalid data provided to Prisma');
+      }
       throw error;
     }
   }
@@ -206,8 +230,12 @@ export class ProjectMembersService {
   ): Promise<ProjectMember> {
     const { email, projectId, role = ProjectRole.MEMBER } = inviteProjectMemberDto;
 
+    if (!email) {
+      throw new BadRequestException('Email is required');
+    }
+
     // Find user by email
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.user.findFirst({
       where: { email },
       select: { id: true, email: true, firstName: true, lastName: true },
     });
@@ -258,7 +286,7 @@ export class ProjectMembersService {
         throw new NotFoundException('Project not found');
       }
 
-      const actor = await this.prisma.user.findUnique({
+      const actor = await this.prisma.user.findFirst({
         where: { id: requestUserId },
         select: { role: true },
       });
@@ -594,7 +622,11 @@ export class ProjectMembersService {
   }
 
   async findByUserAndProject(userId: string, projectId: string, requestUserId?: string) {
+    this.validateUuid(userId, 'User ID');
+    this.validateUuid(projectId, 'Project ID');
+
     if (requestUserId) {
+      this.validateUuid(requestUserId, 'Request User ID');
       const project = await this.prisma.project.findUnique({
         where: { id: projectId },
         select: {
@@ -794,33 +826,46 @@ export class ProjectMembersService {
       }
     }
 
-    const updatedMember = await this.prisma.projectMember.update({
-      where: { id },
-      data: updateProjectMemberDto,
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            avatar: true,
-            status: true,
-          },
-        },
-        project: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            avatar: true,
-            color: true,
-          },
-        },
-      },
-    });
+    // Validate role
+    if (updateProjectMemberDto.role && !Object.values(Role).includes(updateProjectMemberDto.role)) {
+      throw new BadRequestException(`Invalid role: ${updateProjectMemberDto.role}`);
+    }
 
-    return updatedMember;
+    try {
+      const updatedMember = await this.prisma.projectMember.update({
+        where: { id },
+        data: updateProjectMemberDto,
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              avatar: true,
+              status: true,
+            },
+          },
+          project: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              avatar: true,
+              color: true,
+            },
+          },
+        },
+      });
+
+      return updatedMember;
+    } catch (error) {
+      this.logger.error(error);
+      if (error instanceof Error && error.name === 'PrismaClientValidationError') {
+        throw new BadRequestException('Invalid data provided to Prisma');
+      }
+      throw error;
+    }
   }
 
   async remove(id: string, requestUserId: string): Promise<void> {

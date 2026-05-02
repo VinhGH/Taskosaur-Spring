@@ -192,8 +192,9 @@ export class OrganizationsSeederService {
   }
 
   private async addMembersToOrganization(organizationId: string, users: any[]) {
-    // Define roles for users (first user is owner, already created)
+    // Define roles for users
     const memberRoles = [
+      OrganizationRole.OWNER, // First user (Admin)
       OrganizationRole.OWNER, // Second user
       OrganizationRole.MANAGER, // Third user
       OrganizationRole.MEMBER, // Fourth user
@@ -203,8 +204,8 @@ export class OrganizationsSeederService {
       OrganizationRole.MEMBER, // Eighth user (if exists)
     ];
 
-    // Skip the first user (owner) and add the rest as members
-    for (let i = 1; i < users.length && i <= memberRoles.length; i++) {
+    // Add users as members
+    for (let i = 0; i < users.length && i < memberRoles.length; i++) {
       // Check if member already exists
       const existingMember = await this.prisma.organizationMember.findUnique({
         where: {
@@ -225,10 +226,10 @@ export class OrganizationsSeederService {
           data: {
             userId: users[i].id,
             organizationId,
-            role: memberRoles[i - 1],
+            role: memberRoles[i],
           },
         });
-        console.log(`   ✓ Added ${users[i].email} to organization as ${memberRoles[i - 1]}`);
+        console.log(`   ✓ Added ${users[i].email} to organization as ${memberRoles[i]}`);
       } catch (_error) {
         console.error(_error);
         console.log(`   ⚠ Could not add ${users[i].email}: ${_error.message}`);
