@@ -33,3 +33,11 @@ export const generateSlug = (text: string): string => {
     .replace(/[^\w\-]+/g, '') // Remove all non-word chars
     .replace(/\-\-+/g, '-');  // Replace multiple - with single -
 };
+/**
+ * Validates if a string is a safe slug (alphanumeric and hyphens only).
+ * Prevents open redirect attacks via malicious workspace/project slugs.
+ */
+export const isValidSlug = (slug: any): slug is string => {
+  if (typeof slug !== 'string') return false;
+  return /^[a-zA-Z0-9-]+$/.test(slug);
+};

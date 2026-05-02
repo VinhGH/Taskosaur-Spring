@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { isValidSlug } from "@/utils/slugUtils";
 import { useRouter } from "next/router";
 import { useWorkspaceContext } from "@/contexts/workspace-context";
 import { useAuth } from "@/contexts/auth-context";
@@ -141,7 +142,7 @@ export default function NewWorkspaceDialog({
         handleOpenChange(false);
         toast.success(`Workspace "${formData.name}" created successfully!`);
 
-        if (newWorkspace?.slug) {
+        if (isValidSlug(newWorkspace?.slug)) {
           router.push(`/${newWorkspace.slug}`);
         }
       } catch (error) {

@@ -33,6 +33,7 @@ import { getCurrentWorkspaceId } from "@/utils/hierarchyContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PROJECT_CATEGORIES } from "@/utils/data/projectData";
 import { workflowsApi } from "@/utils/api/workflowsApi";
+import { isValidSlug } from "@/utils/slugUtils";
 
 interface NewProjectModalProps {
   isOpen: boolean;
@@ -288,7 +289,7 @@ export function NewProjectModal({
       handleClose();
       document.body.style.pointerEvents = "auto";
 
-      if (wsSlug && projSlug) {
+      if (isValidSlug(wsSlug) && isValidSlug(projSlug)) {
         router.push(`/${wsSlug}/${projSlug}`);
       }
     } catch (error) {

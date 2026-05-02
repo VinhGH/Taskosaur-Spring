@@ -45,6 +45,7 @@ import PendingInvitations, { PendingInvitationsRef } from "@/components/common/P
 import WorkspaceMembersSkeleton from "@/components/skeletons/WorkspaceMembersSkeleton";
 import ErrorState from "@/components/common/ErrorState";
 import Pagination from "@/components/common/Pagination";
+import { isValidSlug } from "@/utils/slugUtils";
 
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -530,7 +531,11 @@ function ProjectMembersContent() {
       // If user removed themselves, redirect to project page
       if (member.userId === currentUser.id) {
         toast.success(t("left_project_success"));
-        router.push(`/workspaces/${workspaceSlug}/projects/${projectSlug}`);
+        if (isValidSlug(workspaceSlug) && isValidSlug(projectSlug)) {
+          router.push(`/workspaces/${workspaceSlug}/projects/${projectSlug}`);
+        } else {
+          router.push("/workspaces");
+        }
         return;
       }
 

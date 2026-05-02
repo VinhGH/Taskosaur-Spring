@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { formatDateTimeForDisplay } from "@/utils/date";
+import { isValidSlug } from "@/utils/slugUtils";
 import { HiXMark, HiPaperAirplane, HiSparkles, HiArrowPath, HiStop, HiMicrophone } from "react-icons/hi2";
 import { useChatContext } from "@/contexts/chat-context";
 import { mcpServer, extractContextFromPath } from "@/lib/mcp-server";
@@ -311,7 +312,9 @@ export default function ChatPanel() {
       const { workspaceSlug, workspaceName } = event.detail;
 
       // Navigate to the new workspace
-      router.push(`/${workspaceSlug}`);
+      if (isValidSlug(workspaceSlug)) {
+        router.push(`/${workspaceSlug}`);
+      }
 
       // Add a system message indicating navigation
       setMessages((prev) => [
@@ -328,7 +331,9 @@ export default function ChatPanel() {
       const { workspaceSlug, projectSlug, projectName } = event.detail;
 
       // Navigate to the new project
-      router.push(`/${workspaceSlug}/${projectSlug}`);
+      if (isValidSlug(workspaceSlug) && isValidSlug(projectSlug)) {
+        router.push(`/${workspaceSlug}/${projectSlug}`);
+      }
 
       // Add a system message indicating navigation
       setMessages((prev) => [

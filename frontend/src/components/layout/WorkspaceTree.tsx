@@ -4,6 +4,7 @@ import { HiChevronRight, HiChevronDown, HiViewGrid } from "react-icons/hi";
 import { Workspace } from "@/types";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { cn } from "@/lib/utils";
+import { isValidSlug } from "@/utils/slugUtils";
 import {
   DndContext,
   DragOverlay,
@@ -71,7 +72,9 @@ function DraggableTreeItem({
     if (isDragging) return;
     e.preventDefault();
     e.stopPropagation();
-    router.push(`/${workspace.slug}`);
+    if (isValidSlug(workspace.slug)) {
+      router.push(`/${workspace.slug}`);
+    }
   };
 
   return (
