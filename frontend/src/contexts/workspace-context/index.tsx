@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo, useCallback } from "react";
+import React, { createContext, useContext, useState, useMemo, useCallback, useRef } from "react";
 import { workspaceApi } from "@/utils/api/workspaceApi";
 import {
   Workspace,
@@ -129,6 +129,9 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
     refreshingAnalytics: false,
     workspaceRole: null,
   });
+
+  // Track in-flight requests for getWorkspaceBySlug to avoid redundant calls
+  const workspaceRequestsRef = useRef<Record<string, Promise<Workspace>>>({});
 
   // Helper to handle API operations with error handling
   const handleApiOperation = useCallback(async function <T>(
@@ -410,33 +413,57 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
           throw new Error("No organization selected. Please select an organization first.");
         }
 
-        try {
-          const result = await handleApiOperation(
-            () => workspaceApi.getWorkspaceBySlug(slug, orgId),
-            false
-          );
+        const cacheKey = `${orgId}:${slug}`;
 
-          // Update workspace in state if found
-          if (result) {
-            setWorkspaceState((prev) => ({
-              ...prev,
-              currentWorkspace: result,
-              error: null,
-            }));
-          }
-
-          return result;
-        } catch (error) {
-          // Set error state and clear current workspace on 404
-          if (error instanceof Error && error.message.includes("not found")) {
-            setWorkspaceState((prev) => ({
-              ...prev,
-              currentWorkspace: null,
-              error: "Workspace not found",
-            }));
-          }
-          throw error;
+        // 1. Check if it's already the current workspace in state
+        if (
+          workspaceState.currentWorkspace?.slug === slug &&
+          workspaceState.currentWorkspace?.organizationId === orgId
+        ) {
+          return workspaceState.currentWorkspace;
         }
+
+        // 2. Check if a request is already in flight
+        if (workspaceRequestsRef.current[cacheKey]) {
+          console.log(`[WorkspaceContext] Deduplicating request for ${slug}`);
+          return workspaceRequestsRef.current[cacheKey];
+        }
+
+        const request = (async () => {
+          try {
+            const result = await handleApiOperation(
+              () => workspaceApi.getWorkspaceBySlug(slug, orgId),
+              false
+            );
+
+            // Update workspace in state if found
+            if (result) {
+              setWorkspaceState((prev) => ({
+                ...prev,
+                currentWorkspace: result,
+                error: null,
+              }));
+            }
+
+            return result;
+          } catch (error) {
+            // Set error state and clear current workspace on 404
+            if (error instanceof Error && error.message.includes("not found")) {
+              setWorkspaceState((prev) => ({
+                ...prev,
+                currentWorkspace: null,
+                error: "Workspace not found",
+              }));
+            }
+            throw error;
+          } finally {
+            // Remove from in-flight requests
+            delete workspaceRequestsRef.current[cacheKey];
+          }
+        })();
+
+        workspaceRequestsRef.current[cacheKey] = request;
+        return request;
       },
 
       updateWorkspace: async (

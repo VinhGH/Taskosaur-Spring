@@ -91,7 +91,7 @@ function WorkspaceMembersContent() {
   const { workspaceSlug } = router.query;
   const { t, i18n } = useTranslation(["members", "common"]);
 
-  const { getWorkspaceBySlug, getWorkspaceMembers, updateMemberRole, removeMemberFromWorkspace } =
+  const { getWorkspaceBySlug, getWorkspaceMembers, updateMemberRole, removeMemberFromWorkspace, currentWorkspace } =
     useWorkspace();
   const { isAuthenticated, getCurrentUser, getUserAccess } = useAuth();
   const { handleSlugNotFound } = useSlugRedirect();
@@ -289,6 +289,7 @@ function WorkspaceMembersContent() {
 
         const workspaceData =
           workspace ||
+          (currentWorkspace?.slug === workspaceSlug ? currentWorkspace : null) ||
           (await contextFunctionsRef.current.getWorkspaceBySlug(workspaceSlug as string));
 
         if (requestIdRef.current !== requestId || !isMountedRef.current) {
@@ -361,7 +362,7 @@ function WorkspaceMembersContent() {
         }
       }
     },
-    [workspaceSlug, workspace, pageSize, t]
+    [workspaceSlug, workspace, pageSize, t, currentWorkspace]
   );
 
   useEffect(() => {
