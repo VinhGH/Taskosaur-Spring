@@ -94,10 +94,23 @@ export function getImageUrl(response: ImageUploadResponse): string {
   // Get the backend API base URL (e.g., http://localhost:3000/api)
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
 
-  // For S3 storage with presigned URL (url contains amazonaws.com or presigned query params)
-  if (response.url && (response.url.includes('amazonaws.com') || response.url.includes('X-Amz-'))) {
-    // Return presigned URL directly - no modification needed
-    return response.url;
+  // For S3 storage with presigned URL (hostname ends with amazonaws.com or has presigned query params)
+  if (response.url) {
+    try {
+      const parsedUrl = new URL(response.url);
+      const isHttps = parsedUrl.protocol === 'https:';
+      const isS3Hostname = parsedUrl.hostname.endsWith('.amazonaws.com');
+      const hasPresignedParams = Array.from(parsedUrl.searchParams.keys()).some((key) =>
+        key.startsWith('X-Amz-'),
+      );
+
+      if (isHttps && (isS3Hostname || hasPresignedParams)) {
+        // Return presigned URL directly - no modification needed
+        return response.url;
+      }
+    } catch (e) {
+      // Not a valid absolute URL, continue to local storage logic
+    }
   }
 
   // For S3 storage without presigned URL (url is null), use backend streaming endpoint

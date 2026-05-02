@@ -7,6 +7,7 @@ import { userApi } from "@/utils/api/userApi";
 import ErrorState from "@/components/common/ErrorState";
 import UserAvatar from "@/components/ui/avatars/UserAvatar";
 import { Loader2 } from "lucide-react";
+import { isValidSlug } from "@/utils/slugUtils";
 
 export default function UserProfilePage() {
   const router = useRouter();
@@ -44,7 +45,15 @@ export default function UserProfilePage() {
       <div className="dashboard-container px-[1rem]">
         <ErrorState
           error={error}
-          onRetry={() => router.push(`/${router.query.workspaceSlug}/members`)}
+          onRetry={() => {
+            const { workspaceSlug } = router.query;
+            if (isValidSlug(workspaceSlug)) {
+              router.push({
+                pathname: "/[workspaceSlug]/members",
+                query: { workspaceSlug },
+              });
+            }
+          }}
           retryText="Back to Members"
         />
       </div>
