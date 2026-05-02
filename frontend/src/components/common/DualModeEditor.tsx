@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle,useMemo } from "react";
 import dynamic from "next/dynamic";
+import DOMPurify from "dompurify";
 import {
   HiBold,
   HiItalic,
@@ -197,12 +198,8 @@ function htmlToMarkdown(html: string): string {
     .replace(/<\/p>/gi, "\n")
     .replace(/<br\s*\/?>/gi, "\n");
 
-  // Remove remaining HTML tags (potential incomplete multi-character sanitization) repeatedly
-  let previous;
-  do {
-    previous = markdown;
-    markdown = markdown.replace(/<[^>]+>/g, "");
-  } while (markdown !== previous);
+  // Remove remaining HTML tags safely using DOMPurify
+  markdown = DOMPurify.sanitize(markdown, { ALLOWED_TAGS: [] });
 
   // Clean up extra whitespace
   markdown = markdown

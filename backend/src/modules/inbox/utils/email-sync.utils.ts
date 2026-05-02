@@ -1,3 +1,5 @@
+import { sanitizeText } from 'src/common/utils/sanitizer.util';
+
 export class EmailSyncUtils {
   /**
    * Extracts the thread ID from an email message using RFC 5322 threading headers.
@@ -101,15 +103,8 @@ export class EmailSyncUtils {
 
   static createSnippet(content: string): string {
     if (!content) return '';
-    // Remove HTML tags more safely by replacing them multiple times to handle nested/malformed tags
-    let text = content;
-    let previousText = '';
-    // Keep removing tags until no more changes occur (handles malformed/nested HTML)
-    while (text !== previousText) {
-      previousText = text;
-      text = text.replace(/<[^>]*>/g, '');
-    }
-    text = text.trim();
+    // Use the robust sanitizer to strip all HTML tags
+    const text = sanitizeText(content).trim();
     return text.length > 200 ? text.substring(0, 197) + '...' : text;
   }
 

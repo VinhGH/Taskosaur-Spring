@@ -1,4 +1,4 @@
-import { sanitizeHtml } from './sanitizer.util';
+import { sanitizeHtml, sanitizeObject, sanitizeText } from './sanitizer.util';
 
 describe('sanitizeHtml', () => {
   it('should return empty string if input is empty string', () => {
@@ -60,5 +60,45 @@ describe('sanitizeHtml', () => {
   it('should sanitize nested unsafe content', () => {
     const input = '<div><script>alert("xss")</script><span>Safe</span></div>';
     expect(sanitizeHtml(input)).toBe('<div><span>Safe</span></div>');
+  });
+});
+
+describe('sanitizeText', () => {
+  it('should strip all HTML tags', () => {
+    const input = '<div><h1>Hello</h1><p>World</p><script>alert("xss")</script></div>';
+    expect(sanitizeText(input)).toBe('HelloWorld');
+  });
+
+  it('should preserve text content', () => {
+    const input = 'Click <a href="#">here</a> for more info';
+    expect(sanitizeText(input)).toBe('Click here for more info');
+  });
+
+  it('should handle nested/malformed HTML', () => {
+    const input = '<<script>script>alert(1)</<script>script>';
+    // sanitize-html handles this by stripping tags
+    expect(sanitizeText(input)).not.toContain('<script>');
+  });
+});
+
+describe('sanitizeObject', () => {
+  it('should recursively sanitize all strings in an object', () => {
+    const input = {
+      title: '<h1>Title</h1>',
+      meta: {
+        description: '<p>Description</p>',
+        keywords: ['<b>key1</b>', '<i>key2</i>'],
+      },
+      count: 10,
+    };
+    const expected = {
+      title: 'Title',
+      meta: {
+        description: 'Description',
+        keywords: ['key1', 'key2'],
+      },
+      count: 10,
+    };
+    expect(sanitizeObject(input)).toEqual(expected);
   });
 });
