@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import TaskTable from "@/components/ui/tables/TaskTable";
 import { ColumnConfig, Task } from "@/types";
+import type { GroupByField, GroupState } from "@/types/tasks";
+
 
 interface TaskListViewProps {
   tasks: Task[];
@@ -15,6 +17,7 @@ interface TaskListViewProps {
   addTaskStatuses?: any[];
   projectMembers?: any[];
   workspaceMembers?: any[];
+
   selectedTasks?: string[];
   onTaskSelect?: (taskId: string) => void;
   onTasksSelect?: (taskIds: string[], action: "add" | "remove" | "set") => void;
@@ -30,7 +33,15 @@ interface TaskListViewProps {
   workspaceId?: string;
   organizationId?: string;
   currentProject?: any;
+  /** Active group-by field */
+  groupBy?: GroupByField;
+  onGroupByChange?: (field: GroupByField) => void;
+  /** Backend-driven group state (from useGroupedTasks hook) */
+  groupMap?: Map<string, GroupState>;
+  onGroupPageChange?: (groupKey: string, page: number) => void;
+  groupedLoading?: boolean;
 }
+
 
 export default function TaskListView({
   tasks,
@@ -59,13 +70,17 @@ export default function TaskListView({
   sprintId,
   workspaceId,
   organizationId,
+  groupBy = "none",
+  onGroupByChange,
+  groupMap,
+  onGroupPageChange,
+  groupedLoading = false,
 }: TaskListViewProps) {
+
   const [internalSelectedTasks, setInternalSelectedTasks] = useState<string[]>([]);
-  
-  // Use external selected tasks if provided, otherwise use internal state
+
   const selectedTasks = externalSelectedTasks ?? internalSelectedTasks;
 
-  // Sync internal state with external props if they change
   useEffect(() => {
     if (externalSelectedTasks !== undefined) {
       setInternalSelectedTasks(externalSelectedTasks);
@@ -87,15 +102,10 @@ export default function TaskListView({
       if (externalOnTasksSelect) {
         externalOnTasksSelect(taskIds, action);
       } else if (externalOnTaskSelect && externalSelectedTasks !== undefined) {
-        // Fallback: If parent provided individual task selection but not bulk, loop through them
-        // This ensures parent state is updated even if bulk handler is missing
         taskIds.forEach((taskId) => {
           const isSelected = (externalSelectedTasks || []).includes(taskId);
           if (action === "set") {
-            // Clearing selection
-            if (taskIds.length === 0 && isSelected) {
-              externalOnTaskSelect(taskId);
-            }
+            if (taskIds.length === 0 && isSelected) externalOnTaskSelect(taskId);
           } else if (action === "add" && !isSelected) {
             externalOnTaskSelect(taskId);
           } else if (action === "remove" && isSelected) {
@@ -109,9 +119,7 @@ export default function TaskListView({
             const newIds = taskIds.filter((id) => !prev.includes(id));
             return [...prev, ...newIds];
           }
-          if (action === "remove") {
-            return prev.filter((id) => !taskIds.includes(id));
-          }
+          if (action === "remove") return prev.filter((id) => !taskIds.includes(id));
           return prev;
         });
       }
@@ -121,9 +129,6 @@ export default function TaskListView({
 
   return (
     <div className="rounded-md">
-      <div className="flex justify-between items-center">
-        <div className="text-sm text-muted-foreground"></div>
-      </div>
       <TaskTable
         tasks={tasks}
         workspaceSlug={workspaceSlug}
@@ -152,6 +157,10 @@ export default function TaskListView({
         workspaceId={workspaceId}
         organizationId={organizationId}
         currentProject={currentProject}
+        groupBy={groupBy}
+        groupMap={groupMap}
+        onGroupPageChange={onGroupPageChange}
+        groupedLoading={groupedLoading}
       />
     </div>
   );

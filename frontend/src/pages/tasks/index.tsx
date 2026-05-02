@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useGroupedTasks } from "@/hooks/useGroupedTasks";
+
 import { useTask } from "@/contexts/task-context";
 import { useProjectContext } from "@/contexts/project-context";
 import { useWorkspaceContext } from "@/contexts/workspace-context";
@@ -19,7 +21,9 @@ import EmptyState from "@/components/common/EmptyState";
 import { ColumnManager } from "@/components/tasks/ColumnManager";
 import { FilterDropdown, useGenericFilters } from "@/components/common/FilterDropdown";
 import SortIngManager, { SortOrder, SortField } from "@/components/tasks/SortIngManager";
+import GroupByManager, { GROUP_BY_STORAGE_KEY } from "@/components/tasks/GroupByManager";
 import Tooltip from "@/components/common/ToolTip";
+
 
 import { HiXMark } from "react-icons/hi2";
 import {
@@ -38,6 +42,11 @@ import {
 import { Input } from "@/components/ui/input";
 
 import { Task, ColumnConfig, Project, ViewMode, TaskStatus } from "@/types";
+import type { GroupByField } from "@/types/tasks";
+
+
+
+
 import { TokenManager } from "@/lib/api";
 import TaskTableSkeleton from "@/components/skeletons/TaskTableSkeleton";
 import { exportTasksToCSV, exportTasksToPDF, exportTasksToXLSX, exportTasksToJSON } from "@/utils/exportUtils";
@@ -168,6 +177,14 @@ function TasksPageContent() {
     const stored = localStorage.getItem(SORT_ORDER_KEY);
     return stored === "asc" || stored === "desc" ? stored : "asc";
   });
+
+  const [groupBy, setGroupBy] = useState<GroupByField>(() => {
+    if (typeof window === "undefined") return "none";
+    const stored = localStorage.getItem(GROUP_BY_STORAGE_KEY);
+    const valid: GroupByField[] = ["none", "status", "priority", "project", "assignee", "type", "dueDate", "createdAt"];
+    return valid.includes(stored as GroupByField) ? (stored as GroupByField) : "none";
+  });
+
 
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
     if (typeof window === "undefined") return [];
@@ -414,6 +431,38 @@ function TasksPageContent() {
   const [ganttTasks, setGanttTasks] = useState<Task[]>([]);
   const [ganttLoading, setGanttLoading] = useState(false);
   const [ganttError, setGanttError] = useState<string | null>(null);
+
+  // ── Backend-driven grouped tasks via useGroupedTasks hook ─────────────────
+  // When groupBy !== "none", fetches ALL groups from GET /tasks/grouped.
+  // Each group shows its real totalCount and supports per-group page navigation.
+  // The flat bottom pagination bar is hidden in grouped mode.
+  const groupedFilters = useMemo(() => ({
+    ...(selectedWorkspaces.length > 0 && { workspaceId: selectedWorkspaces.join(",") }),
+    ...(selectedProjects.length > 0   && { projectId:   selectedProjects.join(",") }),
+    ...(selectedStatuses.length > 0   && { statuses:    selectedStatuses.join(",") }),
+    ...(selectedPriorities.length > 0 && { priorities:  selectedPriorities.join(",") }),
+    ...(selectedTaskTypes.length > 0  && { types:       selectedTaskTypes.join(",") }),
+    ...(selectedAssignees.length > 0  && { assigneeIds: selectedAssignees.join(",") }),
+    ...(selectedReporters.length > 0  && { reporterIds: selectedReporters.join(",") }),
+    ...(debouncedSearchQuery.trim()   && { search:      debouncedSearchQuery.trim() }),
+  }), [
+    selectedWorkspaces, selectedProjects, selectedStatuses, selectedPriorities,
+    selectedTaskTypes, selectedAssignees, selectedReporters, debouncedSearchQuery,
+  ]);
+
+  const {
+    groupMap,
+    isLoading: groupedLoading,
+    goToGroupPage,
+  } = useGroupedTasks({
+    organizationId: currentOrganizationId,
+    groupBy,
+    limitPerGroup: pageSize,
+
+    filters: groupedFilters,
+  });
+  // ───────────────────────────────────────────────────────────────────────────
+
 
   const loadGanttData = useCallback(async (isSilent = false) => {
     if (!currentOrganizationId) return;
@@ -973,13 +1022,42 @@ function TasksPageContent() {
           onTaskUpdate={handleTaskUpdate}
           onTaskRefetch={loadTasks}
           organizationId={currentOrganizationId || undefined}
-          workspaceId={defaultWorkspace?.id}
+          workspaceId={"id" in defaultWorkspace ? defaultWorkspace.id : undefined}
+          groupBy={groupBy}
         />
       );
+
     }
 
-    if (taskLoading) {
+    if (taskLoading && groupBy === "none") {
       return <TaskTableSkeleton />;
+    }
+
+    // In grouped mode always render TaskListView (it handles its own loading spinner)
+    if (groupBy !== "none") {
+      return (
+        <TaskListView
+          tasks={sortedTasks}
+          projects={projects}
+          columns={columns}
+          showAddTaskRow={false}
+          selectedTasks={selectedTasks}
+          onTaskSelect={handleTaskSelect}
+          onTasksSelect={handleTasksSelect}
+          showBulkActionBar={
+            hasAccess || userAccess?.role === "OWNER" || userAccess?.role === "MANAGER"
+          }
+          onTaskRefetch={loadTasks}
+          totalTask={pagination.totalCount}
+          addTaskStatuses={availableStatuses}
+          organizationId={currentOrganizationId || undefined}
+          groupBy={groupBy}
+          onGroupByChange={setGroupBy}
+          groupMap={groupMap}
+          onGroupPageChange={goToGroupPage}
+          groupedLoading={groupedLoading}
+        />
+      );
     }
 
     if (!tasks.length) {
@@ -1011,12 +1089,21 @@ function TasksPageContent() {
             totalTask={pagination.totalCount}
             addTaskStatuses={availableStatuses}
             organizationId={currentOrganizationId || undefined}
+            groupBy={groupBy}
+            onGroupByChange={setGroupBy}
+            groupMap={undefined}
+            onGroupPageChange={undefined}
+            groupedLoading={false}
           />
+
+
         );
     }
   };
 
-  const showPagination = tasks.length > 0 && pagination.totalPages >= 1;
+  // Hide flat pagination in grouped mode (per-group pagination handles navigation)
+  const showPagination = groupBy === "none" && tasks.length > 0 && pagination.totalPages >= 1;
+
 
   if (error) {
     return <ErrorState error={error} onRetry={handleRetry} />;
@@ -1090,22 +1177,32 @@ function TasksPageContent() {
             rightContent={
               <>
                 {currentView === "gantt" && (
-                  <div className="flex items-center bg-[var(--odd-row)] rounded-lg p-1 shadow-sm">
-                    {(["days", "weeks", "months"] as const).map((mode) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => setGanttViewMode(mode)}
-                        className={`px-3 py-1 text-sm font-medium rounded-md transition-colors capitalize cursor-pointer ${ganttViewMode === mode
-                          ? "bg-blue-500 text-white"
-                          : "text-slate-600 dark:text-slate-400 hover:bg-[var(--accent)]/50"
-                          }`}
-                      >
-                        {t(`views.${mode}`)}
-                      </button>
-                    ))}
+                  <div className="flex items-center gap-2">
+                    {/* Days / Weeks / Months switcher */}
+                    <div className="flex items-center bg-[var(--odd-row)] rounded-lg p-1 shadow-sm">
+                      {(["days", "weeks", "months"] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setGanttViewMode(mode)}
+                          className={`px-3 py-1 text-sm font-medium rounded-md transition-colors capitalize cursor-pointer ${ganttViewMode === mode
+                            ? "bg-blue-500 text-white"
+                            : "text-slate-600 dark:text-slate-400 hover:bg-[var(--accent)]/50"
+                            }`}
+                        >
+                          {t(`views.${mode}`)}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Group By — same control as list view */}
+                    <GroupByManager
+                      groupBy={groupBy}
+                      onGroupByChange={setGroupBy}
+                    />
                   </div>
                 )}
+
                 {currentView === "list" && (
                   <div className="flex items-center gap-2">
                     <SortIngManager
@@ -1113,6 +1210,11 @@ function TasksPageContent() {
                       sortOrder={sortOrder}
                       onSortFieldChange={setSortField}
                       onSortOrderChange={setSortOrder}
+                    />
+
+                    <GroupByManager
+                      groupBy={groupBy}
+                      onGroupByChange={setGroupBy}
                     />
 
                     <ColumnManager

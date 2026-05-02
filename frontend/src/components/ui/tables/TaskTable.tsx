@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Table,
@@ -47,6 +47,9 @@ import {
 } from "@/components/ui/pagination";
 import type { Task, ColumnConfig } from "@/types";
 import type { TaskStatus } from "@/types/task-status";
+import type { GroupByField, TaskGroup, GroupState } from "@/types/tasks";
+
+
 import { TaskPriorities, TaskTypeIcon } from "@/utils/data/taskData";
 import { StatusBadge } from "@/components/badges";
 import TaskDetailClient from "@/components/tasks/TaskDetailClient";
@@ -98,6 +101,8 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import TaskGroupSection from "@/components/tasks/views/TaskGroupSection";
+
 
 // Sortable Header Component
 const SortableHeader = ({ id, children, className }: { id: string; children: React.ReactNode; className?: string }) => {
@@ -309,7 +314,147 @@ interface TaskTableProps {
   sprintId?: string;
   workspaceId?: string;
   organizationId?: string;
+  /** Active group-by field (default "none" = flat list) */
+  groupBy?: GroupByField;
+  /**
+   * Backend-driven group state map — when provided, TaskGroupSection reads
+   * real totalCount + per-group page info from here instead of the client-side groupTasks().
+   */
+  groupMap?: Map<string, GroupState>;
+  /** Called when user navigates to a different page within a specific group */
+  onGroupPageChange?: (groupKey: string, page: number) => void;
+  /** True while the initial grouped API call is in-flight */
+  groupedLoading?: boolean;
 }
+
+
+// ---------------------------------------------------------------------------
+// groupTasks — pure grouping utility
+// ---------------------------------------------------------------------------
+
+const PRIORITY_ORDER: Record<string, number> = {
+  HIGHEST: 0,
+  HIGH: 1,
+  MEDIUM: 2,
+  LOW: 3,
+  LOWEST: 4,
+  URGENT: 5,
+};
+
+const PRIORITY_LABELS: Record<string, string> = {
+  HIGHEST: "Highest",
+  HIGH: "High",
+  MEDIUM: "Medium",
+  LOW: "Low",
+  LOWEST: "Lowest",
+  URGENT: "Urgent",
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  TASK: "Task",
+  BUG: "Bug",
+  EPIC: "Epic",
+  STORY: "Story",
+  SUBTASK: "Sub-task",
+};
+
+/** Format a date value as "MMM DD, YYYY" (e.g. "Apr 29, 2026") */
+function formatGroupDate(date: string | Date | null | undefined): { key: string; label: string } {
+  if (!date) return { key: "no-date", label: "No Date" };
+  const d = dayjs(date).tz(getUserTimezone());
+  if (!d.isValid()) return { key: "no-date", label: "No Date" };
+  // key uses ISO date so sorting is chronological
+  return {
+    key: d.format("YYYY-MM-DD"),
+    label: d.format("MMM DD, YYYY"),
+  };
+}
+
+function groupTasks(tasks: Task[], field: GroupByField): TaskGroup[] {
+  if (field === "none") return [];
+
+  const groupMap = new Map<string, TaskGroup>();
+
+  tasks.forEach((task) => {
+    let key: string;
+    let label: string;
+
+    switch (field) {
+      case "status": {
+        const status = task.status as any;
+        key = status?.id ?? "no-status";
+        label = status?.name ?? "No Status";
+        break;
+      }
+      case "priority": {
+        key = task.priority ?? "MEDIUM";
+        label = PRIORITY_LABELS[key] ?? key;
+        break;
+      }
+      case "project": {
+        key = task.projectId ?? "no-project";
+        label = (task.project as any)?.name ?? "No Project";
+        break;
+      }
+      case "assignee": {
+        const firstAssignee = task.assignees?.[0] ?? task.assignee;
+        if (firstAssignee) {
+          key = (firstAssignee as any).id;
+          label = `${(firstAssignee as any).firstName ?? ""} ${(firstAssignee as any).lastName ?? ""}`.trim();
+        } else {
+          key = "unassigned";
+          label = "Unassigned";
+        }
+        break;
+      }
+      case "type": {
+        key = task.type ?? "TASK";
+        label = TYPE_LABELS[key] ?? key;
+        break;
+      }
+      case "dueDate": {
+        const { key: dk, label: dl } = formatGroupDate(task.dueDate);
+        key = dk;
+        label = dk === "no-date" ? "No Due Date" : dl;
+        break;
+      }
+      case "createdAt": {
+        const { key: ck, label: cl } = formatGroupDate((task as any).createdAt);
+        key = ck;
+        label = ck === "no-date" ? "No Created Date" : cl;
+        break;
+      }
+      default:
+        key = "other";
+        label = "Other";
+    }
+
+    if (!groupMap.has(key)) {
+      groupMap.set(key, { key, label, tasks: [] });
+    }
+    groupMap.get(key)!.tasks.push(task);
+  });
+
+  // Sort groups
+  const groups = Array.from(groupMap.values());
+
+  if (field === "priority") {
+    groups.sort((a, b) => (PRIORITY_ORDER[a.key] ?? 99) - (PRIORITY_ORDER[b.key] ?? 99));
+  } else if (field === "dueDate" || field === "createdAt") {
+    groups.sort((a, b) => {
+      if (a.key === "no-date") return 1;
+      if (b.key === "no-date") return -1;
+      return a.key.localeCompare(b.key);
+    });
+  } else {
+    groups.sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  return groups;
+}
+
+
+
 
 // Extend dayjs with timezone support
 dayjs.extend(utc);
@@ -350,7 +495,13 @@ const TaskTable: React.FC<TaskTableProps> = ({
   sprintId,
   workspaceId,
   organizationId,
+  groupBy = "none",
+  groupMap,
+  onGroupPageChange,
+  groupedLoading = false,
 }) => {
+
+
   const { t } = useTranslation("tasks");
   const router = useRouter();
   const { user } = useAuth();
@@ -438,6 +589,24 @@ const TaskTable: React.FC<TaskTableProps> = ({
       setLocalTasks(tasks);
     }
   }, [tasks, isReordering]);
+
+  // Grouped view: use backend groupMap when available, else fall back to client-side groupTasks()
+  const groupedTasks = useMemo<TaskGroup[]>(() => {
+    if (groupBy === "none") return [];
+    // Backend-driven: convert groupMap → TaskGroup[]
+    if (groupMap && groupMap.size > 0) {
+      return Array.from(groupMap.values()).map((g) => ({
+        key: g.key,
+        label: g.label,
+        tasks: g.tasks,
+      }));
+    }
+    // Fallback: client-side grouping (used when groupMap is not provided)
+    return groupTasks(localTasks, groupBy);
+  }, [localTasks, groupBy, groupMap]);
+
+  const isGrouped = groupBy !== "none" && (groupedTasks.length > 0 || groupedLoading);
+
 
   // Load column order from localStorage and sync with current columns
   useEffect(() => {
@@ -578,6 +747,66 @@ const TaskTable: React.FC<TaskTableProps> = ({
       }
     }
   };
+
+  // Group-aware drag end: only reorders tasks within the same group.
+  // Cross-group drops are silently ignored to prevent invalid state changes.
+  const handleGroupedDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+    setIsReordering(false);
+    if (!over || active.id === over.id) return;
+
+    // Ignore column drags
+    if (columnOrder.includes(active.id as string)) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // Find the group each task belongs to
+    const activeGroup = groupedTasks.find((g) => g.tasks.some((t) => t.id === activeId));
+    const overGroup = groupedTasks.find((g) => g.tasks.some((t) => t.id === overId));
+
+    // Silently cancel if they are in different groups
+    if (!activeGroup || !overGroup || activeGroup.key !== overGroup.key) return;
+
+    const oldIndex = localTasks.findIndex((t) => t.id === activeId);
+    const newIndex = localTasks.findIndex((t) => t.id === overId);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    setIsReordering(true);
+    const reorderedTasks = arrayMove(localTasks, oldIndex, newIndex);
+    setLocalTasks(reorderedTasks);
+
+    const prevTask = reorderedTasks[newIndex - 1];
+    const nextTask = reorderedTasks[newIndex + 1];
+
+    let scopeType: "PROJECT" | "WORKSPACE" | "ORGANIZATION" = "ORGANIZATION";
+    let scopeId = organizationId;
+    if (projectSlug && (currentProject?.id || contextProject?.id)) {
+      scopeType = "PROJECT";
+      scopeId = currentProject?.id || contextProject?.id;
+    } else if (workspaceSlug && workspaceId) {
+      scopeType = "WORKSPACE";
+      scopeId = workspaceId;
+    }
+
+    try {
+      await updateRelativeTaskRank(activeId, {
+        scopeType,
+        scopeId: scopeId!,
+        viewType: "LIST",
+        afterTaskId: prevTask?.id ?? null,
+        beforeTaskId: nextTask?.id ?? null,
+      });
+      if (onTaskRefetch) await onTaskRefetch();
+    } catch (error) {
+      console.error("Failed to persist grouped task reorder:", error);
+      setLocalTasks(tasks);
+    } finally {
+      setIsReordering(false);
+    }
+  }, [groupedTasks, localTasks, columnOrder, organizationId, projectSlug, workspaceSlug, workspaceId, currentProject, contextProject, updateRelativeTaskRank, onTaskRefetch, tasks]);
+
 
   // Handle browser back button to close modal
   useEffect(() => {
@@ -1762,68 +1991,147 @@ const TaskTable: React.FC<TaskTableProps> = ({
     <div className="w-full">
       <div className="tasktable-container">
         <div className="tasktable-wrapper">
-           <DndContext
+          <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
+            onDragEnd={isGrouped ? handleGroupedDragEnd : handleDragEnd}
           >
-            <Table className="tasktable-table">
-              <TableHeader className="tasktable-header">
-                <TableRow className="tasktable-header-row">
-                  <SortableContext
-                    items={columnOrder}
-                    strategy={horizontalListSortingStrategy}
-                  >
+            {/* ─── GROUPED rendering ─── */}
+            {isGrouped ? (
+              <table className="tasktable-table w-full caption-bottom text-sm border-collapse">
+                {/* Shared table header */}
+                <thead className="tasktable-header">
+                  <tr className="tasktable-header-row border-b border-[var(--border)]/50">
                     {columnOrder.map((colId) => (
-                      <SortableHeader key={colId} id={colId} className={getHeaderClass(colId)}>
+                      <th
+                        key={colId}
+                        className={`text-left align-middle font-medium text-[var(--muted-foreground)] text-xs ${getHeaderClass(colId)} py-3`}
+                      >
                         {renderHeaderCell(colId)}
-                      </SortableHeader>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+
+                {/* Grouped loading spinner */}
+                {groupedLoading && (
+
+                  <tbody>
+                    <tr>
+                      <td colSpan={columnOrder.length} className="text-center py-8 text-[var(--muted-foreground)] text-sm animate-pulse">
+                        Loading groups…
+                      </td>
+                    </tr>
+                  </tbody>
+                )}
+
+                {/* One TaskGroupSection (tbody) per group — each has its own SortableContext */}
+                {!groupedLoading && groupedTasks.map((group) => {
+                  const state = groupMap?.get(group.key);
+                  return (
+                    <TaskGroupSection
+                      key={group.key}
+                      groupKey={group.key}
+                      label={group.label}
+                      tasks={group.tasks}
+                      defaultExpanded={true}
+                      itemIds={group.tasks.map((t) => t.id)}
+                      totalCount={state?.totalCount ?? group.tasks.length}
+                      page={state?.page ?? 1}
+                      totalPages={state?.totalPages ?? 1}
+                      loadingMore={state?.loadingMore ?? false}
+                      onPageChange={onGroupPageChange ? (p) => onGroupPageChange(group.key, p) : undefined}
+                      renderRow={(task) => (
+                        <SortableRow
+                          key={task.id}
+                          task={task}
+                          workspaceSlug={workspaceSlug}
+                          projectSlug={projectSlug}
+                          columnOrder={columnOrder}
+                          renderTaskRowCell={renderTaskRowCell}
+                          handleRowClick={handleRowClick}
+                        />
+                      )}
+                    />
+                  );
+                })}
+
+                {/* Empty state inside grouped view */}
+
+                {groupedTasks.length === 0 && (
+
+                  <tbody>
+                    <tr>
+                      <td colSpan={columnOrder.length} className="text-center py-8 text-[var(--muted-foreground)] text-sm">
+                        No tasks found
+                      </td>
+                    </tr>
+                  </tbody>
+                )}
+
+              </table>
+
+            ) : (
+              /* ─── FLAT list rendering (original) ─── */
+              <Table className="tasktable-table">
+                <TableHeader className="tasktable-header">
+                  <TableRow className="tasktable-header-row">
+                    <SortableContext
+                      items={columnOrder}
+                      strategy={horizontalListSortingStrategy}
+                    >
+                      {columnOrder.map((colId) => (
+                        <SortableHeader key={colId} id={colId} className={getHeaderClass(colId)}>
+                          {renderHeaderCell(colId)}
+                        </SortableHeader>
+                      ))}
+                    </SortableContext>
+                  </TableRow>
+                </TableHeader>
+
+                <TableBody className="tasktable-body">
+                  {showAddTaskRow &&
+                    (isCreatingTask ? (
+                      <TableRow className="tasktable-add-row h-12 bg-[var(--mini-sidebar)]/50 border-none">
+                        {columnOrder.map((colId) => renderAddRowCell(colId))}
+                      </TableRow>
+                    ) : (
+                      <TableRow className="tasktable-add-row h-12 border-none transition-colors bg-[var(--mini-sidebar)]/50">
+                        <TableCell
+                          colSpan={columnOrder.length + 1}
+                          className="text-center py-3"
+                        >
+                          <button
+                            onClick={handleStartCreating}
+                            className="flex items-center pl-4 justify-start gap-2 w-full  cursor-pointer"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span className="text-sm font-medium ">{t("table.addTask")}</span>
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  <SortableContext
+                    items={localTasks.map(t => t.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {localTasks.map((task) => (
+                      <SortableRow
+                        key={task.id}
+                        task={task}
+                        workspaceSlug={workspaceSlug}
+                        projectSlug={projectSlug}
+                        columnOrder={columnOrder}
+                        renderTaskRowCell={renderTaskRowCell}
+                        handleRowClick={handleRowClick}
+                      />
                     ))}
                   </SortableContext>
-                </TableRow>
-              </TableHeader>
+                </TableBody>
+              </Table>
+            )}
 
-              <TableBody className="tasktable-body">
-                {showAddTaskRow &&
-                  (isCreatingTask ? (
-                    <TableRow className="tasktable-add-row h-12 bg-[var(--mini-sidebar)]/50 border-none">
-                      {columnOrder.map((colId) => renderAddRowCell(colId))}
-                    </TableRow>
-                  ) : (
-                    <TableRow className="tasktable-add-row h-12 border-none transition-colors bg-[var(--mini-sidebar)]/50">
-                      <TableCell
-                        colSpan={columnOrder.length + 1}
-                        className="text-center py-3"
-                      >
-                        <button
-                          onClick={handleStartCreating}
-                          className="flex items-center pl-4 justify-start gap-2 w-full  cursor-pointer"
-                        >
-                          <Plus className="w-4 h-4" />
-                          <span className="text-sm font-medium ">{t("table.addTask")}</span>
-                        </button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                <SortableContext
-                  items={localTasks.map(t => t.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {localTasks.map((task) => (
-                    <SortableRow
-                      key={task.id}
-                      task={task}
-                      workspaceSlug={workspaceSlug}
-                      projectSlug={projectSlug}
-                      columnOrder={columnOrder}
-                      renderTaskRowCell={renderTaskRowCell}
-                      handleRowClick={handleRowClick}
-                    />
-                  ))}
-                </SortableContext>
-              </TableBody>
-            </Table>
             <DragOverlay>
               {activeDragId && !columnOrder.includes(activeDragId) && (
                 <div className="bg-background border rounded-md shadow-lg opacity-80">
@@ -1842,6 +2150,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
         </div>
 
         {pagination && pagination.totalPages > 1 && (
+
           <TableRow className="tasktable-footer-row">
             <TableCell colSpan={columnOrder.length + 1} className="tasktable-footer-cell">
               <div className="tasktable-pagination-container">

@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useGroupedTasks } from "@/hooks/useGroupedTasks";
+
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 import { NewTaskModal } from "@/components/tasks/NewTaskModal";
@@ -22,7 +24,10 @@ import Pagination from "@/components/common/Pagination";
 import { ColumnManager } from "@/components/tasks/ColumnManager";
 import SortingManager, { SortField, SortOrder } from "@/components/tasks/SortIngManager";
 import { FilterDropdown, useGenericFilters } from "@/components/common/FilterDropdown";
+import GroupByManager, { GROUP_BY_STORAGE_KEY } from "@/components/tasks/GroupByManager";
+import type { GroupByField } from "@/types/tasks";
 import { CheckSquare, Flame, Folder, User, Users, Download, Upload, Shapes } from "lucide-react";
+
 import { TaskPriorities, TaskTypeIcon } from "@/utils/data/taskData";
 import Tooltip from "@/components/common/ToolTip";
 import TaskTableSkeleton from "@/components/skeletons/TaskTableSkeleton";
@@ -73,7 +78,7 @@ function WorkspaceTasksContent() {
   const [addTaskStatuses, setAddTaskStatuses] = useState<any[]>([]);
   const router = useRouter();
   const { workspaceSlug } = router.query;
-  const { getWorkspaceBySlug, getWorkspaceMembers } = useWorkspace();
+  const { getWorkspaceBySlug, getWorkspaceMembers, currentWorkspace } = useWorkspace();
   const { getProjectsByWorkspace, getTaskStatusByProject } = useProject();
 
   const SORT_FIELD_KEY = "tasks_sort_field";
@@ -167,11 +172,21 @@ function WorkspaceTasksContent() {
   });
 
   const [sortOrder, setSortOrder] = useState<SortOrder>(() => {
+    if (typeof window === "undefined") return "asc";
     const stored = localStorage.getItem(SORT_ORDER_KEY);
     return stored === "asc" || stored === "desc" ? stored : "asc";
   });
 
+  const [groupBy, setGroupBy] = useState<GroupByField>(() => {
+    if (typeof window === "undefined") return "none";
+    const stored = localStorage.getItem(GROUP_BY_STORAGE_KEY);
+    const valid: GroupByField[] = ["none", "status", "priority", "project", "assignee", "type", "dueDate", "createdAt"];
+    return valid.includes(stored as GroupByField) ? (stored as GroupByField) : "none";
+  });
+
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
+
+
     if (typeof window === "undefined") return [];
     try {
       const stored = localStorage.getItem(COLUMNS_KEY);
@@ -278,7 +293,30 @@ function WorkspaceTasksContent() {
   const hasValidAuth = !!isAuthenticated() && !!workspaceSlug;
   const { createSection } = useGenericFilters();
 
+  // Backend-driven grouped tasks (placed here so debouncedSearchQuery is in scope)
+  const groupedFilters = useMemo(() => ({
+    ...(debouncedSearchQuery.trim() && { search: debouncedSearchQuery.trim() }),
+    ...(selectedStatuses.length > 0  && { statuses:   selectedStatuses.join(",") }),
+    ...(selectedPriorities.length > 0 && { priorities: selectedPriorities.join(",") }),
+    ...(selectedTaskTypes.length > 0  && { types:      selectedTaskTypes.join(",") }),
+    ...(selectedAssignees.length > 0  && { assigneeIds: selectedAssignees.join(",") }),
+    ...(selectedReporters.length > 0  && { reporterIds: selectedReporters.join(",") }),
+    ...(workspace?.id                 && { workspaceId: workspace.id }),
+  }), [debouncedSearchQuery, selectedStatuses, selectedPriorities, selectedTaskTypes, selectedAssignees, selectedReporters, workspace?.id]);
+
+  const {
+    groupMap,
+    isLoading: groupedLoading,
+    goToGroupPage,
+  } = useGroupedTasks({
+    organizationId: workspace?.organizationId,
+    groupBy,
+    limitPerGroup: pageSize,
+    filters: groupedFilters,
+  });
+
   const validateRequiredData = useCallback(() => {
+
     const issues = [];
     if (!workspace?.id) issues.push("Missing workspace ID");
     if (!workspace?.organizationId) issues.push("Missing organization ID");
@@ -324,12 +362,30 @@ function WorkspaceTasksContent() {
 
   const loadInitialData = useCallback(async () => {
     if (!hasValidAuth) return;
+
+    // Silently wait for the organization ID — it may not yet be in localStorage
+    // when this fires on a hard refresh. Rather than throwing, we defer.
+    const orgId =
+      typeof window !== "undefined"
+        ? localStorage.getItem("currentOrganizationId")
+        : null;
+
+    if (!orgId) {
+      // Will be re-triggered by the effect below once orgId lands in localStorage
+      return;
+    }
+
     try {
       setLocalError(null);
 
       if (!isAuthenticated()) {
         router.push("/auth/login");
         return;
+      }
+
+      if (currentWorkspace?.slug === workspaceSlug) {
+        setWorkspace(currentWorkspace);
+        return { ws: currentWorkspace };
       }
 
       const ws = await getWorkspaceBySlug(workspaceSlug as string);
@@ -341,6 +397,13 @@ function WorkspaceTasksContent() {
       return { ws };
     } catch (error) {
       console.error("LoadInitialData error:", error);
+
+      // Don't show error for missing org — it's a transient state
+      const msg = error instanceof Error ? error.message : "";
+      if (msg.includes("No organization selected")) {
+        return;
+      }
+
       const redirected = await handleSlugNotFound(
         error,
         workspaceSlug as string,
@@ -351,7 +414,8 @@ function WorkspaceTasksContent() {
         setLocalError(error instanceof Error ? error.message : "Failed to load initial data");
       }
     }
-  }, [isAuthenticated, workspaceSlug, router, handleSlugNotFound, workspace?.id]);
+  }, [isAuthenticated, workspaceSlug, router, handleSlugNotFound, workspace?.id, currentWorkspace]);
+
 
   const loadFilterData = useCallback(async () => {
     if (!workspace?.id) return;
@@ -505,6 +569,7 @@ function WorkspaceTasksContent() {
     }
   }, [currentView, workspace?.id]);
 
+  // Primary trigger: fires when router is ready and workspaceSlug is known
   useEffect(() => {
     if (!router.isReady) return;
     const currentRoute = `${workspaceSlug}`;
@@ -513,6 +578,42 @@ function WorkspaceTasksContent() {
       loadInitialData();
     }
   }, [router.isReady, workspaceSlug]);
+
+  // Retry trigger: polls until org ID is available in localStorage.
+  // This handles hard-refresh scenarios where the org context hydrates
+  // slightly after the initial loadInitialData call, which would silently
+  // return early (no org → no error shown, but also no data loaded).
+  useEffect(() => {
+    if (!router.isReady || workspace) return; // Already loaded — nothing to do
+
+    let attempts = 0;
+    const MAX_ATTEMPTS = 10; // 10 × 500ms = 5 seconds max wait
+
+    const interval = setInterval(() => {
+      const orgId =
+        typeof window !== "undefined"
+          ? localStorage.getItem("currentOrganizationId")
+          : null;
+
+      if (orgId) {
+        clearInterval(interval);
+        loadInitialData();
+        return;
+      }
+
+      attempts++;
+      if (attempts >= MAX_ATTEMPTS) {
+        clearInterval(interval);
+        // After 5 s with no org ID, surface a helpful error
+        setLocalError(
+          "Unable to determine your organization. Please refresh the page or log in again."
+        );
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [router.isReady, workspaceSlug, workspace]);
+
 
   useEffect(() => {
     // For list view, wait for statuses to load so we can exclude the last workflow status
@@ -1036,7 +1137,39 @@ function WorkspaceTasksContent() {
   }, [columns, sortedTasks]);
 
   const renderContent = () => {
-    if (isInitialLoad || isLoading) return <TaskTableSkeleton />;
+    if ((isInitialLoad || isLoading) && groupBy === "none") return <TaskTableSkeleton />;
+
+    if (groupBy !== "none" && currentView !== "gantt" && currentView !== "kanban") {
+      return (
+        <TaskListView
+          tasks={sortedTasks}
+          workspaceSlug={workspaceSlug as string}
+          projects={projects}
+          columns={columns}
+          onTaskRefetch={loadTasks}
+          showAddTaskRow={false}
+          selectedTasks={selectedTasks}
+          onTaskSelect={handleTaskSelect}
+          onTasksSelect={handleTasksSelect}
+          showBulkActionBar={
+            hasAccess || userAccess?.role === "OWNER" || userAccess?.role === "MANAGER"
+          }
+          search={debouncedSearchQuery}
+          selectedStatuses={selectedStatuses}
+          selectedPriorities={selectedPriorities}
+          selectedTaskTypes={selectedTaskTypes}
+          selectedAssignees={selectedAssignees}
+          selectedReporters={selectedReporters}
+          totalTask={pagination.totalCount}
+          workspaceId={workspace?.id}
+          organizationId={workspace?.organizationId}
+          groupBy={groupBy}
+          groupMap={groupMap}
+          onGroupPageChange={goToGroupPage}
+          groupedLoading={groupedLoading}
+        />
+      );
+    }
 
     if (!sortedTasks.length && currentView !== "gantt") {
       return (
@@ -1064,8 +1197,10 @@ function WorkspaceTasksContent() {
             viewMode={ganttViewMode}
             onViewModeChange={setGanttViewMode}
             onTaskUpdate={handleTaskUpdate}
+            groupBy={groupBy}
           />
         );
+
       default:
         return (
           <TaskListView
@@ -1087,12 +1222,18 @@ function WorkspaceTasksContent() {
             totalTask={pagination.totalCount}
             workspaceId={workspace?.id}
             organizationId={workspace?.organizationId}
+            groupBy={groupBy}
+            groupMap={undefined}
+            onGroupPageChange={undefined}
+            groupedLoading={false}
+
           />
         );
     }
   };
 
-  const showPagination = currentView === "list" && tasks.length > 0 && pagination.totalPages >= 1;
+  const showPagination = groupBy === "none" && currentView === "list" && tasks.length > 0 && pagination.totalPages >= 1;
+
 
   if (error) return <ErrorState error={error} onRetry={handleRetry} />;
 
@@ -1217,22 +1358,29 @@ function WorkspaceTasksContent() {
             rightContent={
               <>
                 {currentView === "gantt" && (
-                  <div className="flex items-center bg-[var(--odd-row)] rounded-lg p-1 shadow-sm">
-                    {(["days", "weeks", "months"] as const).map((mode) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => setGanttViewMode(mode)}
-                        className={`px-3 py-1 text-sm font-medium rounded-md transition-colors capitalize cursor-pointer ${ganttViewMode === mode
-                          ? "bg-blue-500 text-white"
-                          : "text-slate-600 dark:text-slate-400 hover:bg-[var(--accent)]/50"
-                          }`}
-                      >
-                        {t(`views.${mode}`)}
-                      </button>
-                    ))}
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center bg-[var(--odd-row)] rounded-lg p-1 shadow-sm">
+                      {(["days", "weeks", "months"] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setGanttViewMode(mode)}
+                          className={`px-3 py-1 text-sm font-medium rounded-md transition-colors capitalize cursor-pointer ${ganttViewMode === mode
+                            ? "bg-blue-500 text-white"
+                            : "text-slate-600 dark:text-slate-400 hover:bg-[var(--accent)]/50"
+                            }`}
+                        >
+                          {t(`views.${mode}`)}
+                        </button>
+                      ))}
+                    </div>
+                    <GroupByManager
+                      groupBy={groupBy}
+                      onGroupByChange={setGroupBy}
+                    />
                   </div>
                 )}
+
                 {currentView === "list" && (
                   <div className="flex items-center gap-2">
                     <SortingManager
@@ -1242,7 +1390,13 @@ function WorkspaceTasksContent() {
                       onSortOrderChange={setSortOrder}
                     />
 
+                    <GroupByManager
+                      groupBy={groupBy}
+                      onGroupByChange={setGroupBy}
+                    />
+
                     <ColumnManager
+
                       currentView={currentView}
                       availableColumns={columns}
                       onAddColumn={handleAddColumn}
