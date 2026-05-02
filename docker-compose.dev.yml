@@ -9,7 +9,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U taskosaur"]
+      test: [ "CMD-SHELL", "pg_isready -U taskosaur" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,12 +22,14 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - taskosaur-network
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
 
   # Application (Backend + Frontend)
   app:
@@ -36,17 +38,16 @@ services:
       dockerfile: Dockerfile.dev
     working_dir: /app
     env_file:
-      - path: .env
-        required: false
+      - .env
     environment:
       # Override for Docker (uses service names instead of localhost)
       DATABASE_URL: postgresql://taskosaur:taskosaur@postgres:5432/taskosaur
       REDIS_HOST: redis
       # Frontend environment variable for API connection
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:3000/api
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:${BACKEND_PORT:-3000}/api
     ports:
-      - "3000:3000"  # Backend
-      - "3001:3001"  # Frontend
+      - "${BACKEND_PORT:-3000}:${BACKEND_PORT:-3000}" # Backend
+      - "${FRONTEND_PORT:-3001}:${FRONTEND_PORT:-3001}" # Frontend
     volumes:
       - .:/app
       - /app/node_modules
