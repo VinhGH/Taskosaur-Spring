@@ -1,4 +1,4 @@
-import { Task } from "./tasks";
+import { Task, GroupByField } from "./tasks";
 
 export interface TimeRange {
   start: Date;
@@ -18,7 +18,10 @@ export interface TaskGanttViewProps {
   workspaceId?: string;
   organizationId?: string;
   currentProject?: any;
+  /** Active group-by field. Defaults to "none" (flat list). */
+  groupBy?: GroupByField;
 }
+
 
 export interface TimelineHeaderProps {
   timeRange: TimeRange;

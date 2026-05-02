@@ -12,7 +12,9 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { BulkCreateTasksDto } from './dto/bulk-create-tasks.dto';
 import { TasksByStatus, TasksByStatusParams } from './dto/task-by-status.dto';
+import { GetGroupedTasksDto, GroupByField } from './dto/get-grouped-tasks.dto';
 import { AccessControlService } from 'src/common/access-control.utils';
+
 import { StorageService } from '../storage/storage.service';
 import { sanitizeHtml, sanitizeText, sanitizeObject } from 'src/common/utils/sanitizer.util';
 import { RecurrenceService } from './recurrence.service';
@@ -1236,6 +1238,9 @@ export class TasksService {
     page: number = 1,
     limit: number = 20,
     viewType: ViewType = ViewType.LIST,
+    from?: Date,
+    to?: Date,
+    dateField: string = 'dueDate',
   ): Promise<{
     data: Task[];
     total: number;
@@ -1316,6 +1321,17 @@ export class TasksService {
           { description: { contains: search.trim(), mode: 'insensitive' } },
         ],
       });
+    }
+
+    if (from || to) {
+      const dateFilter: any = {};
+      if (from) dateFilter.gte = from;
+      if (to) dateFilter.lte = to;
+
+      const validDateFields = ['dueDate', 'startDate', 'createdAt', 'updatedAt', 'completedAt'];
+      const field = validDateFields.includes(dateField) ? dateField : 'dueDate';
+
+      andConditions.push({ [field]: dateFilter });
     }
 
     // Add all conditions to the where clause
@@ -1477,6 +1493,435 @@ export class TasksService {
       page,
       limit,
       totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * getTasksGrouped — returns tasks pre-grouped by the requested field.
+   *
+   * TWO MODES:
+   * 1. Initial load  (groupKey absent)  — returns ALL groups with their first page.
+   * 2. Load-more    (groupKey present)  — returns only the requested group's next
+   *    page (offset-based), appending to existing frontend state.
+   */
+
+  async getTasksGrouped(
+    dto: GetGroupedTasksDto,
+    userId: string,
+  ): Promise<{
+    groups: {
+      key: string;
+      label: string;
+      totalCount: number;
+      tasks: any[];
+      page?: number;
+    }[];
+    groupBy: string;
+    page?: number;
+    limitPerGroup?: number;
+  }> {
+    if (!userId) throw new ForbiddenException('User context required');
+
+    const { organizationId, groupBy, limitPerGroup = 20, groupKey, page = 1 } = dto;
+
+    const access = await this.accessControl.getOrgAccess(organizationId, userId);
+
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true },
+    });
+    if (!organization) throw new NotFoundException('Organization not found');
+
+    // ── Base where clause (same access-control pattern as findAll) ──────────
+    const baseWhere: any = {
+      project: { workspace: { organizationId } },
+    };
+    if (!access.isSuperAdmin && !access.isElevated) {
+      baseWhere.project.OR = this.accessControl.getProjectVisibilityFilter(userId);
+    }
+
+    const andConditions: any[] = [];
+    const parseIds = (csv?: string) =>
+      csv
+        ? csv
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [];
+
+    const workspaceIds = parseIds(dto.workspaceId);
+    const projectIds = parseIds(dto.projectId);
+    const priorities = parseIds(dto.priorities);
+    const statuses = parseIds(dto.statuses);
+    const types = parseIds(dto.types);
+    const assigneeIds = parseIds(dto.assigneeIds);
+    const reporterIds = parseIds(dto.reporterIds);
+
+    if (workspaceIds.length) andConditions.push({ project: { workspaceId: { in: workspaceIds } } });
+    if (projectIds.length) andConditions.push({ projectId: { in: projectIds } });
+    if (dto.sprintId) andConditions.push({ sprintId: dto.sprintId });
+    if (priorities.length) andConditions.push({ priority: { in: priorities } });
+    if (statuses.length) andConditions.push({ statusId: { in: statuses } });
+    if (types.length) andConditions.push({ type: { in: types } });
+    if (assigneeIds.length)
+      andConditions.push({ assignees: { some: { userId: { in: assigneeIds } } } });
+    if (reporterIds.length)
+      andConditions.push({ reporters: { some: { userId: { in: reporterIds } } } });
+    if (dto.search?.trim()) {
+      andConditions.push({
+        OR: [
+          { title: { contains: dto.search.trim(), mode: 'insensitive' } },
+          { description: { contains: dto.search.trim(), mode: 'insensitive' } },
+        ],
+      });
+    }
+    if (andConditions.length) baseWhere.AND = andConditions;
+
+    // ── Standard include config ─────────────────────────────────────────────
+    const includeConfig = {
+      labels: {
+        select: {
+          taskId: true,
+          labelId: true,
+          label: { select: { id: true, name: true, color: true, description: true } },
+        },
+      },
+      project: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          workspace: { select: { id: true, name: true, slug: true, organizationId: true } },
+        },
+      },
+      assignees: {
+        select: {
+          user: {
+            select: { id: true, email: true, firstName: true, lastName: true, avatar: true },
+          },
+        },
+      },
+      reporters: {
+        select: {
+          user: {
+            select: { id: true, email: true, firstName: true, lastName: true, avatar: true },
+          },
+        },
+      },
+      status: { select: { id: true, name: true, color: true, category: true } },
+      sprint: { select: { id: true, name: true, slug: true, status: true } },
+      parentTask: { select: { id: true, title: true, slug: true, type: true } },
+      _count: { select: { childTasks: true, comments: true, attachments: true } },
+    };
+
+    const formatTasks = (tasks: any[]): any[] =>
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      tasks.map((t: any) => ({
+        ...t,
+
+        labels: ((t.labels || []) as any[]).map((tl: any) => ({
+          taskId: tl.taskId,
+          labelId: tl.labelId,
+          name: tl.label.name,
+          color: tl.label.color,
+          description: tl.label.description,
+        })),
+      }));
+
+    // ── Field-specific grouping logic ───────────────────────────────────────
+    interface RawGroup {
+      key: string;
+      label: string;
+      extraWhere: any;
+    }
+    let rawGroups: RawGroup[] = [];
+
+    switch (groupBy) {
+      case GroupByField.STATUS: {
+        const counts = await this.prisma.task.groupBy({
+          by: ['statusId'],
+          where: baseWhere,
+          _count: true,
+        });
+        const statusIds = counts.map((c) => c.statusId).filter(Boolean);
+        const statusRows = statusIds.length
+          ? await this.prisma.taskStatus.findMany({
+              where: { id: { in: statusIds } },
+              select: { id: true, name: true },
+            })
+          : [];
+        const nameMap = new Map(statusRows.map((s) => [s.id, s.name]));
+        rawGroups = counts.map((c) => ({
+          key: c.statusId ?? 'no-status',
+          label: nameMap.get(c.statusId ?? '') ?? 'No Status',
+          extraWhere: c.statusId ? { statusId: c.statusId } : { statusId: null },
+        }));
+        break;
+      }
+      case GroupByField.PRIORITY: {
+        const PRIORITY_ORDER: Record<string, number> = {
+          HIGHEST: 0,
+          HIGH: 1,
+          MEDIUM: 2,
+          LOW: 3,
+          LOWEST: 4,
+          URGENT: 5,
+        };
+        const PRIORITY_LABELS: Record<string, string> = {
+          HIGHEST: 'Highest',
+          HIGH: 'High',
+          MEDIUM: 'Medium',
+          LOW: 'Low',
+          LOWEST: 'Lowest',
+          URGENT: 'Urgent',
+        };
+        const counts = await this.prisma.task.groupBy({
+          by: ['priority'],
+          where: baseWhere,
+          _count: true,
+        });
+        rawGroups = counts
+          .map((c) => ({
+            key: c.priority ?? 'no-priority',
+            label: PRIORITY_LABELS[c.priority ?? ''] ?? c.priority ?? 'No Priority',
+            extraWhere: c.priority ? { priority: c.priority } : { priority: null },
+          }))
+          .sort((a, b) => (PRIORITY_ORDER[a.key] ?? 99) - (PRIORITY_ORDER[b.key] ?? 99));
+        break;
+      }
+      case GroupByField.PROJECT: {
+        const counts = await this.prisma.task.groupBy({
+          by: ['projectId'],
+          where: baseWhere,
+          _count: true,
+        });
+        const projectIds2 = counts.map((c) => c.projectId).filter(Boolean);
+        const projectRows = projectIds2.length
+          ? await this.prisma.project.findMany({
+              where: { id: { in: projectIds2 } },
+              select: { id: true, name: true },
+            })
+          : [];
+        const projMap = new Map(projectRows.map((p) => [p.id, p.name]));
+        rawGroups = counts.map((c) => ({
+          key: c.projectId ?? 'no-project',
+          label: projMap.get(c.projectId ?? '') ?? 'No Project',
+          extraWhere: c.projectId ? { projectId: c.projectId } : { projectId: null },
+        }));
+        break;
+      }
+      case GroupByField.ASSIGNEE: {
+        const counts = await this.prisma.taskAssignee.groupBy({
+          by: ['userId'],
+          where: { task: baseWhere },
+          _count: true,
+        });
+        const userIds = counts.map((c) => c.userId);
+        const userRows = userIds.length
+          ? await this.prisma.user.findMany({
+              where: { id: { in: userIds } },
+              select: { id: true, firstName: true, lastName: true },
+            })
+          : [];
+        const userMap = new Map(userRows.map((u) => [u.id, `${u.firstName} ${u.lastName}`.trim()]));
+        rawGroups = [
+          ...counts.map((c) => ({
+            key: c.userId,
+            label: userMap.get(c.userId) ?? 'Unknown',
+            extraWhere: { assignees: { some: { userId: c.userId } } },
+          })),
+        ];
+        // Add "Unassigned" group
+        const unassignedCount = await this.prisma.task.count({
+          where: { ...baseWhere, assignees: { none: {} } },
+        });
+        if (unassignedCount > 0) {
+          rawGroups.push({
+            key: 'unassigned',
+            label: 'Unassigned',
+            extraWhere: { assignees: { none: {} } },
+          });
+        }
+        break;
+      }
+      case GroupByField.TYPE: {
+        const TYPE_LABELS: Record<string, string> = {
+          TASK: 'Task',
+          BUG: 'Bug',
+          EPIC: 'Epic',
+          STORY: 'Story',
+          SUBTASK: 'Sub-task',
+        };
+        const counts = await this.prisma.task.groupBy({
+          by: ['type'],
+          where: baseWhere,
+          _count: true,
+        });
+        rawGroups = counts.map((c) => ({
+          key: c.type ?? 'no-type',
+          label: TYPE_LABELS[c.type ?? ''] ?? c.type ?? 'No Type',
+          extraWhere: c.type ? { type: c.type } : { type: null },
+        }));
+        break;
+      }
+      case GroupByField.DUE_DATE: {
+        // Group by calendar date — qualify column with table alias to avoid ambiguity
+        const dateGroups = await this.prisma.$queryRaw<{ date_key: Date | null; cnt: bigint }[]>`
+          SELECT DATE(t.due_date) AS date_key, COUNT(*) AS cnt
+          FROM tasks t
+          INNER JOIN projects p ON t.project_id = p.id
+          INNER JOIN workspaces w ON p.workspace_id = w.id
+          WHERE w.organization_id::text = ${organizationId}
+          GROUP BY DATE(t.due_date)
+          ORDER BY date_key ASC NULLS LAST
+        `;
+        rawGroups = dateGroups.map((r) => {
+          // Prisma returns PostgreSQL DATE as a JS Date object, not a plain string
+          const key = r.date_key
+            ? r.date_key instanceof Date
+              ? r.date_key.toISOString().slice(0, 10)
+              : String(r.date_key).slice(0, 10)
+            : 'no-date';
+          const label = r.date_key
+            ? new Date(`${key}T12:00:00.000Z`).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: '2-digit',
+              })
+            : 'No Due Date';
+          return {
+            key,
+            label,
+            extraWhere: r.date_key
+              ? {
+                  dueDate: {
+                    gte: new Date(`${key}T00:00:00.000Z`),
+                    lt: new Date(`${key}T23:59:59.999Z`),
+                  },
+                }
+              : { dueDate: null },
+          };
+        });
+        break;
+      }
+      case GroupByField.CREATED_AT: {
+        // Qualify column with table alias to avoid ambiguity in the multi-table join
+        const dateGroups = await this.prisma.$queryRaw<{ date_key: Date | null; cnt: bigint }[]>`
+          SELECT DATE(t.created_at) AS date_key, COUNT(*) AS cnt
+          FROM tasks t
+          INNER JOIN projects p ON t.project_id = p.id
+          INNER JOIN workspaces w ON p.workspace_id = w.id
+          WHERE w.organization_id::text = ${organizationId}
+          GROUP BY DATE(t.created_at)
+          ORDER BY date_key ASC NULLS LAST
+        `;
+        rawGroups = dateGroups.map((r) => {
+          const key = r.date_key
+            ? r.date_key instanceof Date
+              ? r.date_key.toISOString().slice(0, 10)
+              : String(r.date_key).slice(0, 10)
+            : 'no-date';
+          const label = r.date_key
+            ? new Date(`${key}T12:00:00.000Z`).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: '2-digit',
+              })
+            : 'No Created Date';
+          return {
+            key,
+            label,
+            extraWhere: r.date_key
+              ? {
+                  createdAt: {
+                    gte: new Date(`${key}T00:00:00.000Z`),
+                    lt: new Date(`${key}T23:59:59.999Z`),
+                  },
+                }
+              : { createdAt: null },
+          };
+        });
+        break;
+      }
+      default:
+        throw new BadRequestException(`Unsupported groupBy field: ${String(groupBy)}`);
+    }
+
+    // ── MODE 2: Load-more for a single group ────────────────────────────────
+    if (groupKey) {
+      // Find the matching group descriptor from rawGroups
+      const target = rawGroups.find((g) => g.key === groupKey);
+      if (!target) {
+        // Group not found — return empty (filters may have changed)
+        return { groups: [], groupBy, page, limitPerGroup };
+      }
+
+      const groupWhere = { ...baseWhere, ...target.extraWhere };
+      if (andConditions.length && target.extraWhere) {
+        groupWhere.AND = [...(baseWhere.AND || []), ...(target.extraWhere.AND || [])];
+      }
+
+      const skip = (page - 1) * limitPerGroup;
+      const [rawTasks, totalCount] = await Promise.all([
+        this.prisma.task.findMany({
+          where: groupWhere,
+          include: includeConfig,
+          orderBy: { createdAt: 'desc' },
+          take: limitPerGroup,
+          skip,
+        }),
+        this.prisma.task.count({ where: groupWhere }),
+      ]);
+
+      return {
+        groups: [
+          {
+            key: target.key,
+            label: target.label,
+            totalCount,
+            tasks: formatTasks(rawTasks),
+            page,
+          },
+        ],
+        groupBy,
+        page,
+        limitPerGroup,
+      };
+    }
+
+    // ── MODE 1: Initial load — fetch first page of ALL groups in parallel ────
+    const groups = await Promise.all(
+      rawGroups.map(async (g) => {
+        const groupWhere = { ...baseWhere, ...g.extraWhere };
+        if (andConditions.length && g.extraWhere) {
+          groupWhere.AND = [...(baseWhere.AND || []), ...(g.extraWhere.AND || [])];
+        }
+
+        const [rawTasks, totalCount] = await Promise.all([
+          this.prisma.task.findMany({
+            where: groupWhere,
+            include: includeConfig,
+            orderBy: { createdAt: 'desc' },
+            take: limitPerGroup,
+          }),
+          this.prisma.task.count({ where: groupWhere }),
+        ]);
+
+        return {
+          key: g.key,
+          label: g.label,
+          totalCount,
+          tasks: formatTasks(rawTasks),
+          page: 1,
+        };
+      }),
+    );
+
+    return {
+      groups: groups.filter((g) => g.totalCount > 0),
+      groupBy,
+      page: 1,
+      limitPerGroup,
     };
   }
 

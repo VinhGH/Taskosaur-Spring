@@ -4,6 +4,72 @@ import type { Sprint } from "./sprint";
 import { TaskStatus } from "./task-status";
 
 export type TaskPriority = "LOWEST" | "LOW" | "MEDIUM" | "HIGH" | "HIGHEST" | "URGENT";
+
+// Group-by field options for the task list
+export type GroupByField =
+  | "none"
+  | "status"
+  | "priority"
+  | "project"
+  | "assignee"
+  | "type"
+  | "dueDate"
+  | "createdAt";
+
+
+export interface TaskGroup {
+  /** Unique key for this group (e.g. status id, priority value, etc.) */
+  key: string;
+  /** Human-readable label shown in the group header */
+  label: string;
+  /** Tasks belonging to this group */
+  tasks: Task[];
+}
+
+/**
+ * Response shape from GET /tasks/grouped.
+ * totalCount is the FULL DB count — tasks[] is only the first page per group.
+ */
+export interface TaskGroupResponse {
+  key: string;
+  label: string;
+  /** Full count from the DB (not just the loaded page) */
+  totalCount: number;
+  tasks: Task[];
+  /** Page number that was returned by this response */
+  page?: number;
+}
+
+export interface GroupedTasksApiResponse {
+  groups: TaskGroupResponse[];
+  groupBy: string;
+  /** Page that was returned (load-more mode) */
+  page?: number;
+  /** Limit applied per group */
+  limitPerGroup?: number;
+}
+
+/**
+ * Client-side per-group state entry used in tasks/index.tsx.
+ * Tracks the CURRENT PAGE of tasks for each group (standard pagination — not append).
+ */
+export interface GroupState {
+  key: string;
+  label: string;
+  /** Tasks on the current page (replaced on each page navigation) */
+  tasks: Task[];
+  /** Full count from the DB */
+  totalCount: number;
+  /** Current page (1-based) */
+  page: number;
+  /** Total number of pages */
+  totalPages: number;
+  /** True while a page-change request is in-flight for this group */
+  loadingMore: boolean;
+}
+
+
+
 export type TaskCategory = "TODO" | "IN_PROGRESS" | "DONE";
 
 // Recurring Task Types

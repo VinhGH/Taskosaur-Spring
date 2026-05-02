@@ -45,6 +45,7 @@ import { BulkUpdateTasksStatusDto } from './dto/bulk-update-task-status.dto';
 import { BulkCreateTasksDto } from './dto/bulk-create-tasks.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { RecurrenceConfigDto } from './dto/recurrence-config.dto';
+import { GetGroupedTasksDto } from './dto/get-grouped-tasks.dto';
 import { User } from '../users/entities/user.entity';
 
 @ApiBearerAuth('JWT-auth')
@@ -671,6 +672,9 @@ export class TasksController {
     @Query('viewType') viewType: ViewType = ViewType.LIST,
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '20',
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('dateField') dateField: string = 'dueDate',
   ) {
     return this.tasksService.getTasks(
       organizationId,
@@ -688,7 +692,56 @@ export class TasksController {
       Number(page),
       Number(limit),
       viewType,
+      from ? new Date(from) : undefined,
+      to ? new Date(to) : undefined,
+      dateField,
     );
+  }
+
+  @Get('grouped')
+  @ApiOperation({
+    summary: 'Get tasks grouped by a field',
+    description:
+      'Returns tasks grouped by status, priority, project, assignee, type, dueDate, or createdAt. ' +
+      'Each group includes the first page of tasks AND the total DB count for that group, ' +
+      'enabling accurate totals for large datasets without loading every page.',
+  })
+  @ApiQuery({ name: 'organizationId', required: true, description: 'Organization ID' })
+  @ApiQuery({
+    name: 'groupBy',
+    required: true,
+    description: 'Field to group by',
+    example: 'status',
+  })
+  @ApiQuery({ name: 'workspaceId', required: false })
+  @ApiQuery({ name: 'projectId', required: false })
+  @ApiQuery({ name: 'sprintId', required: false })
+  @ApiQuery({ name: 'priorities', required: false })
+  @ApiQuery({ name: 'statuses', required: false })
+  @ApiQuery({ name: 'types', required: false })
+  @ApiQuery({ name: 'assigneeIds', required: false })
+  @ApiQuery({ name: 'reporterIds', required: false })
+  @ApiQuery({ name: 'search', required: false })
+  @ApiQuery({
+    name: 'limitPerGroup',
+    required: false,
+    description: 'Tasks per group per page (default 20)',
+  })
+  @ApiQuery({
+    name: 'groupKey',
+    required: false,
+    description:
+      "Load-more mode: when set, only this group's tasks are returned using `page` for offset pagination.",
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page within the specified groupKey (1-based, default 1)',
+  })
+  @Scope('ORGANIZATION', 'organizationId')
+  @Roles(Role.VIEWER, Role.MEMBER, Role.MANAGER, Role.OWNER)
+  getGroupedTasks(@CurrentUser() user: User, @Query() dto: GetGroupedTasksDto) {
+    return this.tasksService.getTasksGrouped(dto, user.id);
   }
 
   @Get('by-status')

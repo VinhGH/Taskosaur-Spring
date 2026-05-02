@@ -9,6 +9,7 @@ import {
   CreateTaskCommentRequest,
   CreateTaskRequest,
   GetTasksParams,
+  GroupedTasksApiResponse,
   PaginatedTaskResponse,
   Task,
   TaskAttachment,
@@ -272,6 +273,9 @@ export const taskApi = {
       viewType?: 'LIST' | 'BOARD' | 'GANTT';
       page?: number;
       limit?: number;
+      from?: string;
+      to?: string;
+      dateField?: string;
     }
   ): Promise<PaginatedTaskResponse> => {
     try {
@@ -284,6 +288,10 @@ export const taskApi = {
       if (params?.workspaceId) queryParams.append("workspaceId", params.workspaceId);
       if (params?.projectId) queryParams.append("projectId", params.projectId);
       if (params?.sprintId) queryParams.append("sprintId", params.sprintId);
+
+      if (params?.from) queryParams.append("from", params.from);
+      if (params?.to) queryParams.append("to", params.to);
+      if (params?.dateField) queryParams.append("dateField", params.dateField);
 
       if (params?.includeSubtasks) {
         queryParams.append("parentTaskId", "all");
@@ -314,6 +322,56 @@ export const taskApi = {
       throw error;
     }
   },
+
+  getGroupedTasks: async (
+    organizationId: string,
+    groupBy: string,
+    params?: {
+      workspaceId?: string;
+      projectId?: string;
+      sprintId?: string;
+      priorities?: string;
+      statuses?: string;
+      types?: string;
+      assigneeIds?: string;
+      reporterIds?: string;
+      search?: string;
+      limitPerGroup?: number;
+      /** Load-more mode: key of the group to paginate */
+      groupKey?: string;
+      /** Page within the specified group (1-based) */
+      page?: number;
+    }
+  ): Promise<GroupedTasksApiResponse> => {
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.append("organizationId", encodeURIComponent(organizationId));
+      queryParams.append("groupBy", groupBy);
+
+      if (params?.workspaceId) queryParams.append("workspaceId", encodeURIComponent(params.workspaceId));
+      if (params?.projectId)   queryParams.append("projectId", encodeURIComponent(params.projectId));
+      if (params?.sprintId)    queryParams.append("sprintId", encodeURIComponent(params.sprintId));
+      if (params?.priorities)  queryParams.append("priorities", params.priorities);
+      if (params?.statuses)    queryParams.append("statuses", params.statuses);
+      if (params?.types)       queryParams.append("types", params.types);
+      if (params?.assigneeIds) queryParams.append("assigneeIds", params.assigneeIds);
+      if (params?.reporterIds) queryParams.append("reporterIds", params.reporterIds);
+      if (params?.search)      queryParams.append("search", params.search);
+      if (params?.limitPerGroup !== undefined)
+        queryParams.append("limitPerGroup", String(params.limitPerGroup));
+      if (params?.groupKey)    queryParams.append("groupKey", params.groupKey);
+      if (params?.page !== undefined)
+        queryParams.append("page", String(params.page));
+
+      const url = `/tasks/grouped?${queryParams.toString()}`;
+      const response = await api.get<GroupedTasksApiResponse>(url);
+      return response.data;
+    } catch (error) {
+      console.error("Get grouped tasks error:", error);
+      throw error;
+    }
+  },
+
 
   getPublicCalendarTask: async (
     workspaceSlug: string,
