@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatDateTimeForDisplay } from "@/utils/date";
+import { isValidSlug } from "@/utils/slugUtils";
 
 export interface ActivityFeedItem {
   id: string;
@@ -81,7 +82,7 @@ function getEntityLink(activity: ActivityFeedItem, fallbackWorkspaceSlug?: strin
 
   // For task attachments, use slug-based URL if available
   if (entityType === "task attachment" || entityType === "task attchment") {
-    if (wsSlug && activity.projectSlug && activity.taskSlug) {
+    if (isValidSlug(wsSlug) && isValidSlug(activity.projectSlug) && isValidSlug(activity.taskSlug)) {
       return `/${wsSlug}/${activity.projectSlug}/tasks/${activity.taskSlug}`;
     }
   }
@@ -90,28 +91,29 @@ function getEntityLink(activity: ActivityFeedItem, fallbackWorkspaceSlug?: strin
 
   switch (entityType) {
     case "task":
-      if (wsSlug && activity.projectSlug && activity.taskSlug) {
+      if (isValidSlug(wsSlug) && isValidSlug(activity.projectSlug) && isValidSlug(activity.taskSlug)) {
         return `/${wsSlug}/${activity.projectSlug}/tasks/${activity.taskSlug}`;
       }
       return "#";
     case "project":
-      if (wsSlug && activity.projectSlug) {
+      if (isValidSlug(wsSlug) && isValidSlug(activity.projectSlug)) {
         return `/${wsSlug}/${activity.projectSlug}`;
       }
       return "#";
     case "sprint":
-      if (wsSlug && activity.projectSlug && activity.sprintSlug) {
+      if (isValidSlug(wsSlug) && isValidSlug(activity.projectSlug) && isValidSlug(activity.sprintSlug)) {
         return `/${wsSlug}/${activity.projectSlug}/sprints/${activity.sprintSlug}`;
       }
       return "#";
     case "workspace":
-      if (wsSlug) {
+      if (isValidSlug(wsSlug)) {
         return `/${wsSlug}`;
       }
       return "#";
     case "organization":
       return `/dashboard`;
     case "user":
+      // entityId for users is typically a UUID
       return `/users/${activity.entityId}`;
     default:
       return "#";

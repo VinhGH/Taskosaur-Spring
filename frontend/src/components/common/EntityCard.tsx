@@ -25,6 +25,8 @@ export function EntityCard({
   footer,
   className = "",
 }: EntityCardProps) {
+  const isSafePath = !href || (/^\/[^/]/.test(href) && !/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(href));
+
   const Inner = () => (
     <Card
       onClick={onClick}
@@ -65,7 +67,7 @@ export function EntityCard({
     </Card>
   );
 
-  return href ? (
+  return href && isSafePath ? (
     <Link href={href} style={{ textDecoration: "none" }}>
       <Inner />
     </Link>

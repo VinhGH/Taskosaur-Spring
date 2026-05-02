@@ -1,6 +1,7 @@
 import React from "react";
 import { formatDateForDisplay } from "@/utils/date";
 import Link from "next/link";
+import { isValidSlug } from "@/utils/slugUtils";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { IconButton } from "@/components/ui/IconButton";
 import { PriorityBadge } from "@/components/badges/PriorityBadge";
@@ -29,6 +30,21 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   projectSlug,
   className,
 }) => {
+  if (!isValidSlug(workspaceSlug) || !isValidSlug(projectSlug) || !isValidSlug(task.slug)) {
+    return (
+      <Card className={`group ${className} opacity-80`}>
+        <CardHeader className="taskcard-header">
+          <CardTitle>
+            <span className="taskcard-title">{task.title}</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-destructive">Invalid navigation path</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Link href={`/${workspaceSlug}/${projectSlug}/tasks/${task.slug}`}>
       <Card className={`group ${className}`}>

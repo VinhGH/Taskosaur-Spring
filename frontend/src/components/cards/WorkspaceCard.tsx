@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import { isValidSlug } from "@/utils/slugUtils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,6 +51,16 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
 }) => {
   // Simple variant (original design for dashboard/sidebar)
   if (variant === "simple") {
+    if (!isValidSlug(workspace.slug)) {
+      return (
+        <Card className={`content-card-hover ${className} opacity-80`}>
+          <div className="p-4">
+            <h3 className="text-sm font-semibold truncate">{workspace.name}</h3>
+            <p className="text-xs text-destructive mt-1">Invalid workspace slug</p>
+          </div>
+        </Card>
+      );
+    }
     return (
       <Link href={`/${workspace.slug}`}>
         <Card className={`content-card-hover ${className}`}>
@@ -76,24 +87,36 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
   }
 
   // Detailed variant using shadcn components
+  const safeHref = isValidSlug(workspace.slug) ? `/${workspace.slug}` : "#";
+
   return (
     <Card
       className={`relative group content-card hover:shadow-lg transition-all duration-200 hover:scale-105 ${className}`}
     >
-      <CardContent className="p-6">
-        {/* Header */}
-        <div className="flex-between mb-3">
-          <Link href={`/${workspace.slug}`} className="flex-start gap-3 flex-1 min-w-0">
-            <div className="icon-container-lg bg-gradient-to-br from-blue-500 to-purple-500 shadow-lg shadow-blue-500/25">
-              {workspace.name.charAt(0).toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <h3 className="font-semibold text-[var(--foreground)] truncate group-hover:text-[var(--primary)] transition-colors">
-                {workspace.name}
-              </h3>
-              <p className="text-sm text-[var(--muted-foreground)] truncate">/{workspace.slug}</p>
-            </div>
-          </Link>
+        <CardContent className="p-6">
+          {/* Header */}
+          <div className="flex-between mb-3">
+            {safeHref !== "#" ? (
+              <Link href={safeHref} className="flex-start gap-3 flex-1 min-w-0">
+                <div className="icon-container-lg bg-gradient-to-br from-blue-500 to-purple-500 shadow-lg shadow-blue-500/25">
+                  {workspace.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-[var(--foreground)] truncate group-hover:text-[var(--primary)] transition-colors">
+                    {workspace.name}
+                  </h3>
+                  <p className="text-sm text-[var(--muted-foreground)] truncate">/{workspace.slug}</p>
+                </div>
+              </Link>
+            ) : (
+              <div className="flex-start gap-3 flex-1 min-w-0 opacity-50">
+                <div className="icon-container-lg bg-gray-500">?</div>
+                <div className="min-w-0">
+                  <h3 className="font-semibold truncate">{workspace.name}</h3>
+                  <p className="text-xs text-destructive">Invalid slug</p>
+                </div>
+              </div>
+            )}
 
           {/* Actions Menu */}
           {(onEdit || onDelete || onShowMembers) && (
@@ -131,11 +154,18 @@ export const WorkspaceCard: React.FC<WorkspaceCardProps> = ({
                     Members
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem asChild>
-                  <Link href={`/${workspace.slug}/settings`} onClick={(e) => e.stopPropagation()}>
-                    <HiCog className="w-4 h-4 mr-2" />
-                    Settings
-                  </Link>
+                <DropdownMenuItem asChild disabled={!isValidSlug(workspace.slug)}>
+                  {isValidSlug(workspace.slug) ? (
+                    <Link href={`/${workspace.slug}/settings`} onClick={(e) => e.stopPropagation()}>
+                      <HiCog className="w-4 h-4 mr-2" />
+                      Settings
+                    </Link>
+                  ) : (
+                    <span className="flex items-center opacity-50 px-2 py-1.5 text-sm cursor-not-allowed">
+                      <HiCog className="w-4 h-4 mr-2" />
+                      Settings (Invalid Slug)
+                    </span>
+                  )}
                 </DropdownMenuItem>
                 {onDelete && (
                   <>

@@ -15,16 +15,26 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
   href,
   className,
 }) => {
-  return (
+  const isSafePath = /^\/[^/]/.test(href) && !/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(href);
+
+  const Content = (
+    <Card className={`group quickactioncard-container ${className}`}>
+      <CardContent className="quickactioncard-content">
+        <div className="quickactioncard-icon">
+          <div className="text-white">{icon}</div>
+        </div>
+        <h3 className="quickactioncard-title">{title}</h3>
+      </CardContent>
+    </Card>
+  );
+
+  return isSafePath ? (
     <Link href={href}>
-      <Card className={`group quickactioncard-container ${className}`}>
-        <CardContent className="quickactioncard-content">
-          <div className="quickactioncard-icon">
-            <div className="text-white">{icon}</div>
-          </div>
-          <h3 className="quickactioncard-title">{title}</h3>
-        </CardContent>
-      </Card>
+      {Content}
     </Link>
+  ) : (
+    <div className="opacity-50 cursor-not-allowed">
+      {Content}
+    </div>
   );
 };
