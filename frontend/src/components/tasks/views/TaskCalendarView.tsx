@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { formatDateForDisplay } from "@/utils/date";
 import { useRouter } from "next/router";
 import { HiChevronLeft, HiChevronRight, HiCalendarDays } from "react-icons/hi2";
@@ -17,6 +17,7 @@ interface Task {
   title: string;
   description?: string;
   dueDate?: string;
+  startDate?: string;
   completedAt?: string;
   createdAt?: string;
   priority?: string;
@@ -35,6 +36,8 @@ interface TaskCalendarViewProps {
   tasks: Task[];
   workspaceSlug: string;
   projectSlug?: string;
+  onRangeChange?: (range: { from: Date; to: Date; dateField: string }) => void;
+  isLoading?: boolean;
 }
 
 interface CalendarDay {
@@ -53,13 +56,49 @@ export default function TaskCalendarView({
   tasks = [],
   workspaceSlug,
   projectSlug,
+  onRangeChange,
+  isLoading = false,
 }: TaskCalendarViewProps) {
   const { t } = useTranslation(["calendar"]);
   const filteredTasks = Array.isArray(tasks) ? tasks : [];
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<"month" | "week">("month");
+  const [dateType, setDateType] = useState<"dueDate" | "startDate">("dueDate");
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    if (!onRangeChange) return;
+
+    let from: Date;
+    let to: Date;
+
+    if (viewMode === "month") {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const firstDayOfMonth = new Date(year, month, 1);
+      const dayOfWeek = firstDayOfMonth.getDay();
+      from = new Date(firstDayOfMonth);
+      from.setDate(from.getDate() - dayOfWeek);
+
+      const lastDayOfMonth = new Date(year, month + 1, 0);
+      const remainingDays = 6 - lastDayOfMonth.getDay();
+      to = new Date(lastDayOfMonth);
+      to.setDate(to.getDate() + remainingDays);
+    } else {
+      from = new Date(currentDate);
+      const day = from.getDay();
+      from.setDate(from.getDate() - day);
+      
+      to = new Date(from);
+      to.setDate(to.getDate() + 6);
+    }
+
+    from.setHours(0, 0, 0, 0);
+    to.setHours(23, 59, 59, 999);
+
+    onRangeChange({ from, to, dateField: dateType });
+  }, [currentDate, viewMode, dateType, onRangeChange]);
 
   const getStatusColors = (statusName: string): string => {
     switch (statusName?.toLowerCase()) {
@@ -149,12 +188,13 @@ export default function TaskCalendarView({
       const isToday = currentDayDate.getTime() === today.getTime();
 
       const dayTasks = filteredTasks?.filter((task) => {
-        const dueDate = parseDate(task.dueDate);
-        if (!dueDate) return false;
+        const dateValue = dateType === "startDate" ? task.startDate : task.dueDate;
+        const targetDate = parseDate(dateValue);
+        if (!targetDate) return false;
         return (
-          dueDate.getFullYear() === currentDayDate.getFullYear() &&
-          dueDate.getMonth() === currentDayDate.getMonth() &&
-          dueDate.getDate() === currentDayDate.getDate()
+          targetDate.getFullYear() === currentDayDate.getFullYear() &&
+          targetDate.getMonth() === currentDayDate.getMonth() &&
+          targetDate.getDate() === currentDayDate.getDate()
         );
       });
 
@@ -170,7 +210,7 @@ export default function TaskCalendarView({
     }
 
     return days;
-  }, [currentDate, filteredTasks]);
+  }, [currentDate, filteredTasks, dateType]);
 
   const weekDays = useMemo(() => {
     const startOfWeek = new Date(currentDate);
@@ -188,19 +228,24 @@ export default function TaskCalendarView({
       const isToday = currentDay.getTime() === today.getTime();
 
       const dayTasks = filteredTasks.filter((task) => {
-        const dueDate = parseDate(task.dueDate);
-        if (!dueDate) return false;
+        const dateValue = dateType === "startDate" ? task.startDate : task.dueDate;
+        const targetDate = parseDate(dateValue);
+        if (!targetDate) return false;
         return (
-          dueDate.getFullYear() === currentDay.getFullYear() &&
-          dueDate.getMonth() === currentDay.getMonth() &&
-          dueDate.getDate() === currentDay.getDate()
+          targetDate.getFullYear() === currentDay.getFullYear() &&
+          targetDate.getMonth() === currentDay.getMonth() &&
+          targetDate.getDate() === currentDay.getDate()
         );
       });
 
       // Create hour slots for week view
       const hours = Array.from({ length: 24 }, (_, hour) => ({
         hour,
-        tasks: dayTasks.filter(() => Math.random() > 0.8), // Random distribution for demo
+        tasks: dayTasks.filter((task) => {
+          const dateValue = dateType === "startDate" ? task.startDate : task.dueDate;
+          const targetDate = parseDate(dateValue);
+          return targetDate && targetDate.getHours() === hour;
+        }),
       }));
 
       days.push({
@@ -214,7 +259,7 @@ export default function TaskCalendarView({
     }
 
     return days;
-  }, [currentDate, filteredTasks]);
+  }, [currentDate, filteredTasks, dateType]);
 
   const navigate = (direction: "prev" | "next") => {
     const newDate = new Date(currentDate);
@@ -239,21 +284,7 @@ export default function TaskCalendarView({
     setSelectedDay(null);
   };
 
-  if (tasks?.length === 0) {
-    return (
-      <div className="w-full bg-[var(--card)] rounded-[var(--radius)] shadow-sm p-4">
-        <div className="text-center py-8 flex flex-col items-center justify-center">
-          <div className="w-10 h-10 bg-[var(--primary)]/10 rounded-lg flex items-center justify-center mx-auto mb-3">
-            <HiCalendarDays className="w-5 h-5 text-[var(--primary)]" />
-          </div>
-          <p className="text-sm font-medium text-[var(--foreground)] mb-1">{t("view.noTasksScheduled")}</p>
-          <p className="text-xs text-[var(--muted-foreground)] max-w-md mx-auto">
-            {t("view.noTasksScheduledDescription")}
-          </p>
-        </div>
-      </div>
-    );
-  }
+
 
   const renderMonthView = () => (
     <>
@@ -441,8 +472,7 @@ export default function TaskCalendarView({
                     }`}
                   >
                     {/* Tasks for this time slot */}
-                    {day.tasks
-                      .filter(() => Math.random() > 0.85 && hour >= 8 && hour <= 18) // Show tasks during work hours
+                    {day.hours[hour].tasks
                       .slice(0, 1)
                       .map((task, taskIndex) => (
                         <div
@@ -517,6 +547,33 @@ export default function TaskCalendarView({
           </div>
 
           <div className="flex items-center gap-2">
+            {isLoading && (
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-[var(--primary)] border-t-transparent mr-2"></div>
+            )}
+            {/* Date Type Toggle */}
+            <div className="flex items-center bg-[var(--muted)]/50 rounded-lg p-0.5 mr-2">
+              <button
+                onClick={() => setDateType("dueDate")}
+                className={`px-2 py-1 text-xs font-medium rounded-md transition-all duration-200 ${
+                  dateType === "dueDate"
+                    ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
+                    : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                }`}
+              >
+                {t("view.dueDate", "Due Date")}
+              </button>
+              <button
+                onClick={() => setDateType("startDate")}
+                className={`px-2 py-1 text-xs font-medium rounded-md transition-all duration-200 ${
+                  dateType === "startDate"
+                    ? "bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
+                    : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                }`}
+              >
+                {t("view.startDate", "Start Date")}
+              </button>
+            </div>
+
             {/* View Mode Toggle */}
             <div className="flex items-center bg-[var(--muted)]/50 rounded-lg p-0.5">
               <button

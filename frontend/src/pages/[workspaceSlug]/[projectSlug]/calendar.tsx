@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 import { NewTaskModal } from "@/components/tasks/NewTaskModal";
@@ -70,6 +70,8 @@ function ProjectTasksCalendarPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [isNewTaskModalOpen, setNewTaskModalOpen] = useState(false);
+  const [currentRange, setCurrentRange] = useState<{ from: Date; to: Date; dateField: string } | null>(null);
+  const [tasksLoading, setTasksLoading] = useState(false);
 
   // Track the current route to prevent duplicate calls
   const currentRouteRef = useRef<string>("");
@@ -82,10 +84,14 @@ function ProjectTasksCalendarPageContent() {
     localStorage.getItem("currentOrganizationId") || localStorage.getItem("organizationId");
   const handleTaskCreated = async () => {
     try {
-      if (projectData?.id) {
+      if (projectData?.id && currentRange) {
         const response = await taskContext.getCalendarTask(organizationId || "", {
           projectId: projectData.id,
           includeSubtasks: true,
+          from: currentRange.from.toISOString(),
+          to: currentRange.to.toISOString(),
+          dateField: currentRange.dateField,
+          limit: 1000,
         });
         setProjectTasks(response?.data || []);
       }
@@ -131,12 +137,6 @@ function ProjectTasksCalendarPageContent() {
       setProjectData(project);
       cacheSlugId("project", projectSlug, project.id);
 
-      const response = await taskContext.getCalendarTask(organizationId || "", {
-        projectId: project.id,
-        includeSubtasks: true,
-      });
-      setProjectTasks(response?.data || []);
-
       setDataLoaded(true);
     } catch (err) {
       console.error("Error loading page data:", err);
@@ -154,6 +154,45 @@ function ProjectTasksCalendarPageContent() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const fetchRangeTasks = async () => {
+      if (!projectData?.id || !currentRange) return;
+
+      setTasksLoading(true);
+      try {
+        const response = await taskContext.getCalendarTask(organizationId || "", {
+          projectId: projectData.id,
+          includeSubtasks: true,
+          from: currentRange.from.toISOString(),
+          to: currentRange.to.toISOString(),
+          dateField: currentRange.dateField,
+          limit: 1000,
+        });
+        setProjectTasks(response?.data || []);
+      } catch (error) {
+        console.error("Error fetching tasks for range:", error);
+      } finally {
+        setTasksLoading(false);
+      }
+    };
+
+    fetchRangeTasks();
+  }, [projectData?.id, currentRange]);
+
+  const handleRangeChange = useCallback((range: { from: Date; to: Date; dateField: string }) => {
+    setCurrentRange((prev) => {
+      if (
+        prev &&
+        prev.from.getTime() === range.from.getTime() &&
+        prev.to.getTime() === range.to.getTime() &&
+        prev.dateField === range.dateField
+      ) {
+        return prev;
+      }
+      return range;
+    });
+  }, []);
 
   useEffect(() => {
     if (!projectData?.id) return;
@@ -260,34 +299,13 @@ function ProjectTasksCalendarPageContent() {
                 <CardContent className="p-0">
                   {/* Calendar View */}
                   <div className="">
-                    {projectTasks.length === 0 ? (
-                      <div className="text-center py-12 flex flex-col items-center justify-center">
-                        <div className="w-12 h-12 mb-4 rounded-xl bg-[var(--muted)] flex items-center justify-center">
-                          <HiCalendarDays className="w-6 h-6 text-[var(--muted-foreground)]" />
-                        </div>
-                        <p className="text-sm font-medium text-[var(--foreground)] mb-1">
-                          {t("noTasks.title")}
-                        </p>
-                        <p className="text-xs text-[var(--muted-foreground)] mb-4">
-                          {t("noTasks.description", { name: projectData?.name })}
-                        </p>
-                        {userAccess?.role !== "VIEWER" && (
-                          <ActionButton
-                            variant="outline"
-                            showPlusIcon
-                            onClick={() => setNewTaskModalOpen(true)}
-                          >
-                            {t("createTask")}
-                          </ActionButton>
-                        )}
-                      </div>
-                    ) : (
-                      <TaskCalendarView
-                        tasks={projectTasks}
-                        workspaceSlug={workspaceSlug as string}
-                        projectSlug={projectSlug as string}
-                      />
-                    )}
+                    <TaskCalendarView
+                      tasks={projectTasks}
+                      workspaceSlug={workspaceSlug as string}
+                      projectSlug={projectSlug as string}
+                      onRangeChange={handleRangeChange}
+                      isLoading={tasksLoading}
+                    />
                   </div>
                 </CardContent>
               </Card>

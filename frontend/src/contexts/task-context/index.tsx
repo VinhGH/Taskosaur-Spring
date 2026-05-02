@@ -65,6 +65,9 @@ interface TaskContextType extends TaskState {
       viewType?: 'LIST' | 'BOARD' | 'GANTT';
       page?: number;
       limit?: number;
+      from?: string;
+      to?: string;
+      dateField?: string;
     }
   ) => Promise<PaginatedTaskResponse>;
 
@@ -539,6 +542,9 @@ export function TaskProvider({ children }: TaskProviderProps) {
           viewType?: 'LIST' | 'BOARD' | 'GANTT';
           page?: number;
           limit?: number;
+          from?: string;
+          to?: string;
+          dateField?: string;
         }
       ): Promise<PaginatedTaskResponse> => {
         if (!organizationId) {

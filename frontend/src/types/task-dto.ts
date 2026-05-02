@@ -62,4 +62,7 @@ export interface GetTasksParams {
   assigneeId?: string;
   priority?: "LOW" | "MEDIUM" | "HIGH" | "HIGHEST";
   search?: string;
+  from?: string;
+  to?: string;
+  dateField?: string;
 }
