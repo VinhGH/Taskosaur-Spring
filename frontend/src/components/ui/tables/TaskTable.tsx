@@ -543,7 +543,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
 
   const canBulkAction = useMemo(() => {
     if (!userRole) return false;
-    return ["SUPER_ADMIN", "OWNER", "MANAGER"].includes(userRole);
+    return ["SUPER_ADMIN", "OWNER", "MANAGER", "MEMBER", "DEVELOPER"].includes(userRole);
   }, [userRole]);
 
   const isOrgOrWorkspaceLevel = (!workspaceSlug && !projectSlug) || (workspaceSlug && !projectSlug);
@@ -2225,6 +2225,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
           excludedCount={excludedTaskIds.length}
           onStatusUpdate={handleBulkStatusUpdate}
           availableStatuses={localAddTaskStatuses}
+          userRole={userRole}
         />
       )}
 

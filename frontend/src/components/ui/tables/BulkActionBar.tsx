@@ -21,6 +21,7 @@ interface BulkActionBarProps {
   excludedCount?: number;
   availableStatuses?: any[];
   onStatusUpdate?: (statusId: string) => void;
+  userRole?: string | null;
 }
 
 export const BulkActionBar: React.FC<BulkActionBarProps> = ({
@@ -34,9 +35,13 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
   excludedCount = 0,
   availableStatuses = [],
   onStatusUpdate,
+  userRole,
 }) => {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [selectedStatusId, setSelectedStatusId] = useState<string | null>(null);
+
+  const canDelete = userRole && ["SUPER_ADMIN", "OWNER", "MANAGER"].includes(userRole);
+  const canUpdateStatus = userRole && ["SUPER_ADMIN", "OWNER", "MANAGER", "MEMBER", "DEVELOPER"].includes(userRole);
 
   if (selectedCount === 0 && !allDelete) return null;
   const finalSelectedCount = allDelete ? (totalTask ?? 0) - excludedCount : selectedCount;
@@ -103,7 +108,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
 
           {/* Action Buttons */}
           <div className="flex items-center gap-1">
-            {onStatusUpdate && (
+            {onStatusUpdate && canUpdateStatus && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -158,15 +163,17 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
               </DropdownMenu>
             )}
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDeleteClick}
-              className="h-9 px-3 gap-2 text-destructive hover:bg-destructive/10 font-medium transition-all group"
-            >
-              <Trash2 className="size-4 group-hover:scale-110 transition-transform" />
-              <span className="text-xs">Delete</span>
-            </Button>
+            {canDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDeleteClick}
+                className="h-9 px-3 gap-2 text-destructive hover:bg-destructive/10 font-medium transition-all group"
+              >
+                <Trash2 className="size-4 group-hover:scale-110 transition-transform" />
+                <span className="text-xs">Delete</span>
+              </Button>
+            )}
 
             <div className="h-6 w-px bg-[var(--border)] mx-1" />
 

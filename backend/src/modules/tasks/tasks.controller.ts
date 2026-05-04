@@ -148,7 +148,7 @@ export class TasksController {
     description: 'Update status of multiple tasks at once.',
   })
   @ApiBody({ type: BulkUpdateTasksStatusDto })
-  @Roles(Role.OWNER, Role.MANAGER)
+  @Roles(Role.OWNER, Role.MANAGER, Role.MEMBER)
   @ApiResponse({
     status: 200,
     description: 'Tasks updated successfully',

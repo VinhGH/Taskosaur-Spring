@@ -467,6 +467,7 @@ export class AccessControlService {
       !org?.archive &&
       (effectiveRole === Role.MANAGER ||
         effectiveRole === Role.OWNER ||
+        effectiveRole === Role.MEMBER ||
         task.createdBy === userId ||
         isAssignee ||
         isReporter);

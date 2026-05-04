@@ -273,8 +273,8 @@ function OrgDetailContent() {
                   <p className="text-sm font-semibold text-[var(--foreground)]">{ws.name}</p>
                   <p className="text-xs text-[var(--muted-foreground)]">{ws.slug}</p>
                   <div className="flex gap-4 mt-2 text-xs text-[var(--muted-foreground)]">
-                    <span>{ws._count?.projects || 0} projects</span>
-                    <span>{ws._count?.members || 0} members</span>
+                    <span>{ws._count?.projects || 0} {ws._count?.projects === 1 ? "project" : "projects"}</span>
+                    <span>{ws._count?.members || 0} {ws._count?.members === 1 ? "member" : "members"}</span>
                   </div>
                 </CardContent>
               </Card>
