@@ -3242,7 +3242,7 @@ export class TasksService {
         } else {
           failedTasks.push({
             id: task.id,
-            reason: 'Only managers and owners can delete tasks',
+            reason: 'Insufficient permissions',
           });
         }
       } catch (error) {
