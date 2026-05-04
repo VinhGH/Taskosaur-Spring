@@ -17,6 +17,7 @@ import ErrorState from "@/components/common/ErrorState";
 import { useLayout } from "@/contexts/layout-context";
 import NotFound from "@/pages/404";
 import { useSlugRedirect, cacheSlugId } from "@/hooks/useSlugRedirect";
+import { toast } from "sonner";
 
 function SprintsPageContent() {
   const { t } = useTranslation(["sprints", "common"]);
@@ -160,7 +161,6 @@ function SprintsPageContent() {
       setEditingSprint(null);
     } catch (error) {
       console.error("Error saving sprint:", error);
-      clearError();
       throw error;
     }
   };
@@ -177,8 +177,9 @@ function SprintsPageContent() {
         const isAuth = isAuthenticated();
         await listSprints({ slug: projectSlug as string }, isAuth, workspaceSlug as string);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting sprint:", error);
+      toast.error(error?.message || t("deleteSprint.error"));
     } finally {
       setIsDeleting(false);
     }
@@ -196,8 +197,9 @@ function SprintsPageContent() {
         const isAuth = isAuthenticated();
         await listSprints({ slug: projectSlug as string }, isAuth, workspaceSlug as string);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error ${action}ing sprint:`, error);
+      toast.error(error?.message || t(`errors.${action}Failed`));
     }
   };
 

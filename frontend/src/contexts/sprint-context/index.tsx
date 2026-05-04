@@ -80,7 +80,8 @@ export function SprintProvider({ children }: SprintProviderProps) {
   // Helper to handle API operations with error handling
   const handleApiOperation = useCallback(async function <T>(
     operation: () => Promise<T>,
-    loadingState: boolean = true
+    loadingState: boolean = true,
+    errorState: boolean = true
   ): Promise<T> {
     try {
       if (loadingState) {
@@ -96,7 +97,7 @@ export function SprintProvider({ children }: SprintProviderProps) {
       setSprintState((prev) => ({
         ...prev,
         isLoading: false,
-        error: errorMessage,
+        ...(errorState ? { error: errorMessage } : {}),
       }));
       throw error;
     }
@@ -119,7 +120,7 @@ export function SprintProvider({ children }: SprintProviderProps) {
       },
 
       createSprint: async (sprintData: CreateSprintData): Promise<Sprint> => {
-        const result = await handleApiOperation(() => sprintApi.createSprint(sprintData));
+        const result = await handleApiOperation(() => sprintApi.createSprint(sprintData), false, false);
         setSprintState((prev) => ({
           ...prev,
           sprints: [...prev.sprints, result],
@@ -170,6 +171,7 @@ export function SprintProvider({ children }: SprintProviderProps) {
         const { projectId, ...updateData } = sprintData as any;
         const result = await handleApiOperation(
           () => sprintApi.updateSprint(sprintId, updateData),
+          false,
           false
         );
         setSprintState((prev) => ({
@@ -186,7 +188,7 @@ export function SprintProvider({ children }: SprintProviderProps) {
       },
 
       deleteSprint: async (sprintId: string): Promise<{ success: boolean; message: string }> => {
-        const result = await handleApiOperation(() => sprintApi.deleteSprint(sprintId), false);
+        const result = await handleApiOperation(() => sprintApi.deleteSprint(sprintId), false, false);
         setSprintState((prev) => ({
           ...prev,
           sprints: prev.sprints.filter((sprint) => sprint.id !== sprintId),
@@ -196,7 +198,7 @@ export function SprintProvider({ children }: SprintProviderProps) {
       },
 
       startSprint: async (sprintId: string): Promise<Sprint> => {
-        const result = await handleApiOperation(() => sprintApi.startSprint(sprintId), false);
+        const result = await handleApiOperation(() => sprintApi.startSprint(sprintId), false, false);
         setSprintState((prev) => ({
           ...prev,
           sprints: prev.sprints.map((sprint) =>
@@ -211,7 +213,7 @@ export function SprintProvider({ children }: SprintProviderProps) {
       },
 
       completeSprint: async (sprintId: string): Promise<Sprint> => {
-        const result = await handleApiOperation(() => sprintApi.completeSprint(sprintId), false);
+        const result = await handleApiOperation(() => sprintApi.completeSprint(sprintId), false, false);
         setSprintState((prev) => ({
           ...prev,
           sprints: prev.sprints.map((sprint) =>
@@ -231,6 +233,7 @@ export function SprintProvider({ children }: SprintProviderProps) {
       ): Promise<Sprint[]> => {
         const result = await handleApiOperation(
           () => sprintApi.bulkUpdateSprints(sprintIds, updateData),
+          false,
           false
         );
         setSprintState((prev) => ({
@@ -245,7 +248,7 @@ export function SprintProvider({ children }: SprintProviderProps) {
       },
 
       bulkDeleteSprints: async (sprintIds: string[]): Promise<void> => {
-        await handleApiOperation(() => sprintApi.bulkDeleteSprints(sprintIds), false);
+        await handleApiOperation(() => sprintApi.bulkDeleteSprints(sprintIds), false, false);
         setSprintState((prev) => ({
           ...prev,
           sprints: prev.sprints.filter((sprint) => !sprintIds.includes(sprint.id)),
