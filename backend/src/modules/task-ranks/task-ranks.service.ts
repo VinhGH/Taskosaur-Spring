@@ -88,7 +88,7 @@ export class TaskRanksService {
       { scopeType: ScopeType.ORGANIZATION, scopeId: orgId },
     ];
 
-    const views = [ViewType.LIST, ViewType.GANTT];
+    const views = [ViewType.LIST, ViewType.GANTT, ViewType.BOARD];
 
     const existingMaxRanks = await tx.taskRank.groupBy({
       by: ['scopeType', 'scopeId', 'viewType'],

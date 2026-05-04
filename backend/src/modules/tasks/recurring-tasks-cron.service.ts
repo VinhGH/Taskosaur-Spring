@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { RecurrenceService } from './recurrence.service';
+import { TaskRanksService } from '../task-ranks/task-ranks.service';
 
 @Injectable()
 export class RecurringTasksCronService {
@@ -10,6 +12,7 @@ export class RecurringTasksCronService {
   constructor(
     private prisma: PrismaService,
     private recurrenceService: RecurrenceService,
+    private taskRanksService: TaskRanksService,
   ) {}
 
   /**
@@ -106,7 +109,7 @@ export class RecurringTasksCronService {
                 const taskNumber = lastTask ? lastTask.taskNumber + 1 : 1;
                 const slug = `${project?.slug}-${taskNumber}`;
 
-                return await tx.task.create({
+                const newTask = await tx.task.create({
                   data: {
                     title: recurringTask.task.title,
                     description: recurringTask.task.description,
@@ -127,7 +130,26 @@ export class RecurringTasksCronService {
                     },
                     isRecurring: false,
                   },
+                  include: {
+                    project: {
+                      include: {
+                        workspace: {
+                          include: { organization: true },
+                        },
+                      },
+                    },
+                  },
                 });
+
+                await this.taskRanksService.seedForTask(
+                  newTask.id,
+                  newTask.projectId,
+                  newTask.project.workspace.id,
+                  newTask.project.workspace.organization.id,
+                  tx as unknown as Prisma.TransactionClient,
+                );
+
+                return newTask;
               });
 
               taskCreated = true;

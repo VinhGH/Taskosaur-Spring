@@ -6,7 +6,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { Task, TaskPriority, TaskType, Prisma, ViewType } from '@prisma/client';
+import { Task, TaskPriority, TaskType, Prisma, ViewType, Role } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -516,13 +516,23 @@ export class TasksService {
           };
         }
 
-        // Use individual create calls instead of createMany to handle enums properly
+        // Create tasks and seed ranks for each
         const createdTasks = await Promise.all(
-          taskRecords.map((record) =>
-            tx.task.create({
+          taskRecords.map(async (record) => {
+            const createdTask = await tx.task.create({
               data: record,
-            }),
-          ),
+            });
+
+            await this.taskRanksService.seedForTask(
+              createdTask.id,
+              createdTask.projectId,
+              project.workspaceId,
+              project.workspace.organizationId,
+              tx as unknown as Prisma.TransactionClient,
+            );
+
+            return createdTask;
+          }),
         );
 
         return {
@@ -640,6 +650,15 @@ export class TasksService {
       const createdTask = await tx.task.create({
         data: taskCreateData,
       });
+
+      // --- Seed Task Ranks ---
+      await this.taskRanksService.seedForTask(
+        createdTask.id,
+        createdTask.projectId,
+        project.workspaceId,
+        project.workspace.organizationId,
+        tx as unknown as Prisma.TransactionClient,
+      );
 
       // If this is a recurring task, create the recurrence configuration
       if (isRecurring && recurrenceConfig) {
@@ -2185,10 +2204,46 @@ export class TasksService {
   }
 
   async update(id: string, updateTaskDto: UpdateTaskDto, userId: string): Promise<Task> {
-    const { canChange, task: taskFromAccess } = await this.accessControl.getTaskAccess(id, userId);
+    const {
+      canChange,
+      role,
+      task: taskFromAccess,
+    } = await this.accessControl.getTaskAccess(id, userId);
 
     if (!canChange) {
       throw new ForbiddenException('Insufficient permissions to update this task');
+    }
+
+    // Members can ONLY update task status
+    if (role === Role.MEMBER) {
+      const restrictedFields = [
+        'title',
+        'description',
+        'priority',
+        'startDate',
+        'dueDate',
+        'type',
+        'storyPoints',
+        'originalEstimate',
+        'remainingEstimate',
+        'projectId',
+        'assigneeIds',
+        'reporterIds',
+        'sprintId',
+        'parentTaskId',
+        'isRecurring',
+        'recurrenceConfig',
+        'allowEmailReplies',
+        'stopRecurrence',
+      ];
+      const attemptedChanges = Object.keys(updateTaskDto).filter(
+        (key) => updateTaskDto[key] !== undefined,
+      );
+      const violation = attemptedChanges.find((field) => restrictedFields.includes(field));
+
+      if (violation) {
+        throw new ForbiddenException(`Members are not allowed to update the ${violation} field`);
+      }
     }
 
     const task = taskFromAccess;
@@ -2852,7 +2907,7 @@ export class TasksService {
           FROM tasks t
           LEFT JOIN task_ranks tr ON t.id = tr.task_id 
             AND tr.scope_type = 'PROJECT'::"ScopeType"
-            AND tr.scope_id = ${status.id}::uuid
+            AND tr.scope_id = ${project.id}::uuid
             AND tr.view_type = 'BOARD'::"ViewType"
           WHERE t.status_id = ${status.id}::uuid
             AND t.project_id = ${project.id}::uuid
@@ -3146,14 +3201,6 @@ export class TasksService {
       throw new BadRequestException('No task IDs provided and "all" flag not set');
     }
 
-    // Get user details
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
-    if (!user) throw new NotFoundException('User not found');
-    const isSuperAdmin = user.role === 'SUPER_ADMIN';
-
     // Build task filter
     const taskFilter: any = {};
     if (all) {
@@ -3188,20 +3235,22 @@ export class TasksService {
     const failedTasks: Array<{ id: string; reason: string }> = [];
 
     for (const task of tasks) {
-      let canDelete = false;
-      if (isSuperAdmin) canDelete = true;
-      else if (task.createdBy === userId) canDelete = true;
-      else if (task.project.members.length > 0) {
-        const memberRole = task.project.members[0].role;
-        if (memberRole === 'OWNER' || memberRole === 'MANAGER') canDelete = true;
-      }
-
-      if (canDelete) deletableTasks.push(task.id);
-      else
+      try {
+        const { isElevated } = await this.accessControl.getTaskAccess(task.id, userId);
+        if (isElevated) {
+          deletableTasks.push(task.id);
+        } else {
+          failedTasks.push({
+            id: task.id,
+            reason: 'Only managers and owners can delete tasks',
+          });
+        }
+      } catch (error) {
         failedTasks.push({
           id: task.id,
-          reason: 'Insufficient permissions to delete this task',
+          reason: error.message || 'Permission check failed',
         });
+      }
     }
 
     // Handle missing tasks when using specific IDs

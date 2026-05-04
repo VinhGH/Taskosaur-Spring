@@ -377,9 +377,9 @@ export class ActivityLogService {
       u.last_name,
       u.email,
       u.avatar,
-      t.slug as task_slug,
-      tp.slug as task_project_slug,
-      tw.slug as task_workspace_slug,
+      COALESCE(t.slug, ct.slug) as task_slug,
+      COALESCE(tp.slug, ctp.slug) as task_project_slug,
+      COALESCE(tw.slug, ctw.slug) as task_workspace_slug,
       pp.slug as project_slug,
       pw.slug as project_workspace_slug,
       ws.slug as workspace_slug,
@@ -388,9 +388,16 @@ export class ActivityLogService {
       spw.slug as sprint_workspace_slug
     FROM activity_logs al
     JOIN users u ON al.user_id = u.id
-    LEFT JOIN tasks t ON al.entity_type = 'Task' AND al.entity_id = t.id
+    -- Standard Task join for types where entity_id is taskId
+    LEFT JOIN tasks t ON (al.entity_type IN ('Task', 'Task Label', 'TaskAttachment', 'Task Attchment')) AND al.entity_id = t.id
     LEFT JOIN projects tp ON t.project_id = tp.id
     LEFT JOIN workspaces tw ON tp.workspace_id = tw.id
+    -- Join for Task Comment where entity_id is commentId
+    LEFT JOIN task_comments tc ON (al.entity_type IN ('Task Comment', 'TaskComment')) AND al.entity_id = tc.id
+    LEFT JOIN tasks ct ON tc.task_id = ct.id
+    LEFT JOIN projects ctp ON ct.project_id = ctp.id
+    LEFT JOIN workspaces ctw ON ctp.workspace_id = ctw.id
+    -- Standard Project/Workspace/Sprint joins
     LEFT JOIN projects pp ON al.entity_type = 'Project' AND al.entity_id = pp.id
     LEFT JOIN workspaces pw ON pp.workspace_id = pw.id
     LEFT JOIN workspaces ws ON al.entity_type = 'Workspace' AND al.entity_id = ws.id
@@ -404,8 +411,15 @@ export class ActivityLogService {
         SELECT id FROM projects WHERE workspace_id = ${workspaceId}::uuid
       ))
       OR
-      (al.entity_type = 'Task' AND al.entity_id IN (
+      (al.entity_type IN ('Task', 'Task Label', 'TaskAttachment', 'Task Attchment') AND al.entity_id IN (
         SELECT t.id FROM tasks t
+        JOIN projects p ON t.project_id = p.id
+        WHERE p.workspace_id = ${workspaceId}::uuid
+      ))
+      OR
+      (al.entity_type IN ('Task Comment', 'TaskComment') AND al.entity_id IN (
+        SELECT tc.id FROM task_comments tc
+        JOIN tasks t ON tc.task_id = t.id
         JOIN projects p ON t.project_id = p.id
         WHERE p.workspace_id = ${workspaceId}::uuid
       ))
@@ -749,9 +763,9 @@ export class ActivityLogService {
         u.last_name,
         u.email,
         u.avatar,
-        t.slug as task_slug,
-        tp.slug as task_project_slug,
-        tw.slug as task_workspace_slug,
+        COALESCE(t.slug, ct.slug) as task_slug,
+        COALESCE(tp.slug, ctp.slug) as task_project_slug,
+        COALESCE(tw.slug, ctw.slug) as task_workspace_slug,
         pp.slug as project_slug,
         pw.slug as project_workspace_slug,
         ws.slug as workspace_slug,
@@ -760,9 +774,16 @@ export class ActivityLogService {
         spw.slug as sprint_workspace_slug
       FROM activity_logs al
       JOIN users u ON al.user_id = u.id
-      LEFT JOIN tasks t ON al.entity_type = 'Task' AND al.entity_id = t.id
+      -- Standard Task join for types where entity_id is taskId
+      LEFT JOIN tasks t ON (al.entity_type IN ('Task', 'Task Label', 'TaskAttachment', 'Task Attchment')) AND al.entity_id = t.id
       LEFT JOIN projects tp ON t.project_id = tp.id
       LEFT JOIN workspaces tw ON tp.workspace_id = tw.id
+      -- Join for Task Comment where entity_id is commentId
+      LEFT JOIN task_comments tc ON (al.entity_type IN ('Task Comment', 'TaskComment')) AND al.entity_id = tc.id
+      LEFT JOIN tasks ct ON tc.task_id = ct.id
+      LEFT JOIN projects ctp ON ct.project_id = ctp.id
+      LEFT JOIN workspaces ctw ON ctp.workspace_id = ctw.id
+      -- Standard Project/Workspace/Sprint joins
       LEFT JOIN projects pp ON al.entity_type = 'Project' AND al.entity_id = pp.id
       LEFT JOIN workspaces pw ON pp.workspace_id = pw.id
       LEFT JOIN workspaces ws ON al.entity_type = 'Workspace' AND al.entity_id = ws.id
@@ -779,8 +800,15 @@ export class ActivityLogService {
           JOIN workspaces w ON p.workspace_id = w.id
           WHERE w.organization_id = ${organizationId}::uuid
         ))
-        OR (al.entity_type = 'Task' AND al.entity_id IN (
+        OR (al.entity_type IN ('Task', 'Task Label', 'TaskAttachment', 'Task Attchment') AND al.entity_id IN (
           SELECT t.id FROM tasks t
+          JOIN projects p ON t.project_id = p.id
+          JOIN workspaces w ON p.workspace_id = w.id
+          WHERE w.organization_id = ${organizationId}::uuid
+        ))
+        OR (al.entity_type IN ('Task Comment', 'TaskComment') AND al.entity_id IN (
+          SELECT tc.id FROM task_comments tc
+          JOIN tasks t ON tc.task_id = t.id
           JOIN projects p ON t.project_id = p.id
           JOIN workspaces w ON p.workspace_id = w.id
           WHERE w.organization_id = ${organizationId}::uuid

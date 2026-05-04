@@ -243,7 +243,7 @@ export class TaskAttachmentsController {
   @Delete(':id')
   @LogActivity({
     type: 'TASK_ATTACHMENT_REMOVED',
-    entityType: 'Task Attchment',
+    entityType: 'TaskAttachment',
     description: 'Added attachment to task',
     includeNewValue: true,
     entityIdName: 'taskId',
