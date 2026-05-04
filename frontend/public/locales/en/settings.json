@@ -12,8 +12,10 @@
     "no_description": "No description provided",
     "workspaces": "Workspaces",
     "members": "Members",
-    "workspaces_count": "{{count}} Workspaces",
-    "members_count": "{{count}} Members",
+    "workspaces_count_one": "{{count}} Workspace",
+    "workspaces_count_other": "{{count}} Workspaces",
+    "members_count_one": "{{count}} Member",
+    "members_count_other": "{{count}} Members",
     "about_title": "About Organizations",
     "about_description": "Organizations are your top-level containers for workspaces, projects, and teams. Click the checkbox icon to set an organization as your default. Click on any organization card to manage its settings (requires owner or administrator permissions)."
   },

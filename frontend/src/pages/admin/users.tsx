@@ -240,7 +240,7 @@ function AdminUsersContent() {
 
   return (
     <>
-      <p className="text-sm text-[var(--muted-foreground)]">{total} users in the system</p>
+      <p className="text-sm text-[var(--muted-foreground)]">{total} {total === 1 ? "user" : "users"} in the system</p>
 
       {/* Search & Filter Bar */}
       <div className="flex flex-wrap items-center gap-3">

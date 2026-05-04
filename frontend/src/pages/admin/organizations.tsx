@@ -90,7 +90,7 @@ function AdminOrganizationsContent() {
 
   return (
     <>
-      <p className="text-sm text-[var(--muted-foreground)]">{total} organizations in the system</p>
+      <p className="text-sm text-[var(--muted-foreground)]">{total} {total === 1 ? "organization" : "organizations"} in the system</p>
 
       {/* Search Bar */}
       <div className="relative w-full sm:max-w-xs">

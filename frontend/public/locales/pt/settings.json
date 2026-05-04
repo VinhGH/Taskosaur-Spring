@@ -12,8 +12,10 @@
     "no_description": "Nenhuma descrição fornecida",
     "workspaces": "Espaços de Trabalho",
     "members": "Membros",
-    "workspaces_count": "{{count}} Espaços de Trabalho",
-    "members_count": "{{count}} Membros",
+    "workspaces_count_one": "{{count}} Espaço de Trabalho",
+    "workspaces_count_other": "{{count}} Espaços de Trabalho",
+    "members_count_one": "{{count}} Membro",
+    "members_count_other": "{{count}} Membros",
     "about_title": "Sobre as Organizações",
     "about_description": "Organizações são seus contêineres de nível superior para espaços de trabalho, projetos e equipes. Clique no ícone de seleção para definir uma organização como padrão. Clique em qualquer cartão de organização para gerenciar suas configurações (requer permissões de proprietário ou administrador)."
   },

@@ -12,8 +12,10 @@
     "no_description": "No se proporcionó descripción",
     "workspaces": "Espacios de trabajo",
     "members": "Miembros",
-    "workspaces_count": "{{count}} Espacios de trabajo",
-    "members_count": "{{count}} Miembros",
+    "workspaces_count_one": "{{count}} Espacio de trabajo",
+    "workspaces_count_other": "{{count}} Espacios de trabajo",
+    "members_count_one": "{{count}} Miembro",
+    "members_count_other": "{{count}} Miembros",
     "about_title": "Acerca de las Organizaciones",
     "about_description": "Las organizaciones son tus contenedores de nivel superior para espacios de trabajo, proyectos y equipos. Haz clic en el icono de casilla de verificación para establecer una organización como predeterminada. Haz clic en cualquier tarjeta de organización para administrar su configuración (requiere permisos de propietario o administrador)."
   },

@@ -12,8 +12,10 @@
     "no_description": "Aucune description fournie",
     "workspaces": "Espaces de travail",
     "members": "Membres",
-    "workspaces_count": "{{count}} Espaces de travail",
-    "members_count": "{{count}} Membres",
+    "workspaces_count_one": "{{count}} Espace de travail",
+    "workspaces_count_other": "{{count}} Espaces de travail",
+    "members_count_one": "{{count}} Membre",
+    "members_count_other": "{{count}} Membres",
     "about_title": "À propos des organisations",
     "about_description": "Les organisations sont vos conteneurs de haut niveau pour les espaces de travail, les projets et les équipes. Cliquez sur l'icône de case à cocher pour définir une organisation comme organisation par défaut. Cliquez sur n'importe quelle carte d'organisation pour gérer ses paramètres (nécessite des autorisations de propriétaire ou d'administrateur)."
   },

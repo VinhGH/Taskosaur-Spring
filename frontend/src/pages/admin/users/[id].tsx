@@ -172,7 +172,7 @@ function UserDetailContent() {
                 { label: "Email Verified", value: user.emailVerified ? "Yes" : "No" },
                 { label: "Source", value: user.source },
                 { label: "Joined", value: formatDateTimeForDisplay(user.createdAt) },
-                { label: "Organizations", value: `${user.organizationMembers?.length || 0} memberships` },
+                { label: "Organizations", value: `${user.organizationMembers?.length || 0} ${user.organizationMembers?.length === 1 ? "membership" : "memberships"}` },
               ].map((item) => (
                 <div key={item.label}>
                   <span className="text-xs text-[var(--muted-foreground)]">{item.label}</span>
@@ -277,8 +277,8 @@ function UserDetailContent() {
                     </Badge>
                   </div>
                   <div className="flex gap-4 mt-3 text-xs text-[var(--muted-foreground)]">
-                    <span>{membership.organization._count?.members || 0} members</span>
-                    <span>{membership.organization._count?.workspaces || 0} workspaces</span>
+                    <span>{membership.organization._count?.members || 0} {membership.organization._count?.members === 1 ? "member" : "members"}</span>
+                    <span>{membership.organization._count?.workspaces || 0} {membership.organization._count?.workspaces === 1 ? "workspace" : "workspaces"}</span>
                   </div>
                 </CardContent>
               </Card>
