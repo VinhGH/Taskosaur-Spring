@@ -66,6 +66,21 @@ export const notificationApi = {
     }
   },
 
+  // Get unread counts grouped by organization
+  getUnreadCountsByOrganization: async (): Promise<
+    { organizationId: string; organizationName: string; unreadCount: number }[]
+  > => {
+    try {
+      const response = await api.get<
+        { organizationId: string; organizationName: string; unreadCount: number }[]
+      >("/notifications/unread-by-organization");
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch unread counts by organization:", error);
+      throw error;
+    }
+  },
+
   // Get recent notifications (last 7 days)
   getRecentNotifications: async (
     filters: {

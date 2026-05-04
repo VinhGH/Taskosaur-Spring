@@ -17,6 +17,8 @@ import { useAuth } from "@/contexts/auth-context";
 import { Building } from "lucide-react";
 import { Organization, User } from "@/types";
 import { mcpServer } from "@/lib/mcp-server";
+import { useNotification } from "@/contexts/notification-context";
+import Tooltip from "../common/ToolTip";
 
 export default function OrganizationSelector({
   onOrganizationChange,
@@ -26,9 +28,19 @@ export default function OrganizationSelector({
   const router = useRouter();
   const { getUserOrganizations, organizations, currentOrganization, setCurrentOrganization: setContextCurrentOrganization, isLoading } = useOrganization();
   const { getCurrentUser } = useAuth();
+  const { unreadCountsByOrg } = useNotification();
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isFetchingOnOpen, setIsFetchingOnOpen] = useState(false);
+
+  const otherOrgsWithNotifications = unreadCountsByOrg.filter(
+    item => item.organizationId !== currentOrganization?.id && item.unreadCount > 0
+  );
+
+  const hasOtherNotifications = otherOrgsWithNotifications.length > 0;
+  const totalOtherUnreadCount = otherOrgsWithNotifications.reduce(
+    (sum, item) => sum + item.unreadCount, 0
+  );
 
   const currentUser: User | null = getCurrentUser() ?? null;
 
@@ -111,46 +123,56 @@ export default function OrganizationSelector({
     );
   }
 
+  const orgTooltipContent = (
+    <div className="space-y-1">
+      <p className="text-sm font-bold leading-none">{currentOrganization.name}</p>
+      <p className="text-xs text-muted-foreground">
+        {currentOrganization._count?.members ?? 0} {currentOrganization._count?.members === 1 ? 'member' : 'members'}
+      </p>
+    </div>
+  );
+
+  const notificationTooltipContent = `You have ${totalOtherUnreadCount} unread notification${totalOtherUnreadCount !== 1 ? 's' : ''} in other organizations`;
+
   return (
     <DropdownMenu open={dropdownOpen} onOpenChange={handleDropdownOpen}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          className="header-org-selector-trigger max-[530px]:!px-3 max-[530px]:gap-2"
+          className="header-org-selector-trigger max-[530px]:!px-3 max-[530px]:gap-2 relative"
         >
-          <Avatar className="header-org-selector-avatar">
-            <AvatarFallback className="header-org-selector-avatar-fallback">
-              {getInitials(currentOrganization.name)}
-            </AvatarFallback>
-          </Avatar>
-          <span className="header-org-selector-name max-[530px]:text-sm max-[530px]:font-medium">
-            {currentOrganization.name}
-          </span>
+          <Tooltip content={orgTooltipContent} position="bottom">
+            <div className="flex items-center gap-2 min-w-0">
+              <Avatar className="header-org-selector-avatar">
+                <AvatarFallback className="header-org-selector-avatar-fallback">
+                  {getInitials(currentOrganization.name)}
+                </AvatarFallback>
+              </Avatar>
+              <span className="header-org-selector-name max-[530px]:text-sm max-[530px]:font-medium truncate max-w-[120px]">
+                {currentOrganization.name}
+              </span>
+            </div>
+          </Tooltip>
 
           <HiChevronDown className="header-org-selector-chevron max-[530px]:hidden" />
           <span className="hidden max-[530px]:inline-block text-sm font-medium">Organizations</span>
+          
+          {hasOtherNotifications && (
+            <Tooltip 
+              content={notificationTooltipContent} 
+              position="bottom" 
+              className="absolute -top-1 -right-1 z-10 h-3 w-3"
+            >
+              <div className="flex h-3 w-3 cursor-pointer relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+              </div>
+            </Tooltip>
+          )}
         </Button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent className="header-org-selector-dropdown" align="end" sideOffset={6}>
-        {/* Current Organization Header */}
-        <div className="header-org-profile-header">
-          <Avatar className="header-org-profile-avatar">
-            <AvatarFallback className="header-org-profile-avatar-fallback">
-              {getInitials(currentOrganization.name)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="header-org-profile-info">
-            <div className="header-org-profile-name">{currentOrganization.name}</div>
-            <div className="header-org-profile-meta">
-              {currentOrganization._count?.members ?? 0} {currentOrganization._count?.members === 1 ? 'member' : 'members'}
-              <Badge variant="secondary" className="header-org-profile-badge">
-                Org
-              </Badge>
-            </div>
-          </div>
-        </div>
-
         {/* Organizations List */}
         <div className="header-org-list-container">
           {isFetchingOnOpen ? (
@@ -204,6 +226,22 @@ export default function OrganizationSelector({
                     <p className="header-org-item-name">{org.name}</p>
                     <p className="header-org-item-members">{org._count?.members ?? 0} {org._count?.members === 1 ? 'member' : 'members'}</p>
                   </div>
+                  {(() => {
+                    const unreadCount = unreadCountsByOrg.find(u => u.organizationId === org.id)?.unreadCount;
+                    if (!unreadCount) return null;
+                    return (
+                      <Tooltip 
+                        content={`You have ${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}`} 
+                        position="right" 
+                        className="ml-auto flex items-center"
+                      >
+                        <div className="flex h-2.5 w-2.5 relative">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                        </div>
+                      </Tooltip>
+                    );
+                  })()}
                   {currentOrganization.id === org.id && (
                     <HiCheck size={12} className="header-org-item-check" />
                   )}

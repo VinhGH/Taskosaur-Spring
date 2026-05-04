@@ -106,6 +106,13 @@ export class NotificationsController {
     return this.notificationsService.getUnreadCount(user.id, organizationId);
   }
 
+  @Get('unread-by-organization')
+  @ApiOperation({ summary: 'Get unread notifications count grouped by organization' })
+  getUnreadCountsByOrganization(@Req() req: Request) {
+    const user = getAuthUser(req);
+    return this.notificationsService.getUnreadCountsByOrganization(user.id);
+  }
+
   @Get('recent')
   @ApiOperation({
     summary: 'Get recent notifications',

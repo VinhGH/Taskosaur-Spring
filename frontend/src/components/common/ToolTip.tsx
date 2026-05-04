@@ -2,7 +2,7 @@ import React, { useState, useRef } from "react";
 import PropTypes from "prop-types";
 import { createPortal } from "react-dom";
 
-const Tooltip = ({ children, content, position = "top", color = "dark", delay = 300 }) => {
+const Tooltip = ({ children, content, position = "top", color = "dark", delay = 300, className = "" }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [timeoutId, setTimeoutId] = useState<ReturnType<typeof setTimeout> | null>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -75,7 +75,7 @@ const Tooltip = ({ children, content, position = "top", color = "dark", delay = 
   return (
     <div
       ref={triggerRef}
-      className="inline-block"
+      className={`inline-block ${className}`}
       data-tooltip={typeof content === "string" ? content : undefined}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -110,6 +110,7 @@ Tooltip.propTypes = {
   position: PropTypes.oneOf(["top", "bottom", "left", "right"]),
   color: PropTypes.oneOf(["dark", "light", "primary", "success", "warning", "danger"]),
   delay: PropTypes.number,
+  className: PropTypes.string,
 };
 
 export default Tooltip;

@@ -129,6 +129,43 @@ export class NotificationsService {
     });
   }
 
+  async getUnreadCountsByOrganization(userId: string) {
+    const unreadCounts = await this.prisma.notification.groupBy({
+      by: ['organizationId'],
+      where: {
+        userId,
+        isRead: false,
+        organizationId: { not: null },
+      },
+      _count: {
+        _all: true,
+      },
+    });
+
+    const organizationIds = unreadCounts.map((count) => count.organizationId);
+
+    if (organizationIds.length === 0) return [];
+
+    const organizations = await this.prisma.organization.findMany({
+      where: {
+        id: { in: organizationIds as string[] },
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    return unreadCounts.map((count) => {
+      const org = organizations.find((o) => o.id === count.organizationId);
+      return {
+        organizationId: count.organizationId,
+        organizationName: org?.name || 'Unknown',
+        unreadCount: count._count._all,
+      };
+    });
+  }
+
   deleteNotification(notificationId: string, userId: string) {
     return this.prisma.notification.deleteMany({
       where: { id: notificationId, userId },

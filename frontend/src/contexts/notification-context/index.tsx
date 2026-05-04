@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/auth-context";
 
 interface NotificationState {
   unreadCount: number;
+  unreadCountsByOrg: { organizationId: string; organizationName: string; unreadCount: number }[];
   recentNotifications: Notification[];
   isLoading: boolean;
   error: string | null;
@@ -13,6 +14,7 @@ interface NotificationState {
 
 interface NotificationContextType extends NotificationState {
   fetchUnreadCount: () => Promise<void>;
+  fetchUnreadCountsByOrg: () => Promise<void>;
   fetchRecentNotifications: () => Promise<void>;
   markAsRead: (notificationId: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
@@ -34,6 +36,7 @@ export const useNotification = () => {
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<NotificationState>({
     unreadCount: 0,
+    unreadCountsByOrg: [],
     recentNotifications: [],
     isLoading: false,
     error: null,
@@ -70,6 +73,16 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       console.error("Failed to fetch unread count", error);
     }
   }, [userId, organizationId]);
+
+  const fetchUnreadCountsByOrg = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const counts = await notificationApi.getUnreadCountsByOrganization();
+      setState(prev => ({ ...prev, unreadCountsByOrg: counts }));
+    } catch (error) {
+      console.error("Failed to fetch unread counts by org", error);
+    }
+  }, [userId]);
 
   const fetchRecentNotifications = useCallback(async () => {
      if (!userId || !organizationId) {
@@ -115,10 +128,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         recentNotifications: prev.recentNotifications.filter(n => n.id !== notificationId),
         unreadCount: Math.max(0, prev.unreadCount - 1)
       }));
+      fetchUnreadCountsByOrg();
     } catch (error) {
        console.error("Failed to mark notification as read", error);
     }
-  }, []);
+  }, [fetchUnreadCountsByOrg]);
 
   const markAllAsRead = useCallback(async () => {
       if (!organizationId) return;
@@ -129,10 +143,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               recentNotifications: [],
               unreadCount: 0
           }));
+          fetchUnreadCountsByOrg();
       } catch (error) {
-          console.error("Failed to mark all as read", error);
+          error && console.error("Failed to mark all as read", error);
       }
-  }, [organizationId]);
+  }, [organizationId, fetchUnreadCountsByOrg]);
 
   const deleteNotification = useCallback(async (notificationId: string) => {
       try {
@@ -156,33 +171,38 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           });
           
           fetchUnreadCount();
+          fetchUnreadCountsByOrg();
 
       } catch (error) {
           console.error("Failed to delete notification", error);
       }
-  }, [fetchUnreadCount]);
+  }, [fetchUnreadCount, fetchUnreadCountsByOrg]);
 
     const refreshNotifications = useCallback(async () => {
         // Parallel fetch
-        Promise.all([fetchUnreadCount(), fetchRecentNotifications()]);
-    }, [fetchUnreadCount, fetchRecentNotifications]);
+        Promise.all([fetchUnreadCount(), fetchRecentNotifications(), fetchUnreadCountsByOrg()]);
+    }, [fetchUnreadCount, fetchRecentNotifications, fetchUnreadCountsByOrg]);
 
   // Initial fetch
   useEffect(() => {
       if (userId && organizationId) {
           fetchRecentNotifications();
       }
-  }, [userId, organizationId, fetchRecentNotifications]);
+      if (userId) {
+          fetchUnreadCountsByOrg();
+      }
+  }, [userId, organizationId, fetchRecentNotifications, fetchUnreadCountsByOrg]);
 
   const value = useMemo(() => ({
     ...state,
     fetchUnreadCount,
+    fetchUnreadCountsByOrg,
     fetchRecentNotifications,
     markAsRead,
     markAllAsRead,
     deleteNotification,
     refreshNotifications
-  }), [state, fetchUnreadCount, fetchRecentNotifications, markAsRead, markAllAsRead, deleteNotification, refreshNotifications]);
+  }), [state, fetchUnreadCount, fetchUnreadCountsByOrg, fetchRecentNotifications, markAsRead, markAllAsRead, deleteNotification, refreshNotifications]);
 
   return (
     <NotificationContext.Provider value={value}>

@@ -368,7 +368,7 @@
 }
 
 .header-org-selector-trigger {
-  @apply cursor-pointer flex items-center gap-2 h-9 px-2 transition-colors min-w-0 rounded-md border-none;
+  @apply relative cursor-pointer flex items-center gap-2 h-9 px-2 transition-colors min-w-0 rounded-md border-none;
 }
 
 .header-org-selector-trigger:hover {

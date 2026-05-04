@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/router";
 import { useAuth } from "@/contexts/auth-context";
 import { authApi } from "@/utils/api/authApi";
@@ -29,6 +29,7 @@ export default function AppBootstrapper({ children }: AppBootstrapperProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasOrganization, setHasOrganization] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const isInitialized = useRef(false);
 
   // Define public routes (merged from SetupChecker and ProtectedRoute)
   const publicRoutes = [
@@ -154,15 +155,20 @@ export default function AppBootstrapper({ children }: AppBootstrapperProps) {
     if (authLoading || !router.isReady) return;
 
     const bootstrap = async () => {
-      // Phase 1: System Check
-      setPhase("SYSTEM_CHECK");
-      setStatusText("Verifying system integrity");
-      const systemReady = await handleSystemCheck();
-      if (!systemReady) return;
+      const needsFullBootstrap = !isInitialized.current;
 
-      // Phase 2: Auth Check
-      setPhase("AUTH_CHECK");
-      setStatusText("Authenticating session");
+      if (needsFullBootstrap) {
+        // Phase 1: System Check
+        setPhase("SYSTEM_CHECK");
+        setStatusText("Verifying system integrity");
+        const systemReady = await handleSystemCheck();
+        if (!systemReady) return;
+
+        // Phase 2: Auth Check
+        setPhase("AUTH_CHECK");
+        setStatusText("Authenticating session");
+      }
+
       const { isAuth, redirectPath, isOrg } = await handleAuthCheck();
       
       setIsAuthenticated(isAuth);
@@ -177,8 +183,11 @@ export default function AppBootstrapper({ children }: AppBootstrapperProps) {
         setIsRedirecting(false);
       }
 
-      // Phase 3: Ready
-      setPhase("READY");
+      if (needsFullBootstrap) {
+        // Phase 3: Ready
+        setPhase("READY");
+        isInitialized.current = true;
+      }
     };
 
     bootstrap();
