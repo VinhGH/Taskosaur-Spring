@@ -6,6 +6,7 @@ services:
       POSTGRES_USER: taskosaur
       POSTGRES_PASSWORD: taskosaur
       POSTGRES_DB: taskosaur
+    command: postgres -c timezone=UTC
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
