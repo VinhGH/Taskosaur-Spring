@@ -1,3 +1,4 @@
+# Based on / originally from: Taskosaur/Taskosaur
 # Taskosaur
 
 <img src="https://raw.githubusercontent.com/Taskosaur/Taskosaur/main/frontend/public/taskosaur-logo.svg" alt="Taskosaur Logo" width="128">
