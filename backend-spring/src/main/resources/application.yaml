@@ -23,3 +23,11 @@ spring:
 
   jackson:
     time-zone: UTC
+
+  jwt:
+    # Chuỗi bí mật tối thiểu 32 ký tự dùng để ký HMAC-SHA256
+    secret: your-super-secret-jwt-key-taskosaur-spring-boot-project-2026-very-long-key
+    # 15 phút (ms)
+    access-token-expiration: 900000
+    # 7 ngày (ms)
+    refresh-token-expiration: 604800000
