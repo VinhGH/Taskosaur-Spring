@@ -1,6 +1,7 @@
 package com.taskosaur.taskosaur.services;
 
 import com.taskosaur.taskosaur.dto.auth.AuthResponse;
+import com.taskosaur.taskosaur.dto.auth.LoginRequest;
 import com.taskosaur.taskosaur.dto.auth.SetupAdminRequest;
 import com.taskosaur.taskosaur.enums.Role;
 import com.taskosaur.taskosaur.enums.UserStatus;
@@ -10,7 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
+import java.time.LocalDateTime;
 import java.util.Map;
 
 @Service
@@ -19,6 +20,7 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     public boolean checkUsersExist(){
         return userRepository.count() > 0;
@@ -60,11 +62,47 @@ public class AuthService {
                 .emailVerified(true)
                 .build();
         User savedUser = userRepository.save(newUser);
+        String accessToken = jwtService.generateAccessToken(savedUser);
+        String refreshToken = jwtService.generateRefreshToken(savedUser);
+        savedUser.setRefreshToken(refreshToken);
+        userRepository.save(savedUser);
         return AuthResponse.builder()
-                .accessToken("mock-access-token")
-                .refreshToken("mock-refresh-token")
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
                 .user(savedUser)
                 .message("Super admin setup successful")
+                .build();
+    }
+    public AuthResponse login(LoginRequest request) {
+        // 1. Tìm user theo email (ném lỗi nếu không thấy)
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("Email hoặc mật khẩu không chính xác"));
+
+        // 2. So khớp mật khẩu: passwordEncoder.matches(mật khẩu thô, mật khẩu đã hash)
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new RuntimeException("Email hoặc mật khẩu không chính xác");
+        }
+
+        // 3. Kiểm tra trạng thái tài khoản
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new RuntimeException("Tài khoản chưa được kích hoạt hoặc đã bị khóa");
+        }
+
+        // 4. Sinh token bằng jwtService
+        String accessToken = jwtService.generateAccessToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
+
+        // 5. Cập nhật thông tin đăng nhập vào DB
+        user.setRefreshToken(refreshToken);
+        user.setLastLoginAt(LocalDateTime.now());
+        userRepository.save(user);
+
+        // 6. Trả về AuthResponse
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .user(user)
+                .message("Login successful")
                 .build();
     }
 }
