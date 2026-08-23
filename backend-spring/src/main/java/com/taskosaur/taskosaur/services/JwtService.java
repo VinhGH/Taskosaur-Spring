@@ -1,9 +1,7 @@
 package com.taskosaur.taskosaur.services;
 
 import com.taskosaur.taskosaur.models.User;
-import java.util.Date;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,10 +9,12 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.util.Date;
 
 @Service
 public class JwtService {
-    @Value("${jwt.secret}")
+
+    @Value("${jwt.secret:}")
     private String secretKey;
 
     @Value("${jwt.access-token-expiration}")
@@ -23,7 +23,12 @@ public class JwtService {
     @Value("${jwt.refresh-token-expiration}")
     private long refreshTokenExpiration;
 
+    private final SecretKey defaultKey = Jwts.SIG.HS256.key().build();
+
     private SecretKey getSigningKey() {
+        if (secretKey == null || secretKey.isBlank()) {
+            return defaultKey;
+        }
         byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
     }
@@ -38,37 +43,38 @@ public class JwtService {
                 .signWith(getSigningKey())
                 .compact();
     }
+
     public String generateRefreshToken(User user) {
         return Jwts.builder()
                 .subject(user.getId())
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + refreshTokenExpiration)) // Hiện tại + 7 ngày
+                .expiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
                 .signWith(getSigningKey())
                 .compact();
     }
-    // Hàm phụ: Đọc toàn bộ nội dung (Claims) bên trong Token
+
     private Claims extractAllClaims(String token) {
         return Jwts.parser()
-                .verifyWith(getSigningKey()) // Xác thực chữ ký bằng key
+                .verifyWith(getSigningKey())
                 .build()
-                .parseSignedClaims(token)    // Giải mã
-                .getPayload();               // Lấy phần dữ liệu (payload)
+                .parseSignedClaims(token)
+                .getPayload();
     }
-    // Lấy userId từ token
+
     public String extractUserId(String token) {
         return extractAllClaims(token).getSubject();
     }
-    // Lấy email từ token
+
     public String extractEmail(String token) {
         return extractAllClaims(token).get("email", String.class);
     }
-    // Kiểm tra token còn hạn hay đã hết hạn
+
     public boolean isTokenValid(String token) {
         try {
             Date expiration = extractAllClaims(token).getExpiration();
-            return !expiration.before(new Date()); // Hết hạn nếu trước thời điểm hiện tại
-        } catch (Exception e) {
-            return false; // Token không hợp lệ hoặc bị sửa đổi trái phép
+            return !expiration.before(new Date());
+        } catch (Exception _) {
+            return false;
         }
     }
 }
