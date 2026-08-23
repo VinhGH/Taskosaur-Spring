@@ -3,12 +3,15 @@ package com.taskosaur.taskosaur.controllers;
 import com.taskosaur.taskosaur.dto.auth.AuthResponse;
 import com.taskosaur.taskosaur.dto.auth.LoginRequest;
 import com.taskosaur.taskosaur.dto.auth.SetupAdminRequest;
+import com.taskosaur.taskosaur.exceptions.UnauthorizedException;
+import com.taskosaur.taskosaur.models.User;
 import com.taskosaur.taskosaur.models.Workspace;
 import com.taskosaur.taskosaur.services.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -32,5 +35,14 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(response);
+    }
+    @GetMapping("/profile")
+    public ResponseEntity<User> getProfile(Authentication authentication){
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new UnauthorizedException("Unauthorized");
+        }
+        String userId = authentication.getName();
+        User user = authService.getProfile(userId);
+        return ResponseEntity.ok(user);
     }
 }

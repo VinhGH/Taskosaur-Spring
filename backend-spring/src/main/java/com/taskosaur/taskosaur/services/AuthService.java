@@ -7,6 +7,7 @@ import com.taskosaur.taskosaur.enums.Role;
 import com.taskosaur.taskosaur.enums.UserStatus;
 import com.taskosaur.taskosaur.exceptions.BadRequestException;
 import com.taskosaur.taskosaur.exceptions.ConflictException;
+import com.taskosaur.taskosaur.exceptions.ResourceNotFoundException;
 import com.taskosaur.taskosaur.exceptions.UnauthorizedException;
 import com.taskosaur.taskosaur.models.User;
 import com.taskosaur.taskosaur.repositories.UserRepository;
@@ -105,5 +106,9 @@ public class AuthService {
                 .user(user)
                 .message("Login successful")
                 .build();
+    }
+    public User getProfile(String userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
     }
 }
