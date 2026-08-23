@@ -19,44 +19,34 @@ import java.util.Collections;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtService jwtService; // Inject JwtService
+    private final JwtService jwtService;
 
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
             HttpServletResponse response,
-            FilterChain filterChain) throws ServletException, IOException { // <-- Có dấu mở ngoặc { ở đây
+            FilterChain filterChain) throws ServletException, IOException {
 
-        // 1. Lấy Header Authorization
         String authHeader = request.getHeader("Authorization");
 
-        // 2. Kiểm tra nếu không có Token hoặc không bắt đầu bằng "Bearer "
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response); // Cho request đi tiếp
+            filterChain.doFilter(request, response);
             return;
         }
 
-        // 3. Cắt chuỗi để lấy JWT Token
-        String jwt = authHeader.substring(7); // Bỏ qua chữ "Bearer "
+        String jwt = authHeader.substring(7);
         String userId = jwtService.extractUserId(jwt);
 
-        // 4. Nếu có userId và chưa được xác thực trong SecurityContext
-        if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            if (jwtService.isTokenValid(jwt)) {
-                // Tạo đối tượng xác thực
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userId,
-                        null,
-                        Collections.emptyList()
-                );
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                // Đóng dấu xác thực vào SecurityContextHolder
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-            }
+        if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null && jwtService.isTokenValid(jwt)) {
+            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                    userId,
+                    null,
+                    Collections.emptyList()
+            );
+            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(authToken);
         }
 
-        // 5. Cho request đi tiếp vào Controller
         filterChain.doFilter(request, response);
     }
 }

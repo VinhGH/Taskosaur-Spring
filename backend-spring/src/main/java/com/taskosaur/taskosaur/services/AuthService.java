@@ -5,6 +5,9 @@ import com.taskosaur.taskosaur.dto.auth.LoginRequest;
 import com.taskosaur.taskosaur.dto.auth.SetupAdminRequest;
 import com.taskosaur.taskosaur.enums.Role;
 import com.taskosaur.taskosaur.enums.UserStatus;
+import com.taskosaur.taskosaur.exceptions.BadRequestException;
+import com.taskosaur.taskosaur.exceptions.ConflictException;
+import com.taskosaur.taskosaur.exceptions.UnauthorizedException;
 import com.taskosaur.taskosaur.models.User;
 import com.taskosaur.taskosaur.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Map;
 
 @Service
@@ -22,9 +26,10 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-    public boolean checkUsersExist(){
+    public boolean checkUsersExist() {
         return userRepository.count() > 0;
     }
+
     public Map<String, Object> isSetupRequired() {
         boolean hasSuperAdmin = userRepository.existsByRole(Role.SUPER_ADMIN);
 
@@ -42,13 +47,14 @@ public class AuthService {
                 "message", "Setup has already been completed"
         );
     }
-    public AuthResponse setupSuperAdmin(SetupAdminRequest request){
+
+    public AuthResponse setupSuperAdmin(SetupAdminRequest request) {
         boolean hasSuperAdmin = userRepository.existsByRole(Role.SUPER_ADMIN);
         if (hasSuperAdmin) {
-            throw new RuntimeException("Setup already completed");
+            throw new ConflictException("Setup already completed");
         }
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already in use");
+            throw new ConflictException("Email already in use");
         }
         String hashedPassword = passwordEncoder.encode(request.getPassword());
         User newUser = User.builder()
@@ -73,31 +79,26 @@ public class AuthService {
                 .message("Super admin setup successful")
                 .build();
     }
+
     public AuthResponse login(LoginRequest request) {
-        // 1. Tìm user theo email (ném lỗi nếu không thấy)
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Email hoặc mật khẩu không chính xác"));
+                .orElseThrow(() -> new UnauthorizedException("Email hoặc mật khẩu không chính xác"));
 
-        // 2. So khớp mật khẩu: passwordEncoder.matches(mật khẩu thô, mật khẩu đã hash)
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Email hoặc mật khẩu không chính xác");
+            throw new UnauthorizedException("Email hoặc mật khẩu không chính xác");
         }
 
-        // 3. Kiểm tra trạng thái tài khoản
         if (user.getStatus() != UserStatus.ACTIVE) {
-            throw new RuntimeException("Tài khoản chưa được kích hoạt hoặc đã bị khóa");
+            throw new BadRequestException("Tài khoản chưa được kích hoạt hoặc đã bị khóa");
         }
 
-        // 4. Sinh token bằng jwtService
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
-        // 5. Cập nhật thông tin đăng nhập vào DB
         user.setRefreshToken(refreshToken);
-        user.setLastLoginAt(LocalDateTime.now());
+        user.setLastLoginAt(LocalDateTime.now(ZoneOffset.UTC));
         userRepository.save(user);
 
-        // 6. Trả về AuthResponse
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
