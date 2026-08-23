@@ -1,6 +1,7 @@
 package com.taskosaur.taskosaur.controllers;
 
 import com.taskosaur.taskosaur.dto.auth.AuthResponse;
+import com.taskosaur.taskosaur.dto.auth.LoginRequest;
 import com.taskosaur.taskosaur.dto.auth.SetupAdminRequest;
 import com.taskosaur.taskosaur.models.Workspace;
 import com.taskosaur.taskosaur.services.AuthService;
@@ -26,5 +27,10 @@ public class AuthController {
     public ResponseEntity<AuthResponse> setupSuperAdmin(@Valid @RequestBody SetupAdminRequest request) {
         AuthResponse response = authService.setupSuperAdmin(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        AuthResponse response = authService.login(request);
+        return ResponseEntity.ok(response);
     }
 }
