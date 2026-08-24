@@ -2,6 +2,7 @@ package com.taskosaur.taskosaur.services;
 
 import com.taskosaur.taskosaur.dto.auth.AuthResponse;
 import com.taskosaur.taskosaur.dto.auth.LoginRequest;
+import com.taskosaur.taskosaur.dto.auth.RegisterRequest;
 import com.taskosaur.taskosaur.dto.auth.SetupAdminRequest;
 import com.taskosaur.taskosaur.enums.Role;
 import com.taskosaur.taskosaur.enums.UserStatus;
@@ -110,5 +111,34 @@ public class AuthService {
     public User getProfile(String userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+    }
+    public Map<String, Object> getRegistrationStatus() {
+        return Map.of("enabled", true);
+    }
+    public AuthResponse registerUser(RegisterRequest request) {
+        if  (userRepository.existsByEmail(request.getEmail())) {
+            throw new ConflictException("Email already in use");
+        }
+        String hashedPassword = passwordEncoder.encode(request.getPassword());
+        User newUser = User.builder()
+                .email(request.getEmail())
+                .password(hashedPassword)
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
+                .role(Role.MEMBER)
+                .status(UserStatus.ACTIVE)
+                .emailVerified(true)
+                .build();
+        User savedUser = userRepository.save(newUser);
+        String accessToken = jwtService.generateAccessToken(savedUser);
+        String refreshToken = jwtService.generateRefreshToken(savedUser);
+        savedUser.setRefreshToken(refreshToken);
+        userRepository.save(savedUser);
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .user(savedUser)
+                .message("User registered successfully")
+                .build();
     }
 }

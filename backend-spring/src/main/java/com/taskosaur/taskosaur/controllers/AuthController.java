@@ -2,6 +2,7 @@ package com.taskosaur.taskosaur.controllers;
 
 import com.taskosaur.taskosaur.dto.auth.AuthResponse;
 import com.taskosaur.taskosaur.dto.auth.LoginRequest;
+import com.taskosaur.taskosaur.dto.auth.RegisterRequest;
 import com.taskosaur.taskosaur.dto.auth.SetupAdminRequest;
 import com.taskosaur.taskosaur.exceptions.UnauthorizedException;
 import com.taskosaur.taskosaur.models.User;
@@ -44,5 +45,14 @@ public class AuthController {
         String userId = authentication.getName();
         User user = authService.getProfile(userId);
         return ResponseEntity.ok(user);
+    }
+    @GetMapping("/registration-status")
+    public ResponseEntity<Map<String, Object>>getRegistrationStatus() {
+        return ResponseEntity.ok(Map.of("enabled", true));
+    }
+    @PostMapping("/register")
+    public ResponseEntity<AuthResponse> registerUser(@Valid @RequestBody RegisterRequest request) {
+        AuthResponse response = authService.registerUser(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }
