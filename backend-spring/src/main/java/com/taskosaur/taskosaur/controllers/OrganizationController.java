@@ -31,4 +31,22 @@ public class OrganizationController {
         OrganizationResponse response = organizationService.createOrganization(request, userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<OrganizationResponse> getById(
+            @PathVariable String id,
+            Authentication authentication
+    ) {
+        String userId = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(organizationService.getOrganizationById(id, userId));
+    }
+
+    @GetMapping("/slug/{slug}")
+    public ResponseEntity<OrganizationResponse> getBySlug(
+            @PathVariable String slug,
+            Authentication authentication
+    ) {
+        String userId = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(organizationService.getOrganizationBySlug(slug, userId));
+    }
 }

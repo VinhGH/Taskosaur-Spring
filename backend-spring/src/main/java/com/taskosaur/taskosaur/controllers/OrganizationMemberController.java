@@ -21,4 +21,18 @@ public class OrganizationMemberController {
         List<OrganizationResponse> organizations = organizationService.getUserOrganizations(userId);
         return ResponseEntity.ok(organizations);
     }
+
+    @PatchMapping("/set-default")
+    public ResponseEntity<Void> setDefaultOrganization(
+            @RequestParam("organizationId") String organizationId,
+            org.springframework.security.core.Authentication authentication
+    ) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new com.taskosaur.taskosaur.exceptions.UnauthorizedException("Unauthorized");
+        }
+        String userId = authentication.getName();
+        organizationService.setDefaultOrganization(organizationId, userId);
+        return ResponseEntity.ok().build();
+    }
 }
+

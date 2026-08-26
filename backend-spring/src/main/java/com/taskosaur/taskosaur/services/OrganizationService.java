@@ -120,23 +120,77 @@ public class OrganizationService {
         }
 
         // 6. Đóng gói và trả về OrganizationResponse cho Frontend
+        return buildOrganizationResponse(savedOrg, userId);
+    }
+
+    public OrganizationResponse getOrganizationById(String id, String userId) {
+        Organization org = organizationRepository.findById(id)
+                .orElseThrow(() -> new com.taskosaur.taskosaur.exceptions.ResourceNotFoundException("Organization not found"));
+
+        return buildOrganizationResponse(org, userId);
+    }
+
+    public OrganizationResponse getOrganizationBySlug(String slug, String userId) {
+        Organization org = organizationRepository.findBySlug(slug)
+                .orElseThrow(() -> new com.taskosaur.taskosaur.exceptions.ResourceNotFoundException("Organization not found with slug: " + slug));
+
+        return buildOrganizationResponse(org, userId);
+    }
+
+    public void setDefaultOrganization(String organizationId, String userId) {
+        if (!organizationRepository.existsById(organizationId)) {
+            throw new com.taskosaur.taskosaur.exceptions.ResourceNotFoundException("Organization not found");
+        }
+
+        // Đặt tất cả memberships của user về isDefault = false
+        List<OrganizationMember> memberships = organizationMemberRepository.findByUserId(userId);
+        for (OrganizationMember member : memberships) {
+            member.setIsDefault(member.getOrganizationId().equals(organizationId));
+            organizationMemberRepository.save(member);
+        }
+
+        // Cập nhật trường defaultOrganizationId trên User
+        userRepository.findById(userId).ifPresent(user -> {
+            user.setDefaultOrganizationId(organizationId);
+            userRepository.save(user);
+        });
+    }
+
+    private OrganizationResponse buildOrganizationResponse(Organization org, String userId) {
+        long memberCount = organizationMemberRepository.countByOrganizationId(org.getId());
+        long workspaceCount = workspaceRepository.findByOrganizationId(org.getId()).size();
+
+        Role userRole = Role.MEMBER;
+        Boolean isDefault = false;
+
+        if (userId != null) {
+            var memberOpt = organizationMemberRepository.findByUserIdAndOrganizationId(userId, org.getId());
+            if (memberOpt.isPresent()) {
+                userRole = memberOpt.get().getRole();
+                isDefault = memberOpt.get().getIsDefault();
+            } else if (org.getOwnerId().equals(userId)) {
+                userRole = Role.OWNER;
+            }
+        }
+
         return OrganizationResponse.builder()
-                .id(savedOrg.getId())
-                .name(savedOrg.getName())
-                .slug(savedOrg.getSlug())
-                .description(savedOrg.getDescription())
-                .avatar(savedOrg.getAvatar())
-                .website(savedOrg.getWebsite())
-                .ownerId(userId)
-                .isOwner(true)
-                .isDefault(true)
-                .userRole(Role.OWNER)
-                .createdAt(savedOrg.getCreatedAt())
-                .updatedAt(savedOrg.getUpdatedAt())
+                .id(org.getId())
+                .name(org.getName())
+                .slug(org.getSlug())
+                .description(org.getDescription())
+                .avatar(org.getAvatar())
+                .website(org.getWebsite())
+                .ownerId(org.getOwnerId())
+                .isOwner(userId != null && org.getOwnerId().equals(userId))
+                .isDefault(isDefault)
+                .userRole(userRole)
+                .createdAt(org.getCreatedAt())
+                .updatedAt(org.getUpdatedAt())
                 ._count(OrganizationResponse.CountDto.builder()
-                        .members(1)
+                        .members(memberCount)
                         .workspaces(workspaceCount)
                         .build())
                 .build();
     }
 }
+
