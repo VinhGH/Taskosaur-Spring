@@ -107,6 +107,12 @@ public class WorkspaceService {
                 .orElseThrow(() -> new ResourceNotFoundException("Workspace not found with id: " + id));
     }
 
+    public Workspace getWorkspaceBySlug(String organizationId, String slug) {
+        return workspaceRepository.findByOrganizationIdAndSlug(organizationId, slug)
+                .orElseThrow(() -> new ResourceNotFoundException("Workspace not found with slug: " + slug));
+    }
+
+
     @Transactional
     public Workspace updateWorkspace(String id, UpdateWorkspaceRequest request) {
         Workspace workspace = getWorkspaceById(id);

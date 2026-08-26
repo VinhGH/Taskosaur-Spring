@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,9 +27,8 @@ public class WorkspaceController {
     @PostMapping
     public ResponseEntity<Workspace> create(
             @Valid @RequestBody CreateWorkspaceRequest request,
-            @RequestHeader(value = "X-User-Id", required = false) String userId) {
-        // Tạm thời nhận userId qua Header hoặc gán mock ID trước khi làm Spring Security JWT
-        String currentUserId = (userId != null) ? userId : "temp-creator-user-id";
+            Authentication authentication) {
+        String currentUserId = authentication != null ? authentication.getName() : null;
         Workspace created = workspaceService.createWorkspace(request, currentUserId);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
@@ -81,5 +81,11 @@ public class WorkspaceController {
     public ResponseEntity<Void> removeMember(@PathVariable("memberId") String memberId) {
         workspaceService.removeMember(memberId);
         return ResponseEntity.noContent().build();
+    }
+    @GetMapping("/organization/{organizationId}/slug/{slug}")
+    public ResponseEntity<Workspace> getBySlug(
+            @PathVariable("organizationId") String organizationId,
+            @PathVariable("slug") String slug) {
+        return ResponseEntity.ok(workspaceService.getWorkspaceBySlug(organizationId, slug));
     }
 }
