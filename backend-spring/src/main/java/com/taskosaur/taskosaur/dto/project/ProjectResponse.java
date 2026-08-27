@@ -3,6 +3,7 @@ package com.taskosaur.taskosaur.dto.project;
 import com.taskosaur.taskosaur.enums.ProjectPriority;
 import com.taskosaur.taskosaur.enums.ProjectStatus;
 import com.taskosaur.taskosaur.enums.ProjectVisibility;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -30,7 +31,9 @@ public class ProjectResponse {
     private String createdBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private CountDto _count;
+
+    @JsonProperty("_count")
+    private CountDto count;
 
     @Data
     @AllArgsConstructor

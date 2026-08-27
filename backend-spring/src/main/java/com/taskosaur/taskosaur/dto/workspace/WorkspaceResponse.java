@@ -23,7 +23,9 @@ public class WorkspaceResponse {
     private String createdBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    private CountDto _count;
+
+    @com.fasterxml.jackson.annotation.JsonProperty("_count")
+    private CountDto count;
 
     @Data
     @AllArgsConstructor

@@ -172,7 +172,7 @@ public class ProjectService {
                 .createdBy(project.getCreatedBy())
                 .createdAt(project.getCreatedAt())
                 .updatedAt(project.getUpdatedAt())
-                ._count(ProjectResponse.CountDto.builder()
+                .count(ProjectResponse.CountDto.builder()
                         .tasks(0)
                         .members(memberCount)
                         .sprints(0)

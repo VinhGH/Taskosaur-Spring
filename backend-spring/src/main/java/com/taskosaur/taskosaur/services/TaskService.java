@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,6 +22,8 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional
 public class TaskService {
+
+    private static final String TASK_NOT_FOUND_MSG = "Task not found with id: ";
 
     private final TaskRepository taskRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
@@ -97,7 +100,7 @@ public class TaskService {
 
     public TaskResponse getTaskById(String id) {
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(TASK_NOT_FOUND_MSG + id));
         return buildTaskResponse(task);
     }
 
@@ -109,7 +112,7 @@ public class TaskService {
 
     public TaskResponse updateTaskStatus(String id, String statusId, String userId) {
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(TASK_NOT_FOUND_MSG + id));
 
         TaskStatus status = taskStatusRepository.findById(statusId)
                 .orElseThrow(() -> new ResourceNotFoundException("TaskStatus not found with id: " + statusId));
@@ -117,9 +120,9 @@ public class TaskService {
         task.setStatusId(statusId);
         task.setUpdatedBy(userId);
 
-        // Nếu chuyển sang DONE -> ghi nhận completedAt
+        // Nếu chuyển sang DONE -> ghi nhận completedAt với UTC timezone
         if (status.getCategory() == StatusCategory.DONE) {
-            task.setCompletedAt(LocalDateTime.now());
+            task.setCompletedAt(LocalDateTime.now(ZoneOffset.UTC));
         } else {
             task.setCompletedAt(null);
         }
@@ -130,7 +133,7 @@ public class TaskService {
 
     public void deleteTask(String id) {
         Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(TASK_NOT_FOUND_MSG + id));
         taskAssigneeRepository.deleteByTaskId(task.getId());
         taskRepository.delete(task);
     }
@@ -142,15 +145,15 @@ public class TaskService {
         List<TaskResponse.AssigneeDto> assigneeDtos = new ArrayList<>();
 
         for (TaskAssignee a : assignees) {
-            userRepository.findById(a.getUserId()).ifPresent(u -> {
+            userRepository.findById(a.getUserId()).ifPresent(u ->
                 assigneeDtos.add(TaskResponse.AssigneeDto.builder()
                         .id(u.getId())
                         .email(u.getEmail())
                         .firstName(u.getFirstName())
                         .lastName(u.getLastName())
                         .avatar(u.getAvatar())
-                        .build());
-            });
+                        .build())
+            );
         }
 
         return TaskResponse.builder()
