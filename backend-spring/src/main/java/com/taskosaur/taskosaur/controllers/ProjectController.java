@@ -53,6 +53,15 @@ public class ProjectController {
         return ResponseEntity.ok(projectService.getProjectBySlug(workspaceId, slug));
     }
 
+    /**
+     * GET /api/projects/by-slug/{slug}
+     * Frontend gọi khi điều hướng URL dự án (projectApi.ts dòng 74).
+     */
+    @GetMapping("/by-slug/{slug}")
+    public ResponseEntity<ProjectResponse> getBySlugOnly(@PathVariable String slug) {
+        return ResponseEntity.ok(projectService.getProjectBySlugOnly(slug));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable String id) {
         projectService.deleteProject(id);

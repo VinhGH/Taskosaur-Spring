@@ -145,6 +145,12 @@ public class ProjectService {
         return buildProjectResponse(project);
     }
 
+    public ProjectResponse getProjectBySlugOnly(String slug) {
+        Project project = projectRepository.findBySlug(slug)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with slug: " + slug));
+        return buildProjectResponse(project);
+    }
+
     public void deleteProject(String id) {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
