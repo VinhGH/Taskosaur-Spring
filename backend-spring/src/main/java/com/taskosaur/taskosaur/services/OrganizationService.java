@@ -55,7 +55,7 @@ public class OrganizationService {
                     .userRole(member.getRole())
                     .createdAt(org.getCreatedAt())
                     .updatedAt(org.getUpdatedAt())
-                    ._count(OrganizationResponse.CountDto.builder()
+                    .count(OrganizationResponse.CountDto.builder()
                             .members(memberCount)
                             .workspaces(workspaceCount)
                             .build())
@@ -104,7 +104,6 @@ public class OrganizationService {
         });
 
         // 5. Nếu người dùng có chọn tạo sẵn một Workspace mặc định
-        long workspaceCount = 0;
         if (request.getDefaultWorkspace() != null && request.getDefaultWorkspace().get("name") != null) {
             String wsName = request.getDefaultWorkspace().get("name").toString().trim();
             if (!wsName.isBlank()) {
@@ -115,7 +114,6 @@ public class OrganizationService {
                         .createdBy(userId)
                         .build();
                 workspaceRepository.save(defaultWs);
-                workspaceCount = 1;
             }
         }
 
@@ -186,7 +184,7 @@ public class OrganizationService {
                 .userRole(userRole)
                 .createdAt(org.getCreatedAt())
                 .updatedAt(org.getUpdatedAt())
-                ._count(OrganizationResponse.CountDto.builder()
+                .count(OrganizationResponse.CountDto.builder()
                         .members(memberCount)
                         .workspaces(workspaceCount)
                         .build())
