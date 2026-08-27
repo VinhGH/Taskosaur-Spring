@@ -1,0 +1,15 @@
+package com.taskosaur.taskosaur.enums;
+
+public enum ActivityType {
+    TASK_CREATED,
+    TASK_UPDATED,
+    TASK_DELETED,
+    TASK_ASSIGNED,
+    TASK_COMMENTED,
+    TASK_STATUS_CHANGED,
+    PROJECT_CREATED,
+    PROJECT_UPDATED,
+    WORKSPACE_CREATED,
+    ORGANIZATION_CREATED,
+    MEMBER_ADDED
+}
