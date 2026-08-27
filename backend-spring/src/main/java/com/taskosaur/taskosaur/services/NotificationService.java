@@ -1,8 +1,8 @@
 package com.taskosaur.taskosaur.services;
 
+import com.taskosaur.taskosaur.dto.notification.CreateNotificationParams;
 import com.taskosaur.taskosaur.dto.notification.NotificationResponse;
 import com.taskosaur.taskosaur.enums.NotificationPriority;
-import com.taskosaur.taskosaur.enums.NotificationType;
 import com.taskosaur.taskosaur.exceptions.ResourceNotFoundException;
 import com.taskosaur.taskosaur.exceptions.UnauthorizedException;
 import com.taskosaur.taskosaur.models.Notification;
@@ -22,30 +22,19 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
 
-    public Notification createNotification(
-            NotificationType type,
-            NotificationPriority priority,
-            String title,
-            String message,
-            String entityType,
-            String entityId,
-            String actionUrl,
-            String userId,
-            String organizationId,
-            String creatorId
-    ) {
+    public Notification createNotification(CreateNotificationParams params) {
         Notification notification = Notification.builder()
-                .type(type)
-                .priority(priority != null ? priority : NotificationPriority.MEDIUM)
-                .title(title)
-                .message(message)
-                .entityType(entityType)
-                .entityId(entityId)
-                .actionUrl(actionUrl)
-                .userId(userId)
-                .organizationId(organizationId)
+                .type(params.getType())
+                .priority(params.getPriority() != null ? params.getPriority() : NotificationPriority.MEDIUM)
+                .title(params.getTitle())
+                .message(params.getMessage())
+                .entityType(params.getEntityType())
+                .entityId(params.getEntityId())
+                .actionUrl(params.getActionUrl())
+                .userId(params.getUserId())
+                .organizationId(params.getOrganizationId())
                 .isRead(false)
-                .createdBy(creatorId)
+                .createdBy(params.getCreatorId())
                 .build();
         return notificationRepository.save(notification);
     }

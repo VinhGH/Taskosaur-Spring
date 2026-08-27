@@ -1,7 +1,7 @@
 package com.taskosaur.taskosaur.services;
 
 import com.taskosaur.taskosaur.dto.activity.ActivityLogResponse;
-import com.taskosaur.taskosaur.enums.ActivityType;
+import com.taskosaur.taskosaur.dto.activity.LogActivityParams;
 import com.taskosaur.taskosaur.models.ActivityLog;
 import com.taskosaur.taskosaur.repositories.ActivityLogRepository;
 import com.taskosaur.taskosaur.repositories.UserRepository;
@@ -19,26 +19,17 @@ public class ActivityLogService {
     private final ActivityLogRepository activityLogRepository;
     private final UserRepository userRepository;
 
-    public void logActivity(
-            ActivityType type,
-            String description,
-            String entityType,
-            String entityId,
-            String oldValue,
-            String newValue,
-            String userId,
-            String organizationId
-    ) {
+    public void logActivity(LogActivityParams params) {
         ActivityLog log = ActivityLog.builder()
-                .type(type)
-                .description(description)
-                .entityType(entityType)
-                .entityId(entityId)
-                .oldValue(oldValue)
-                .newValue(newValue)
-                .userId(userId)
-                .organizationId(organizationId)
-                .createdBy(userId)
+                .type(params.getType())
+                .description(params.getDescription())
+                .entityType(params.getEntityType())
+                .entityId(params.getEntityId())
+                .oldValue(params.getOldValue())
+                .newValue(params.getNewValue())
+                .userId(params.getUserId())
+                .organizationId(params.getOrganizationId())
+                .createdBy(params.getUserId())
                 .build();
         activityLogRepository.save(log);
     }
