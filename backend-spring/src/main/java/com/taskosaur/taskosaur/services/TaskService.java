@@ -1,13 +1,11 @@
 package com.taskosaur.taskosaur.services;
 
-import com.taskosaur.taskosaur.dto.task.CreateTaskRequest;
-import com.taskosaur.taskosaur.dto.task.TaskResponse;
+import com.taskosaur.taskosaur.dto.task.*;
 import com.taskosaur.taskosaur.enums.StatusCategory;
+import com.taskosaur.taskosaur.enums.TaskPriority;
+import com.taskosaur.taskosaur.enums.TaskType;
 import com.taskosaur.taskosaur.exceptions.ResourceNotFoundException;
-import com.taskosaur.taskosaur.models.Project;
-import com.taskosaur.taskosaur.models.Task;
-import com.taskosaur.taskosaur.models.TaskAssignee;
-import com.taskosaur.taskosaur.models.TaskStatus;
+import com.taskosaur.taskosaur.models.*;
 import com.taskosaur.taskosaur.repositories.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,19 +13,28 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class TaskService {
 
+    public static final String GROUP_BY_STATUS = "status";
+    private static final String KEY_TASKS = "tasks";
+    private static final String KEY_TOTAL = "total";
     private static final String TASK_NOT_FOUND_MSG = "Task not found with id: ";
+    private static final Pattern UUID_PATTERN = Pattern.compile(
+            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    );
 
     private final TaskRepository taskRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
     private final ProjectRepository projectRepository;
+    private final WorkspaceRepository workspaceRepository;
     private final TaskStatusRepository taskStatusRepository;
     private final UserRepository userRepository;
 
@@ -35,36 +42,15 @@ public class TaskService {
         Project project = projectRepository.findById(request.getProjectId())
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + request.getProjectId()));
 
-        // 1. Xác định statusId ban đầu (nếu không truyền, lấy status mặc định của workflow)
-        String statusId = request.getStatusId();
-        if (statusId == null || statusId.isBlank()) {
-            TaskStatus defaultStatus = taskStatusRepository.findByWorkflowIdAndIsDefaultTrue(project.getWorkflowId())
-                    .orElseGet(() -> {
-                        List<TaskStatus> statuses = taskStatusRepository.findByWorkflowIdOrderByPositionAsc(project.getWorkflowId());
-                        return !statuses.isEmpty() ? statuses.get(0) : null;
-                    });
-
-            if (defaultStatus == null) {
-                throw new ResourceNotFoundException("No task status found for project workflow");
-            }
-            statusId = defaultStatus.getId();
-        }
-
-        // 2. Tính taskNumber tiếp theo trong project (Monotonic: MAX + 1)
+        String statusId = resolveInitialStatusId(request.getStatusId(), project.getWorkflowId());
         int nextTaskNumber = taskRepository.findMaxTaskNumberByProjectId(project.getId()) + 1;
+        String slug = buildTaskSlug(project.getTaskPrefix(), nextTaskNumber);
 
-        // 3. Tạo Slug định danh (Ví dụ: MOB-1)
-        String prefix = (project.getTaskPrefix() != null && !project.getTaskPrefix().isBlank())
-                ? project.getTaskPrefix()
-                : "TASK";
-        String slug = prefix + "-" + nextTaskNumber;
-
-        // 4. Lưu Task
         Task task = Task.builder()
                 .title(request.getTitle().trim())
                 .description(request.getDescription())
-                .type(request.getType())
-                .priority(request.getPriority())
+                .type(request.getType() != null ? request.getType() : TaskType.TASK)
+                .priority(request.getPriority() != null ? request.getPriority() : TaskPriority.MEDIUM)
                 .taskNumber(nextTaskNumber)
                 .slug(slug)
                 .startDate(request.getStartDate())
@@ -72,24 +58,471 @@ public class TaskService {
                 .storyPoints(request.getStoryPoints())
                 .projectId(project.getId())
                 .statusId(statusId)
+                .sprintId(request.getSprintId())
+                .parentTaskId(request.getParentTaskId())
                 .createdBy(userId)
-                .archive(false)
                 .build();
 
         Task savedTask = taskRepository.save(task);
+        saveTaskAssignees(savedTask.getId(), request.getAssigneeIds());
 
-        // 5. Gán Assignees (nếu có)
-        if (request.getAssigneeIds() != null && !request.getAssigneeIds().isEmpty()) {
-            List<TaskAssignee> assignees = request.getAssigneeIds().stream()
-                    .map(assigneeId -> TaskAssignee.builder()
-                            .taskId(savedTask.getId())
-                            .userId(assigneeId)
-                            .build())
-                    .toList();
-            taskAssigneeRepository.saveAll(assignees);
+        return buildTaskResponse(savedTask);
+    }
+
+    private String resolveInitialStatusId(String requestedStatusId, String workflowId) {
+        if (requestedStatusId != null && !requestedStatusId.isBlank()) {
+            return requestedStatusId;
+        }
+        return taskStatusRepository.findByWorkflowIdAndIsDefaultTrue(workflowId)
+                .map(TaskStatus::getId)
+                .orElseGet(() -> {
+                    List<TaskStatus> statuses = taskStatusRepository.findByWorkflowIdOrderByPositionAsc(workflowId);
+                    if (statuses.isEmpty()) {
+                        throw new ResourceNotFoundException("No task status found for project workflow");
+                    }
+                    return statuses.get(0).getId();
+                });
+    }
+
+    private String buildTaskSlug(String taskPrefix, int taskNumber) {
+        String prefix = (taskPrefix != null && !taskPrefix.isBlank()) ? taskPrefix : "TASK";
+        return prefix + "-" + taskNumber;
+    }
+
+    public TaskResponse updateTask(String id, UpdateTaskRequest request, String userId) {
+        Task task = findTaskOrThrow(id);
+        applyTaskFieldUpdates(task, request);
+        task.setUpdatedBy(userId);
+
+        Task savedTask = taskRepository.save(task);
+        if (request.getAssigneeIds() != null) {
+            updateAssignees(savedTask.getId(), request.getAssigneeIds());
         }
 
         return buildTaskResponse(savedTask);
+    }
+
+    private void applyTaskFieldUpdates(Task task, UpdateTaskRequest request) {
+        applyBasicFields(task, request);
+        applyScheduleFields(task, request);
+        applyRelationshipFields(task, request);
+    }
+
+    private void applyBasicFields(Task task, UpdateTaskRequest request) {
+        if (request.getTitle() != null && !request.getTitle().isBlank()) {
+            task.setTitle(request.getTitle().trim());
+        }
+        if (request.getDescription() != null) {
+            task.setDescription(request.getDescription());
+        }
+        if (request.getType() != null) {
+            task.setType(request.getType());
+        }
+        if (request.getPriority() != null) {
+            task.setPriority(request.getPriority());
+        }
+    }
+
+    private void applyScheduleFields(Task task, UpdateTaskRequest request) {
+        if (request.getStartDate() != null) {
+            task.setStartDate(request.getStartDate());
+        }
+        if (request.getDueDate() != null) {
+            task.setDueDate(request.getDueDate());
+        }
+        if (request.getStoryPoints() != null) {
+            task.setStoryPoints(request.getStoryPoints());
+        }
+    }
+
+    private void applyRelationshipFields(Task task, UpdateTaskRequest request) {
+        if (request.getSprintId() != null) {
+            task.setSprintId(request.getSprintId().isBlank() ? null : request.getSprintId());
+        }
+        if (request.getParentTaskId() != null) {
+            task.setParentTaskId(request.getParentTaskId().isBlank() ? null : request.getParentTaskId());
+        }
+        if (request.getStatusId() != null && !request.getStatusId().isBlank()) {
+            updateStatusField(task, request.getStatusId());
+        }
+    }
+
+    private void updateStatusField(Task task, String statusId) {
+        task.setStatusId(statusId);
+        taskStatusRepository.findById(statusId).ifPresent(status ->
+            task.setCompletedAt(status.getCategory() == StatusCategory.DONE ? LocalDateTime.now(ZoneOffset.UTC) : null)
+        );
+    }
+
+    private void updateAssignees(String taskId, List<String> assigneeIds) {
+        taskAssigneeRepository.deleteByTaskId(taskId);
+        saveTaskAssignees(taskId, assigneeIds);
+    }
+
+    private void saveTaskAssignees(String taskId, List<String> assigneeIds) {
+        if (assigneeIds == null || assigneeIds.isEmpty()) return;
+        List<TaskAssignee> assignees = assigneeIds.stream()
+                .map(userId -> TaskAssignee.builder()
+                        .taskId(taskId)
+                        .userId(userId)
+                        .build())
+                .toList();
+        taskAssigneeRepository.saveAll(assignees);
+    }
+
+    public Map<String, Object> getFilteredTasks(TaskFilterQuery query) {
+        List<Task> matchingTasks = fetchMatchingTasks(query);
+        matchingTasks.sort(getTaskComparator(query.sortBy(), query.sortOrder()));
+
+        int total = matchingTasks.size();
+        int safeLimit = Math.max(1, query.limit());
+        int totalPages = (int) Math.ceil((double) total / safeLimit);
+        int safePage = Math.clamp(query.page(), 1, Math.max(1, totalPages));
+
+        int fromIndex = (safePage - 1) * safeLimit;
+        List<Task> pageTasks = fromIndex < total
+                ? matchingTasks.subList(fromIndex, Math.min(fromIndex + safeLimit, total))
+                : List.of();
+
+        List<TaskResponse> data = pageTasks.stream()
+                .map(this::buildTaskResponse)
+                .toList();
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("data", data);
+        result.put(KEY_TOTAL, total);
+        result.put("page", safePage);
+        result.put("limit", safeLimit);
+        result.put("totalPages", totalPages);
+        return result;
+    }
+
+    public Map<String, Object> getTasksGroupedByStatus(
+            String slug,
+            String projectId,
+            String statusId,
+            String sprintId,
+            Boolean includeSubtasks,
+            int page,
+            int limit
+    ) {
+        Project project = resolveProject(slug, projectId);
+        if (project == null) {
+            return Map.of("data", List.of(), "meta", Map.of("totalTasks", 0, "loadedTasks", 0, "totalStatuses", 0));
+        }
+
+        List<TaskStatus> workflowStatuses = resolveWorkflowStatuses(project.getWorkflowId(), statusId);
+        List<Task> tasks = filterTasksForStatusGroup(taskRepository.findByProjectId(project.getId()), sprintId, includeSubtasks);
+
+        int safePage = Math.max(1, page);
+        int safeLimit = Math.max(1, limit);
+
+        List<Map<String, Object>> dataList = workflowStatuses.stream()
+                .map(status -> buildStatusGroupItem(status, tasks, safePage, safeLimit))
+                .toList();
+
+        long totalTasksCount = dataList.stream()
+                .mapToLong(item -> ((Number) ((Map<?, ?>) item.get("pagination")).get(KEY_TOTAL)).longValue())
+                .sum();
+        long loadedTasksCount = dataList.stream()
+                .mapToLong(item -> ((List<?>) item.get(KEY_TASKS)).size())
+                .sum();
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("data", dataList);
+        result.put("meta", Map.of(
+                "totalTasks", totalTasksCount,
+                "loadedTasks", loadedTasksCount,
+                "totalStatuses", dataList.size(),
+                "fetchedAt", LocalDateTime.now(ZoneOffset.UTC).toString()
+        ));
+        return result;
+    }
+
+    private Project resolveProject(String slug, String projectId) {
+        if (slug != null && !slug.isBlank()) {
+            return projectRepository.findBySlug(slug).orElse(null);
+        }
+        if (projectId != null && !projectId.isBlank()) {
+            return projectRepository.findById(projectId).orElse(null);
+        }
+        return null;
+    }
+
+    private List<TaskStatus> resolveWorkflowStatuses(String workflowId, String statusId) {
+        List<TaskStatus> statuses = workflowId != null
+                ? taskStatusRepository.findByWorkflowIdOrderByPositionAsc(workflowId)
+                : taskStatusRepository.findAll();
+
+        if (statusId != null && !statusId.isBlank()) {
+            return statuses.stream().filter(s -> s.getId().equals(statusId)).toList();
+        }
+        return statuses;
+    }
+
+    private List<Task> filterTasksForStatusGroup(List<Task> allTasks, String sprintId, Boolean includeSubtasks) {
+        List<Task> tasks = new ArrayList<>(allTasks);
+        if (sprintId != null && !sprintId.isBlank()) {
+            Set<String> sprintSet = parseCommaSeparatedSet(sprintId);
+            boolean includeBacklog = sprintSet.contains("null") || sprintSet.contains("backlog") || sprintSet.contains("none");
+            tasks.removeIf(t -> t.getSprintId() == null ? !includeBacklog : !sprintSet.contains(t.getSprintId()));
+        }
+        if (Boolean.FALSE.equals(includeSubtasks)) {
+            tasks.removeIf(t -> t.getParentTaskId() != null && !t.getParentTaskId().isBlank());
+        }
+        return tasks;
+    }
+
+    private Map<String, Object> buildStatusGroupItem(TaskStatus status, List<Task> allTasks, int page, int limit) {
+        List<Task> statusTasks = allTasks.stream()
+                .filter(t -> Objects.equals(t.getStatusId(), status.getId()))
+                .sorted(Comparator.comparing(Task::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
+
+        int total = statusTasks.size();
+        int totalPages = (int) Math.ceil((double) total / limit);
+        int fromIndex = (page - 1) * limit;
+        List<Task> pageTasks = fromIndex < total
+                ? statusTasks.subList(fromIndex, Math.min(fromIndex + limit, total))
+                : List.of();
+
+        Map<String, Object> statusObj = new HashMap<>();
+        statusObj.put("statusId", status.getId());
+        statusObj.put(GROUP_BY_STATUS, Map.of(
+                "id", status.getId(),
+                "name", status.getName(),
+                "color", status.getColor() != null ? status.getColor() : "#6b7280",
+                "category", status.getCategory() != null ? status.getCategory().name() : "TODO",
+                "position", status.getPosition() != null ? status.getPosition() : 0
+        ));
+        statusObj.put(KEY_TASKS, pageTasks.stream().map(this::buildTaskResponse).toList());
+        statusObj.put("pagination", Map.of(
+                "page", page,
+                "limit", limit,
+                KEY_TOTAL, total,
+                "totalPages", totalPages
+        ));
+        return statusObj;
+    }
+
+    public Map<String, Object> getGroupedTasks(TaskGroupQuery groupQuery) {
+        TaskFilterQuery filterQuery = TaskFilterQuery.builder()
+                .organizationId(groupQuery.organizationId())
+                .workspaceId(groupQuery.workspaceId())
+                .projectId(groupQuery.projectId())
+                .sprintId(groupQuery.sprintId())
+                .priorities(groupQuery.priorities())
+                .statuses(groupQuery.statuses())
+                .types(groupQuery.types())
+                .search(groupQuery.search())
+                .page(1)
+                .limit(1000)
+                .build();
+
+        List<Task> tasks = fetchMatchingTasks(filterQuery);
+        String effectiveGroupBy = (groupQuery.groupBy() != null && !groupQuery.groupBy().isBlank())
+                ? groupQuery.groupBy()
+                : GROUP_BY_STATUS;
+
+        Map<String, List<Task>> groupedMap = groupTasksByField(tasks, effectiveGroupBy);
+        int safeLimit = groupQuery.limitPerGroup() > 0 ? groupQuery.limitPerGroup() : 20;
+
+        List<Map<String, Object>> groups = groupedMap.entrySet().stream()
+                .map(entry -> buildGroupResponse(entry.getKey(), entry.getValue(), effectiveGroupBy, safeLimit))
+                .toList();
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("groups", groups);
+        result.put("groupBy", effectiveGroupBy);
+        result.put("page", groupQuery.page());
+        result.put("limitPerGroup", safeLimit);
+        return result;
+    }
+
+    private Map<String, List<Task>> groupTasksByField(List<Task> tasks, String groupBy) {
+        Map<String, List<Task>> map = new LinkedHashMap<>();
+        for (Task t : tasks) {
+            String key = resolveGroupKey(t, groupBy);
+            map.computeIfAbsent(key, k -> new ArrayList<>()).add(t);
+        }
+        return map;
+    }
+
+    private String resolveGroupKey(Task t, String groupBy) {
+        String field = groupBy != null ? groupBy.toLowerCase() : GROUP_BY_STATUS;
+        return switch (field) {
+            case "priority" -> t.getPriority() != null ? t.getPriority().name() : "NONE";
+            case "type" -> t.getType() != null ? t.getType().name() : "TASK";
+            case "project" -> t.getProjectId() != null ? t.getProjectId() : "NONE";
+            default -> t.getStatusId() != null ? t.getStatusId() : "NONE";
+        };
+    }
+
+    private Map<String, Object> buildGroupResponse(String key, List<Task> groupTasks, String groupBy, int safeLimit) {
+        int totalCount = groupTasks.size();
+        List<TaskResponse> responseList = groupTasks.stream()
+                .limit(safeLimit)
+                .map(this::buildTaskResponse)
+                .toList();
+
+        String label = key;
+        if (GROUP_BY_STATUS.equalsIgnoreCase(groupBy)) {
+            TaskStatus st = taskStatusRepository.findById(key).orElse(null);
+            if (st != null) label = st.getName();
+        }
+
+        Map<String, Object> groupObj = new HashMap<>();
+        groupObj.put("key", key);
+        groupObj.put("label", label);
+        groupObj.put("totalCount", totalCount);
+        groupObj.put(KEY_TASKS, responseList);
+        groupObj.put("page", 1);
+        return groupObj;
+    }
+
+    private Comparator<Task> getTaskComparator(String sortBy, String sortOrder) {
+        String sortKey = sortBy != null ? sortBy.toLowerCase() : "";
+        Comparator<Task> comparator = switch (sortKey) {
+            case "title" -> Comparator.comparing(Task::getTitle, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
+            case "duedate" -> Comparator.comparing(Task::getDueDate, Comparator.nullsLast(Comparator.naturalOrder()));
+            case "tasknumber" -> Comparator.comparing(Task::getTaskNumber, Comparator.nullsLast(Comparator.naturalOrder()));
+            default -> Comparator.comparing(Task::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()));
+        };
+        return "desc".equalsIgnoreCase(sortOrder) ? comparator.reversed() : comparator;
+    }
+
+    private List<Task> fetchMatchingTasks(TaskFilterQuery query) {
+        List<Task> tasks = fetchInitialTasks(query.organizationId(), query.workspaceId(), query.projectId());
+        applyFilters(tasks, query);
+        return tasks;
+    }
+
+    private List<Task> fetchInitialTasks(String organizationId, String workspaceId, String projectId) {
+        if (projectId != null && !projectId.isBlank()) {
+            return new ArrayList<>(taskRepository.findByProjectId(projectId));
+        }
+        if (workspaceId != null && !workspaceId.isBlank()) {
+            List<String> projectIds = projectRepository.findByWorkspaceId(workspaceId).stream()
+                    .map(Project::getId)
+                    .toList();
+            return projectIds.isEmpty() ? new ArrayList<>() : new ArrayList<>(taskRepository.findByProjectIdIn(projectIds));
+        }
+        if (organizationId != null && !organizationId.isBlank()) {
+            List<String> workspaceIds = workspaceRepository.findByOrganizationId(organizationId).stream()
+                    .map(Workspace::getId)
+                    .toList();
+            List<String> projectIds = new ArrayList<>();
+            for (String wsId : workspaceIds) {
+                projectRepository.findByWorkspaceId(wsId).forEach(p -> projectIds.add(p.getId()));
+            }
+            return projectIds.isEmpty() ? new ArrayList<>() : new ArrayList<>(taskRepository.findByProjectIdIn(projectIds));
+        }
+        return new ArrayList<>(taskRepository.findAll());
+    }
+
+    private void applyFilters(List<Task> tasks, TaskFilterQuery query) {
+        filterBySprint(tasks, query.sprintId());
+        filterByParentTask(tasks, query.parentTaskId());
+        filterByPriorities(tasks, query.priorities());
+        filterByStatuses(tasks, query.statuses());
+        filterByTypes(tasks, query.types());
+        filterBySearch(tasks, query.search());
+        filterByDateRange(tasks, query.from(), query.to(), query.dateField());
+    }
+
+    private void filterBySprint(List<Task> tasks, String sprintId) {
+        if (sprintId != null && !sprintId.isBlank()) {
+            Set<String> sprintSet = parseCommaSeparatedSet(sprintId);
+            boolean includeBacklog = sprintSet.contains("null") || sprintSet.contains("backlog") || sprintSet.contains("none");
+            tasks.removeIf(t -> t.getSprintId() == null ? !includeBacklog : !sprintSet.contains(t.getSprintId()));
+        }
+    }
+
+    private void filterByDateRange(List<Task> tasks, String from, String to, String dateField) {
+        if (from == null && to == null) return;
+        try {
+            LocalDateTime fromDate = (from != null && !from.isBlank()) ? parseIsoDate(from) : null;
+            LocalDateTime toDate = (to != null && !to.isBlank()) ? parseIsoDate(to) : null;
+
+            tasks.removeIf(t -> {
+                LocalDateTime targetDate = resolveTaskDate(t, dateField);
+                return targetDate != null && (
+                        (fromDate != null && targetDate.isBefore(fromDate))
+                        || (toDate != null && targetDate.isAfter(toDate))
+                );
+            });
+        } catch (Exception _) {
+            // Ignore parse errors
+        }
+    }
+
+    private LocalDateTime resolveTaskDate(Task t, String dateField) {
+        String field = dateField != null ? dateField.toLowerCase() : "duedate";
+        return switch (field) {
+            case "startdate" -> t.getStartDate();
+            case "createdat" -> t.getCreatedAt();
+            default -> t.getDueDate() != null ? t.getDueDate() : t.getCreatedAt();
+        };
+    }
+
+    private LocalDateTime parseIsoDate(String dateStr) {
+        try {
+            return LocalDateTime.parse(dateStr, DateTimeFormatter.ISO_DATE_TIME);
+        } catch (Exception _) {
+            try {
+                return java.time.LocalDate.parse(dateStr, DateTimeFormatter.ISO_DATE).atStartOfDay();
+            } catch (Exception _) {
+                return null;
+            }
+        }
+    }
+
+    private void filterByParentTask(List<Task> tasks, String parentTaskId) {
+        if (parentTaskId != null && !parentTaskId.isBlank() && !"all".equalsIgnoreCase(parentTaskId)) {
+            tasks.removeIf(t -> !Objects.equals(t.getParentTaskId(), parentTaskId));
+        }
+    }
+
+    private void filterByPriorities(List<Task> tasks, String priorities) {
+        if (priorities == null || priorities.isBlank()) return;
+        Set<String> prioritySet = parseCommaSeparatedSet(priorities);
+        if (!prioritySet.isEmpty()) {
+            tasks.removeIf(t -> t.getPriority() == null || !prioritySet.contains(t.getPriority().name()));
+        }
+    }
+
+    private void filterByStatuses(List<Task> tasks, String statuses) {
+        if (statuses == null || statuses.isBlank()) return;
+        Set<String> statusSet = parseCommaSeparatedSet(statuses);
+        if (!statusSet.isEmpty()) {
+            tasks.removeIf(t -> t.getStatusId() == null || !statusSet.contains(t.getStatusId()));
+        }
+    }
+
+    private void filterByTypes(List<Task> tasks, String types) {
+        if (types == null || types.isBlank()) return;
+        Set<String> typeSet = parseCommaSeparatedSet(types);
+        if (!typeSet.isEmpty()) {
+            tasks.removeIf(t -> t.getType() == null || !typeSet.contains(t.getType().name()));
+        }
+    }
+
+    private void filterBySearch(List<Task> tasks, String search) {
+        if (search == null || search.isBlank()) return;
+        String q = search.toLowerCase().trim();
+        tasks.removeIf(t -> {
+            boolean titleMatch = t.getTitle() != null && t.getTitle().toLowerCase().contains(q);
+            boolean descMatch = t.getDescription() != null && t.getDescription().toLowerCase().contains(q);
+            boolean slugMatch = t.getSlug() != null && t.getSlug().toLowerCase().contains(q);
+            return !titleMatch && !descMatch && !slugMatch;
+        });
+    }
+
+    private Set<String> parseCommaSeparatedSet(String commaSeparated) {
+        return Arrays.stream(commaSeparated.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toSet());
     }
 
     public List<TaskResponse> getTasksByProject(String projectId) {
@@ -99,8 +532,7 @@ public class TaskService {
     }
 
     public TaskResponse getTaskById(String id) {
-        Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(TASK_NOT_FOUND_MSG + id));
+        Task task = findTaskOrThrow(id);
         return buildTaskResponse(task);
     }
 
@@ -111,31 +543,42 @@ public class TaskService {
     }
 
     public TaskResponse updateTaskStatus(String id, String statusId, String userId) {
-        Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(TASK_NOT_FOUND_MSG + id));
-
-        TaskStatus status = taskStatusRepository.findById(statusId)
-                .orElseThrow(() -> new ResourceNotFoundException("TaskStatus not found with id: " + statusId));
-
-        task.setStatusId(statusId);
+        Task task = findTaskOrThrow(id);
+        updateStatusField(task, statusId);
         task.setUpdatedBy(userId);
-
-        // Nếu chuyển sang DONE -> ghi nhận completedAt với UTC timezone
-        if (status.getCategory() == StatusCategory.DONE) {
-            task.setCompletedAt(LocalDateTime.now(ZoneOffset.UTC));
-        } else {
-            task.setCompletedAt(null);
-        }
 
         Task updatedTask = taskRepository.save(task);
         return buildTaskResponse(updatedTask);
     }
 
+    public List<TaskResponse> getTasksByProjectId(String projectId) {
+        return taskRepository.findByProjectId(projectId).stream()
+                .map(this::buildTaskResponse)
+                .toList();
+    }
+
+    public List<TaskResponse> getTasksBySprintId(String sprintId) {
+        return taskRepository.findBySprintId(sprintId).stream()
+                .map(this::buildTaskResponse)
+                .toList();
+    }
+
     public void deleteTask(String id) {
-        Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(TASK_NOT_FOUND_MSG + id));
+        Task task = findTaskOrThrow(id);
         taskAssigneeRepository.deleteByTaskId(task.getId());
         taskRepository.delete(task);
+    }
+
+    private Task findTaskOrThrow(String idOrSlug) {
+        if (idOrSlug == null || idOrSlug.isBlank()) {
+            throw new ResourceNotFoundException(TASK_NOT_FOUND_MSG + idOrSlug);
+        }
+        if (UUID_PATTERN.matcher(idOrSlug).matches()) {
+            return taskRepository.findById(idOrSlug)
+                    .orElseThrow(() -> new ResourceNotFoundException(TASK_NOT_FOUND_MSG + idOrSlug));
+        }
+        return taskRepository.findBySlug(idOrSlug)
+                .orElseThrow(() -> new ResourceNotFoundException(TASK_NOT_FOUND_MSG + idOrSlug));
     }
 
     private TaskResponse buildTaskResponse(Task task) {
@@ -170,6 +613,8 @@ public class TaskService {
                 .storyPoints(task.getStoryPoints())
                 .projectId(task.getProjectId())
                 .statusId(task.getStatusId())
+                .sprintId(task.getSprintId())
+                .parentTaskId(task.getParentTaskId())
                 .status(status)
                 .assignees(assigneeDtos)
                 .createdBy(task.getCreatedBy())

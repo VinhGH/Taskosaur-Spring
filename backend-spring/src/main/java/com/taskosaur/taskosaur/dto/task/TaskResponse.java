@@ -27,6 +27,8 @@ public class TaskResponse {
     private Integer storyPoints;
     private String projectId;
     private String statusId;
+    private String sprintId;
+    private String parentTaskId;
     private TaskStatus status;
     private List<AssigneeDto> assignees;
     private String createdBy;

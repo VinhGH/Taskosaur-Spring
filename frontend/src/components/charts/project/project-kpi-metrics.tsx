@@ -150,7 +150,7 @@ export function ProjectKPIMetrics({ data, taskStatus }: ProjectKPIMetricsProps) 
             id,
             title: t("kpi.total_tasks.title"),
             label: t("kpi.total_tasks.label"),
-            value: data?.totalTasks,
+            value: data?.totalTasks ?? 0,
             description: t("kpi.total_tasks.description"),
             icon: <CheckCircle className="h-4 w-4" />,
             onClick: () => handleNavigate("/tasks"),
@@ -160,7 +160,7 @@ export function ProjectKPIMetrics({ data, taskStatus }: ProjectKPIMetricsProps) 
             id,
             title: t("kpi.completed_tasks.title"),
             label: t("kpi.completed_tasks.label"),
-            value: data?.completedTasks,
+            value: data?.completedTasks ?? 0,
             description: t("kpi.completed_tasks.description"),
             icon: <CheckCircle className="h-4 w-4" />,
             onClick: () => handleNavigate("/tasks", doneStatusIds ? { statuses: doneStatusIds } : {}),
@@ -170,7 +170,7 @@ export function ProjectKPIMetrics({ data, taskStatus }: ProjectKPIMetricsProps) 
             id,
             title: t("kpi.active_sprints.title"),
             label: t("kpi.active_sprints.label"),
-            value: data?.activeSprints,
+            value: data?.activeSprints ?? 0,
             description: t("kpi.active_sprints.description"),
             icon: <Zap className="h-4 w-4" />,
             onClick: () => handleNavigate("/sprints"),
@@ -180,10 +180,10 @@ export function ProjectKPIMetrics({ data, taskStatus }: ProjectKPIMetricsProps) 
             id,
             title: t("kpi.bug_resolution.title"),
             label: t("kpi.bug_resolution.label"),
-            value: `${data?.bugResolutionRate.toFixed(1)}%`,
+            value: `${(data?.bugResolutionRate ?? 0).toFixed(1)}%`,
             description: t("kpi.bug_resolution.description", {
-              resolved: data?.resolvedBugs,
-              total: data?.totalBugs,
+              resolved: data?.resolvedBugs ?? 0,
+              total: data?.totalBugs ?? 0,
             }),
             icon: <Bug className="h-4 w-4" />,
             onClick: () => handleNavigate("/tasks",  doneStatusIds ? { statuses: doneStatusIds, types: "BUG" } : {}),
@@ -193,10 +193,10 @@ export function ProjectKPIMetrics({ data, taskStatus }: ProjectKPIMetricsProps) 
             id,
             title: t("kpi.task_completion.title"),
             label: t("kpi.task_completion.label"),
-            value: `${data?.completionRate.toFixed(1)}%`,
+            value: `${(data?.completionRate ?? 0).toFixed(1)}%`,
             description: t("kpi.task_completion.description"),
             icon:
-              data?.completionRate > 75 ? (
+              (data?.completionRate ?? 0) > 75 ? (
                 <TrendingUp className="h-4 w-4" />
               ) : (
                 <AlertTriangle className="h-4 w-4" />
@@ -204,14 +204,15 @@ export function ProjectKPIMetrics({ data, taskStatus }: ProjectKPIMetricsProps) 
             onClick: () => handleNavigate("/tasks", doneStatusIds ? { statuses: doneStatusIds } : {}),
           };
         case "open-bugs":
+          const openBugsCount = (data?.totalBugs ?? 0) - (data?.resolvedBugs ?? 0);
           return {
             id,
             title: t("kpi.open_bugs.title"),
             label: t("kpi.open_bugs.label"),
-            value: data?.totalBugs - data?.resolvedBugs,
+            value: openBugsCount,
             description: t("kpi.open_bugs.description"),
             icon:
-              data?.totalBugs - data?.resolvedBugs === 0 ? (
+              openBugsCount === 0 ? (
                 <CheckCircle className="h-4 w-4" />
               ) : (
                 <Bug className="h-4 w-4" />
@@ -222,7 +223,7 @@ export function ProjectKPIMetrics({ data, taskStatus }: ProjectKPIMetricsProps) 
           return null;
       }
     }).filter((c): c is NonNullable<typeof c> => c !== null);
-  }, [orderedIds, data, workspaceSlug, projectSlug, doneStatusIds]);
+  }, [orderedIds, data, workspaceSlug, projectSlug, doneStatusIds, openStatusIds]);
 
 
   if (!router.isReady) {

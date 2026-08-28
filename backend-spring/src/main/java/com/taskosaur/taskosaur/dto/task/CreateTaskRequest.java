@@ -33,6 +33,10 @@ public class CreateTaskRequest {
 
     private String statusId;
 
+    private String sprintId;
+
+    private String parentTaskId;
+
     private List<String> assigneeIds;
 
     private Integer storyPoints;

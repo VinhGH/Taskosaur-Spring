@@ -294,7 +294,7 @@ export default function Breadcrumb() {
               <ChevronRight className="breadcrumb-separator-icon" />
             </BreadcrumbSeparator>
             {breadcrumbs.map((item, idx) => (
-              <React.Fragment key={item.href}>
+              <React.Fragment key={`${item.href || ""}-${item.name || ""}-${idx}`}>
                 <BreadcrumbItem className="breadcrumb-item">
                   {item.current ? (
                     <BreadcrumbPage className="breadcrumb-current">

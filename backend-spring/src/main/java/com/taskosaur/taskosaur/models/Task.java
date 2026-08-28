@@ -76,9 +76,6 @@ public class Task {
     @Column(name = "updated_by_id")
     private String updatedBy;
 
-    @Builder.Default
-    private Boolean archive = false;
-
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

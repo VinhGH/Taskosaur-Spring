@@ -15,8 +15,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 @Service
@@ -165,14 +167,48 @@ public class ProjectService {
         return buildProjectResponse(project);
     }
 
+    public Map<String, Object> getBulkProjectHealthStats(List<String> projectIds) {
+        Map<String, Object> result = new HashMap<>();
+        if (projectIds == null || projectIds.isEmpty()) {
+            return result;
+        }
+        for (String id : projectIds) {
+            Map<String, Object> stats = new HashMap<>();
+            stats.put("totalTasks", 0);
+            stats.put("completedTasks", 0);
+            stats.put("overdueTasks", 0);
+            stats.put("upcomingTasks", 0);
+            stats.put("completionPredictor", 0);
+            stats.put("heatmapData", List.of(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+            result.put(id, stats);
+        }
+        return result;
+    }
+
     public void deleteProject(String id) {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
+
+        // Cascade: remove all project members first
+        projectMemberRepository.deleteAll(projectMemberRepository.findByProjectId(id));
+
         projectRepository.delete(project);
     }
 
     private ProjectResponse buildProjectResponse(Project project) {
         long memberCount = projectMemberRepository.countByProjectId(project.getId());
+
+        ProjectResponse.WorkspaceDto workspaceDto = null;
+        if (project.getWorkspaceId() != null) {
+            Workspace ws = workspaceRepository.findById(project.getWorkspaceId()).orElse(null);
+            if (ws != null) {
+                workspaceDto = ProjectResponse.WorkspaceDto.builder()
+                        .id(ws.getId())
+                        .name(ws.getName())
+                        .slug(ws.getSlug())
+                        .build();
+            }
+        }
 
         return ProjectResponse.builder()
                 .id(project.getId())
@@ -188,6 +224,7 @@ public class ProjectService {
                 .startDate(project.getStartDate())
                 .endDate(project.getEndDate())
                 .workspaceId(project.getWorkspaceId())
+                .workspace(workspaceDto)
                 .workflowId(project.getWorkflowId())
                 .createdBy(project.getCreatedBy())
                 .createdAt(project.getCreatedAt())

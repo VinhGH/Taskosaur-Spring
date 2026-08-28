@@ -18,7 +18,7 @@ export default function ProjectsPage() {
         emptyStateTitle={t("empty_state_title")}
         emptyStateDescription={t("empty_state_description")}
         enablePagination={true}
-        generateProjectLink={(project) => `/${project.workspace.slug}/${project.slug}`}
+        generateProjectLink={(project) => `/${project.workspace?.slug || project.workspaceId}/${project.slug}`}
       />
     </>
   );

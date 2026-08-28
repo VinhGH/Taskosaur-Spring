@@ -644,11 +644,9 @@ export function TaskProvider({ children }: TaskProviderProps) {
           groupBy?: string;
         }
       ): Promise<PaginatedTaskResponse> => {
-        if (!organizationId) {
-          throw new Error("organizationId is required for getCalendarTask");
-        }
+        const orgId = organizationId || "";
         const result = await handleApiOperation(
-          () => taskApi.getCalendarTask(organizationId, params),
+          () => taskApi.getCalendarTask(orgId, params),
           false
         );
 

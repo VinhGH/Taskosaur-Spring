@@ -284,8 +284,10 @@ export const taskApi = {
     try {
       const queryParams = new URLSearchParams();
 
-      // Required org id
-      queryParams.append("organizationId", organizationId);
+      // Organization id (optional if projectId/workspaceId is provided)
+      if (organizationId) {
+        queryParams.append("organizationId", organizationId);
+      }
 
       // Optional filters
       if (params?.workspaceId) queryParams.append("workspaceId", params.workspaceId);

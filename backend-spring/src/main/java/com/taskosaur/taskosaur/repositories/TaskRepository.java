@@ -14,6 +14,8 @@ public interface TaskRepository extends JpaRepository<Task, String> {
 
     List<Task> findByProjectId(String projectId);
 
+    List<Task> findByProjectIdIn(List<String> projectIds);
+
     List<Task> findByProjectIdAndStatusId(String projectId, String statusId);
 
     Optional<Task> findByProjectIdAndTaskNumber(String projectId, Integer taskNumber);
@@ -26,4 +28,8 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     long countByProjectId(String projectId);
 
     long countByProjectIdAndStatusId(String projectId, String statusId);
+
+    long countBySprintId(String sprintId);
+
+    List<Task> findBySprintId(String sprintId);
 }

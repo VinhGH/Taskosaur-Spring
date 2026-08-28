@@ -35,6 +35,18 @@ public class ProjectResponse {
     @JsonProperty("_count")
     private CountDto count;
 
+    private WorkspaceDto workspace;
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    public static class WorkspaceDto {
+        private String id;
+        private String name;
+        private String slug;
+    }
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
