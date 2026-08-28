@@ -8,40 +8,27 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "workspaces")
+@Table(name = "conversations")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+public class AiConversation {
 
-public class Workspace {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
+    @Builder.Default
     @Column(nullable = false)
-    private String name;
+    private String title = "New Chat";
 
-    @Column(nullable = false, unique = true)
-    private String slug;
+    @Column(name = "session_id", unique = true)
+    private String sessionId;
 
-    @Column(nullable = true,columnDefinition = "TEXT")
-    private String description;
-    private String color;
-
-    @Column(name = "organization_id", nullable = false)
-    private String organizationId;
-
-    @Column(nullable = true,name = "parent_workspace_id")
-    private String parentWorkspaceId;
-
-    @Column(nullable = true)
-    private String path;
-
-    @Column(name = "created_by_id")
-    private String createdBy;
-    private boolean archive;
+    @Column(name = "user_id", nullable = false)
+    private String userId;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -50,5 +37,4 @@ public class Workspace {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
 }
