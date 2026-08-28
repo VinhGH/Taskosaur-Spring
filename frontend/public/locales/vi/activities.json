@@ -1,0 +1,30 @@
+{
+  "title": "Nhật ký hoạt động",
+  "description": "Quản lý và theo dõi tất cả các hoạt động ở một nơi.",
+  "workspace_description": "Các hoạt động và cập nhật gần đây trong không gian làm việc \"{{workspaceName}}\"",
+  "filters": {
+    "all": "Tất cả hoạt động",
+    "tasks": "Công việc",
+    "projects": "Dự án",
+    "workspaces": "Workspace",
+    "users": "Người dùng",
+    "comments": "Bình luận",
+    "status_changes": "Thay đổi trạng thái",
+    "assignments": "Phân công",
+    "filter_by_type": "Lọc theo loại",
+    "clear_filter": "Xóa bộ lọc"
+  },
+  "pagination": {
+    "page_info": "Trang {{currentPage}} trên {{totalPages}}",
+    "previous": "Trước",
+    "next": "Tiếp theo"
+  },
+  "recent_activity": "Hoạt động gần đây",
+  "workspace_activity": "Hoạt động Workspace",
+  "failed_to_load": "Không thể tải danh sách hoạt động",
+  "failed_to_refresh": "Không thể làm mới hoạt động",
+  "failed_to_load_workspace": "Không thể tải hoạt động của workspace",
+  "no_activity": "Chưa có hoạt động nào",
+  "no_filter_results": "Không tìm thấy kết quả phù hợp cho {{filter}}",
+  "workspace_not_found": "Không tìm thấy workspace"
+}

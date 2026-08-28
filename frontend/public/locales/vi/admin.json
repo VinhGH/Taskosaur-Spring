@@ -1,0 +1,204 @@
+{
+  "administration": "Quản trị",
+  "navigation": {
+    "overview": "Tổng quan",
+    "users": "Người dùng",
+    "organizations": "Tổ chức",
+    "configuration": "Cấu hình"
+  },
+  "dashboard": {
+    "welcome_back": "Chào mừng trở lại, {{name}}",
+    "platform_overview": "Đây là tổng quan nền tảng của bạn. Có {{userCount}} người dùng hoạt động trên {{orgCount}} tổ chức.",
+    "stats": {
+      "total_users": "Tổng người dùng",
+      "active_users": "Người dùng hoạt động",
+      "organizations": "Tổ chức",
+      "workspaces": "Workspace",
+      "projects": "Dự án",
+      "tasks": "Công việc",
+      "new_this_week": "+{{count}} tuần này"
+    },
+    "system_status": {
+      "title": "Tình trạng hệ thống",
+      "manage": "Quản lý",
+      "registration": "Đăng ký tài khoản",
+      "email_smtp": "Email / SMTP",
+      "sso": "Đăng nhập một lần (SSO)",
+      "enabled": "Đang bật",
+      "disabled": "Đang tắt",
+      "configured": "Đã cấu hình",
+      "not_configured": "Chưa cấu hình"
+    }
+  },
+  "users": {
+    "title": "Người dùng",
+    "description": "Quản lý người dùng và vai trò của họ trên nền tảng",
+    "search_placeholder": "Tìm theo tên, email hoặc tên người dùng...",
+    "table": {
+      "user": "Người dùng",
+      "role": "Vai trò",
+      "status": "Trạng thái",
+      "organizations": "Tổ chức",
+      "created": "Ngày tạo",
+      "actions": "Thao tác"
+    },
+    "roles": {
+      "super_admin": "Quản trị cấp cao",
+      "user": "Người dùng"
+    },
+    "status": {
+      "active": "Hoạt động",
+      "inactive": "Không hoạt động",
+      "suspended": "Bị khóa"
+    },
+    "actions": {
+      "edit": "Chỉnh sửa",
+      "suspend": "Khóa tài khoản",
+      "activate": "Kích hoạt",
+      "delete": "Xóa",
+      "view_details": "Xem chi tiết",
+      "promote_super_admin": "Thăng cấp lên Super Admin",
+      "remove_super_admin": "Hạ quyền Super Admin",
+      "deactivate": "Vô hiệu hóa",
+      "reset_password": "Đặt lại mật khẩu",
+      "reset_password_link_copied": "Đã sao chép liên kết đặt lại mật khẩu cho {{name}} vào bộ nhớ tạm",
+      "delete_confirmation": "Bạn có chắc chắn muốn xóa người dùng {{name}}? Thao tác này không thể hoàn tác.",
+      "user_removed": "Người dùng {{name}} đã bị xóa"
+    },
+    "total_count": "Tổng cộng: {{count}} người dùng",
+    "no_users": "Chưa có người dùng nào trong hệ thống",
+    "details": {
+      "profile_info": "Thông tin hồ sơ",
+      "actions": "Thao tác",
+      "danger_zone": "Khu vực nguy hiểm",
+      "memberships": "Tổ chức tham gia",
+      "last_login": "Đăng nhập lần cuối",
+      "never": "Chưa từng",
+      "email_verified": "Đã xác thực Email",
+      "source": "Nguồn đăng ký",
+      "timezone": "Múi giờ",
+      "language": "Ngôn ngữ",
+      "yes": "Có",
+      "no": "Không",
+      "membership_count": "{{count}} tổ chức",
+      "membership_count_plural": "{{count}} tổ chức",
+      "no_memberships": "Chưa tham gia tổ chức nào"
+    }
+  },
+  "organizations": {
+    "title": "Tổ chức",
+    "description": "Quản lý các tổ chức và giới hạn tài nguyên trên nền tảng",
+    "create_new": "Tổ chức mới",
+    "search_placeholder": "Tìm theo tên hoặc slug...",
+    "table": {
+      "organization": "Tổ chức",
+      "slug": "Slug",
+      "owner": "Chủ sở hữu",
+      "users": "Người dùng",
+      "workspaces": "Workspace",
+      "created": "Ngày tạo",
+      "actions": "Thao tác"
+    },
+    "total_count": "Tổng cộng: {{count}} tổ chức",
+    "no_orgs": "Chưa có tổ chức nào trong hệ thống",
+    "details": {
+      "information": "Thông tin tổ chức",
+      "danger_zone": "Khu vực nguy hiểm",
+      "members": "Thành viên",
+      "workspaces": "Workspace",
+      "projects": "Dự án",
+      "tasks": "Công việc"
+    },
+    "actions": {
+      "transfer_ownership": "Chuyển nhượng quyền sở hữu",
+      "transfer_confirmation": "Bạn có chắc chắn muốn chuyển nhượng quyền sở hữu tổ chức này? Thao tác này không thể hoàn tác.",
+      "select_new_owner": "Chọn chủ sở hữu mới",
+      "transfer": "Chuyển nhượng"
+    }
+  },
+  "config": {
+    "title": "Cấu hình hệ thống",
+    "description": "Cài đặt và cấu hình hệ thống toàn cục",
+    "save_changes": "Lưu thay đổi",
+    "saving": "Đang lưu...",
+    "sections": {
+      "general": "Cài đặt chung",
+      "registration": "Đăng ký",
+      "registration_desc": "Kiểm soát ai có thể tạo tài khoản và tài nguyên trên nền tảng",
+      "security": "Bảo mật",
+      "smtp": "Cài đặt SMTP"
+    },
+    "labels": {
+      "site_name": "Tên trang web",
+      "registration_enabled": "Bật đăng ký tài khoản",
+      "registration_enabled_desc": "Khi tắt, chỉ quản trị viên mới có thể tạo tài khoản người dùng mới qua lời mời",
+      "default_org": "Tổ chức mặc định",
+      "default_org_desc": "Người dùng mới sẽ tự động tham gia tổ chức này thay vì tự tạo tổ chức riêng. Để trống nếu yêu cầu tạo tổ chức khi đăng ký.",
+      "default_org_active_desc": "Người dùng mới sẽ tự động tham gia {{name}}",
+      "default_org_none_desc": "Người dùng mới sẽ cần tự tạo tổ chức khi đăng ký",
+      "allow_org_creation": "Cho phép tạo tổ chức",
+      "allow_org_creation_desc": "Khi tắt, chỉ Super Admin mới có thể tạo tổ chức mới. Người dùng sẽ được gán vào tổ chức mặc định.",
+      "allow_workspace_creation": "Cho phép tạo Workspace",
+      "allow_workspace_creation_desc": "Khi tắt, chỉ Chủ sở hữu và Quản lý tổ chức mới có thể tạo workspace.",
+      "allow_project_creation": "Cho phép tạo dự án",
+      "allow_project_creation_desc": "Khi tắt, chỉ Quản lý workspace trở lên mới có thể tạo dự án.",
+      "resource_creation_perms": "Quyền tạo tài nguyên",
+      "sso_enabled": "Bật SSO",
+      "sso_enabled_desc": "Cho phép người dùng đăng nhập bằng nhà cung cấp danh tính bên ngoài",
+      "sso_desc": "Cấu hình OpenID Connect để xác thực từ bên ngoài",
+      "sso_provider_name": "Tên hiển thị nhà cung cấp",
+      "sso_provider_name_desc": "Hiển thị trên nút đăng nhập, ví dụ: 'Đăng nhập với Authentik'",
+      "sso_issuer_url": "Đường dẫn Issuer URL",
+      "sso_issuer_url_desc": "URL khám phá OIDC, ví dụ: https://auth.example.com/application/o/taskosaur/",
+      "sso_client_id": "Client ID",
+      "sso_client_id_desc": "OAuth2 client ID từ nhà cung cấp danh tính của bạn",
+      "sso_client_secret": "Client Secret",
+      "sso_client_secret_desc": "OAuth2 client secret",
+      "sso_auto_register": "Tự động tạo tài khoản qua SSO",
+      "sso_auto_register_desc": "Khi bật, người dùng mới có thể được tạo qua SSO ngay cả khi tính năng đăng ký công khai bị tắt",
+      "smtp_host": "Máy chủ SMTP Host",
+      "smtp_host_desc": "vd: smtp.gmail.com, smtp.sendgrid.net",
+      "smtp_port": "Cổng SMTP Port",
+      "smtp_port_desc": "Các cổng phổ biến: 587 (TLS), 465 (SSL), 25 (không mã hóa)",
+      "smtp_user": "Người dùng SMTP User",
+      "smtp_user_desc": "Thường là địa chỉ email của bạn",
+      "smtp_pass": "Mật khẩu SMTP Password",
+      "smtp_pass_desc": "Mật khẩu ứng dụng hoặc thông tin xác thực SMTP",
+      "smtp_from": "Địa chỉ người gửi SMTP From Address",
+      "smtp_from_desc": "Địa chỉ email gửi đi cho các thông báo và đặt lại mật khẩu",
+      "smtp_desc": "Cấu hình cài đặt email gửi đi cho thông báo và đặt lại mật khẩu",
+      "redirect_uri": "Đường dẫn Redirect URI",
+      "redirect_uri_desc": "Thêm URL này làm URI chuyển hướng/gọi lại trong cài đặt nhà cung cấp danh tính của bạn.",
+      "auto_generated": "Tự động tạo",
+      "copy": "Sao chép",
+      "copied_to_clipboard": "Đã sao chép vào bộ nhớ tạm",
+      "test_connection": "Kiểm tra kết nối",
+      "test_connection_desc": "Xác minh máy chủ SMTP có thể kết nối và thông tin xác thực hợp lệ",
+      "testing": "Đang kiểm tra...",
+      "smtp_verified": "Đã xác minh kết nối SMTP",
+      "smtp_test_failed": "Kiểm tra kết nối SMTP thất bại",
+      "set_via_env": "Đặt qua .env",
+      "readonly_env_desc": "Giá trị này được đặt qua biến môi trường và không thể thay đổi ở đây."
+    },
+    "warnings": {
+      "no_org_creation_or_default": "Tính năng tạo tổ chức đang tắt và chưa đặt tổ chức mặc định nào",
+      "no_org_creation_or_default_desc": "Người dùng mới sẽ không thể tiếp tục sau khi đăng ký. Vui lòng chọn tổ chức mặc định ở trên hoặc bật tính năng tạo tổ chức ở dưới."
+    },
+    "save_success": "Đã lưu thành công cấu hình {{section}}",
+    "save_error": "Lưu cấu hình thất bại"
+  },
+  "common": {
+    "loading": "Đang tải...",
+    "error_loading": "Tải dữ liệu thất bại",
+    "no_results": "Không tìm thấy kết quả",
+    "success": "Thành công",
+    "filters": "Bộ lọc",
+    "try_adjusting": "Hãy thử điều chỉnh tìm kiếm hoặc bộ lọc",
+    "none": "Không có",
+    "confirmation": {
+      "title": "Bạn có chắc chắn không?",
+      "confirm": "Xác nhận",
+      "cancel": "Hủy"
+    }
+  }
+}

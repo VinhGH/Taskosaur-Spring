@@ -1,0 +1,28 @@
+{
+  "modal": {
+    "createTitle": "Tạo tổ chức mới",
+    "createDescription": "Cung cấp thông tin về tổ chức mới của bạn",
+    "name": "Tên tổ chức",
+    "namePlaceholder": "Nhập tên tổ chức",
+    "slug": "Đường dẫn định danh (Slug)",
+    "slugPlaceholder": "ten-to-chuc",
+    "slugHint": "Slug sẽ được sử dụng trên URL của tổ chức. Chỉ cho phép chữ thường, số và dấu gạch nối.",
+    "description": "Mô tả",
+    "descriptionPlaceholder": "Mô tả về tổ chức của bạn...",
+    "website": "Trang web",
+    "websitePlaceholder": "https://example.com",
+    "cancel": "Hủy",
+    "create": "Tạo tổ chức",
+    "update": "Cập nhật tổ chức",
+    "creating": "Đang tạo...",
+    "saving": "Đang lưu...",
+    "success": "Tạo tổ chức thành công!",
+    "errorDefault": "Tạo tổ chức thất bại",
+    "errorSave": "Không thể lưu tổ chức. Vui lòng thử lại.",
+    "errorTitle": "Lỗi khi tạo tổ chức",
+    "errorNameRequired": "Vui lòng nhập tên tổ chức",
+    "errorSlugRequired": "Vui lòng nhập slug cho tổ chức",
+    "errorSlugInvalid": "Slug chỉ được chứa chữ thường, số và dấu gạch nối",
+    "errorWebsiteInvalid": "Vui lòng nhập đường dẫn URL hợp lệ"
+  }
+}

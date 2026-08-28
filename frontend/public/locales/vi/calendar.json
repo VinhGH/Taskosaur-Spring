@@ -1,0 +1,42 @@
+{
+  "title": "Lịch {{name}}",
+  "description": "Xem và quản lý các công việc của dự án {{name}} dưới dạng lịch.",
+  "createTask": "Tạo công việc",
+  "noTasks": {
+    "title": "Chưa có công việc nào",
+    "description": "Tạo công việc đầu tiên cho {{name}} để hiển thị trên lịch"
+  },
+  "errors": {
+    "invalidSlug": "Đường dẫn định danh workspace hoặc dự án không hợp lệ",
+    "workspaceNotFound": "Không tìm thấy workspace",
+    "projectNotFound": "Không tìm thấy dự án",
+    "failedLoadData": "Tải dữ liệu thất bại",
+    "projectOrWorkspaceNotFound": "Không tìm thấy dự án hoặc workspace"
+  },
+  "view": {
+    "noTasksScheduled": "Không có công việc nào theo lịch",
+    "noTasksScheduledDescription": "Các công việc có hạn chót sẽ xuất hiện trên lịch. Hãy đặt hạn chót cho công việc để dễ dàng theo dõi kế hoạch.",
+    "days": {
+      "sun": "CN",
+      "mon": "T2",
+      "tue": "T3",
+      "wed": "T4",
+      "thu": "T5",
+      "fri": "T6",
+      "sat": "T7"
+    },
+    "untitledTask": "Công việc chưa có tiêu đề",
+    "more": "khác",
+    "time": "Thời gian",
+    "weekOf": "Tuần từ {{date}}",
+    "daysWithTasks": "{{count}} ngày có công việc trong tháng này",
+    "tasksThisWeek": "{{count}} công việc trong tuần này",
+    "month": "Tháng",
+    "week": "Tuần",
+    "today": "Hôm nay",
+    "noTasksThisDay": "Không có công việc nào trong ngày này",
+    "noStatus": "Chưa có trạng thái",
+    "overdue": "Quá hạn",
+    "assignee": "Người thực hiện"
+  }
+}
