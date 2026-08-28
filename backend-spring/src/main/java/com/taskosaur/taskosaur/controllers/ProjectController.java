@@ -10,7 +10,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/projects")
@@ -40,9 +42,20 @@ public class ProjectController {
         return ResponseEntity.ok(List.of());
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<ProjectResponse> getById(@PathVariable String id) {
-        return ResponseEntity.ok(projectService.getProjectById(id));
+    @GetMapping("/by-organization")
+    public ResponseEntity<List<ProjectResponse>> getByOrganization(
+            @RequestParam(name = "organizationId") String organizationId,
+            @RequestParam(name = "workspaceId", required = false) String workspaceId,
+            @RequestParam(name = "search", required = false) String search
+    ) {
+        return ResponseEntity.ok(projectService.getProjectsByOrganization(organizationId, workspaceId, search));
+    }
+
+    @GetMapping("/archived")
+    public ResponseEntity<List<ProjectResponse>> getArchivedProjects(
+            @RequestParam(name = "workspaceId", required = false) String workspaceId
+    ) {
+        return ResponseEntity.ok(List.of());
     }
 
     @GetMapping("/workspace/{workspaceId}/slug/{slug}")
@@ -53,13 +66,30 @@ public class ProjectController {
         return ResponseEntity.ok(projectService.getProjectBySlug(workspaceId, slug));
     }
 
-    /**
-     * GET /api/projects/by-slug/{slug}
-     * Frontend gọi khi điều hướng URL dự án (projectApi.ts dòng 74).
-     */
     @GetMapping("/by-slug/{slug}")
     public ResponseEntity<ProjectResponse> getBySlugOnly(@PathVariable String slug) {
         return ResponseEntity.ok(projectService.getProjectBySlugOnly(slug));
+    }
+
+    @GetMapping("/{slug}/charts")
+    public ResponseEntity<Map<String, Object>> getProjectCharts(
+            @PathVariable String slug,
+            @RequestParam(required = false) List<String> types) {
+        Map<String, Object> charts = new HashMap<>();
+        charts.put("kpi-metrics", Map.of("totalTasks", 0, "completedTasks", 0, "completionRate", 0));
+        charts.put("task-priority", List.of());
+        charts.put("task-status", List.of());
+        charts.put("task-type", List.of());
+        charts.put("sprint-velocity", List.of());
+        charts.put("burndown", List.of());
+        charts.put("cumulative-flow", List.of());
+        charts.put("member-workload", List.of());
+        return ResponseEntity.ok(charts);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ProjectResponse> getById(@PathVariable String id) {
+        return ResponseEntity.ok(projectService.getProjectById(id));
     }
 
     @DeleteMapping("/{id}")

@@ -133,6 +133,20 @@ public class ProjectService {
                 .toList();
     }
 
+    public List<ProjectResponse> getProjectsByOrganization(String organizationId, String workspaceId, String search) {
+        List<Workspace> workspaces = workspaceRepository.findByOrganizationId(organizationId);
+        List<String> wsIds = workspaces.stream().map(Workspace::getId).toList();
+        if (wsIds.isEmpty()) {
+            return List.of();
+        }
+        return projectRepository.findAll().stream()
+                .filter(p -> wsIds.contains(p.getWorkspaceId()))
+                .filter(p -> workspaceId == null || workspaceId.isBlank() || p.getWorkspaceId().equals(workspaceId))
+                .filter(p -> search == null || search.isBlank() || (p.getName() != null && p.getName().toLowerCase().contains(search.toLowerCase())))
+                .map(this::buildProjectResponse)
+                .toList();
+    }
+
     public ProjectResponse getProjectById(String id) {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));

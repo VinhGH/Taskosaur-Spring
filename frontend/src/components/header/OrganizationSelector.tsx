@@ -35,7 +35,8 @@ export default function OrganizationSelector({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isFetchingOnOpen, setIsFetchingOnOpen] = useState(false);
 
-  const otherOrgsWithNotifications = unreadCountsByOrg.filter(
+  const safeUnreadCounts = Array.isArray(unreadCountsByOrg) ? unreadCountsByOrg : [];
+  const otherOrgsWithNotifications = safeUnreadCounts.filter(
     item => item.organizationId !== currentOrganization?.id && item.unreadCount > 0
   );
 
@@ -229,7 +230,7 @@ export default function OrganizationSelector({
                     <p className="header-org-item-members">{org._count?.members ?? 0} {org._count?.members === 1 ? t("member") : t("members")}</p>
                   </div>
                   {(() => {
-                    const unreadCount = unreadCountsByOrg.find(u => u.organizationId === org.id)?.unreadCount;
+                    const unreadCount = safeUnreadCounts.find(u => u.organizationId === org.id)?.unreadCount;
                     if (!unreadCount) return null;
                     return (
                       <Tooltip 

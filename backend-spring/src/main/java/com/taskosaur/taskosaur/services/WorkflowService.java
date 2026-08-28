@@ -80,6 +80,27 @@ public class WorkflowService {
         return savedWorkflow;
     }
 
+    public List<Workflow> getWorkflowsByOrganizationId(String organizationId) {
+        return workflowRepository.findByOrganizationId(organizationId);
+    }
+
+    public java.util.Map<String, Object> toWorkflowMap(Workflow w) {
+        List<TaskStatus> statuses = taskStatusRepository.findByWorkflowIdOrderByPositionAsc(w.getId());
+        java.util.Map<String, Object> map = new java.util.HashMap<>();
+        map.put("id", w.getId());
+        map.put("name", w.getName());
+        map.put("description", w.getDescription());
+        map.put("isDefault", w.getIsDefault());
+        map.put("organizationId", w.getOrganizationId());
+        map.put("createdBy", w.getCreatedBy());
+        map.put("updatedBy", w.getUpdatedBy());
+        map.put("createdAt", w.getCreatedAt());
+        map.put("updatedAt", w.getUpdatedAt());
+        map.put("statuses", statuses);
+        map.put("_count", java.util.Map.of("statuses", statuses.size(), "transitions", 0, "tasks", 0));
+        return map;
+    }
+
     public Workflow getWorkflowById(String id) {
         return workflowRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Workflow not found with id: " + id));

@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/organizations")
 @CrossOrigin(origins = "http://localhost:3001", allowCredentials = "true")
@@ -32,15 +34,6 @@ public class OrganizationController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<OrganizationResponse> getById(
-            @PathVariable String id,
-            Authentication authentication
-    ) {
-        String userId = authentication != null ? authentication.getName() : null;
-        return ResponseEntity.ok(organizationService.getOrganizationById(id, userId));
-    }
-
     @GetMapping("/slug/{slug}")
     public ResponseEntity<OrganizationResponse> getBySlug(
             @PathVariable String slug,
@@ -48,5 +41,33 @@ public class OrganizationController {
     ) {
         String userId = authentication != null ? authentication.getName() : null;
         return ResponseEntity.ok(organizationService.getOrganizationBySlug(slug, userId));
+    }
+
+    @GetMapping("/{id}/charts")
+    public ResponseEntity<java.util.Map<String, Object>> getCharts(
+            @PathVariable String id,
+            @RequestParam(required = false) List<String> types
+    ) {
+        java.util.Map<String, Object> charts = new java.util.HashMap<>();
+        charts.put("kpi-metrics", java.util.Map.of("totalProjects", 0, "activeProjects", 0, "completionRate", 0));
+        charts.put("project-portfolio", List.of());
+        charts.put("team-utilization", List.of());
+        charts.put("task-distribution", List.of());
+        charts.put("task-type", List.of());
+        charts.put("sprint-metrics", java.util.Map.of());
+        charts.put("quality-metrics", java.util.Map.of());
+        charts.put("workspace-project-count", List.of());
+        charts.put("member-workload", List.of());
+        charts.put("resource-allocation", List.of());
+        return ResponseEntity.ok(charts);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<OrganizationResponse> getById(
+            @PathVariable String id,
+            Authentication authentication
+    ) {
+        String userId = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(organizationService.getOrganizationById(id, userId));
     }
 }

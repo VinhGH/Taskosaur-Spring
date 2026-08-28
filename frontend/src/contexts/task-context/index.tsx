@@ -416,13 +416,12 @@ export function TaskProvider({ children }: TaskProviderProps) {
         // Only update the task state if we're not filtering by parent task
         // This prevents overwriting the main task list with subtasks
         if (!params.parentTaskId) {
+          const taskList = Array.isArray(result) ? result : (result?.data || []);
           setTaskState((prev) => ({
             ...prev,
-            tasks: result.data,
-            taskResponse: result,
+            tasks: taskList,
+            taskResponse: result || { data: [], total: 0, page: 1, limit: 10, totalPages: 0 },
             currentSort: {
-              // Note: getFilteredTasks doesn't currently take sortBy/sortOrder from params,
-              // but we store them anyway for consistency if added later.
               sortBy: undefined,
               sortOrder: undefined,
             },
@@ -610,10 +609,11 @@ export function TaskProvider({ children }: TaskProviderProps) {
         }
       ): Promise<PaginatedTaskResponse> => {
         const result = await taskApi.getAllTasks(organizationId, params);
+        const taskList = Array.isArray(result) ? result : (result?.data || []);
         setTaskState((prev) => ({
           ...prev,
-          tasks: result.data,
-          taskResponse: result,
+          tasks: taskList,
+          taskResponse: result || { data: [], total: 0, page: 1, limit: 10, totalPages: 0 },
           currentSort: {
             sortBy: params?.sortBy,
             sortOrder: params?.sortOrder,
@@ -652,10 +652,11 @@ export function TaskProvider({ children }: TaskProviderProps) {
           false
         );
 
+        const taskList = Array.isArray(result) ? result : (result?.data || []);
         setTaskState((prev) => ({
           ...prev,
-          tasks: result.data,
-          taskResponse: result,
+          tasks: taskList,
+          taskResponse: result || { data: [], total: 0, page: 1, limit: 10, totalPages: 0 },
           currentSort: {
             sortBy: params?.sortBy,
             sortOrder: params?.sortOrder,
@@ -682,9 +683,10 @@ export function TaskProvider({ children }: TaskProviderProps) {
         const result = await handleApiOperation(() =>
           taskApi.getTasksByProject(projectId, organizationId)
         );
+        const taskList = Array.isArray(result) ? result : ((result as any)?.data || []);
         setTaskState((prev) => ({
           ...prev,
-          tasks: result,
+          tasks: taskList,
         }));
         return result;
       },
@@ -704,10 +706,11 @@ export function TaskProvider({ children }: TaskProviderProps) {
           taskApi.getPublicProjectTasks(workspaceSlug, projectSlug, filters)
         );
 
+        const taskList = Array.isArray(result) ? result : ((result as any)?.data || []);
         setTaskState((prev) => ({
           ...prev,
-          tasks: result.data,
-          taskResponse: result,
+          tasks: taskList,
+          taskResponse: result || { data: [], total: 0, page: 1, limit: 10, totalPages: 0 },
           currentSort: {
             sortBy: "listRank",
             sortOrder: "asc",
@@ -720,9 +723,10 @@ export function TaskProvider({ children }: TaskProviderProps) {
         const result = await handleApiOperation(() =>
           taskApi.getTasksBySprint(sprintId, organizationId)
         );
+        const taskList = Array.isArray(result) ? result : ((result as any)?.data || []);
         setTaskState((prev) => ({
           ...prev,
-          tasks: result,
+          tasks: taskList,
         }));
         return result;
       },
