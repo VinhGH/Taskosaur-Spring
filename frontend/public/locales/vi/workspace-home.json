@@ -1,0 +1,160 @@
+{
+  "analytics_title": "Phân tích không gian làm việc",
+  "analytics_description": "Thông tin chi tiết về hiệu suất và chỉ số không gian làm việc của bạn",
+  "dashboard_settings": "Cài đặt bảng điều khiển",
+  "customize_widgets": "Tùy chỉnh các widget trên bảng điều khiển",
+  "no_widgets_title": "Không có widget nào để hiển thị",
+  "no_widgets_description": "Tất cả các widget hiện đang bị ẩn. Sử dụng nút tùy chỉnh để hiển thị widget.",
+  "show_all_widgets": "Hiện tất cả widget",
+  "no_data": "Không có dữ liệu phân tích nào cho tổ chức này.",
+  "load_data": "Tải dữ liệu",
+  "error_loading": "Lỗi khi tải dữ liệu phân tích tổ chức:",
+  "widgets": {
+    "kpi_metrics": "Chỉ số KPI",
+    "project_status": "Phân bổ trạng thái dự án",
+    "task_priority": "Phân loại độ ưu tiên công việc",
+    "task_type": "Phân bổ loại công việc",
+    "sprint_status": "Tổng quan trạng thái Sprint",
+    "monthly_completion": "Hoàn thành công việc hàng tháng",
+    "team_utilization": "Phân bổ vai trò trong nhóm",
+    "quality_metrics": "Chất lượng xử lý lỗi (Bug)",
+    "workspace_projects": "Số dự án theo Workspace",
+    "member_workload": "Phân bổ khối lượng công việc thành viên",
+    "resource_allocation": "Phân bổ nguồn lực"
+  },
+  "roles": {
+    "admin": "Quản trị viên",
+    "manager": "Quản lý",
+    "member": "Thành viên",
+    "viewer": "Người xem",
+    "guest": "Khách",
+    "contributor": "Người đóng góp"
+  },
+  "project_status": {
+    "planning": "Lập kế hoạch",
+    "active": "Đang hoạt động",
+    "on_hold": "Tạm dừng",
+    "completed": "Đã hoàn thành",
+    "cancelled": "Đã hủy"
+  },
+  "task_types": {
+    "story": "Story",
+    "task": "Task (Nhiệm vụ)",
+    "bug": "Bug (Lỗi)",
+    "epic": "Epic (Chủ đề lớn)",
+    "feature": "Feature (Tính năng)"
+  },
+  "priority": {
+    "lowest": "Rất thấp",
+    "low": "Thấp",
+    "medium": "Trung bình",
+    "high": "Cao",
+    "highest": "Khẩn cấp"
+  },
+  "workload": {
+    "label": "Khối lượng công việc",
+    "low": "Thấp",
+    "medium": "Trung bình",
+    "high": "Cao",
+    "assigned": "Công việc được giao",
+    "reported": "Công việc đã tạo"
+  },
+  "quality": {
+    "resolved": "Đã giải quyết",
+    "remaining": "Còn lại",
+    "low_performance": "Hiệu suất thấp",
+    "medium_performance": "Hiệu suất trung bình",
+    "high_performance": "Hiệu suất cao",
+    "resolution_rate": "Tỷ lệ xử lý"
+  },
+  "project_count": {
+    "low": "<=5 Dự án",
+    "medium": "6-10 Dự án",
+    "high": ">10 Dự án"
+  },
+  "charts": {
+    "project_status_description": "Phân tích trạng thái hiện tại của tất cả các dự án",
+    "project_status_description_with_count": "Tổng cộng {{count}} dự án trong tổ chức",
+    "task_priority_description": "Tổng quan về công việc theo các mức độ ưu tiên trong tất cả dự án",
+    "task_type_description": "Phân bổ công việc theo loại",
+    "task_type_description_with_count": "Tổng cộng {{count}} công việc trong tổ chức",
+    "sprint_status_description": "Trạng thái hiện tại của tất cả sprint trong các dự án",
+    "kpi_metrics_description": "Các chỉ số hiệu suất chính (KPI) cho không gian làm việc của bạn",
+    "monthly_completion_description": "Số lượng công việc hoàn thành mỗi tháng",
+    "team_utilization_description_all": "Phân bổ vai trò thành viên trong tổ chức",
+    "team_utilization_description_workspace": "Phân bổ vai trò cho không gian làm việc đã chọn",
+    "all_workspaces": "Tất cả Workspace",
+    "member_workload_description": "Công việc đang thực hiện và công việc đã tạo theo thành viên",
+    "workspace_projects_description": "Phân bổ dự án trên các không gian làm việc",
+    "resource_allocation_description_all": "Phân bổ thành viên nhóm theo vai trò",
+    "resource_allocation_description_project": "Phân bổ vai trò cho dự án đã chọn",
+    "all_projects": "Tất cả dự án",
+    "count": "Số lượng",
+    "quality_metrics_description_with_count": "{{resolved}}/{{total}} lỗi đã được xử lý ({{rate}}%)"
+  },
+  "kpi": {
+    "total_projects": "Tổng số dự án",
+    "active_projects": "Dự án đang hoạt động",
+    "completion_rate": "Tỷ lệ hoàn thành",
+    "total_tasks": "Tổng số công việc",
+    "overdue_tasks": "Công việc quá hạn",
+    "task_health": "Sức khỏe công việc",
+    "excellent": "Xuất sắc",
+    "good": "Tốt",
+    "needs_focus": "Cần chú ý",
+    "perfect": "Hoàn hảo",
+    "critical": "Nguy cấp",
+    "monitor": "Cần theo dõi"
+  },
+  "header": {
+    "ready_to_tackle": "Sẵn sàng chinh phục mục tiêu của bạn hôm nay?",
+    "todays_agenda": "Lịch trình hôm nay",
+    "new_task": "Công việc mới"
+  },
+  "analytics": {
+    "failed_to_fetch_today_task_data": "Không thể tải dữ liệu công việc hôm nay",
+    "error_loading_organization_analytics": "Lỗi khi tải dữ liệu phân tích tổ chức:",
+    "today_agenda_tooltip": "Lịch trình hôm nay",
+    "dashboard_settings_tooltip": "Cài đặt bảng điều khiển",
+    "dashboard_title": "Bảng điều khiển",
+    "dashboard_description": "Thông tin chi tiết toàn diện về hiệu suất và tình trạng tổ chức của bạn",
+    "no_analytics_data": "Không có dữ liệu phân tích nào cho tổ chức này.",
+    "load_data_button": "Tải dữ liệu",
+    "no_widgets_title": "Không có widget nào để hiển thị",
+    "no_widgets_description": "Tất cả widget hiện đang bị ẩn. Bấm nút tùy chỉnh để hiển thị lại.",
+    "show_all_widgets_button": "Hiện tất cả widget",
+    "failed_to_load_widget_data": "Không thể tải dữ liệu cho {{widgetTitle}}",
+    "retry_button": "Thử lại",
+    "kpi_cards": {
+      "workspaces": "Tổng Workspace",
+      "projects": "Tổng dự án",
+      "members": "Thành viên nhóm",
+      "task_completion": "Hoàn thành công việc",
+      "bug_resolution": "Xử lý lỗi (Bug)",
+      "overdue_tasks": "Công việc quá hạn",
+      "active_sprints": "Sprint đang chạy",
+      "productivity": "Năng suất tổng thể",
+      "descriptions": {
+        "active_status": "{{count}} đang hoạt động",
+        "organization_members": "Thành viên tổ chức",
+        "tasks_count": "{{completed}} / {{total}} công việc",
+        "resolved_count": "{{resolved}} / {{total}} lỗi đã sửa",
+        "require_attention": "Cần lưu ý ngay",
+        "currently_running": "Đang diễn ra",
+        "task_completion_rate": "Tỷ lệ hoàn thành công việc"
+      }
+    }
+  },
+  "agenda": {
+    "overdue": "Quá hạn",
+    "today": "Hôm nay",
+    "tomorrow": "Ngày mai",
+    "due": "Hạn chót",
+    "no_due_date": "Không có hạn",
+    "all_clear": "Hôm nay đã hoàn thành hết!",
+    "no_tasks_scheduled": "Không có công việc nào theo lịch. Bạn đã làm xong mọi thứ!",
+    "great_job": "Tuyệt vời! Bạn đang duy trì tiến độ rất tốt!",
+    "open_task": "Mở công việc: {{title}}",
+    "click_to_view": "Nhấp để xem chi tiết công việc"
+  }
+}

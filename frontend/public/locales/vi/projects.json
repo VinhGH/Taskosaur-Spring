@@ -1,0 +1,141 @@
+{
+  "title": "Dự án của bạn",
+  "description": "Quản lý và sắp xếp các dự án trong tổ chức này.",
+  "search_placeholder": "Tìm kiếm dự án...",
+  "advanced_filters": "Bộ lọc nâng cao",
+  "filter_placeholder": "Lọc dự án...",
+  "create_project": "Tạo dự án",
+  "no_projects_found": "Không tìm thấy dự án nào",
+  "no_projects_match": "Không có dự án nào khớp với tiêu chí tìm kiếm và bộ lọc. Hãy thử điều chỉnh lại.",
+  "clear_filters": "Xóa bộ lọc",
+  "empty_state_title": "Chưa có dự án nào",
+  "empty_state_description": "Tạo dự án đầu tiên để bắt đầu sắp xếp công việc và cộng tác cùng nhóm của bạn.",
+  "tasks_count": "Số lượng công việc",
+  "start_date": "Ngày bắt đầu",
+  "load_more": "Tải thêm",
+  "loading": "Đang tải...",
+  "showing_projects_one": "Hiển thị {{count}} dự án",
+  "showing_projects_other": "Hiển thị {{count}} dự án",
+  "matching": " khớp với \"{{query}}\"",
+  "with_filters_one": " với {{count}} bộ lọc được áp dụng",
+  "with_filters_other": " với {{count}} bộ lọc được áp dụng",
+  "status": {
+    "active": "Đang hoạt động",
+    "planning": "Lập kế hoạch",
+    "on_hold": "Tạm dừng",
+    "completed": "Đã hoàn thành"
+  },
+  "priority": {
+    "title": "Độ ưu tiên"
+  },
+  "messages": {
+    "created_success": "Tạo dự án thành công!",
+    "refresh_failed": "Đã tạo dự án nhưng không thể làm mới danh sách",
+    "load_failed": "Tải danh sách dự án thất bại",
+    "auth_required": "Yêu cầu xác thực. Vui lòng đăng nhập lại."
+  },
+  "modal": {
+    "createTitle": "Tạo dự án mới",
+    "createDescription": "Sắp xếp công việc và cộng tác cùng nhóm của bạn",
+    "tryAgain": "Thử lại",
+    "projectName": "Tên dự án",
+    "enterProjectName": "Nhập tên dự án",
+    "url": "URL:",
+    "urlWorkspace": "workspace",
+    "urlProject": "ten-du-an",
+    "workflow": "Quy trình làm việc",
+    "searchWorkflows": "Tìm quy trình...",
+    "noWorkflowsFound": "Không tìm thấy quy trình nào.",
+    "typeToSearchWorkflows": "Nhập để tìm kiếm quy trình",
+    "selectWorkflow": "Chọn quy trình",
+    "workflowHint": "Chọn một quy trình làm việc cho các bước xử lý của dự án.",
+    "visibility": "Quyền xem",
+    "selectVisibility": "Chọn quyền xem",
+    "noVisibilityOptions": "Không có tùy chọn quyền xem nào.",
+    "visibilityHint": "Kiểm soát ai có thể truy cập dự án này.",
+    "workspace": "Không gian làm việc",
+    "loadingWorkspaces": "Đang tải danh sách workspace...",
+    "selectWorkspace": "Chọn workspace",
+    "searchWorkspaces": "Tìm workspace...",
+    "noWorkspacesFound": "Không tìm thấy workspace nào.",
+    "typeToSearchWorkspaces": "Nhập để tìm workspace",
+    "workspaceHint": "Dự án sẽ được tạo trong không gian làm việc này.",
+    "description": "Mô tả",
+    "descriptionPlaceholder": "Mô tả mục tiêu của dự án này...",
+    "descriptionHint": "Giúp nhóm của bạn hiểu rõ mục tiêu và phạm vi của dự án.",
+    "projectColors": "Màu sắc dự án",
+    "selectCategory": "Chọn danh mục",
+    "noCategoriesFound": "Không tìm thấy danh mục nào.",
+    "categoryHint": "Chọn một danh mục để dễ dàng phân loại và nhận biết dự án.",
+    "cancel": "Hủy",
+    "create": "Tạo dự án",
+    "creating": "Đang tạo dự án...",
+    "success": "Dự án \"{{name}}\" đã được tạo thành công!",
+    "errorLoadWorkspaces": "Không thể tải danh sách workspace",
+    "errorCreate": "Tạo dự án thất bại",
+    "visibilityOptions": {
+      "PRIVATE": {
+        "label": "Riêng tư",
+        "description": "Chỉ thành viên được mời mới có thể truy cập"
+      },
+      "INTERNAL": {
+        "label": "Nội bộ",
+        "description": "Thành viên workspace có thể xem, thành viên dự án có thể chỉnh sửa"
+      },
+      "PUBLIC": {
+        "label": "Công khai",
+        "description": "Mọi người đều có thể xem, thành viên dự án có thể chỉnh sửa"
+      }
+    }
+  },
+  "categories": {
+    "operational": {
+      "label": "Vận hành",
+      "description": "Vận hành và bảo trì hàng ngày"
+    },
+    "technical": {
+      "label": "Kỹ thuật",
+      "description": "Các dự án phát triển và kỹ thuật"
+    },
+    "strategic": {
+      "label": "Chiến lược",
+      "description": "Lập kế hoạch và chiến lược dài hạn"
+    },
+    "hiring": {
+      "label": "Tuyển dụng",
+      "description": "Tuyển dụng và xây dựng đội ngũ"
+    },
+    "financial": {
+      "label": "Tài chính",
+      "description": "Ngân sách và kế hoạch tài chính"
+    },
+    "neutral": {
+      "label": "Chung",
+      "description": "Dự án thông thường hoặc chưa phân loại"
+    },
+    "innovation": {
+      "label": "Đổi mới sáng tạo",
+      "description": "Các sáng kiến sáng tạo và đổi mới"
+    },
+    "community": {
+      "label": "Cộng đồng",
+      "description": "Các hoạt động tương tác và cộng đồng"
+    },
+    "sustainability": {
+      "label": "Bền vững",
+      "description": "Các dự án môi trường và phát triển bền vững"
+    },
+    "marketing": {
+      "label": "Tiếp thị",
+      "description": "Chiến dịch tiếp thị và truyền thông"
+    },
+    "research": {
+      "label": "Nghiên cứu",
+      "description": "Các dự án nghiên cứu và phân tích"
+    },
+    "growth": {
+      "label": "Tăng trưởng",
+      "description": "Các sáng kiến tăng trưởng và mở rộng"
+    }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "project_analytics_title": "Phân tích dự án",
+  "project_analytics_description": "Thông tin chi tiết về hiệu suất dự án và năng suất làm việc của nhóm",
+  "kpi_metrics": "Chỉ số KPI",
+  "chart_widgets": "Biểu đồ trực quan",
+  "dashboard_settings": "Cài đặt bảng điều khiển",
+  "customize_widgets": "Tùy chỉnh widget trên bảng điều khiển",
+  "no_widgets_title": "Không có widget nào để hiển thị",
+  "no_widgets_description": "Tất cả widget hiện đang bị ẩn. Bấm nút tùy chỉnh để hiển thị widget.",
+  "show_all_widgets": "Hiện tất cả widget",
+  "no_data_available": "Không có dữ liệu phân tích nào cho dự án này.",
+  "load_data": "Tải dữ liệu",
+  "no_settings_available": "Không có cài đặt nào",
+  "unknown": "Không xác định",
+  "na": "N/A",
+  "charts": {
+    "task_status_flow": {
+      "title": "Luồng trạng thái công việc",
+      "description": "Phân bổ công việc hiện tại theo trạng thái"
+    },
+    "task_type_distribution": {
+      "title": "Phân bổ loại công việc",
+      "description": "Các loại công việc trong dự án này",
+      "types": {
+        "story": "Story",
+        "task": "Task (Nhiệm vụ)",
+        "bug": "Bug (Lỗi)",
+        "epic": "Epic (Chủ đề lớn)",
+        "feature": "Feature (Tính năng)"
+      }
+    },
+    "task_priority_distribution": {
+      "title": "Phân bổ độ ưu tiên công việc",
+      "description": "Phân loại độ ưu tiên của các công việc trong dự án",
+      "count": "Số lượng",
+      "priorities": {
+        "lowest": "Rất thấp",
+        "low": "Thấp",
+        "medium": "Trung bình",
+        "high": "Cao",
+        "highest": "Khẩn cấp"
+      }
+    },
+    "sprint_velocity_trend": {
+      "title": "Xu hướng vận tốc Sprint",
+      "description": "Story points hoàn thành theo từng sprint",
+      "story_points": "Story Points",
+      "average_velocity": "Vận tốc trung bình",
+      "no_sprints": "Chưa có sprint nào hoàn thành trong dự án này"
+    }
+  },
+  "kpi": {
+    "total_tasks": {
+      "title": "Tổng số công việc",
+      "label": "Công việc",
+      "description": "Tất cả công việc trong dự án"
+    },
+    "completed_tasks": {
+      "title": "Công việc đã hoàn thành",
+      "label": "Đã hoàn thành",
+      "description": "Đã xử lý xong"
+    },
+    "active_sprints": {
+      "title": "Sprint đang chạy",
+      "label": "Sprint đang chạy",
+      "description": "Đang diễn ra"
+    },
+    "bug_resolution": {
+      "title": "Xử lý lỗi (Bug)",
+      "label": "Xử lý lỗi",
+      "description": "Đã sửa {{resolved}}/{{total}} lỗi"
+    },
+    "task_completion": {
+      "title": "Hoàn thành công việc",
+      "label": "Tiến độ hoàn thành",
+      "description": "Tiến độ tổng thể"
+    },
+    "open_bugs": {
+      "title": "Lỗi chưa sửa",
+      "label": "Lỗi đang mở",
+      "description": "Cần xử lý"
+    }
+  }
+}

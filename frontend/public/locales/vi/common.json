@@ -1,0 +1,37 @@
+{
+  "save": "Lưu",
+  "cancel": "Hủy",
+  "back": "Quay lại",
+  "delete": "Xóa",
+  "continue": "Tiếp tục",
+  "confirm": "Xác nhận",
+  "error": "Lỗi",
+  "success": "Thành công",
+  "minutes": "{{count}} phút",
+  "minutes_plural": "{{count}} phút",
+  "priorities": {
+    "lowest": "Rất thấp",
+    "low": "Thấp",
+    "medium": "Trung bình",
+    "high": "Cao",
+    "highest": "Khẩn cấp"
+  },
+  "invite": {
+    "invalidTitle": "Lời mời không hợp lệ",
+    "invalidMessage": "Liên kết lời mời không hợp lệ hoặc đã hết hạn",
+    "whyHappened": "Tại sao điều này xảy ra?",
+    "reasonExpired": "Liên kết lời mời có thể đã hết hạn",
+    "reasonEmail": "Lời mời có thể đã được gửi tới email khác",
+    "reasonUsed": "Lời mời đã được sử dụng hoặc bị thu hồi",
+    "logout": "Đăng xuất và đổi tài khoản",
+    "login": "Quay lại đăng nhập",
+    "home": "Về trang chủ"
+  },
+  "pagination": {
+    "showing": "Hiển thị",
+    "to": "đến",
+    "of": "trên",
+    "page": "Trang",
+    "items": "mục"
+  }
+}

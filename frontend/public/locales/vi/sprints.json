@@ -1,0 +1,141 @@
+{
+  "title": "Quản lý Sprint",
+  "description": "Tổ chức công việc thành các chu kỳ tập trung và theo dõi tiến độ hiệu quả.",
+  "createSprint": "Tạo Sprint",
+  "noSprints": {
+    "title": "Chưa có Sprint nào",
+    "description": "Tạo sprint đầu tiên để bắt đầu tổ chức công việc thành các chu kỳ tập trung."
+  },
+  "deleteSprint": {
+    "title": "Xóa Sprint",
+    "message": "Bạn có chắc chắn muốn xóa sprint \"{{name}}\" không? Thao tác này không thể hoàn tác.",
+    "confirm": "Xóa",
+    "deleting": "Đang xóa...",
+    "cancel": "Hủy"
+  },
+  "errors": {
+    "workspaceNotFound": "Không tìm thấy workspace",
+    "projectNotFound": "Không tìm thấy dự án",
+    "loadingProjectError": "Lỗi khi tải dữ liệu dự án",
+    "loadingPageError": "Lỗi khi tải dữ liệu trang",
+    "fetchingProjectError": "Lỗi khi lấy thông tin dự án",
+    "fetchTasksFailed": "Không thể tải danh sách công việc"
+  },
+  "sprintTasks": {
+    "title": "Công việc trong Sprint",
+    "description": "Quản lý và theo dõi tất cả công việc trong sprint này. Tổng cộng {{total}} công việc",
+    "searchPlaceholder": "Tìm kiếm công việc..."
+  },
+  "card": {
+    "noDates": "Chưa đặt ngày",
+    "days": "{{count}} ngày",
+    "completeSprint": "Hoàn thành Sprint",
+    "editSprint": "Sửa Sprint",
+    "deleteSprint": "Xóa Sprint"
+  },
+  "form": {
+    "editTitle": "Chỉnh sửa Sprint",
+    "createTitle": "Tạo Sprint mới",
+    "editDescription": "Cập nhật thông tin và thời gian của sprint",
+    "createDescription": "Tạo sprint mới để tổ chức công việc thành các chu kỳ rõ ràng",
+    "nameLabel": "Tên Sprint",
+    "namePlaceholder": "Nhập tên sprint",
+    "goalLabel": "Mục tiêu Sprint",
+    "goalPlaceholder": "Mô tả mục tiêu chính và kết quả mong đợi của sprint này...",
+    "goalHint": "Giúp nhóm hiểu rõ trọng tâm và kết quả kỳ vọng của sprint.",
+    "statusLabel": "Trạng thái",
+    "statusPlaceholder": "Chọn trạng thái",
+    "startDateLabel": "Ngày bắt đầu",
+    "endDateLabel": "Ngày kết thúc",
+    "cancel": "Hủy",
+    "update": "Cập nhật",
+    "create": "Tạo mới",
+    "updating": "Đang cập nhật...",
+    "creating": "Đang tạo sprint...",
+    "statuses": {
+      "planning": "Lập kế hoạch",
+      "active": "Đang chạy",
+      "completed": "Đã hoàn thành",
+      "cancelled": "Đã hủy"
+    },
+    "validation": {
+      "nameRequired": "Vui lòng nhập tên sprint",
+      "startDateRequired": "Vui lòng chọn ngày bắt đầu",
+      "endDateRequired": "Vui lòng chọn ngày kết thúc",
+      "endDateAfterStart": "Ngày kết thúc phải sau ngày bắt đầu"
+    },
+    "saveFailed": "Lưu sprint thất bại"
+  },
+  "board": {
+    "loading": "Đang tải...",
+    "invalidDate": "Ngày không hợp lệ",
+    "noSprintSelected": "Chưa chọn Sprint",
+    "selectSprintToView": "Vui lòng chọn một sprint để xem bảng",
+    "noSprintSelectedSubtitle": "Vui lòng chọn sprint từ menu phía trên để xem tiến độ.",
+    "tasks": "công việc",
+    "points": "điểm",
+    "startSprint": "Bắt đầu Sprint",
+    "completeSprint": "Hoàn thành Sprint",
+    "tasksCompleted": "Công việc đã hoàn thành",
+    "storyPoints": "Story Points",
+    "completionRate": "Tỷ lệ hoàn thành",
+    "statuses": {
+      "sprintBacklog": "Sprint Backlog",
+      "inProgress": "Đang thực hiện",
+      "testing": "Đang kiểm thử",
+      "done": "Hoàn thành"
+    }
+  },
+  "selector": {
+    "noActiveSprint": "Không có Sprint đang hoạt động",
+    "noSprintsAvailable": "Chưa có sprint nào",
+    "createFirstSprint": "Tạo sprint đầu tiên của bạn"
+  },
+  "progress": {
+    "title": "Tiến độ Sprint",
+    "timeline": "Thời gian Sprint",
+    "daysRemaining": "Còn lại {{count}} ngày",
+    "sprintEnded": "Sprint đã kết thúc",
+    "complete": "hoàn thành",
+    "timeSpent": "Thời gian đã dùng",
+    "estimated": "ước tính",
+    "tasksComplete": "Công việc hoàn thành",
+    "inProgress": "đang thực hiện",
+    "velocity": "Vận tốc (Velocity)",
+    "storyPointsPerDay": "Story points mỗi ngày",
+    "capacity": "Dung lượng (Capacity)",
+    "burndown": "Biểu đồ Burndown",
+    "burndownPlaceholder": "Biểu đồ Burndown sẽ được hiển thị ở đây",
+    "quickActions": "Thao tác nhanh",
+    "viewReport": "Xem báo cáo Sprint",
+    "exportData": "Xuất dữ liệu"
+  },
+  "planning": {
+    "title": "Lập kế hoạch Sprint",
+    "selectSprint": "Chọn sprint",
+    "selectSprintToPlan": "Vui lòng chọn một sprint từ menu trên để bắt đầu lập kế hoạch.",
+    "saveChanges": "Lưu thay đổi",
+    "startSprint": "Bắt đầu Sprint",
+    "goal": "Mục tiêu Sprint",
+    "noGoal": "Chưa đặt mục tiêu",
+    "duration": "Thời lượng",
+    "noDates": "Chưa đặt ngày",
+    "capacity": "Dung lượng",
+    "hours": "giờ",
+    "productBacklog": "Product Backlog",
+    "tasks": "công việc",
+    "sp": "SP",
+    "noTasksInBacklog": "Không có công việc nào trong backlog",
+    "sprintBacklog": "Sprint Backlog",
+    "dragTasksHere": "Kéo công việc vào đây để thêm vào sprint",
+    "clickToMove": "Nhấp vào công việc để chuyển đổi giữa backlog và sprint",
+    "summary": "Tổng kết Sprint",
+    "estimatedTime": "Thời gian ước tính"
+  },
+  "tasksPanel": {
+    "title": "Công việc trong Sprint",
+    "tasks": "công việc",
+    "errorNoOrg": "Chưa chọn tổ chức. Vui lòng chọn tổ chức trước.",
+    "fetchFailed": "Tải danh sách công việc thất bại"
+  }
+}

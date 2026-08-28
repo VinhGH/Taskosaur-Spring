@@ -31,6 +31,7 @@ export default function LanguageSection() {
 
   const languages = [
     { code: "en", name: "English" },
+    { code: "vi", name: "Tiếng Việt" },
     { code: "es", name: "Español" },
     { code: "fr", name: "Français" },
     { code: "pt", name: "Português" },
