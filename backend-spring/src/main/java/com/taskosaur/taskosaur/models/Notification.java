@@ -37,7 +37,7 @@ public class Notification {
     @Builder.Default
     private NotificationPriority priority = NotificationPriority.MEDIUM;
 
-    @Column(name = "is_read")
+    @Column(name = "\"isRead\"")
     @Builder.Default
     private Boolean isRead = false;
 

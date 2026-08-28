@@ -9,7 +9,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +48,74 @@ public class ActivityLogService {
         return activityLogRepository.findByOrganizationIdOrderByCreatedAtDesc(organizationId).stream()
                 .map(this::buildResponse)
                 .toList();
+    }
+
+    public Map<String, Object> getRecentActivityByOrganization(String organizationId, int limit, int page, String entityType, String userId) {
+        List<ActivityLog> all = activityLogRepository.findByOrganizationIdOrderByCreatedAtDesc(organizationId);
+        if (entityType != null && !entityType.isBlank()) {
+            all = all.stream().filter(a -> entityType.equalsIgnoreCase(a.getEntityType())).toList();
+        }
+        if (userId != null && !userId.isBlank()) {
+            all = all.stream().filter(a -> userId.equals(a.getUserId())).toList();
+        }
+
+        int totalCount = all.size();
+        int totalPages = totalCount > 0 ? (int) Math.ceil((double) totalCount / limit) : 0;
+        int skip = (page - 1) * limit;
+        List<ActivityLogResponse> paged = all.stream()
+                .skip(Math.max(0, skip))
+                .limit(limit)
+                .map(this::buildResponse)
+                .toList();
+
+        Map<String, Object> pagination = new HashMap<>();
+        pagination.put("currentPage", page);
+        pagination.put("totalPages", totalPages);
+        pagination.put("totalCount", totalCount);
+        pagination.put("hasNextPage", page < totalPages);
+        pagination.put("hasPrevPage", page > 1);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("activities", paged);
+        result.put("pagination", pagination);
+        return result;
+    }
+
+    public Map<String, Object> getOrganizationStats(String organizationId, int days) {
+        LocalDateTime cutoff = LocalDateTime.now(ZoneOffset.UTC).minusDays(Math.max(1, days));
+        List<ActivityLog> all = activityLogRepository.findByOrganizationIdOrderByCreatedAtDesc(organizationId).stream()
+                .filter(a -> a.getCreatedAt() != null && a.getCreatedAt().isAfter(cutoff))
+                .toList();
+        Map<String, Object> result = new HashMap<>();
+        result.put("totalActivities", all.size());
+        result.put("activitiesByType", Map.of());
+        result.put("activitiesByUser", List.of());
+        result.put("activitiesByDate", List.of());
+        return result;
+    }
+
+    public Map<String, Object> getTaskActivities(String taskId, int limit, int page) {
+        List<ActivityLog> all = activityLogRepository.findByEntityIdOrderByCreatedAtDesc(taskId);
+        int totalCount = all.size();
+        int totalPages = totalCount > 0 ? (int) Math.ceil((double) totalCount / limit) : 0;
+        int skip = (page - 1) * limit;
+        List<ActivityLogResponse> paged = all.stream()
+                .skip(Math.max(0, skip))
+                .limit(limit)
+                .map(this::buildResponse)
+                .toList();
+
+        Map<String, Object> pagination = new HashMap<>();
+        pagination.put("currentPage", page);
+        pagination.put("totalPages", totalPages);
+        pagination.put("totalCount", totalCount);
+        pagination.put("hasNextPage", page < totalPages);
+        pagination.put("hasPrevPage", page > 1);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("activities", paged);
+        result.put("pagination", pagination);
+        return result;
     }
 
     private ActivityLogResponse buildResponse(ActivityLog log) {

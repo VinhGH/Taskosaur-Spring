@@ -43,6 +43,51 @@ public class WorkspaceController {
         return ResponseEntity.ok(List.of());
     }
 
+    // GET /api/workspaces/tree?organizationId=...
+    @GetMapping("/tree")
+    public ResponseEntity<List<Workspace>> getWorkspaceTree(
+            @RequestParam(name = "organizationId", required = false) String organizationId) {
+        if (organizationId != null && !organizationId.isBlank()) {
+            return ResponseEntity.ok(workspaceService.getWorkspacesByOrganization(organizationId));
+        }
+        return ResponseEntity.ok(List.of());
+    }
+
+    // GET /api/workspaces/search
+    @GetMapping("/search")
+    public ResponseEntity<List<Workspace>> searchWorkspaces(
+            @RequestParam(name = "organizationId", required = false) String organizationId) {
+        if (organizationId != null && !organizationId.isBlank()) {
+            return ResponseEntity.ok(workspaceService.getWorkspacesByOrganization(organizationId));
+        }
+        return ResponseEntity.ok(List.of());
+    }
+
+    // GET /api/workspaces/archived
+    @GetMapping("/archived")
+    public ResponseEntity<List<Workspace>> getArchivedWorkspaces(
+            @RequestParam(name = "organizationId", required = false) String organizationId) {
+        return ResponseEntity.ok(List.of());
+    }
+
+    // GET /api/workspaces/recent/{workspaceId}
+    @GetMapping("/recent/{workspaceId}")
+    public ResponseEntity<java.util.Map<String, Object>> getRecentActivities(
+            @PathVariable("workspaceId") String workspaceId,
+            @RequestParam(name = "limit", defaultValue = "10") int limit,
+            @RequestParam(name = "page", defaultValue = "1") int page) {
+        return ResponseEntity.ok(java.util.Map.of(
+                "activities", List.of(),
+                "pagination", java.util.Map.of(
+                        "currentPage", page,
+                        "totalPages", 0,
+                        "totalCount", 0,
+                        "hasNextPage", false,
+                        "hasPrevPage", false
+                )
+        ));
+    }
+
     // GET /api/workspaces/{id} -> Lấy chi tiết 1 workspace
     @GetMapping("/{id}")
     public ResponseEntity<Workspace> getById(@PathVariable("id") String id) {
@@ -87,5 +132,31 @@ public class WorkspaceController {
             @PathVariable("organizationId") String organizationId,
             @PathVariable("slug") String slug) {
         return ResponseEntity.ok(workspaceService.getWorkspaceBySlug(organizationId, slug));
+    }
+
+    @GetMapping("/organization/{organizationId}/workspace/{slug}/charts")
+    public ResponseEntity<java.util.Map<String, Object>> getWorkspaceCharts(
+            @PathVariable("organizationId") String organizationId,
+            @PathVariable("slug") String slug,
+            @RequestParam(name = "types", required = false) List<String> types) {
+        java.util.Map<String, Object> charts = new java.util.HashMap<>();
+        charts.put("kpi-metrics", java.util.Map.of(
+                "totalProjects", 0,
+                "activeProjects", 0,
+                "completionRate", 0,
+                "totalTasks", 0,
+                "completedTasks", 0,
+                "taskCompletionRate", 0,
+                "activeSprints", 0
+        ));
+        charts.put("project-status", List.of());
+        charts.put("task-priority", List.of());
+        charts.put("task-type", List.of());
+        charts.put("sprint-status", List.of());
+        charts.put("monthly-completion", List.of());
+        charts.put("workspace-activity", List.of());
+        charts.put("member-workload", List.of());
+        charts.put("resource-allocation", List.of());
+        return ResponseEntity.ok(charts);
     }
 }

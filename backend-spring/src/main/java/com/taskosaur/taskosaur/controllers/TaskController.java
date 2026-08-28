@@ -12,12 +12,19 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/tasks")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "http://localhost:3001", allowCredentials = "true")
 public class TaskController {
+
+    private static final String KEY_DATA = "data";
+    private static final String KEY_TOTAL = "total";
+    private static final String KEY_PAGE = "page";
+    private static final String KEY_LIMIT = "limit";
+    private static final String KEY_TOTAL_PAGES = "totalPages";
 
     private final TaskService taskService;
 
@@ -32,23 +39,72 @@ public class TaskController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TaskResponse>> getTasks(
-            @RequestParam(name = "projectId", required = false) String projectId
+    public ResponseEntity<Map<String, Object>> getTasks(
+            @RequestParam(name = "organizationId", required = false) String organizationId,
+            @RequestParam(name = "workspaceId", required = false) String workspaceId,
+            @RequestParam(name = "projectId", required = false) String projectId,
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "limit", defaultValue = "10") int limit
     ) {
         if (projectId != null && !projectId.isBlank()) {
-            return ResponseEntity.ok(taskService.getTasksByProject(projectId));
+            List<TaskResponse> list = taskService.getTasksByProject(projectId);
+            return ResponseEntity.ok(Map.of(
+                    KEY_DATA, list,
+                    KEY_TOTAL, list.size(),
+                    KEY_PAGE, page,
+                    KEY_LIMIT, limit,
+                    KEY_TOTAL_PAGES, 1
+            ));
         }
-        return ResponseEntity.ok(List.of());
+        return ResponseEntity.ok(Map.of(
+                KEY_DATA, List.of(),
+                KEY_TOTAL, 0,
+                KEY_PAGE, page,
+                KEY_LIMIT, limit,
+                KEY_TOTAL_PAGES, 1
+        ));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<TaskResponse> getById(@PathVariable String id) {
-        return ResponseEntity.ok(taskService.getTaskById(id));
+    @GetMapping("/calendar")
+    public ResponseEntity<Map<String, Object>> getCalendarTasks(
+            @RequestParam(name = "organizationId", required = false) String organizationId,
+            @RequestParam(name = "workspaceId", required = false) String workspaceId,
+            @RequestParam(name = "projectId", required = false) String projectId,
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "limit", defaultValue = "10") int limit
+    ) {
+        return ResponseEntity.ok(Map.of(
+                KEY_DATA, List.of(),
+                KEY_TOTAL, 0,
+                KEY_PAGE, page,
+                KEY_LIMIT, limit,
+                KEY_TOTAL_PAGES, 1
+        ));
+    }
+
+    @GetMapping("/today")
+    public ResponseEntity<Map<String, Object>> getTodayTasks(
+            @RequestParam(name = "organizationId", required = false) String organizationId,
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "limit", defaultValue = "10") int limit
+    ) {
+        return ResponseEntity.ok(Map.of(
+                "tasks", List.of(),
+                KEY_TOTAL, 0,
+                KEY_PAGE, page,
+                KEY_LIMIT, limit,
+                KEY_TOTAL_PAGES, 1
+        ));
     }
 
     @GetMapping("/slug/{slug}")
     public ResponseEntity<TaskResponse> getBySlug(@PathVariable String slug) {
         return ResponseEntity.ok(taskService.getTaskBySlug(slug));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<TaskResponse> getById(@PathVariable String id) {
+        return ResponseEntity.ok(taskService.getTaskById(id));
     }
 
     @PatchMapping("/{id}/status")

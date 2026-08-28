@@ -37,17 +37,18 @@ public class TaskStatusController {
     }
 
     /**
-     * GET /api/task-statuses?workflowId={workflowId}
-     * Lấy danh sách trạng thái theo workflow.
+     * GET /api/task-statuses?workflowId={workflowId}&organizationId={organizationId}
+     * Lấy danh sách trạng thái theo workflow hoặc tất cả.
      */
     @GetMapping
-    public ResponseEntity<List<TaskStatus>> getStatusesByWorkflow(
-            @RequestParam(name = "workflowId", required = false) String workflowId
+    public ResponseEntity<List<TaskStatus>> getStatuses(
+            @RequestParam(name = "workflowId", required = false) String workflowId,
+            @RequestParam(name = "organizationId", required = false) String organizationId
     ) {
         if (workflowId != null && !workflowId.isBlank()) {
             return ResponseEntity.ok(taskStatusRepository.findByWorkflowIdOrderByPositionAsc(workflowId));
         }
-        return ResponseEntity.ok(List.of());
+        return ResponseEntity.ok(taskStatusRepository.findAll());
     }
 
     /**

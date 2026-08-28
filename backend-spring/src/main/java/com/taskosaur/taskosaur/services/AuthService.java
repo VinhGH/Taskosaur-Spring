@@ -33,9 +33,9 @@ public class AuthService {
     }
 
     public Map<String, Object> isSetupRequired() {
-        boolean hasSuperAdmin = userRepository.existsByRole(Role.SUPER_ADMIN);
+        long userCount = userRepository.count();
 
-        if (!hasSuperAdmin) {
+        if (userCount == 0) {
             return Map.of(
                     "required", true,
                     "canSetup", true,
@@ -139,6 +139,27 @@ public class AuthService {
                 .refreshToken(refreshToken)
                 .user(savedUser)
                 .message("User registered successfully")
+                .build();
+    }
+
+    public AuthResponse refreshToken(String token) {
+        if (token == null || token.isBlank() || !jwtService.isTokenValid(token)) {
+            throw new UnauthorizedException("Invalid refresh token");
+        }
+        String userId = jwtService.extractUserId(token);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UnauthorizedException("User not found"));
+
+        String newAccessToken = jwtService.generateAccessToken(user);
+        String newRefreshToken = jwtService.generateRefreshToken(user);
+        user.setRefreshToken(newRefreshToken);
+        userRepository.save(user);
+
+        return AuthResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
+                .user(user)
+                .message("Token refreshed successfully")
                 .build();
     }
 }

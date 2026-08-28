@@ -29,8 +29,13 @@ public class JwtService {
         if (secretKey == null || secretKey.isBlank()) {
             return defaultKey;
         }
-        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
-        return Keys.hmacShaKeyFor(keyBytes);
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] keyBytes = md.digest(secretKey.getBytes(StandardCharsets.UTF_8));
+            return Keys.hmacShaKeyFor(keyBytes);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            return defaultKey;
+        }
     }
 
     public String generateAccessToken(User user) {

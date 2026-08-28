@@ -1,6 +1,7 @@
 package com.taskosaur.taskosaur.controllers;
 
 import com.taskosaur.taskosaur.dto.ai.*;
+import com.taskosaur.taskosaur.exceptions.UnauthorizedException;
 import com.taskosaur.taskosaur.services.AiChatService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,8 +21,18 @@ public class AiChatController {
 
     private final AiChatService aiChatService;
 
+    private String getUserId(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new UnauthorizedException("Unauthorized");
+        }
+        return authentication.getName();
+    }
+
     @GetMapping("/conversations")
     public ResponseEntity<List<ConversationResponseDto>> getConversations(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.ok(List.of());
+        }
         String userId = authentication.getName();
         return ResponseEntity.ok(aiChatService.getConversations(userId));
     }
@@ -31,7 +42,7 @@ public class AiChatController {
             Authentication authentication,
             @RequestBody(required = false) CreateConversationDto dto
     ) {
-        String userId = authentication.getName();
+        String userId = getUserId(authentication);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(aiChatService.createConversation(userId, dto));
     }
@@ -42,7 +53,7 @@ public class AiChatController {
             @PathVariable String id,
             @Valid @RequestBody RenameConversationDto dto
     ) {
-        String userId = authentication.getName();
+        String userId = getUserId(authentication);
         return ResponseEntity.ok(aiChatService.renameConversation(userId, id, dto));
     }
 
@@ -51,7 +62,7 @@ public class AiChatController {
             Authentication authentication,
             @PathVariable String id
     ) {
-        String userId = authentication.getName();
+        String userId = getUserId(authentication);
         aiChatService.deleteConversation(userId, id);
         return ResponseEntity.noContent().build();
     }
@@ -62,7 +73,7 @@ public class AiChatController {
             @PathVariable String id,
             @Valid @RequestBody UpdateMessagesDto dto
     ) {
-        String userId = authentication.getName();
+        String userId = getUserId(authentication);
         return ResponseEntity.ok(aiChatService.updateMessages(userId, id, dto));
     }
 
@@ -96,7 +107,7 @@ public class AiChatController {
             Authentication authentication,
             @PathVariable String sessionId
     ) {
-        String userId = authentication.getName();
+        String userId = getUserId(authentication);
         return ResponseEntity.ok(aiChatService.clearContext(userId, sessionId));
     }
 }

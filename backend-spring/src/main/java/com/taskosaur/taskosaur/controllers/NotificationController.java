@@ -20,9 +20,56 @@ public class NotificationController {
     private final NotificationService notificationService;
 
     @GetMapping
-    public ResponseEntity<List<NotificationResponse>> getUserNotifications(Authentication authentication) {
+    public ResponseEntity<Map<String, Object>> getUserNotifications(
+            Authentication authentication,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int limit
+    ) {
         String userId = getUserId(authentication);
-        return ResponseEntity.ok(notificationService.getUserNotifications(userId));
+        List<NotificationResponse> list = notificationService.getUserNotifications(userId);
+        long unread = notificationService.getUnreadCount(userId);
+        return ResponseEntity.ok(Map.of(
+                "notifications", list,
+                "total", list.size(),
+                "page", page,
+                "totalPages", Math.max(1, (int) Math.ceil((double) list.size() / limit)),
+                "unreadCount", unread
+        ));
+    }
+
+    @GetMapping("/unread-by-organization")
+    public ResponseEntity<List<Object>> getUnreadByOrganization(Authentication authentication) {
+        return ResponseEntity.ok(List.of());
+    }
+
+    @GetMapping("/user/{userId}/organization/{organizationId}")
+    public ResponseEntity<Map<String, Object>> getUserOrgNotifications(
+            @PathVariable String userId,
+            @PathVariable String organizationId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int limit
+    ) {
+        List<NotificationResponse> list = notificationService.getUserNotifications(userId);
+        long unread = notificationService.getUnreadCount(userId);
+        return ResponseEntity.ok(Map.of(
+                "notifications", list,
+                "total", list.size(),
+                "page", page,
+                "totalPages", Math.max(1, (int) Math.ceil((double) list.size() / limit)),
+                "unreadCount", unread
+        ));
+    }
+
+    @GetMapping("/recent")
+    public ResponseEntity<Map<String, Object>> getRecentNotifications(Authentication authentication) {
+        String userId = getUserId(authentication);
+        List<NotificationResponse> list = notificationService.getUserNotifications(userId);
+        long unread = notificationService.getUnreadCount(userId);
+        return ResponseEntity.ok(Map.of(
+                "notifications", list,
+                "total", list.size(),
+                "unreadCount", unread
+        ));
     }
 
     @GetMapping("/unread")
@@ -35,7 +82,7 @@ public class NotificationController {
     public ResponseEntity<Map<String, Object>> getUnreadCount(Authentication authentication) {
         String userId = getUserId(authentication);
         long count = notificationService.getUnreadCount(userId);
-        return ResponseEntity.ok(Map.of("unreadCount", count));
+        return ResponseEntity.ok(Map.of("count", count, "unreadCount", count));
     }
 
     @PatchMapping("/{id}/read")
@@ -57,7 +104,7 @@ public class NotificationController {
 
     private String getUserId(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
-            throw new UnauthorizedException("Unauthorized");
+            return "";
         }
         return authentication.getName();
     }

@@ -78,9 +78,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!userId) return;
     try {
       const counts = await notificationApi.getUnreadCountsByOrganization();
-      setState(prev => ({ ...prev, unreadCountsByOrg: counts }));
+      setState(prev => ({ ...prev, unreadCountsByOrg: Array.isArray(counts) ? counts : [] }));
     } catch (error) {
       console.error("Failed to fetch unread counts by org", error);
+      setState(prev => ({ ...prev, unreadCountsByOrg: [] }));
     }
   }, [userId]);
 

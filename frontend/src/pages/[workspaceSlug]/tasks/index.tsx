@@ -673,6 +673,8 @@ function WorkspaceTasksContent() {
     setCurrentPage(1);
   }, [groupBy]);
 
+  const safeTasks = Array.isArray(tasks) ? tasks : [];
+
   const projectFilters = useMemo(
     () =>
       projects.map((project) => ({
@@ -680,9 +682,9 @@ function WorkspaceTasksContent() {
         name: project.name,
         value: project.id,
         selected: selectedProjects.includes(project.id),
-        count: tasks.filter((task) => task.projectId === project.id).length,
+        count: safeTasks.filter((task) => task.projectId === project.id).length,
       })),
-    [projects, selectedProjects, tasks]
+    [projects, selectedProjects, safeTasks]
   );
 
   const statusFilters = useMemo(
@@ -694,7 +696,7 @@ function WorkspaceTasksContent() {
           name: status.name,
           value: status.id,
           selected: allIds.some((id: string) => selectedStatuses.includes(id)),
-          count: tasks.filter((task) => {
+          count: safeTasks.filter((task) => {
             const taskStatusId =
               task.statusId || (typeof task.status === "object" ? task.status?.id : task.status);
             return allIds.includes(taskStatusId);
@@ -702,7 +704,7 @@ function WorkspaceTasksContent() {
           color: status.color || "#6b7280",
         };
       }),
-    [availableStatuses, selectedStatuses, tasks]
+    [availableStatuses, selectedStatuses, safeTasks]
   );
 
   const priorityFilters = useMemo(
@@ -712,10 +714,10 @@ function WorkspaceTasksContent() {
         name: priority.name,
         value: priority.value,
         selected: selectedPriorities.includes(priority.value),
-        count: tasks.filter((task) => task.priority === priority.value).length,
+        count: safeTasks.filter((task) => task.priority === priority.value).length,
         color: priority.color,
       })),
-    [availablePriorities, selectedPriorities, tasks]
+    [availablePriorities, selectedPriorities, safeTasks]
   );
 
   const taskTypeFilters = useMemo(
@@ -728,11 +730,11 @@ function WorkspaceTasksContent() {
           name: type.charAt(0) + type.slice(1).toLowerCase(),
           value: type,
           selected: selectedTaskTypes.includes(type),
-          count: tasks.filter((task) => task.type === type).length,
+          count: safeTasks.filter((task) => task.type === type).length,
           color: iconData?.color || "text-gray-500",
         };
       }),
-    [selectedTaskTypes, tasks]
+    [selectedTaskTypes, safeTasks]
   );
 
   const assigneeFilters = useMemo(() => {
@@ -1236,7 +1238,7 @@ function WorkspaceTasksContent() {
     }
   };
 
-  const showPagination = currentView === "list" && tasks.length > 0 && pagination.totalPages >= 1;
+  const showPagination = currentView === "list" && safeTasks.length > 0 && pagination.totalPages >= 1;
 
 
   if (error) return <ErrorState error={error} onRetry={handleRetry} />;
