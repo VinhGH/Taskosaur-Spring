@@ -1,11 +1,11 @@
 server:
-  port: 3000
+  port: ${SERVER_PORT:3000}
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5435/taskosaur?stringtype=unspecified&options=-c%20timezone%3DUTC
-    username: taskosaur
-    password: taskosaur
+    url: ${SPRING_DATABASE_URL:jdbc:postgresql://localhost:5435/taskosaur?stringtype=unspecified&options=-c%20timezone%3DUTC}
+    username: ${POSTGRES_USER:taskosaur}
+    password: ${POSTGRES_PASSWORD:taskosaur}
     driver-class-name: org.postgresql.Driver
     hikari:
       connection-init-sql: "SET TIME ZONE 'UTC'"
@@ -13,7 +13,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
-    show-sql: true
+    show-sql: ${SPRING_JPA_SHOW_SQL:false}
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -24,7 +24,25 @@ spring:
   jackson:
     time-zone: UTC
 
+  servlet:
+    multipart:
+      max-file-size: ${MAX_FILE_SIZE:10MB}
+      max-request-size: ${MAX_FILE_SIZE:10MB}
+
 jwt:
-  secret: ${JWT_SECRET:}
-  access-token-expiration: 900000
-  refresh-token-expiration: 604800000
+  secret: ${JWT_SECRET:change-this-in-production}
+  access-token-expiration: ${JWT_ACCESS_EXPIRY_MS:900000}
+  refresh-token-expiration: ${JWT_REFRESH_EXPIRY_MS:604800000}
+
+app:
+  frontend-url: ${FRONTEND_URL:http://localhost:3001}
+  cors-origin: ${CORS_ORIGIN:http://localhost:3001}
+  upload-dest: ${UPLOAD_DEST:./uploads}
+
+ai:
+  openrouter:
+    api-key: ${OPENROUTER_API_KEY:}
+    api-url: ${OPENROUTER_API_URL:https://openrouter.ai/api/v1}
+    model: ${OPENROUTER_MODEL:openai/gpt-4o-mini}
+    max-tokens: ${AI_MAX_TOKENS:4000}
+    timeout-ms: ${AI_REQUEST_TIMEOUT_MS:60000}
