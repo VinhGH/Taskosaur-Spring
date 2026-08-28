@@ -81,7 +81,13 @@ function ProjectTasksCalendarPageContent() {
     return projects.find((project) => project.slug === slug);
   };
   const organizationId =
-    localStorage.getItem("currentOrganizationId") || localStorage.getItem("organizationId");
+    (typeof window !== "undefined"
+      ? localStorage.getItem("currentOrganizationId") || localStorage.getItem("organizationId")
+      : null) ||
+    workspaceData?.organizationId ||
+    projectData?.workspace?.organizationId ||
+    authContext.user?.defaultOrganizationId ||
+    "";
   const handleTaskCreated = async () => {
     try {
       if (projectData?.id && currentRange) {

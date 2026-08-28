@@ -374,7 +374,7 @@ function ProjectTasksContent() {
       if (isAuth && currentOrganizationId) {
         await getAllTasks(currentOrganizationId, {
           projectId: project.id,
-          workspaceId: workspace.id,
+          workspaceId: workspace?.id || project.workspaceId || project.workspace?.id,
           ...commonFilters,
           // Always fall back to 'listRank' — ensures rank order is preserved on reload
           // even if localStorage sortField is stale or empty.
@@ -471,7 +471,7 @@ function ProjectTasksContent() {
     try {
       const res = await getCalendarTask(currentOrganizationId, {
         projectId: project.id,
-        workspaceId: workspace.id,
+        workspaceId: workspace?.id || project.workspaceId || project.workspace?.id,
         includeSubtasks: true,
         sortBy: "listRank",
         sortOrder: "asc",

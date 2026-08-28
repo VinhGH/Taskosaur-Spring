@@ -34,17 +34,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        String jwt = authHeader.substring(7);
-        String userId = jwtService.extractUserId(jwt);
-
-        if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null && jwtService.isTokenValid(jwt)) {
-            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                    userId,
-                    null,
-                    Collections.emptyList()
-            );
-            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authToken);
+        try {
+            String jwt = authHeader.substring(7);
+            if (jwtService.isTokenValid(jwt)) {
+                String userId = jwtService.extractUserId(jwt);
+                if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            userId,
+                            null,
+                            Collections.emptyList()
+                    );
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
+            }
+        } catch (Exception _) {
+            // Invalid or expired token - allow request to continue down filter chain without authentication
         }
 
         filterChain.doFilter(request, response);

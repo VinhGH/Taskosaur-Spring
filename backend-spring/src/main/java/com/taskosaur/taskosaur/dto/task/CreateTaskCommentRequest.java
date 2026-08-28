@@ -15,5 +15,7 @@ public class CreateTaskCommentRequest {
     @Size(min = 1, max = 10000, message = "Nội dung bình luận tối đa 10000 ký tự")
     private String content;
 
+    private String taskId;
+
     private String parentCommentId;
 }

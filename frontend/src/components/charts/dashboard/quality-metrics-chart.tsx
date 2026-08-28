@@ -49,9 +49,9 @@ export function QualityMetricsChart({ data }: QualityMetricsChartProps) {
     <ChartWrapper
       title={t("widgets.quality_metrics")}
       description={t("charts.quality_metrics_description_with_count", {
-        resolved: data.resolvedBugs,
-        total: data.totalBugs,
-        rate: data.bugResolutionRate.toFixed(1),
+        resolved: data?.resolvedBugs ?? 0,
+        total: data?.totalBugs ?? 0,
+        rate: (data?.bugResolutionRate ?? 0).toFixed(1),
       })}
       config={chartConfig}
       className="border-[var(--border)]"
@@ -76,7 +76,7 @@ export function QualityMetricsChart({ data }: QualityMetricsChartProps) {
         </PieChart>
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
-            <div className="text-2xl font-bold">{data.bugResolutionRate.toFixed(1)}%</div>
+            <div className="text-2xl font-bold">{(data?.bugResolutionRate ?? 0).toFixed(1)}%</div>
             <div className="text-sm text-muted-foreground">{t("quality.resolution_rate")}</div>
           </div>
         </div>

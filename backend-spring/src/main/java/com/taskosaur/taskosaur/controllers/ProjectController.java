@@ -2,6 +2,7 @@ package com.taskosaur.taskosaur.controllers;
 
 import com.taskosaur.taskosaur.dto.project.CreateProjectRequest;
 import com.taskosaur.taskosaur.dto.project.ProjectResponse;
+import com.taskosaur.taskosaur.services.ProjectChartsService;
 import com.taskosaur.taskosaur.services.ProjectService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -10,7 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +21,7 @@ import java.util.Map;
 public class ProjectController {
 
     private final ProjectService projectService;
+    private final ProjectChartsService projectChartsService;
 
     @PostMapping
     public ResponseEntity<ProjectResponse> create(
@@ -75,16 +76,21 @@ public class ProjectController {
     public ResponseEntity<Map<String, Object>> getProjectCharts(
             @PathVariable String slug,
             @RequestParam(required = false) List<String> types) {
-        Map<String, Object> charts = new HashMap<>();
-        charts.put("kpi-metrics", Map.of("totalTasks", 0, "completedTasks", 0, "completionRate", 0));
-        charts.put("task-priority", List.of());
-        charts.put("task-status", List.of());
-        charts.put("task-type", List.of());
-        charts.put("sprint-velocity", List.of());
-        charts.put("burndown", List.of());
-        charts.put("cumulative-flow", List.of());
-        charts.put("member-workload", List.of());
-        return ResponseEntity.ok(charts);
+        return ResponseEntity.ok(projectChartsService.getProjectCharts(slug, types));
+    }
+
+    @GetMapping("/bulk-health-stats")
+    public ResponseEntity<Map<String, Object>> getBulkProjectHealthStats(
+            @RequestParam(name = "projectIds", required = false) String projectIds
+    ) {
+        if (projectIds == null || projectIds.isBlank()) {
+            return ResponseEntity.ok(Map.of());
+        }
+        List<String> ids = List.of(projectIds.split(",")).stream()
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+        return ResponseEntity.ok(projectService.getBulkProjectHealthStats(ids));
     }
 
     @GetMapping("/{id}")

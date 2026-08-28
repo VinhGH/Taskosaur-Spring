@@ -23,6 +23,14 @@ import java.util.*;
 @Transactional
 public class OrganizationService {
 
+    private static final String ORG_NOT_FOUND = "Organization not found";
+    private static final String ORG_NOT_FOUND_SLUG = "Organization not found with slug: ";
+    private static final String KEY_AVATAR = "avatar";
+    private static final String KEY_WEBSITE = "website";
+    private static final String KEY_DESCRIPTION = "description";
+    private static final String KEY_NAME = "name";
+    private static final String KEY_SLUG = "slug";
+
     private final OrganizationRepository organizationRepository;
     private final OrganizationMemberRepository organizationMemberRepository;
     private final WorkspaceRepository workspaceRepository;
@@ -101,10 +109,10 @@ public class OrganizationService {
     }
 
     private void initDefaultWorkspaceIfRequested(String orgId, String userId, Map<String, Object> defaultWs) {
-        if (defaultWs == null || defaultWs.get("name") == null) {
+        if (defaultWs == null || defaultWs.get(KEY_NAME) == null) {
             return;
         }
-        String wsName = defaultWs.get("name").toString().trim();
+        String wsName = defaultWs.get(KEY_NAME).toString().trim();
         if (wsName.isBlank()) {
             return;
         }
@@ -119,19 +127,19 @@ public class OrganizationService {
 
     public OrganizationResponse getOrganizationById(String id, String userId) {
         Organization org = organizationRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(ORG_NOT_FOUND));
         return buildOrganizationResponse(org, userId);
     }
 
     public OrganizationResponse getOrganizationBySlug(String slug, String userId) {
         Organization org = organizationRepository.findBySlug(slug)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with slug: " + slug));
+                .orElseThrow(() -> new ResourceNotFoundException(ORG_NOT_FOUND_SLUG + slug));
         return buildOrganizationResponse(org, userId);
     }
 
     public Map<String, Object> getMembersBySlug(String slug, int page, int limit, String search) {
         Organization org = organizationRepository.findBySlug(slug)
-                .orElseThrow(() -> new ResourceNotFoundException("Organization not found with slug: " + slug));
+                .orElseThrow(() -> new ResourceNotFoundException(ORG_NOT_FOUND_SLUG + slug));
 
         List<OrganizationMember> members = organizationMemberRepository.findByOrganizationId(org.getId());
         List<Map<String, Object>> memberData = filterAndMapMembers(members, org, search);
@@ -170,10 +178,9 @@ public class OrganizationService {
     private boolean matchesSearch(User u, String search) {
         if (u == null) return false;
         String query = search.toLowerCase();
-        boolean emailMatch = u.getEmail() != null && u.getEmail().toLowerCase().contains(query);
-        boolean firstMatch = u.getFirstName() != null && u.getFirstName().toLowerCase().contains(query);
-        boolean lastMatch = u.getLastName() != null && u.getLastName().toLowerCase().contains(query);
-        return emailMatch || firstMatch || lastMatch;
+        return (u.getEmail() != null && u.getEmail().toLowerCase().contains(query))
+                || (u.getFirstName() != null && u.getFirstName().toLowerCase().contains(query))
+                || (u.getLastName() != null && u.getLastName().toLowerCase().contains(query));
     }
 
     private Map<String, Object> buildMemberMap(OrganizationMember m, User u, Organization org) {
@@ -200,8 +207,8 @@ public class OrganizationService {
         if (org != null) {
             mObj.put("organization", Map.of(
                     "id", org.getId(),
-                    "name", org.getName(),
-                    "slug", org.getSlug()
+                    KEY_NAME, org.getName(),
+                    KEY_SLUG, org.getSlug()
             ));
         }
 
@@ -215,14 +222,16 @@ public class OrganizationService {
         int viewerCount = 0;
 
         for (OrganizationMember m : members) {
-            if (m.getRole() == Role.OWNER || m.getRole() == Role.SUPER_ADMIN) {
-                ownerCount++;
-            } else if (m.getRole() == Role.MANAGER) {
-                managerCount++;
-            } else if (m.getRole() == Role.MEMBER) {
-                memberCount++;
-            } else {
+            Role role = m.getRole();
+            if (role == null) {
                 viewerCount++;
+                continue;
+            }
+            switch (role) {
+                case OWNER, SUPER_ADMIN -> ownerCount++;
+                case MANAGER -> managerCount++;
+                case MEMBER -> memberCount++;
+                default -> viewerCount++;
             }
         }
 
@@ -236,7 +245,7 @@ public class OrganizationService {
 
     public void setDefaultOrganization(String organizationId, String userId) {
         if (!organizationRepository.existsById(organizationId)) {
-            throw new ResourceNotFoundException("Organization not found");
+            throw new ResourceNotFoundException(ORG_NOT_FOUND);
         }
 
         List<OrganizationMember> memberships = organizationMemberRepository.findByUserId(userId);
@@ -290,5 +299,57 @@ public class OrganizationService {
         return organizationMemberRepository.findByUserIdAndOrganizationId(userId, orgId)
                 .map(OrganizationMember::getIsDefault)
                 .orElse(false);
+    }
+
+    // ─── Update Organization ──────────────────────────────────────────────────
+
+    public OrganizationResponse updateOrganization(String id, Map<String, Object> updates, String userId) {
+        Organization org = organizationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(ORG_NOT_FOUND));
+
+        applyFieldUpdates(org, updates);
+
+        org.setUpdatedBy(userId);
+        Organization saved = organizationRepository.save(org);
+        return buildOrganizationResponse(saved, userId);
+    }
+
+    private void applyFieldUpdates(Organization org, Map<String, Object> updates) {
+        Optional.ofNullable(updates.get(KEY_NAME)).map(Object::toString).ifPresent(org::setName);
+        if (updates.containsKey(KEY_DESCRIPTION)) {
+            org.setDescription(Optional.ofNullable(updates.get(KEY_DESCRIPTION)).map(Object::toString).orElse(null));
+        }
+        if (updates.containsKey(KEY_AVATAR)) {
+            org.setAvatar(Optional.ofNullable(updates.get(KEY_AVATAR)).map(Object::toString).orElse(null));
+        }
+        if (updates.containsKey(KEY_WEBSITE)) {
+            org.setWebsite(Optional.ofNullable(updates.get(KEY_WEBSITE)).map(Object::toString).orElse(null));
+        }
+        updateSlugIfPresent(org, updates.get(KEY_SLUG));
+    }
+
+    private void updateSlugIfPresent(Organization org, Object slugObj) {
+        if (slugObj == null) return;
+        String newSlug = slugObj.toString();
+        if (!newSlug.equals(org.getSlug()) && !organizationRepository.existsBySlug(newSlug)) {
+            org.setSlug(newSlug);
+        }
+    }
+
+    // ─── Delete Organization ──────────────────────────────────────────────────
+
+    public void deleteOrganization(String id) {
+        Organization org = organizationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(ORG_NOT_FOUND));
+
+        // Cascade: remove all members
+        List<OrganizationMember> members = organizationMemberRepository.findByOrganizationId(id);
+        organizationMemberRepository.deleteAll(members);
+
+        // Cascade: remove all workspaces
+        List<Workspace> workspaces = workspaceRepository.findByOrganizationId(id);
+        workspaceRepository.deleteAll(workspaces);
+
+        organizationRepository.delete(org);
     }
 }

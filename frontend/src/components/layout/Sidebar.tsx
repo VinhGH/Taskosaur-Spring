@@ -264,41 +264,27 @@ export default function Sidebar() {
     () => [
       {
         name: t("overview"),
-        href: `/${currentWorkspaceSlug || ""}/${currentProjectSlug || ""}`,
+        href: currentWorkspaceSlug && currentProjectSlug ? `/${currentWorkspaceSlug}/${currentProjectSlug}` : "#",
         icon: <HiViewBoards size={16} />,
         title: t("projectOverview"),
         disabled: false, // usually for unauthenticated users
       },
       {
         name: t("tasks"),
-        href: `/${currentWorkspaceSlug || ""}/${currentProjectSlug || ""}/tasks`,
+        href: currentWorkspaceSlug && currentProjectSlug ? `/${currentWorkspaceSlug}/${currentProjectSlug}/tasks` : "#",
         icon: <HiClipboardList size={16} />,
         title: t("tasks"),
         disabled: false,
       },
       {
         name: t("sprints"),
-        href: `/${currentWorkspaceSlug || ""}/${currentProjectSlug || ""}/sprints`,
+        href: currentWorkspaceSlug && currentProjectSlug ? `/${currentWorkspaceSlug}/${currentProjectSlug}/sprints` : "#",
         icon: <HiLightningBolt size={16} />,
         title: t("sprints"),
         disabled: false,
       },
-      // {
-      //   name: "Calendar",
-      //   href: `/${currentWorkspaceSlug || ""}/${currentProjectSlug || ""}/calendar`,
-      //   icon: <HiCalendar size={16} />,
-      //   title: "Calendar",
-      //   disabled: false,
-      // },
-      // {
-      //   name: "Members",
-      //   href: `/${currentWorkspaceSlug || ""}/${currentProjectSlug || ""}/members`,
-      //   icon: <HiUsers size={16} />,
-      //   title: "Members",
-      //   disabled: false,
-      // },
     ],
-    [currentWorkspaceSlug, currentProjectSlug]
+    [currentWorkspaceSlug, currentProjectSlug, t]
   );
 
   const projectNavItems = useMemo(() => {
