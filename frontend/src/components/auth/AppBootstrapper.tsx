@@ -34,6 +34,7 @@ export default function AppBootstrapper({ children }: AppBootstrapperProps) {
 
   // Define public routes (merged from SetupChecker and ProtectedRoute)
   const publicRoutes = [
+    "/",
     "/login",
     "/register",
     "/forgot-password",
@@ -49,7 +50,7 @@ export default function AppBootstrapper({ children }: AppBootstrapperProps) {
   const handleSystemCheck = async () => {
     // Skip setup check on routes that don't need it
     const skipRoutes = ["/login", "/register", "/forgot-password", "/reset-password", "/terms-of-service", "/privacy-policy", "/public/"];
-    const shouldSkip = skipRoutes.some(route => router.pathname.startsWith(route));
+    const shouldSkip = router.pathname === "/" || skipRoutes.some(route => router.pathname.startsWith(route));
 
     if (shouldSkip || router.pathname === "/setup") {
       return true; // Already on a safe route or setup
@@ -119,6 +120,9 @@ export default function AppBootstrapper({ children }: AppBootstrapperProps) {
 
       if (isPublicRoute) {
         const authPages = ["/login", "/register", "/forgot-password", "/reset-password", "/setup"];
+        if (router.pathname === "/") {
+          return { isAuth: true, redirectPath: "/dashboard", isOrg: true };
+        }
         if (!authPages.includes(router.pathname)) {
           return { isAuth: true, isOrg: true };
         }

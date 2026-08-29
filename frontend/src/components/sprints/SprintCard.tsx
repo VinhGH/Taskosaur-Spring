@@ -112,7 +112,7 @@ export const SprintCard = ({
 
   return (
     <Card
-      className="bg-[var(--card)] border-none shadow-sm hover:shadow-md transition-all duration-200 group cursor-pointer"
+      className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-sm hover:shadow-md hover:border-[var(--primary)]/50 transition-all duration-200 group cursor-pointer"
       onClick={handleCardClick}
     >
       <CardHeader className="pb-3">

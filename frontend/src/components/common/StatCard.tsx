@@ -9,6 +9,8 @@ interface StatCardProps {
   loadingPlaceholder?: ReactNode;
   statSuffix?: string | any; // e.g., "Active", "Total"
   className?: string;
+  indicatorColor?: string;
+  iconBgColor?: string;
 }
 
 export function StatCard({
@@ -19,19 +21,29 @@ export function StatCard({
   loadingPlaceholder = <span className="dashboard-loading-placeholder" />,
   statSuffix,
   className,
+  indicatorColor = "bg-[var(--primary)]",
+  iconBgColor = "bg-[var(--primary)]/10 text-[var(--primary)]",
 }: StatCardProps) {
   return (
     <div className={`dashboard-stat-card transition-all duration-300 hover:translate-y-[-2px] ${className || ""}`}>
-      <Card className="dashboard-stat-card-inner transition-colors duration-300 hover:bg-accent/50 group">
-        <CardContent className="dashboard-stat-content">
-          <div className="dashboard-stat-header">
-            <div className="dashboard-stat-indicator transition-all duration-300 group-hover:h-3 group-hover:bg-primary" />
-            <h3 className="dashboard-stat-title">{label}</h3>
+      <Card className="dashboard-stat-card-inner transition-all duration-300 hover:shadow-md hover:border-[var(--primary)]/40 group border border-[var(--border)] bg-[var(--card)] rounded-xl p-3.5 shadow-xs">
+        <CardContent className="p-0 h-full flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <div className={`w-1 h-3.5 rounded-full ${indicatorColor} transition-all duration-300 group-hover:h-4`} />
+              <h3 className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">{label}</h3>
+            </div>
+            {icon && (
+              <div className={`size-7 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 ${iconBgColor}`}>
+                {icon}
+              </div>
+            )}
           </div>
-          <div className="dashboard-single-stat-values">
-            <span className="dashboard-stat-number">{isLoading ? loadingPlaceholder : value}</span>
-            <div className="dashboard-stat-icon transition-transform duration-300 group-hover:scale-110 group-hover:text-primary">{icon}</div>
-            {statSuffix && <span className="dashboard-stat-label-inline">{statSuffix}</span>}
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-xl font-bold text-[var(--foreground)] tracking-tight">
+              {isLoading ? loadingPlaceholder : value}
+            </span>
+            {statSuffix && <span className="text-xs text-[var(--muted-foreground)] font-medium">{statSuffix}</span>}
           </div>
         </CardContent>
       </Card>

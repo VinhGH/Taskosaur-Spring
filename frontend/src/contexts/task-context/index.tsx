@@ -1304,15 +1304,24 @@ export function TaskProvider({ children }: TaskProviderProps) {
 
         const result = await handleApiOperation(() => taskApi.getTodayAgenda(orgId, params));
 
+        // Guard: backend /tasks/today may return pagination as undefined in some cases
+        const safePagination = result.pagination ?? {
+          currentPage: 1,
+          totalPages: 1,
+          totalCount: result.tasks?.length ?? 0,
+          hasNextPage: false,
+          hasPrevPage: false,
+        };
+
         setTaskState((prev) => ({
           ...prev,
           tasks: result.tasks,
-          pagination: result.pagination,
+          pagination: safePagination,
           taskResponse: {
             data: result.tasks,
-            page: result.pagination.currentPage,
-            totalPages: result.pagination.totalPages,
-            total: result.pagination.totalCount,
+            page: safePagination.currentPage,
+            totalPages: safePagination.totalPages,
+            total: safePagination.totalCount,
             limit: params.limit || 10,
           },
           currentSort: {
@@ -1321,7 +1330,7 @@ export function TaskProvider({ children }: TaskProviderProps) {
           },
         }));
 
-        return result;
+        return { tasks: result.tasks, pagination: safePagination };
       },
 
       // Enhanced methods with automatic hierarchy context

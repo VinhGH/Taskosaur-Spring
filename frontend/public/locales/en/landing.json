@@ -1,0 +1,96 @@
+{
+  "nav": {
+    "features": "Features",
+    "ai_era": "AI Era",
+    "solutions": "Agile Workflow",
+    "social_proof": "Customers",
+    "pricing": "Pricing",
+    "login": "Sign In",
+    "get_started": "Get Started Free",
+    "language_theme": "Language & Theme"
+  },
+  "hero": {
+    "badge": "Taskosaur 2.0 • Next-Gen AI Task Execution",
+    "title_part1": "Turn plans into",
+    "title_part2": "agent-ready tasks",
+    "subtitle": "Next-generation Agile project management with autonomous AI Task Execution. Plan sprints, track live Kanban boards, and supercharge your team velocity.",
+    "email_placeholder": "Enter your work email...",
+    "cta_button": "Get started free",
+    "free_trial": "Free experience",
+    "no_credit_card": "No credit card required",
+    "fast_setup": "Setup in 1 minute",
+    "trusted_tech": "Built on reliable, modern engineering stacks"
+  },
+  "ai_era": {
+    "badge": "Taskosaur for the AI Era",
+    "title": "Project management powered by",
+    "title_highlight": "Artificial Intelligence",
+    "desc": "Not just another task board. Taskosaur empowers your team with intelligent agents to accelerate from ideation to production-ready releases.",
+    "works_with": "WORKS WITH",
+    "repel_tip": "Move your mouse across the canvas to experience the interactive particle field. Taskosaur deeply integrates with advanced AI models to turn ideas into shipping code.",
+    "pillar1_title": "Embed agents in your existing workflow",
+    "pillar1_sub": "Seamless Agentic Automation",
+    "pillar1_desc": "Assign tasks to your favorite coding AI agents directly from Taskosaur. Automatically convert complex user stories into actionable tasks.",
+    "pillar2_title": "Better outcomes for fewer tokens",
+    "pillar2_sub": "Deep Context Optimization",
+    "pillar2_desc": "Supply precise project and architectural context before writing code. Help AI reason deeper and produce accurate solutions.",
+    "pillar3_title": "Scale AI responsibly with full control",
+    "pillar3_sub": "Enterprise Governance & Security",
+    "pillar3_desc": "Full audit trails and granular organization permissions keep humans and agents aligned in the same direction.",
+    "learn_more": "Learn about MCP Protocol"
+  },
+  "features": {
+    "badge": "Comprehensive & Agile",
+    "title": "Every team works better in",
+    "desc": "From backlog planning to sprint retrospectives. Complete Agile tooling for developers, product managers, and engineering leaders.",
+    "tab_kanban": "Kanban Boards",
+    "tab_kanban_desc": "Visualize workflows with custom drag-and-drop status columns.",
+    "tab_sprint": "Sprint Management",
+    "tab_sprint_desc": "Plan sprint cycles, measure velocity, and hit milestones with confidence.",
+    "tab_gantt": "Gantt Timeline",
+    "tab_gantt_desc": "Track overall project roadmap and milestone dependencies.",
+    "tab_ai": "AI Task Execution",
+    "tab_ai_desc": "Conversational context querying and intelligent task generation."
+  },
+  "deep_dive": {
+    "badge": "Extended Capabilities",
+    "title": "More than project management",
+    "desc": "Taskosaur provides a unified ecosystem connecting people, tasks, and artificial intelligence seamlessly.",
+    "card1_title": "Team Work Graph",
+    "card1_sub": "Intelligent Task Dependency Network",
+    "card1_desc": "Automatically link dependencies, assign clear ownership, and remove roadblocks before they block progress.",
+    "card2_title": "AI Semantic Search",
+    "card2_sub": "Natural Language Querying",
+    "card2_desc": "No need to remember exact ticket IDs. Find documentation, discussions, and sprint status using plain English.",
+    "card3_title": "Workload & Analytics",
+    "card3_sub": "Balanced Capacity & Real-Time Metrics",
+    "card3_desc": "Visual workload charts and burndown graphs help managers spot bottlenecks and prevent burnout."
+  },
+  "social_proof": {
+    "badge": "What customers say",
+    "title": "Trusted by technology leaders",
+    "stat1_label": "Tasks Created & Completed",
+    "stat2_label": "System Uptime & Reliability",
+    "stat3_label": "Faster Sprint Delivery Cycles",
+    "stat4_label": "User Experience Rating"
+  },
+  "discovery": {
+    "badge": "Latest Updates",
+    "title": "Discover next-level productivity"
+  },
+  "cta": {
+    "badge": "Ready to supercharge velocity?",
+    "title": "Ship faster with",
+    "title_highlight": "AI agents in Taskosaur",
+    "desc": "Join thousands of developers and product teams delivering exceptional software faster. Free to get started.",
+    "start_free": "Get started free",
+    "login": "Sign In to Account"
+  },
+  "footer": {
+    "desc": "Open-source Agile project management platform with autonomous AI task execution. Built for modern software engineering teams.",
+    "products": "Products",
+    "resources": "Resources",
+    "legal": "Legal & Support",
+    "all_rights": "Taskosaur Project. All rights reserved."
+  }
+}
