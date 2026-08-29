@@ -1,0 +1,96 @@
+{
+  "nav": {
+    "features": "Tính năng",
+    "ai_era": "Kỷ nguyên AI",
+    "solutions": "Quy trình Agile",
+    "social_proof": "Khách hàng",
+    "pricing": "Bảng giá",
+    "login": "Đăng nhập",
+    "get_started": "Bắt đầu miễn phí",
+    "language_theme": "Ngôn ngữ & Giao diện"
+  },
+  "hero": {
+    "badge": "Taskosaur 2.0 • Trợ lý AI thực thi tác vụ thế hệ mới",
+    "title_part1": "Turn plans into",
+    "title_part2": "agent-ready tasks",
+    "subtitle": "Nền tảng quản lý dự án Agile thế hệ mới với AI Task Execution tự động. Lập kế hoạch Sprint, theo dõi Kanban thời gian thực và giải phóng sức mạnh đội ngũ của bạn.",
+    "email_placeholder": "Nhập địa chỉ email công việc...",
+    "cta_button": "Bắt đầu ngay",
+    "free_trial": "Miễn phí trải nghiệm",
+    "no_credit_card": "Không cần thẻ tín dụng",
+    "fast_setup": "Cài đặt trong 1 phút",
+    "trusted_tech": "Được xây dựng trên nền tảng công nghệ mạnh mẽ & tin cậy"
+  },
+  "ai_era": {
+    "badge": "Taskosaur for the AI Era",
+    "title": "Quản lý dự án với sức mạnh của",
+    "title_highlight": "Trí tuệ nhân tạo",
+    "desc": "Không chỉ là bảng quản lý công việc thông thường. Taskosaur trang bị cho đội ngũ của bạn những công cụ thông minh nhất để tăng tốc từ ý tưởng đến sản phẩm hoàn thiện.",
+    "works_with": "WORKS WITH",
+    "repel_tip": "Di chuột trên màn hình để trải nghiệm trường hạt tương tác. Taskosaur kết nối sâu với các mô hình AI tiên tiến nhất giúp biến ý tưởng thành dòng code thực thi.",
+    "pillar1_title": "Embed agents in your existing workflow",
+    "pillar1_sub": "Tích hợp AI Agents vào quy trình",
+    "pillar1_desc": "Giao việc cho AI Agent yêu thích của bạn trực tiếp từ Taskosaur. Tự động chuyển đổi kế hoạch thành task sẵn sàng thực thi.",
+    "pillar2_title": "Better outcomes for fewer tokens",
+    "pillar2_sub": "Tối ưu ngữ cảnh & Tiết kiệm token",
+    "pillar2_desc": "Cung cấp ngữ cảnh dự án chuẩn xác trước khi viết mã. Giúp AI hiểu sâu kiến trúc và sinh giải pháp chính xác hơn.",
+    "pillar3_title": "Scale AI responsibly with full control",
+    "pillar3_sub": "Quản trị an toàn & Kiểm soát toàn diện",
+    "pillar3_desc": "Theo dõi nhật ký thực thi (Audit Trail), phân quyền bảo mật cấp tổ chức để con người và AI cùng tiến nhanh về một hướng.",
+    "learn_more": "Tìm hiểu quy trình MCP"
+  },
+  "features": {
+    "badge": "Toàn diện & Linh hoạt",
+    "title": "Mọi đội ngũ đều làm việc tốt hơn cùng",
+    "desc": "Từ lập kế hoạch ý tưởng đến bàn giao sản phẩm cuối cùng. Bộ công cụ quản lý Agile đầy đủ cho lập trình viên, quản lý dự án và các nhà lãnh đạo công nghệ.",
+    "tab_kanban": "Bảng Kanban",
+    "tab_kanban_desc": "Trực quan hóa luồng công việc với các cột trạng thái tùy biến.",
+    "tab_sprint": "Quản lý Sprint",
+    "tab_sprint_desc": "Lập kế hoạch chu kỳ nước rút, đo lường điểm năng suất velocity.",
+    "tab_gantt": "Dòng thời gian Gantt",
+    "tab_gantt_desc": "Theo dõi tiến độ tổng thể và thời hạn bàn giao dự án.",
+    "tab_ai": "Trợ lý AI Task Execution",
+    "tab_ai_desc": "Hỏi đáp ngữ cảnh và thực thi tác vụ thông minh qua AI."
+  },
+  "deep_dive": {
+    "badge": "Năng lực mở rộng",
+    "title": "Nhiều hơn cả một công cụ quản lý dự án",
+    "desc": "Taskosaur cung cấp hệ sinh thái toàn diện kết nối con người, công việc và trí tuệ nhân tạo trong một nền tảng thống nhất duy nhất.",
+    "card1_title": "Team Work Graph",
+    "card1_sub": "Mạng lưới kết nối công việc thông minh",
+    "card1_desc": "Tự động liên kết các đầu việc phụ thuộc, phân bổ trách nhiệm rõ ràng và loại bỏ các nút thắt ách tắc tiến độ trước khi chúng xảy ra.",
+    "card2_title": "AI Semantic Search",
+    "card2_sub": "Truy vấn thông minh theo ngữ nghĩa",
+    "card2_desc": "Không cần nhớ mã Task chính xác. Tìm kiếm tài liệu, thảo luận và tiến độ dự án bằng ngôn ngữ tự nhiên chỉ trong tích tắc.",
+    "card3_title": "Workload & Analytics",
+    "card3_sub": "Cân bằng năng suất & Phân bổ tải",
+    "card3_desc": "Biểu đồ phân bổ khối lượng công việc trực quan theo thời gian thực. Giúp quản lý phát hiện sớm tình trạng quá tải để phân công hợp lý."
+  },
+  "social_proof": {
+    "badge": "Khách hàng nói gì về chúng tôi",
+    "title": "Được tin dùng bởi các chuyên gia công nghệ",
+    "stat1_label": "Tác vụ đã khởi tạo & hoàn thành",
+    "stat2_label": "Độ ổn định & khả dụng hệ thống",
+    "stat3_label": "Tăng tốc độ bàn giao chu kỳ Sprint",
+    "stat4_label": "Điểm đánh giá trải nghiệm người dùng"
+  },
+  "discovery": {
+    "badge": "Cập nhật mới nhất",
+    "title": "Khám phá những cải tiến vượt trội"
+  },
+  "cta": {
+    "badge": "Sẵn sàng bứt phá hiệu suất?",
+    "title": "Ship faster with",
+    "title_highlight": "AI agents in Taskosaur",
+    "desc": "Tham gia cùng hàng ngàn lập trình viên và nhà quản lý đang tối ưu hóa chu kỳ phát triển sản phẩm mỗi ngày. Hoàn toàn miễn phí để bắt đầu.",
+    "start_free": "Bắt đầu miễn phí ngay",
+    "login": "Đăng nhập tài khoản"
+  },
+  "footer": {
+    "desc": "Nền tảng quản lý dự án Agile mã nguồn mở tích hợp trợ lý AI thực thi tác vụ tự động. Được thiết kế cho các đội ngũ công nghệ hiện đại.",
+    "products": "Sản phẩm",
+    "resources": "Tài nguyên",
+    "legal": "Pháp lý & Hỗ trợ",
+    "all_rights": "Taskosaur Project. All rights reserved."
+  }
+}

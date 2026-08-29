@@ -30,7 +30,7 @@ export function EntityCard({
   const Inner = () => (
     <Card
       onClick={onClick}
-      className={`bg-[var(--card)] rounded-md shadow-sm group hover:shadow-lg transition-all duration-200 border-none ${onClick || href ? "cursor-pointer" : ""} p-4 h-44 ${className}`}
+      className={`bg-[var(--card)] rounded-xl shadow-xs group hover:shadow-md hover:border-[var(--primary)]/50 transition-all duration-200 border border-[var(--border)] ${onClick || href ? "cursor-pointer" : ""} p-4 h-44 ${className}`}
     >
       {/* Top Row */}
       <div className="flex items-start gap-3">

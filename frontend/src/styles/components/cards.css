@@ -50,7 +50,7 @@
 
 /* StatCard Styles */
 .statcard-container {
-  @apply bg-[var(--card)] rounded-lg p-4 shadow-sm border-none;
+  @apply bg-[var(--card)] rounded-xl p-4 shadow-sm border border-[var(--border)];
 }
 
 .statcard-header {

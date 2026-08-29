@@ -2,7 +2,7 @@
 
 /* Main Layout */
 .dashboard-container {
-  @apply bg-[var(--background)] p-[1rem];
+  @apply bg-transparent p-2 sm:p-4;
 }
 
 .dashboard-content {

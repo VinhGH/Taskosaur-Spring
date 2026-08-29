@@ -1,0 +1,83 @@
+{
+  "nav": {
+    "features": "Funktionen",
+    "ai_era": "KI-Ära",
+    "solutions": "Agiler Ablauf",
+    "social_proof": "Kunden",
+    "pricing": "Preise",
+    "login": "Anmelden",
+    "get_started": "Kostenlos starten",
+    "language_theme": "Sprache & Design"
+  },
+  "hero": {
+    "badge": "Taskosaur 2.0 • KI-gestützte Aufgabenausführung",
+    "title_part1": "Turn plans into",
+    "title_part2": "agent-ready tasks",
+    "subtitle": "Agiles Projektmanagement der nächsten Generation mit autonomer KI-Aufgabenausführung.",
+    "email_placeholder": "Geben Sie Ihre geschäftliche E-Mail ein...",
+    "cta_button": "Kostenlos starten",
+    "free_trial": "Kostenlose Testversion",
+    "no_credit_card": "Keine Kreditkarte erforderlich",
+    "fast_setup": "In 1 Minute einsatzbereit",
+    "trusted_tech": "Gebaut auf modernen, zuverlässigen Technologien"
+  },
+  "ai_era": {
+    "badge": "Taskosaur for the AI Era",
+    "title": "Projektmanagement angetrieben durch",
+    "title_highlight": "Künstliche Intelligenz",
+    "desc": "Verbinden Sie Ihre bevorzugten KI-Agenten direkt mit Taskosaur für schnellere Releases.",
+    "works_with": "KOMPATIBEL MIT",
+    "repel_tip": "Bewegen Sie die Maus über das interaktive Partikelfeld.",
+    "pillar1_title": "Embed agents in your existing workflow",
+    "pillar1_sub": "Nahtlose Agenten-Automatisierung",
+    "pillar1_desc": "Weisen Sie Aufgaben direkt aus Taskosaur an KI-Agenten zu.",
+    "pillar2_title": "Better outcomes for fewer tokens",
+    "pillar2_sub": "Tiefe Kontext-Optimierung",
+    "pillar2_desc": "Bereitstellung von präzisem Kontext vor dem Schreiben von Code.",
+    "pillar3_title": "Scale AI responsibly with full control",
+    "pillar3_sub": "Sicherheit & Governance",
+    "pillar3_desc": "Vollständige Audit-Trails und granulare Zugriffskontrollen.",
+    "learn_more": "Mehr über das MCP-Protokoll erfahren"
+  },
+  "features": {
+    "badge": "Umfassend & Agil",
+    "title": "Jedes Team arbeitet besser mit",
+    "desc": "Vollständige agile Tools für Entwickler und Produktleiter.",
+    "tab_kanban": "Kanban-Boards",
+    "tab_sprint": "Sprint-Verwaltung",
+    "tab_gantt": "Gantt-Zeitachse",
+    "tab_ai": "KI-Aufgabenassistent"
+  },
+  "deep_dive": {
+    "badge": "Erweiterte Funktionen",
+    "title": "Mehr als nur Projektmanagement",
+    "desc": "Ein einheitliches Ökosystem, das Menschen, Aufgaben und KI verbindet."
+  },
+  "social_proof": {
+    "badge": "Kundenstimmen",
+    "title": "Von Technologieführern geschätzt",
+    "stat1_label": "Erstellte & erledigte Aufgaben",
+    "stat2_label": "Systemverfügbarkeit",
+    "stat3_label": "Schnellere Sprint-Lieferungen",
+    "stat4_label": "Zufriedenheitsbewertung"
+  },
+  "discovery": {
+    "badge": "Neueste Updates",
+    "title": "Entdecken Sie neue Produktivitätslevel"
+  },
+  "cta": {
+    "badge": "Bereit für mehr Geschwindigkeit?",
+    "title": "Ship faster with",
+    "title_highlight": "AI agents in Taskosaur",
+    "desc": "Schließen Sie sich Tausenden von Entwicklern an, die ihre Projekte täglich optimieren.",
+    "start_free": "Kostenlos starten",
+    "login": "Anmelden"
+  },
+  "footer": {
+    "desc": "Open-Source-Plattform für agiles Projektmanagement mit KI-Aufgabenausführung.",
+    "products": "Produkte",
+    "resources": "Ressourcen",
+    "legal": "Rechtliches & Support",
+    "all_rights": "Taskosaur Project. Alle Rechte vorbehalten."
+  }
+}

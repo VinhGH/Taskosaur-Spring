@@ -2,30 +2,31 @@
 
 @layer base {
   :root {
-    --card-radius: 0.65rem;
-    --background: oklch(1 0 0);
+    --card-radius: 0.75rem;
+    --background: #eef2ff;
+    --panel: rgba(255, 255, 255, 0.8);
     --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
+    --card: #ffffff;
     --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
+    --popover: #ffffff;
     --popover-foreground: oklch(0.145 0 0);
     --primary: oklch(0.205 0 0);
     --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
+    --secondary: oklch(0.96 0 0);
     --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
+    --muted: oklch(0.96 0 0);
     --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
+    --accent: oklch(0.96 0 0);
     --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
+    --border: rgba(0, 0, 0, 0.1);
+    --input: rgba(0, 0, 0, 0.1);
     --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.646 0.222 41.116);
-    --chart-2: oklch(0.6 0.118 184.704);
-    --chart-3: oklch(0.398 0.07 227.392);
-    --chart-4: oklch(0.828 0.189 84.429);
-    --chart-5: oklch(0.769 0.188 70.08);
+    --chart-1: #3b82f6;
+    --chart-2: #10b981;
+    --chart-3: #8b5cf6;
+    --chart-4: #f59e0b;
+    --chart-5: #ec4899;
 
     /* Project and Task Category Colors */
     --category-blue: #1a3b4d;
@@ -58,17 +59,17 @@
     --even-row: oklch(1 0 0);
 
     /* Sidebar Colors - Light Theme */
-    --sidebar: oklch(0.99 0 0); /* Slightly darker white */
-    --mini-sidebar: oklch(0.95 0 0); /* Slightly darker for mini sidebar */
+    --sidebar: rgba(255, 255, 255, 0.85); /* Crisp clean white glass */
+    --mini-sidebar: rgba(241, 244, 251, 0.9); /* Subtle activity bar */
     --sidebar-foreground: oklch(0.25 0 0); /* Darker text for better contrast */
     --sidebar-primary: oklch(0.205 0 0);
     --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.95 0 0); /* Slightly darker for hover */
+    --sidebar-accent: rgba(0, 0, 0, 0.05); /* Slightly darker for hover */
     --sidebar-accent-foreground: oklch(0.15 0 0); /* Very dark text */
-    --sidebar-border: oklch(0.922 0 0 / 0.15); /* More visible border */
+    --sidebar-border: rgba(0, 0, 0, 0.1); /* Visible border */
     --sidebar-ring: oklch(0.708 0 0);
     --sidebar-muted: oklch(0.6 0 0); /* Better contrast for muted icons */
-    --hover-bg: oklch(0.92 0 0); /* More visible hover state */
+    --hover-bg: rgba(0, 0, 0, 0.06); /* More visible hover state */
     --skeleton: #e5e7eb; /* gray-200 */
     --skeleton-foreground: #d1d5db; /* gray-300 */
     --skeleton-muted: #cbd5e1; /* slate-300 */
@@ -96,30 +97,31 @@
   }
 
   .dark {
-    --card-radius: 0.5rem;
-    --background: oklch(0.145 0 0);
+    --card-radius: 0.75rem;
+    --background: #0f1424;          /* Vivid Midnight Blue canvas */
+    --panel: rgba(18, 20, 28, 0.82); /* Translucent glass panel */
     --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
+    --card: #1f222d;                /* Solid elevated card */
     --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
+    --popover: #212532;
     --popover-foreground: oklch(0.985 0 0);
     --primary: oklch(0.922 0 0);
     --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
+    --secondary: oklch(0.24 0 0);
     --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
+    --muted: oklch(0.24 0 0);
     --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
+    --accent: oklch(0.24 0 0);
     --accent-foreground: oklch(0.985 0 0);
     --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
+    --border: rgba(255, 255, 255, 0.1);
+    --input: rgba(255, 255, 255, 0.12);
     --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
+    --chart-1: #60a5fa;
+    --chart-2: #34d399;
+    --chart-3: #a78bfa;
+    --chart-4: #fbbf24;
+    --chart-5: #f472b6;
 
     /* Project and Task Category Colors - Dark Theme */
     --category-blue: #4a7a9a;
@@ -135,14 +137,14 @@
     --category-sage-light: #5a8d5c;
 
     /* Sidebar Colors - Dark Theme */
-    --sidebar: oklch(0.18 0 0); /* Slightly lighter dark */
-    --mini-sidebar: oklch(0.22 0 0); /* Slightly lighter for mini sidebar */
+    --sidebar: rgba(18, 20, 28, 0.85); /* Slightly lighter dark */
+    --mini-sidebar: rgba(13, 15, 22, 0.9); /* Distinct activity bar */
     --sidebar-foreground: oklch(0.9 0 0); /* Lighter text for good contrast */
     --sidebar-primary: oklch(0.488 0.243 264.376);
     --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.25 0 0); /* Lighter for hover visibility */
+    --sidebar-accent: rgba(255, 255, 255, 0.08); /* Lighter for hover visibility */
     --sidebar-accent-foreground: oklch(0.95 0 0); /* Very light text */
-    --sidebar-border: oklch(1 0 0 / 0.02); /* More visible border */
+    --sidebar-border: rgba(255, 255, 255, 0.1); /* Clean crisp border */
     --sidebar-ring: oklch(0.556 0 0);
     --sidebar-muted: oklch(0.7 0 0); /* Better contrast for muted icons */
     --hover-bg: oklch(0.3 0 0); /* More visible hover state */

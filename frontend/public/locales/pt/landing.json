@@ -1,0 +1,83 @@
+{
+  "nav": {
+    "features": "Recursos",
+    "ai_era": "Era da IA",
+    "solutions": "Fluxo Ágil",
+    "social_proof": "Clientes",
+    "pricing": "Preços",
+    "login": "Entrar",
+    "get_started": "Começar Grátis",
+    "language_theme": "Idioma e Tema"
+  },
+  "hero": {
+    "badge": "Taskosaur 2.0 • Execução de tarefas com IA",
+    "title_part1": "Turn plans into",
+    "title_part2": "agent-ready tasks",
+    "subtitle": "Gestão ágil de projetos de última geração com execução autônoma de tarefas por IA.",
+    "email_placeholder": "Digite seu e-mail de trabalho...",
+    "cta_button": "Começar Grátis",
+    "free_trial": "Experiência gratuita",
+    "no_credit_card": "Sem cartão de crédito",
+    "fast_setup": "Pronto em 1 minuto",
+    "trusted_tech": "Construído sobre tecnologias modernas e confiáveis"
+  },
+  "ai_era": {
+    "badge": "Taskosaur for the AI Era",
+    "title": "Gestão de projetos impulsionada por",
+    "title_highlight": "Inteligência Artificial",
+    "desc": "Conecte seus agentes de IA favoritos diretamente ao Taskosaur para acelerar as entregas.",
+    "works_with": "COMPATÍVEL COM",
+    "repel_tip": "Mova o mouse para interagir com o campo de partículas reativo.",
+    "pillar1_title": "Embed agents in your existing workflow",
+    "pillar1_sub": "Automação com Agentes",
+    "pillar1_desc": "Atribua tarefas aos seus agentes de código favoritos diretamente do Taskosaur.",
+    "pillar2_title": "Better outcomes for fewer tokens",
+    "pillar2_sub": "Otimização de Contexto",
+    "pillar2_desc": "Forneça contexto arquitetônico preciso antes de escrever código.",
+    "pillar3_title": "Scale AI responsibly with full control",
+    "pillar3_sub": "Governança e Segurança",
+    "pillar3_desc": "Trilha de auditoria completa e permissões granulares de organização.",
+    "learn_more": "Saiba mais sobre o Protocolo MCP"
+  },
+  "features": {
+    "badge": "Completo e Ágil",
+    "title": "Toda equipe trabalha melhor no",
+    "desc": "Ferramentas ágeis completas para desenvolvedores e líderes de produto.",
+    "tab_kanban": "Quadros Kanban",
+    "tab_sprint": "Gestão de Sprints",
+    "tab_gantt": "Linha do Tempo Gantt",
+    "tab_ai": "Assistente de Tarefas IA"
+  },
+  "deep_dive": {
+    "badge": "Recursos Estendidos",
+    "title": "Mais que gestão de projetos",
+    "desc": "Um ecossistema unificado que conecta pessoas, tarefas e inteligência artificial."
+  },
+  "social_proof": {
+    "badge": "O que dizem os clientes",
+    "title": "Confiado por líderes de tecnologia",
+    "stat1_label": "Tarefas criadas e concluídas",
+    "stat2_label": "Disponibilidade do sistema",
+    "stat3_label": "Entregas de sprint mais rápidas",
+    "stat4_label": "Nota de satisfação"
+  },
+  "discovery": {
+    "badge": "Últimas Atualizações",
+    "title": "Descubra a produtividade máxima"
+  },
+  "cta": {
+    "badge": "Pronto para acelerar?",
+    "title": "Ship faster with",
+    "title_highlight": "AI agents in Taskosaur",
+    "desc": "Junte-se a milhares de desenvolvedores que otimizam seus projetos todos os dias.",
+    "start_free": "Começar Grátis",
+    "login": "Entrar"
+  },
+  "footer": {
+    "desc": "Plataforma de gestão ágil de código aberto com execução de tarefas por IA.",
+    "products": "Produtos",
+    "resources": "Recursos",
+    "legal": "Legal e Suporte",
+    "all_rights": "Taskosaur Project. Todos os direitos reservados."
+  }
+}

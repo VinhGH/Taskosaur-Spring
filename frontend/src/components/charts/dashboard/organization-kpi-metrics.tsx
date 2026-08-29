@@ -56,24 +56,66 @@ interface KPICardConfig {
   id: string;
   defaultLabelKey: string; // Changed to key
   icon: React.ReactNode;
+  indicatorColor: string;
+  iconBgColor: string;
 }
 
 const STATIC_CARD_CONFIG: KPICardConfig[] = [
-  { id: "workspaces", defaultLabelKey: "workspaces", icon: <Building2 className="h-4 w-4" /> },
-  { id: "projects", defaultLabelKey: "projects", icon: <FolderOpen className="h-4 w-4" /> },
-  { id: "members", defaultLabelKey: "members", icon: <Users className="h-4 w-4" /> },
+  {
+    id: "workspaces",
+    defaultLabelKey: "workspaces",
+    icon: <Building2 className="h-4 w-4" />,
+    indicatorColor: "bg-blue-500",
+    iconBgColor: "bg-blue-500/15 text-blue-500 dark:bg-blue-500/20 dark:text-blue-400",
+  },
+  {
+    id: "projects",
+    defaultLabelKey: "projects",
+    icon: <FolderOpen className="h-4 w-4" />,
+    indicatorColor: "bg-indigo-500",
+    iconBgColor: "bg-indigo-500/15 text-indigo-500 dark:bg-indigo-500/20 dark:text-indigo-400",
+  },
+  {
+    id: "members",
+    defaultLabelKey: "members",
+    icon: <Users className="h-4 w-4" />,
+    indicatorColor: "bg-emerald-500",
+    iconBgColor: "bg-emerald-500/15 text-emerald-500 dark:bg-emerald-500/20 dark:text-emerald-400",
+  },
   {
     id: "task-completion",
     defaultLabelKey: "task_completion",
     icon: <CheckCircle className="h-4 w-4" />,
+    indicatorColor: "bg-purple-500",
+    iconBgColor: "bg-purple-500/15 text-purple-500 dark:bg-purple-500/20 dark:text-purple-400",
   },
-  { id: "bug-resolution", defaultLabelKey: "bug_resolution", icon: <Bug className="h-4 w-4" /> },
-  { id: "overdue-tasks", defaultLabelKey: "overdue_tasks", icon: <Clock className="h-4 w-4" /> },
-  { id: "active-sprints", defaultLabelKey: "active_sprints", icon: <Zap className="h-4 w-4" /> },
+  {
+    id: "bug-resolution",
+    defaultLabelKey: "bug_resolution",
+    icon: <Bug className="h-4 w-4" />,
+    indicatorColor: "bg-rose-500",
+    iconBgColor: "bg-rose-500/15 text-rose-500 dark:bg-rose-500/20 dark:text-rose-400",
+  },
+  {
+    id: "overdue-tasks",
+    defaultLabelKey: "overdue_tasks",
+    icon: <Clock className="h-4 w-4" />,
+    indicatorColor: "bg-amber-500",
+    iconBgColor: "bg-amber-500/15 text-amber-500 dark:bg-amber-500/20 dark:text-amber-400",
+  },
+  {
+    id: "active-sprints",
+    defaultLabelKey: "active_sprints",
+    icon: <Zap className="h-4 w-4" />,
+    indicatorColor: "bg-cyan-500",
+    iconBgColor: "bg-cyan-500/15 text-cyan-500 dark:bg-cyan-500/20 dark:text-cyan-400",
+  },
   {
     id: "productivity",
     defaultLabelKey: "productivity",
     icon: <CheckCircle className="h-4 w-4" />,
+    indicatorColor: "bg-teal-500",
+    iconBgColor: "bg-teal-500/15 text-teal-500 dark:bg-teal-500/20 dark:text-teal-400",
   },
 ];
 
@@ -82,11 +124,21 @@ interface SortableStatCardProps {
   label: string;
   value: string | number;
   icon: React.ReactNode;
+  indicatorColor?: string;
+  iconBgColor?: string;
   description?: string;
   link?: string;
 }
 
-function SortableStatCard({ id, label, value, icon, description, link }: SortableStatCardProps) {
+function SortableStatCard({
+  id,
+  label,
+  value,
+  icon,
+  indicatorColor,
+  iconBgColor,
+  link,
+}: SortableStatCardProps) {
   const router = useRouter();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
@@ -100,7 +152,7 @@ function SortableStatCard({ id, label, value, icon, description, link }: Sortabl
     touchAction: "none", // Prevent scrolling on touch devices while dragging
   };
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = () => {
     // Only navigate if we're not dragging and we have a link
     if (!isDragging && link) {
       router.push(link);
@@ -109,7 +161,14 @@ function SortableStatCard({ id, label, value, icon, description, link }: Sortabl
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners} onClick={handleClick}>
-      <StatCard label={label} value={value} icon={icon} className={link ? "cursor-pointer" : ""} />
+      <StatCard
+        label={label}
+        value={value}
+        icon={icon}
+        indicatorColor={indicatorColor}
+        iconBgColor={iconBgColor}
+        className={link ? "cursor-pointer" : ""}
+      />
     </div>
   );
 }
@@ -237,6 +296,8 @@ export function OrganizationKPIMetrics({
           value,
           description,
           icon,
+          indicatorColor: config.indicatorColor,
+          iconBgColor: config.iconBgColor,
           link: id === "task-completion" && doneStatusIds
             ? `/tasks?statuses=${doneStatusIds}&types=TASK`
             : id === "bug-resolution" && doneStatusIds
@@ -268,6 +329,8 @@ export function OrganizationKPIMetrics({
               label={card.label}
               value={card.value}
               icon={card.icon}
+              indicatorColor={card.indicatorColor}
+              iconBgColor={card.iconBgColor}
               description={card.description}
               link={card.link}
             />

@@ -16,7 +16,10 @@ export function LanguageToggle() {
   const { getCurrentUser, updateUser } = useAuth();
 
   const changeLanguage = async (lng: string) => {
-    i18n.changeLanguage(lng);
+    await i18n.changeLanguage(lng);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("i18nextLng", lng);
+    }
     const user = getCurrentUser();
     if (user) {
       try {
@@ -36,7 +39,8 @@ export function LanguageToggle() {
     { code: "de", name: "Deutsch" },
   ];
 
-  const currentLanguageName = languages.find((l) => l.code === i18n.language)?.name || "English";
+  const currentLang = i18n.language?.split("-")[0] || "en";
+  const currentLanguageName = languages.find((l) => l.code === currentLang)?.name || "English";
 
   return (
     <DropdownMenu>
@@ -51,7 +55,7 @@ export function LanguageToggle() {
           <DropdownMenuItem
             key={lang.code}
             onClick={() => changeLanguage(lang.code)}
-            className={`cursor-pointer ${i18n.language === lang.code ? "bg-[var(--accent)] text-[var(--accent-foreground)]" : ""}`}
+            className={`cursor-pointer ${currentLang === lang.code ? "bg-[var(--accent)] text-[var(--accent-foreground)]" : ""}`}
           >
             {lang.name}
           </DropdownMenuItem>
