@@ -47,6 +47,7 @@ export interface User {
   updatedAt?: string;
   onboardInfo?: { [key: string]: string };
   source?: UserSource;
+  defaultOrganizationId?: string | null;
 }
 
 export interface UserStatus {

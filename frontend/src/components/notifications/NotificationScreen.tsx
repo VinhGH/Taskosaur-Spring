@@ -218,8 +218,8 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
         hasPrevPage: false,
       });
       setStats(response?.summary || {
-        total: response?.total ?? (response?.notifications || []).length,
-        unread: response?.unreadCount ?? 0,
+        total: response?.summary?.total ?? (response?.notifications || []).length,
+        unread: response?.summary?.unread ?? 0,
         byType: {},
         byPriority: {},
       });
