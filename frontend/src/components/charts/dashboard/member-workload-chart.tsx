@@ -52,9 +52,9 @@ const CustomTooltip = ({ active, payload, t }: any) => {
 export function MemberWorkloadChart({ data }: MemberWorkloadChartProps) {
   const { t } = useTranslation("workspace-home");
   // Sort data by active tasks (descending) and filter out inactive members
-  const sortedData = [...data]
-    .sort((a, b) => b.activeTasks - a.activeTasks)
-    .filter((item) => item.activeTasks > 0 || item.reportedTasks > 0);
+  const sortedData = [...(data || [])]
+    .sort((a, b) => (b?.activeTasks || 0) - (a?.activeTasks || 0))
+    .filter((item) => (item?.activeTasks || 0) > 0 || (item?.reportedTasks || 0) > 0);
 
   // Prepare data for stacked area chart
   const chartData = sortedData.map((item) => {

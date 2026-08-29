@@ -2,13 +2,17 @@ package com.taskosaur.taskosaur.services;
 
 import com.taskosaur.taskosaur.dto.project.CreateProjectRequest;
 import com.taskosaur.taskosaur.dto.project.ProjectResponse;
+import com.taskosaur.taskosaur.dto.project.UpdateProjectRequest;
 import com.taskosaur.taskosaur.enums.Role;
+import com.taskosaur.taskosaur.enums.SprintStatus;
 import com.taskosaur.taskosaur.exceptions.ResourceNotFoundException;
 import com.taskosaur.taskosaur.models.Project;
 import com.taskosaur.taskosaur.models.ProjectMember;
+import com.taskosaur.taskosaur.models.Sprint;
 import com.taskosaur.taskosaur.models.Workspace;
 import com.taskosaur.taskosaur.repositories.ProjectMemberRepository;
 import com.taskosaur.taskosaur.repositories.ProjectRepository;
+import com.taskosaur.taskosaur.repositories.SprintRepository;
 import com.taskosaur.taskosaur.repositories.WorkspaceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,6 +37,7 @@ public class ProjectService {
     private final ProjectMemberRepository projectMemberRepository;
     private final WorkspaceRepository workspaceRepository;
     private final WorkflowService workflowService;
+    private final SprintRepository sprintRepository;
 
     private String generateSlug(String input, String workspaceId) {
         String nowhitespace = WHITESPACE_PATTERN.matcher(input).replaceAll("-");
@@ -97,18 +102,18 @@ public class ProjectService {
         }
 
         Project project = Project.builder()
-                .name(request.getName().trim())
+                .name(request.getName())
                 .slug(slug)
                 .taskPrefix(taskPrefix)
                 .description(request.getDescription())
                 .avatar(request.getAvatar())
-                .color(request.getColor() != null ? request.getColor() : "#3B82F6")
-                .status(request.getStatus())
-                .priority(request.getPriority())
-                .visibility(request.getVisibility())
+                .color(request.getColor())
+                .status(request.getStatus() != null ? request.getStatus() : com.taskosaur.taskosaur.enums.ProjectStatus.PLANNING)
+                .priority(request.getPriority() != null ? request.getPriority() : com.taskosaur.taskosaur.enums.ProjectPriority.MEDIUM)
+                .visibility(request.getVisibility() != null ? request.getVisibility() : com.taskosaur.taskosaur.enums.ProjectVisibility.PRIVATE)
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
-                .workspaceId(workspace.getId())
+                .workspaceId(request.getWorkspaceId())
                 .workflowId(workflowId)
                 .createdBy(userId)
                 .archive(false)
@@ -130,6 +135,44 @@ public class ProjectService {
 
     public List<ProjectResponse> getProjectsByWorkspace(String workspaceId) {
         List<Project> projects = projectRepository.findByWorkspaceId(workspaceId);
+        if (projects.isEmpty()) {
+            Workspace ws = workspaceRepository.findById(workspaceId).orElse(null);
+            if (ws != null) {
+                var defaultWorkflow = workflowService.getOrCreateDefaultWorkflow(ws.getOrganizationId(), ws.getCreatedBy());
+                Project defaultProj = Project.builder()
+                        .name("My Project")
+                        .slug("my-project")
+                        .description("Default project")
+                        .workspaceId(workspaceId)
+                        .workflowId(defaultWorkflow.getId())
+                        .taskPrefix("PRJ")
+                        .color("#3B82F6")
+                        .archive(false)
+                        .createdBy(ws.getCreatedBy())
+                        .build();
+                Project saved = projectRepository.save(defaultProj);
+                if (ws.getCreatedBy() != null) {
+                    ProjectMember member = ProjectMember.builder()
+                            .projectId(saved.getId())
+                            .userId(ws.getCreatedBy())
+                            .role(Role.OWNER)
+                            .createdBy(ws.getCreatedBy())
+                            .build();
+                    projectMemberRepository.save(member);
+                }
+                Sprint sprint = Sprint.builder()
+                        .name("Sprint 1")
+                        .slug("sprint-1")
+                        .goal("Default sprint")
+                        .status(SprintStatus.ACTIVE)
+                        .isDefault(true)
+                        .projectId(saved.getId())
+                        .createdBy(ws.getCreatedBy())
+                        .build();
+                sprintRepository.save(sprint);
+                projects = List.of(saved);
+            }
+        }
         return projects.stream()
                 .map(this::buildProjectResponse)
                 .toList();
@@ -183,6 +226,65 @@ public class ProjectService {
             result.put(id, stats);
         }
         return result;
+    }
+
+    public ProjectResponse updateProject(String id, UpdateProjectRequest request, String userId) {
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
+
+        if (request.getName() != null && !request.getName().isBlank()) {
+            project.setName(request.getName().trim());
+        }
+        if (request.getDescription() != null) {
+            project.setDescription(request.getDescription());
+        }
+        if (request.getAvatar() != null) {
+            project.setAvatar(request.getAvatar());
+        }
+        if (request.getColor() != null) {
+            project.setColor(request.getColor());
+        }
+        if (request.getStatus() != null) {
+            project.setStatus(request.getStatus());
+        }
+        if (request.getPriority() != null) {
+            project.setPriority(request.getPriority());
+        }
+        if (request.getVisibility() != null) {
+            project.setVisibility(request.getVisibility());
+        }
+        if (request.getStartDate() != null) {
+            project.setStartDate(request.getStartDate());
+        }
+        if (request.getEndDate() != null) {
+            project.setEndDate(request.getEndDate());
+        }
+        if (request.getWorkflowId() != null && !request.getWorkflowId().isBlank()) {
+            project.setWorkflowId(request.getWorkflowId());
+        }
+        if (request.getWorkspaceId() != null && !request.getWorkspaceId().isBlank()) {
+            project.setWorkspaceId(request.getWorkspaceId());
+        }
+        if (request.getArchive() != null) {
+            project.setArchive(request.getArchive());
+        }
+
+        Project updated = projectRepository.save(project);
+        return buildProjectResponse(updated);
+    }
+
+    public ProjectResponse archiveProject(String id) {
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
+        project.setArchive(true);
+        return buildProjectResponse(projectRepository.save(project));
+    }
+
+    public ProjectResponse unarchiveProject(String id) {
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
+        project.setArchive(false);
+        return buildProjectResponse(projectRepository.save(project));
     }
 
     public void deleteProject(String id) {

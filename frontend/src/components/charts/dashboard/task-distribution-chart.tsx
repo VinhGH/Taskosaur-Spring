@@ -18,12 +18,12 @@ interface TaskDistributionChartProps {
 
 export function TaskDistributionChart({ data }: TaskDistributionChartProps) {
   const { t } = useTranslation("workspace-home");
-  const chartData = data
+  const chartData = (data || [])
     .map((item) => ({
-      priority: t(chartConfig[item.priority]?.label) || item.priority,
-      count: item._count.priority,
-      fill: chartConfig[item.priority]?.color || "#8B5CF6",
-      key: item.priority,
+      priority: t(chartConfig[item?.priority as keyof typeof chartConfig]?.label) || item?.priority || "Medium",
+      count: item?._count?.priority ?? (item as any)?.count ?? 0,
+      fill: chartConfig[item?.priority as keyof typeof chartConfig]?.color || "#8B5CF6",
+      key: item?.priority || "MEDIUM",
     }))
     .sort((a, b) => {
       const order = ["LOWEST", "LOW", "MEDIUM", "HIGH", "HIGHEST"];

@@ -209,9 +209,20 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
         }
       );
 
-      setNotifications(response.notifications);
-      setPagination(response.pagination);
-      setStats(response.summary);
+      setNotifications(response?.notifications || []);
+      setPagination(response?.pagination || {
+        currentPage: currentPage,
+        totalPages: 1,
+        totalCount: (response?.notifications || []).length,
+        hasNextPage: false,
+        hasPrevPage: false,
+      });
+      setStats(response?.summary || {
+        total: response?.total ?? (response?.notifications || []).length,
+        unread: response?.unreadCount ?? 0,
+        byType: {},
+        byPriority: {},
+      });
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
       setError(error?.message || "Failed to load notifications. Please try again.");
@@ -436,12 +447,12 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
         <PageHeader
           icon={<HiBell className="size-20px" />}
           title="Notifications"
-          description={`${stats.total} total notifications, ${stats.unread} unread`}
+          description={`${stats?.total || 0} total notifications, ${stats?.unread || 0} unread`}
           actions={
             <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 gap-2">
-              {stats.unread > 0 && (
+              {(stats?.unread || 0) > 0 && (
                 <ActionButton primary onClick={handleMarkAllAsRead}>
-                  Mark All Read ({stats.unread})
+                  Mark All Read ({stats?.unread || 0})
                 </ActionButton>
               )}
 

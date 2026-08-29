@@ -43,7 +43,17 @@ export const authApi = {
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
+      const rememberedEmail = localStorage.getItem("remembered_email");
+      const rememberedPassword = localStorage.getItem("remembered_password");
+
       localStorage.clear();
+
+      if (rememberedEmail) {
+        localStorage.setItem("remembered_email", rememberedEmail);
+      }
+      if (rememberedPassword) {
+        localStorage.setItem("remembered_password", rememberedPassword);
+      }
 
       if (typeof window !== "undefined") {
         window.location.href = "/login";

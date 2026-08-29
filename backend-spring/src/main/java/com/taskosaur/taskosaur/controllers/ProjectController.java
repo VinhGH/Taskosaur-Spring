@@ -2,6 +2,7 @@ package com.taskosaur.taskosaur.controllers;
 
 import com.taskosaur.taskosaur.dto.project.CreateProjectRequest;
 import com.taskosaur.taskosaur.dto.project.ProjectResponse;
+import com.taskosaur.taskosaur.dto.project.UpdateProjectRequest;
 import com.taskosaur.taskosaur.services.ProjectChartsService;
 import com.taskosaur.taskosaur.services.ProjectService;
 import jakarta.validation.Valid;
@@ -96,6 +97,27 @@ public class ProjectController {
     @GetMapping("/{id}")
     public ResponseEntity<ProjectResponse> getById(@PathVariable String id) {
         return ResponseEntity.ok(projectService.getProjectById(id));
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<ProjectResponse> update(
+            @PathVariable String id,
+            @Valid @RequestBody UpdateProjectRequest request,
+            Authentication authentication
+    ) {
+        String currentUserId = authentication != null ? authentication.getName() : null;
+        ProjectResponse updated = projectService.updateProject(id, request, currentUserId);
+        return ResponseEntity.ok(updated);
+    }
+
+    @PatchMapping("/archive/{id}")
+    public ResponseEntity<ProjectResponse> archive(@PathVariable String id) {
+        return ResponseEntity.ok(projectService.archiveProject(id));
+    }
+
+    @PatchMapping("/unarchive/{id}")
+    public ResponseEntity<ProjectResponse> unarchive(@PathVariable String id) {
+        return ResponseEntity.ok(projectService.unarchiveProject(id));
     }
 
     @DeleteMapping("/{id}")

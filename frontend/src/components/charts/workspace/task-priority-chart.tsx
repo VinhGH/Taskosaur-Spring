@@ -23,11 +23,11 @@ interface TaskPriorityChartProps {
 
 export function TaskPriorityChart({ data }: TaskPriorityChartProps) {
   const { t } = useTranslation(["workspace-home", "common"]);
-  const chartData = data?.map((item) => ({
-    name: t(`common:priorities.${item.priority.toLowerCase()}`, chartConfig[item.priority as keyof typeof chartConfig]?.label || item.priority),
-    value: item._count.priority,
-    color: chartConfig[item.priority as keyof typeof chartConfig]?.color || "#8B5CF6",
-    id: item.priority
+  const chartData = (data || []).map((item) => ({
+    name: t(`common:priorities.${(item?.priority || "").toLowerCase()}`, chartConfig[item?.priority as keyof typeof chartConfig]?.label || item?.priority || "Medium"),
+    value: item?._count?.priority ?? (item as any)?.count ?? 0,
+    color: chartConfig[item?.priority as keyof typeof chartConfig]?.color || "#8B5CF6",
+    id: item?.priority || "MEDIUM"
   }));
 
   // Sort data by priority level for better visualization

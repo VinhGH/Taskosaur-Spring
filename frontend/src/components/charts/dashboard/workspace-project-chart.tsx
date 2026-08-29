@@ -21,19 +21,19 @@ interface WorkspaceProjectChartProps {
 
 export function WorkspaceProjectChart({ data }: WorkspaceProjectChartProps) {
   const { t } = useTranslation("workspace-home");
-  const chartData = data?.map((item) => ({
-    workspace:
-      item.workspaceName.length > 15
-        ? `${item.workspaceName.substring(0, 15)}...`
-        : item.workspaceName,
-    projects: item.projectCount,
-    fill:
-      item.projectCount > 10
-        ? chartConfig.high.color
-        : item.projectCount > 5
-          ? chartConfig.medium.color
-          : chartConfig.low.color,
-  }));
+  const chartData = (data || []).map((item) => {
+    const wsName = item?.workspaceName || "Workspace";
+    return {
+      workspace: wsName.length > 15 ? `${wsName.substring(0, 15)}...` : wsName,
+      projects: item?.projectCount || 0,
+      fill:
+        (item?.projectCount || 0) > 10
+          ? chartConfig.high.color
+          : (item?.projectCount || 0) > 5
+            ? chartConfig.medium.color
+            : chartConfig.low.color,
+    };
+  });
 
   return (
     <ChartWrapper

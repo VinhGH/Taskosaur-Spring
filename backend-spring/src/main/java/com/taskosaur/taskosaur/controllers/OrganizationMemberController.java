@@ -53,4 +53,10 @@ public class OrganizationMemberController {
         organizationService.setDefaultOrganization(organizationId, userId);
         return ResponseEntity.ok().build();
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> removeMember(@PathVariable String id) {
+        organizationService.removeOrganizationMember(id);
+        return ResponseEntity.noContent().build();
+    }
 }

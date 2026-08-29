@@ -78,6 +78,35 @@ public class NotificationService {
         notificationRepository.saveAll(unread);
     }
 
+    public NotificationResponse getNotificationById(String id, String userId) {
+        Notification n = notificationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Notification not found with id: " + id));
+        if (userId != null && !n.getUserId().equals(userId)) {
+            throw new UnauthorizedException("Cannot view another user's notification");
+        }
+        return buildResponse(n);
+    }
+
+    public void deleteNotification(String id, String userId) {
+        Notification n = notificationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Notification not found with id: " + id));
+        if (userId != null && !n.getUserId().equals(userId)) {
+            throw new UnauthorizedException("Cannot delete another user's notification");
+        }
+        notificationRepository.delete(n);
+    }
+
+    public void bulkDeleteNotifications(List<String> ids, String userId) {
+        if (ids == null || ids.isEmpty()) return;
+        for (String id : ids) {
+            notificationRepository.findById(id).ifPresent(n -> {
+                if (userId == null || n.getUserId().equals(userId)) {
+                    notificationRepository.delete(n);
+                }
+            });
+        }
+    }
+
     private NotificationResponse buildResponse(Notification n) {
         return NotificationResponse.builder()
                 .id(n.getId())

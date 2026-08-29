@@ -28,11 +28,31 @@ public class NotificationController {
         String userId = getUserId(authentication);
         List<NotificationResponse> list = notificationService.getUserNotifications(userId);
         long unread = notificationService.getUnreadCount(userId);
+        int total = list.size();
+        int totalPages = Math.max(1, (int) Math.ceil((double) total / limit));
+
+        Map<String, Object> pagination = Map.of(
+                "currentPage", page,
+                "totalPages", totalPages,
+                "totalCount", total,
+                "hasNextPage", page < totalPages,
+                "hasPrevPage", page > 1
+        );
+
+        Map<String, Object> summary = Map.of(
+                "total", total,
+                "unread", unread,
+                "byType", Map.of(),
+                "byPriority", Map.of()
+        );
+
         return ResponseEntity.ok(Map.of(
                 "notifications", list,
-                "total", list.size(),
+                "pagination", pagination,
+                "summary", summary,
+                "total", total,
                 "page", page,
-                "totalPages", Math.max(1, (int) Math.ceil((double) list.size() / limit)),
+                "totalPages", totalPages,
                 "unreadCount", unread
         ));
     }
@@ -51,11 +71,31 @@ public class NotificationController {
     ) {
         List<NotificationResponse> list = notificationService.getUserNotifications(userId);
         long unread = notificationService.getUnreadCount(userId);
+        int total = list.size();
+        int totalPages = Math.max(1, (int) Math.ceil((double) total / limit));
+
+        Map<String, Object> pagination = Map.of(
+                "currentPage", page,
+                "totalPages", totalPages,
+                "totalCount", total,
+                "hasNextPage", page < totalPages,
+                "hasPrevPage", page > 1
+        );
+
+        Map<String, Object> summary = Map.of(
+                "total", total,
+                "unread", unread,
+                "byType", Map.of(),
+                "byPriority", Map.of()
+        );
+
         return ResponseEntity.ok(Map.of(
                 "notifications", list,
-                "total", list.size(),
+                "pagination", pagination,
+                "summary", summary,
+                "total", total,
                 "page", page,
-                "totalPages", Math.max(1, (int) Math.ceil((double) list.size() / limit)),
+                "totalPages", totalPages,
                 "unreadCount", unread
         ));
     }
@@ -95,11 +135,35 @@ public class NotificationController {
         return ResponseEntity.ok().build();
     }
 
-    @PatchMapping("/read-all")
-    public ResponseEntity<Void> markAllAsRead(Authentication authentication) {
+    @PatchMapping({"/mark-all-read", "/read-all"})
+    public ResponseEntity<Map<String, String>> markAllAsRead(Authentication authentication) {
         String userId = getUserId(authentication);
         notificationService.markAllAsRead(userId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(Map.of("message", "All notifications marked as read"));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<NotificationResponse> getById(@PathVariable String id, Authentication authentication) {
+        String userId = getUserId(authentication);
+        return ResponseEntity.ok(notificationService.getNotificationById(id, userId));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Map<String, Object>> deleteNotification(@PathVariable String id, Authentication authentication) {
+        String userId = getUserId(authentication);
+        notificationService.deleteNotification(id, userId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Notification deleted successfully"));
+    }
+
+    @DeleteMapping("/bulk")
+    public ResponseEntity<Map<String, Object>> bulkDelete(
+            @RequestBody(required = false) com.taskosaur.taskosaur.dto.notification.BulkDeleteNotificationsRequest request,
+            Authentication authentication
+    ) {
+        String userId = getUserId(authentication);
+        List<String> ids = request != null ? request.getIds() : List.of();
+        notificationService.bulkDeleteNotifications(ids, userId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Notifications deleted successfully"));
     }
 
     private String getUserId(Authentication authentication) {

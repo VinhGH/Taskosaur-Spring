@@ -17,10 +17,10 @@ interface SprintMetricsChartProps {
 
 export function SprintMetricsChart({ data }: SprintMetricsChartProps) {
   const { t } = useTranslation("workspace-home");
-  const chartData = data?.map((item) => ({
-    status: t(chartConfig[item.status]?.label) || item.status,
-    count: item._count.status,
-    fill: chartConfig[item.status]?.color || "#8B5CF6",
+  const chartData = (data || []).map((item) => ({
+    status: t(chartConfig[item?.status as keyof typeof chartConfig]?.label) || item?.status || "Active",
+    count: item?._count?.status ?? (item as any)?.count ?? 0,
+    fill: chartConfig[item?.status as keyof typeof chartConfig]?.color || "#8B5CF6",
   }));
 
   return (

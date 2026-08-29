@@ -22,11 +22,11 @@ export function TaskTypeChart({ data, workspaceId }: TaskTypeChartProps) {
   const router = useRouter();
   const { workspaceSlug } = router.query;
 
-  const chartData = data?.map((item) => ({
-    name: chartConfig[item.type as keyof typeof chartConfig]?.label || item.type,
-    value: item._count.type,
-    color: chartConfig[item.type as keyof typeof chartConfig]?.color || "#8B5CF6",
-    id: item.type,
+  const chartData = (data || []).map((item) => ({
+    name: chartConfig[item?.type as keyof typeof chartConfig]?.label || item?.type || "Task",
+    value: item?._count?.type ?? (item as any)?.count ?? 0,
+    color: chartConfig[item?.type as keyof typeof chartConfig]?.color || "#8B5CF6",
+    id: item?.type || "TASK",
   }));
 
   const handleClick = (entry: any) => {

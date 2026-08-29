@@ -92,6 +92,27 @@ public class TaskAttachmentService {
         taskAttachmentRepository.delete(attachment);
     }
 
+    public org.springframework.core.io.Resource loadAsResource(String id) {
+        TaskAttachment attachment = getAttachmentById(id);
+        if (attachment.getFilePath() != null) {
+            Path file = Paths.get(attachment.getFilePath());
+            if (Files.exists(file)) {
+                return new org.springframework.core.io.FileSystemResource(file);
+            }
+        }
+        throw new ResourceNotFoundException("Attachment file not found on disk");
+    }
+
+    public java.util.Map<String, Object> getAttachmentStats(String organizationId) {
+        List<TaskAttachment> all = taskAttachmentRepository.findAll();
+        long totalSize = all.stream().mapToLong(TaskAttachment::getFileSize).sum();
+        return java.util.Map.of(
+                "totalCount", all.size(),
+                "totalSize", totalSize,
+                "totalSizeBytes", totalSize
+        );
+    }
+
     private String resolveTaskId(String taskIdOrSlug) {
         if (taskIdOrSlug == null || taskIdOrSlug.isBlank()) {
             throw new ResourceNotFoundException("Task not found with id: " + taskIdOrSlug);

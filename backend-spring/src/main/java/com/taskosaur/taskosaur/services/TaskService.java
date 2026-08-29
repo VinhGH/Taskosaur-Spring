@@ -8,6 +8,7 @@ import com.taskosaur.taskosaur.exceptions.ResourceNotFoundException;
 import com.taskosaur.taskosaur.models.*;
 import com.taskosaur.taskosaur.repositories.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,11 +22,17 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class TaskService {
 
     public static final String GROUP_BY_STATUS = "status";
     private static final String KEY_TASKS = "tasks";
     private static final String KEY_TOTAL = "total";
+    private static final String KEY_RECURRING_TASK_ID = "recurringTaskId";
+    private static final String KEY_IS_RECURRING = "isRecurring";
+    private static final String KEY_FAILED_TASKS = "failedTasks";
+    private static final String KEY_REASON = "reason";
+    private static final String DEFAULT_UNKNOWN_ERROR = "Unknown error";
     private static final String TASK_NOT_FOUND_MSG = "Task not found with id: ";
     private static final Pattern UUID_PATTERN = Pattern.compile(
             "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
@@ -288,6 +295,10 @@ public class TaskService {
 
         Map<String, Object> statusObj = new HashMap<>();
         statusObj.put("statusId", status.getId());
+        statusObj.put("statusName", status.getName());
+        statusObj.put("statusColor", status.getColor() != null ? status.getColor() : "#6b7280");
+        statusObj.put("statusCategory", status.getCategory() != null ? status.getCategory().name() : "TODO");
+        statusObj.put("statusPosition", status.getPosition() != null ? status.getPosition() : 0);
         statusObj.put(GROUP_BY_STATUS, Map.of(
                 "id", status.getId(),
                 "name", status.getName(),
@@ -300,7 +311,9 @@ public class TaskService {
                 "page", page,
                 "limit", limit,
                 KEY_TOTAL, total,
-                "totalPages", totalPages
+                "totalPages", totalPages,
+                "hasNextPage", page < totalPages,
+                "hasPreviousPage", page > 1
         ));
         return statusObj;
     }
@@ -546,9 +559,209 @@ public class TaskService {
         Task task = findTaskOrThrow(id);
         updateStatusField(task, statusId);
         task.setUpdatedBy(userId);
+        Task updated = taskRepository.save(task);
+        return buildTaskResponse(updated);
+    }
 
-        Task updatedTask = taskRepository.save(task);
-        return buildTaskResponse(updatedTask);
+    public Map<String, Object> bulkCreateTasks(BulkCreateTasksRequest request, String userId) {
+        Project project = projectRepository.findById(request.getProjectId())
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + request.getProjectId()));
+
+        int createdCount = 0;
+        int failedCount = 0;
+
+        if (request.getTasks() != null) {
+            for (BulkCreateTasksRequest.TaskItem item : request.getTasks()) {
+                try {
+                    int nextTaskNumber = taskRepository.findMaxTaskNumberByProjectId(project.getId()) + 1;
+                    String slug = buildTaskSlug(project.getTaskPrefix(), nextTaskNumber);
+
+                    Task task = Task.builder()
+                            .title(item.getTitle().trim())
+                            .description(item.getDescription())
+                            .type(item.getType() != null ? item.getType() : TaskType.TASK)
+                            .priority(item.getPriority() != null ? item.getPriority() : TaskPriority.MEDIUM)
+                            .taskNumber(nextTaskNumber)
+                            .slug(slug)
+                            .startDate(item.getStartDate())
+                            .dueDate(item.getDueDate())
+                            .storyPoints(item.getStoryPoints())
+                            .projectId(project.getId())
+                            .statusId(request.getStatusId())
+                            .sprintId(request.getSprintId())
+                            .createdBy(userId)
+                            .build();
+
+                    taskRepository.save(task);
+                    createdCount++;
+                } catch (Exception e) {
+                    log.warn("Failed to create task in bulk: {}", e.getMessage());
+                    failedCount++;
+                }
+            }
+        }
+        return Map.of("created", createdCount, "failed", failedCount);
+    }
+
+    private List<String> resolveTargetTaskIds(BulkDeleteTasksRequest request) {
+        List<String> targetIds = new ArrayList<>();
+        if (Boolean.TRUE.equals(request.getAll()) && request.getProjectId() != null) {
+            List<Task> projectTasks = taskRepository.findByProjectId(request.getProjectId());
+            Set<String> excluded = request.getExcludedIds() != null ? new HashSet<>(request.getExcludedIds()) : Set.of();
+            for (Task t : projectTasks) {
+                if (!excluded.contains(t.getId())) {
+                    targetIds.add(t.getId());
+                }
+            }
+        } else if (request.getTaskIds() != null) {
+            targetIds.addAll(request.getTaskIds());
+        }
+        return targetIds;
+    }
+
+    public Map<String, Object> bulkDeleteTasks(BulkDeleteTasksRequest request) {
+        int deletedCount = 0;
+        List<Map<String, String>> failedTasks = new ArrayList<>();
+        List<String> targetIds = resolveTargetTaskIds(request);
+
+        for (String id : targetIds) {
+            try {
+                Task task = taskRepository.findById(id).orElse(null);
+                if (task != null) {
+                    taskAssigneeRepository.deleteByTaskId(task.getId());
+                    taskRepository.delete(task);
+                    deletedCount++;
+                }
+            } catch (Exception e) {
+                log.warn("Failed to delete task in bulk: {}", e.getMessage());
+                String reason = e.getMessage() != null ? e.getMessage() : DEFAULT_UNKNOWN_ERROR;
+                failedTasks.add(Map.of("id", id, KEY_REASON, reason));
+            }
+        }
+
+        return Map.of(
+                "deletedCount", deletedCount,
+                KEY_FAILED_TASKS, failedTasks
+        );
+    }
+
+    public Map<String, Object> bulkUpdateTasksStatus(BulkUpdateTaskStatusRequest request, String userId) {
+        int updatedCount = 0;
+        List<TaskResponse> updatedTasks = new ArrayList<>();
+        List<Map<String, String>> failedTasks = new ArrayList<>();
+
+        if (request.getTaskIds() != null && request.getStatusId() != null) {
+            for (String id : request.getTaskIds()) {
+                try {
+                    Task task = taskRepository.findById(id).orElse(null);
+                    if (task != null) {
+                        updateStatusField(task, request.getStatusId());
+                        task.setUpdatedBy(userId);
+                        Task saved = taskRepository.save(task);
+                        updatedTasks.add(buildTaskResponse(saved));
+                        updatedCount++;
+                    }
+                } catch (Exception e) {
+                    String reason = e.getMessage() != null ? e.getMessage() : DEFAULT_UNKNOWN_ERROR;
+                    failedTasks.add(Map.of("id", id, KEY_REASON, reason));
+                }
+            }
+        }
+
+        return Map.of(
+                "updatedCount", updatedCount,
+                "updatedTasks", updatedTasks,
+                KEY_FAILED_TASKS, failedTasks
+        );
+    }
+
+    public Map<String, Object> bulkAssignTasks(BulkAssignTasksRequest request, String userId) {
+        int assignedCount = 0;
+        List<TaskResponse> updatedTasks = new ArrayList<>();
+        List<Map<String, String>> failedTasks = new ArrayList<>();
+
+        if (request.getTaskIds() != null && request.getAssigneeIds() != null) {
+            for (String id : request.getTaskIds()) {
+                try {
+                    TaskResponse resp = assignTaskAssignees(id, request.getAssigneeIds(), userId);
+                    updatedTasks.add(resp);
+                    assignedCount++;
+                } catch (Exception e) {
+                    String reason = e.getMessage() != null ? e.getMessage() : DEFAULT_UNKNOWN_ERROR;
+                    failedTasks.add(Map.of("id", id, KEY_REASON, reason));
+                }
+            }
+        }
+
+        return Map.of(
+                "assignedCount", assignedCount,
+                "updatedTasks", updatedTasks,
+                KEY_FAILED_TASKS, failedTasks
+        );
+    }
+
+    public TaskResponse assignTaskAssignees(String taskId, List<String> assigneeIds, String userId) {
+        Task task = findTaskOrThrow(taskId);
+        taskAssigneeRepository.deleteByTaskId(task.getId());
+
+        if (assigneeIds != null) {
+            for (String aId : assigneeIds) {
+                if (aId != null && !aId.isBlank()) {
+                    TaskAssignee assignee = TaskAssignee.builder()
+                            .taskId(task.getId())
+                            .userId(aId.trim())
+                            .build();
+                    taskAssigneeRepository.save(assignee);
+                }
+            }
+        }
+
+        task.setUpdatedBy(userId);
+        taskRepository.save(task);
+        return buildTaskResponse(task);
+    }
+
+    public TaskResponse addRecurrence(String taskId, Map<String, Object> config, String userId) {
+        Task task = findTaskOrThrow(taskId);
+        task.setIsRecurring(true);
+        if (config != null && config.get(KEY_RECURRING_TASK_ID) != null) {
+            task.setRecurringTaskId(String.valueOf(config.get(KEY_RECURRING_TASK_ID)));
+        }
+        task.setUpdatedBy(userId);
+        taskRepository.save(task);
+        return buildTaskResponse(task);
+    }
+
+    public TaskResponse updateRecurrence(String taskId, Map<String, Object> config, String userId) {
+        Task task = findTaskOrThrow(taskId);
+        if (config != null) {
+            if (config.containsKey(KEY_IS_RECURRING)) {
+                task.setIsRecurring(Boolean.TRUE.equals(config.get(KEY_IS_RECURRING)));
+            }
+            if (config.get(KEY_RECURRING_TASK_ID) != null) {
+                task.setRecurringTaskId(String.valueOf(config.get(KEY_RECURRING_TASK_ID)));
+            }
+        }
+        task.setUpdatedBy(userId);
+        taskRepository.save(task);
+        return buildTaskResponse(task);
+    }
+
+    public TaskResponse stopRecurrence(String taskId, String userId) {
+        Task task = findTaskOrThrow(taskId);
+        task.setIsRecurring(false);
+        task.setRecurringTaskId(null);
+        task.setUpdatedBy(userId);
+        taskRepository.save(task);
+        return buildTaskResponse(task);
+    }
+
+    public TaskResponse completeOccurrence(String taskId, String userId) {
+        Task task = findTaskOrThrow(taskId);
+        task.setCompletedAt(LocalDateTime.now(ZoneOffset.UTC));
+        task.setUpdatedBy(userId);
+        taskRepository.save(task);
+        return buildTaskResponse(task);
     }
 
     public List<TaskResponse> getTasksByProjectId(String projectId) {

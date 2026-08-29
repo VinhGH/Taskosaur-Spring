@@ -3,15 +3,11 @@ package com.taskosaur.taskosaur.services;
 import com.taskosaur.taskosaur.dto.organization.CreateOrganizationRequest;
 import com.taskosaur.taskosaur.dto.organization.OrganizationResponse;
 import com.taskosaur.taskosaur.enums.Role;
+import com.taskosaur.taskosaur.enums.SprintStatus;
+import com.taskosaur.taskosaur.enums.WorkspaceRole;
 import com.taskosaur.taskosaur.exceptions.ResourceNotFoundException;
-import com.taskosaur.taskosaur.models.Organization;
-import com.taskosaur.taskosaur.models.OrganizationMember;
-import com.taskosaur.taskosaur.models.User;
-import com.taskosaur.taskosaur.models.Workspace;
-import com.taskosaur.taskosaur.repositories.OrganizationMemberRepository;
-import com.taskosaur.taskosaur.repositories.OrganizationRepository;
-import com.taskosaur.taskosaur.repositories.UserRepository;
-import com.taskosaur.taskosaur.repositories.WorkspaceRepository;
+import com.taskosaur.taskosaur.models.*;
+import com.taskosaur.taskosaur.repositories.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,7 +30,13 @@ public class OrganizationService {
     private final OrganizationRepository organizationRepository;
     private final OrganizationMemberRepository organizationMemberRepository;
     private final WorkspaceRepository workspaceRepository;
+    private final WorkspaceMemberRepository workspaceMemberRepository;
     private final UserRepository userRepository;
+    private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
+    private final SprintRepository sprintRepository;
+    private final TaskRepository taskRepository;
+    private final WorkflowService workflowService;
 
     private String generateSlug(String name) {
         String slug = name.toLowerCase()
@@ -60,7 +62,83 @@ public class OrganizationService {
         Organization savedOrg = saveNewOrganization(request, slug, userId);
         saveOwnerMembership(savedOrg.getId(), userId);
         updateUserDefaultOrganizationIfNull(userId, savedOrg.getId());
-        initDefaultWorkspaceIfRequested(savedOrg.getId(), userId, request.getDefaultWorkspace());
+
+        // 1. Create Default Workflow and Statuses
+        Workflow defaultWorkflow = workflowService.getOrCreateDefaultWorkflow(savedOrg.getId(), userId);
+
+        // 2. Create Default Workspace
+        String wsName = "My Workspace";
+        if (request.getDefaultWorkspace() != null && request.getDefaultWorkspace().get(KEY_NAME) != null) {
+            String candidate = request.getDefaultWorkspace().get(KEY_NAME).toString().trim();
+            if (!candidate.isBlank()) {
+                wsName = candidate;
+            }
+        }
+        String wsSlug = generateSlug(wsName);
+        Workspace ws = Workspace.builder()
+                .name(wsName)
+                .slug(wsSlug)
+                .description("Default workspace")
+                .organizationId(savedOrg.getId())
+                .createdBy(userId)
+                .path("")
+                .archive(false)
+                .build();
+        Workspace savedWs = workspaceRepository.save(ws);
+        savedWs.setPath("/" + savedWs.getId());
+        workspaceRepository.save(savedWs);
+
+        if (userId != null && !userId.isBlank()) {
+            WorkspaceMember wsMember = WorkspaceMember.builder()
+                    .workspaceId(savedWs.getId())
+                    .userId(userId)
+                    .role(WorkspaceRole.OWNER)
+                    .build();
+            workspaceMemberRepository.save(wsMember);
+        }
+
+        // 3. Create Default Project
+        String projName = "My Project";
+        if (request.getDefaultProject() != null && request.getDefaultProject().get(KEY_NAME) != null) {
+            String candidate = request.getDefaultProject().get(KEY_NAME).toString().trim();
+            if (!candidate.isBlank()) {
+                projName = candidate;
+            }
+        }
+        String projSlug = generateSlug(projName);
+        Project project = Project.builder()
+                .name(projName)
+                .slug(projSlug)
+                .description("Default project")
+                .workspaceId(savedWs.getId())
+                .workflowId(defaultWorkflow.getId())
+                .taskPrefix("PRJ")
+                .color("#3B82F6")
+                .archive(false)
+                .createdBy(userId)
+                .build();
+        Project savedProj = projectRepository.save(project);
+
+        if (userId != null && !userId.isBlank()) {
+            ProjectMember projMember = ProjectMember.builder()
+                    .projectId(savedProj.getId())
+                    .userId(userId)
+                    .role(Role.OWNER)
+                    .createdBy(userId)
+                    .build();
+            projectMemberRepository.save(projMember);
+        }
+
+        Sprint sprint = Sprint.builder()
+                .name("Sprint 1")
+                .slug("sprint-1")
+                .goal("Default sprint")
+                .status(SprintStatus.ACTIVE)
+                .isDefault(true)
+                .projectId(savedProj.getId())
+                .createdBy(userId)
+                .build();
+        sprintRepository.save(sprint);
 
         return buildOrganizationResponse(savedOrg, userId);
     }
@@ -106,23 +184,6 @@ public class OrganizationService {
                 userRepository.save(user);
             }
         });
-    }
-
-    private void initDefaultWorkspaceIfRequested(String orgId, String userId, Map<String, Object> defaultWs) {
-        if (defaultWs == null || defaultWs.get(KEY_NAME) == null) {
-            return;
-        }
-        String wsName = defaultWs.get(KEY_NAME).toString().trim();
-        if (wsName.isBlank()) {
-            return;
-        }
-        Workspace ws = Workspace.builder()
-                .name(wsName)
-                .slug(generateSlug(wsName))
-                .organizationId(orgId)
-                .createdBy(userId)
-                .build();
-        workspaceRepository.save(ws);
     }
 
     public OrganizationResponse getOrganizationById(String id, String userId) {
@@ -351,5 +412,55 @@ public class OrganizationService {
         workspaceRepository.deleteAll(workspaces);
 
         organizationRepository.delete(org);
+    }
+
+    public Map<String, Object> getOrganizationStats(String organizationId) {
+        Organization org = organizationRepository.findById(organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException(ORG_NOT_FOUND));
+
+        long memberCount = organizationMemberRepository.countByOrganizationId(org.getId());
+        long workspaceCount = workspaceRepository.findByOrganizationId(org.getId()).size();
+        long projectCount = projectRepository.findAll().stream()
+                .filter(p -> p.getWorkspaceId() != null)
+                .count();
+
+        return Map.of(
+                "totalMembers", memberCount,
+                "totalWorkspaces", workspaceCount,
+                "totalProjects", projectCount,
+                "totalTasks", 0
+        );
+    }
+
+    public Map<String, Object> universalSearch(String query, String organizationId) {
+        if (query == null || query.isBlank()) {
+            return Map.of("tasks", List.of(), "projects", List.of(), "workspaces", List.of());
+        }
+        String lower = query.toLowerCase().trim();
+        List<Workspace> workspaces = workspaceRepository.findAll().stream()
+                .filter(w -> (organizationId == null || organizationId.isBlank() || organizationId.equals(w.getOrganizationId()))
+                        && w.getName() != null && w.getName().toLowerCase().contains(lower))
+                .limit(10)
+                .toList();
+
+        List<Project> projects = projectRepository.findAll().stream()
+                .filter(p -> p.getName() != null && p.getName().toLowerCase().contains(lower))
+                .limit(10)
+                .toList();
+
+        List<Task> tasks = taskRepository.findAll().stream()
+                .filter(t -> t.getTitle() != null && t.getTitle().toLowerCase().contains(lower))
+                .limit(10)
+                .toList();
+
+        return Map.of(
+                "workspaces", workspaces,
+                "projects", projects,
+                "tasks", tasks
+        );
+    }
+
+    public void removeOrganizationMember(String memberId) {
+        organizationMemberRepository.deleteById(memberId);
     }
 }

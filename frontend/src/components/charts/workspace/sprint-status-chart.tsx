@@ -20,10 +20,10 @@ interface SprintStatusChartProps {
 }
 
 export function SprintStatusChart({ data }: SprintStatusChartProps) {
-  const chartData = data?.map((item) => ({
-    name: chartConfig[item.status as keyof typeof chartConfig]?.label || item.status,
-    value: item._count.status,
-    color: chartConfig[item.status as keyof typeof chartConfig]?.color || "#8B5CF6",
+  const chartData = (data || []).map((item) => ({
+    name: chartConfig[item?.status as keyof typeof chartConfig]?.label || item?.status || "Active",
+    value: item?._count?.status ?? (item as any)?.count ?? 0,
+    color: chartConfig[item?.status as keyof typeof chartConfig]?.color || "#8B5CF6",
   }));
 
   // Sort data by status for better visualization

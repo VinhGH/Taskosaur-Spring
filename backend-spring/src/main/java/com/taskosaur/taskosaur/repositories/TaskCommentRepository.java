@@ -10,4 +10,5 @@ import java.util.List;
 public interface TaskCommentRepository extends JpaRepository<TaskComment, String> {
 
     List<TaskComment> findByTaskIdOrderByCreatedAtAsc(String taskId);
+    List<TaskComment> findByTaskIdOrderByCreatedAtDesc(String taskId);
 }

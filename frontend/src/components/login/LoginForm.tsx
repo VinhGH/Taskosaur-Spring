@@ -35,6 +35,25 @@ export function LoginForm() {
   const [ssoConfig, setSsoConfig] = useState<{ enabled: boolean; configured: boolean; providerName: string } | null>(null);
 
   useEffect(() => {
+    const savedEmail = localStorage.getItem("remembered_email");
+    const savedPassword = localStorage.getItem("remembered_password");
+    if (savedEmail) {
+      let decodedPassword = "";
+      if (savedPassword) {
+        try {
+          decodedPassword = decodeURIComponent(escape(atob(savedPassword)));
+        } catch {
+          decodedPassword = savedPassword;
+        }
+      }
+      setFormData((prev) => ({
+        ...prev,
+        email: savedEmail,
+        password: decodedPassword,
+        rememberMe: true,
+      }));
+    }
+
     api.get("/auth/registration-status")
       .then((res) => setRegistrationEnabled(res.data?.enabled !== false))
       .catch(() => setRegistrationEnabled(true));
@@ -91,6 +110,17 @@ export function LoginForm() {
     setError("");
 
     try {
+      if (formData.rememberMe) {
+        localStorage.setItem("remembered_email", formData.email);
+        try {
+          localStorage.setItem("remembered_password", btoa(unescape(encodeURIComponent(formData.password))));
+        } catch {
+          localStorage.setItem("remembered_password", formData.password);
+        }
+      } else {
+        localStorage.removeItem("remembered_email");
+        localStorage.removeItem("remembered_password");
+      }
       await login({ email: formData.email, password: formData.password });
       router.push("/dashboard");
     } catch (err) {

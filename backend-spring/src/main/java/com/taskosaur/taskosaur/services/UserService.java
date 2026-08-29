@@ -8,6 +8,7 @@ import com.taskosaur.taskosaur.exceptions.UnauthorizedException;
 import com.taskosaur.taskosaur.models.User;
 import com.taskosaur.taskosaur.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ import java.util.List;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public User findById(String id) {
         return userRepository.findById(id)
@@ -67,5 +69,23 @@ public class UserService {
         }
 
         return userRepository.save(user);
+    }
+
+    public void changePassword(String userId, com.taskosaur.taskosaur.dto.user.ChangePasswordRequest request) {
+        if (userId == null || userId.isBlank()) {
+            throw new UnauthorizedException("User not authenticated");
+        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new com.taskosaur.taskosaur.exceptions.BadRequestException("Mật khẩu hiện tại không chính xác");
+        }
+        if (request.getConfirmPassword() != null && !request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new com.taskosaur.taskosaur.exceptions.BadRequestException("Mật khẩu xác nhận không khớp");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
     }
 }
