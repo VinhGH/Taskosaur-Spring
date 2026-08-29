@@ -1,0 +1,97 @@
+services:
+  # 1. PostgreSQL Database
+  postgres:
+    image: postgres:16
+    container_name: taskosaur-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-taskosaur}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-taskosaur_prod_password_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-taskosaur}
+    command: postgres -c timezone=UTC
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-taskosaur}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - taskosaur-spring-network
+    restart: unless-stopped
+
+  # 2. Database Migrations (Tự động khởi tạo schema tables)
+  db-migrate:
+    build:
+      context: .
+      dockerfile: docker/db-migrate.Dockerfile
+    container_name: taskosaur-db-migrate
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-taskosaur}:${POSTGRES_PASSWORD:-taskosaur_prod_password_2026}@postgres:5432/${POSTGRES_DB:-taskosaur}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - taskosaur-spring-network
+    restart: "no"
+
+  # 3. Backend Java Spring Boot
+  backend-spring:
+    build:
+      context: .
+      dockerfile: backend-spring/Dockerfile
+    container_name: taskosaur-backend-spring
+    environment:
+      SPRING_DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-taskosaur}?stringtype=unspecified&options=-c%20timezone%3DUTC
+      POSTGRES_USER: ${POSTGRES_USER:-taskosaur}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-taskosaur_prod_password_2026}
+      SERVER_PORT: 3000
+      JWT_SECRET: ${JWT_SECRET:-change-this-in-production-long-secret-key}
+      JWT_ACCESS_EXPIRY_MS: ${JWT_ACCESS_EXPIRY_MS:-900000}
+      JWT_REFRESH_EXPIRY_MS: ${JWT_REFRESH_EXPIRY_MS:-604800000}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
+      UPLOAD_DEST: /app/uploads
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-noreply@taskosaur.com}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
+      AI_MAX_TOKENS: ${AI_MAX_TOKENS:-4000}
+      AI_REQUEST_TIMEOUT_MS: ${AI_REQUEST_TIMEOUT_MS:-60000}
+      SPRING_JPA_SHOW_SQL: ${SPRING_JPA_SHOW_SQL:-false}
+    volumes:
+      - spring_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-migrate:
+        condition: service_completed_successfully
+    networks:
+      - taskosaur-spring-network
+    restart: unless-stopped
+
+  # 4. Frontend Next.js + Nginx Reverse Proxy
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: taskosaur-frontend
+    ports:
+      - "${APP_PORT:-80}:80"
+    depends_on:
+      - backend-spring
+    networks:
+      - taskosaur-spring-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  spring_uploads:
+    driver: local
+
+networks:
+  taskosaur-spring-network:
+    driver: bridge
