@@ -6,13 +6,14 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Copy root workspace package files
+# Copy root workspace package files and build scripts
 COPY package.json package-lock.json ./
 COPY frontend/package.json ./frontend/
 COPY backend/package.json ./backend/
+COPY scripts ./scripts
 
-# Install dependencies
-RUN npm install
+# Install dependencies without running dev hooks
+RUN npm install --ignore-scripts
 
 # Copy frontend source code
 COPY frontend ./frontend
