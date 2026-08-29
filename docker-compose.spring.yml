@@ -37,8 +37,8 @@ services:
   # 3. Backend Java Spring Boot
   backend-spring:
     build:
-      context: .
-      dockerfile: backend-spring/Dockerfile
+      context: ./backend-spring
+      dockerfile: Dockerfile
     container_name: taskosaur-backend-spring
     environment:
       SPRING_DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-taskosaur}?stringtype=unspecified&options=-c%20timezone%3DUTC
