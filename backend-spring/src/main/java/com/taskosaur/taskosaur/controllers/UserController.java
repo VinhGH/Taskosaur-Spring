@@ -72,4 +72,14 @@ public class UserController {
         User updated = userService.update(id, req, currentUserId);
         return ResponseEntity.ok(updated);
     }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<Map<String, Object>> changePassword(
+            @jakarta.validation.Valid @RequestBody com.taskosaur.taskosaur.dto.user.ChangePasswordRequest req,
+            Authentication authentication
+    ) {
+        String currentUserId = authentication != null ? authentication.getName() : null;
+        userService.changePassword(currentUserId, req);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Mật khẩu đã được thay đổi thành công"));
+    }
 }

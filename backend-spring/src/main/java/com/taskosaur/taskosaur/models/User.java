@@ -74,6 +74,13 @@ public class User {
     @Column(name = "refresh_token", columnDefinition = "TEXT")
     private String refreshToken;
 
+    @JsonIgnore
+    @Column(name = "reset_token")
+    private String resetToken;
+
+    @Column(name = "reset_token_expiry")
+    private LocalDateTime resetTokenExpiry;
+
     @Column(name = "default_organization_id")
     private String defaultOrganizationId;
 

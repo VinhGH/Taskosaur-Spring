@@ -99,8 +99,8 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
   useEffect(() => {
     if (!currentTask || !isEditModalOpen) return;
 
-    setLocalKanbanData((prevData) => {
-      const updatedData = prevData.map((statusColumn) => ({
+    setLocalKanbanData((prevData) =>
+      prevData.map((statusColumn) => ({
         ...statusColumn,
         tasks: statusColumn.tasks.map((task) =>
           task.id === currentTask.id
@@ -118,15 +118,9 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
               }
             : task
         ),
-      }));
-
-      if (onKanbanUpdate) {
-        onKanbanUpdate(updatedData);
-      }
-
-      return updatedData;
-    });
-  }, [currentTask, isEditModalOpen, onKanbanUpdate]);
+      }))
+    );
+  }, [currentTask, isEditModalOpen]);
 
   const { dragState, handleDragStart, handleDragOver, handleDrop, handleDragEnd } = useDragAndDrop({
     onDrop: async (task: KanbanTask, fromStatusId: string, toStatusId: string) => {

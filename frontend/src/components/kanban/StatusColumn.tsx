@@ -180,26 +180,30 @@ const StatusColumn: React.FC<StatusColumnProps> = ({
     }
   };
 
+  const statusName = status.statusName || (status as any).status?.name || (status as any).name || "Status";
+  const statusColor = status.statusColor || (status as any).status?.color || "#6b7280";
+  const statusCategory = status.statusCategory || (status as any).status?.category || "TODO";
+
   const getStatusIndicator = () => {
-    switch (status.statusCategory) {
+    switch (statusCategory) {
       case "TODO":
         return (
-          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: status.statusColor }} />
+          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: statusColor }} />
         );
       case "IN_PROGRESS":
         return (
-          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: status.statusColor }} />
+          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: statusColor }} />
         );
       case "DONE":
         return (
-          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: status.statusColor }} />
+          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: statusColor }} />
         );
       default:
-        return <HiSquare3Stack3D className="w-4 h-4" style={{ color: status.statusColor }} />;
+        return <HiSquare3Stack3D className="w-4 h-4" style={{ color: statusColor }} />;
     }
   };
 
-  const taskCount = status.pagination?.total ?? (status as any)._count ?? 0;
+  const taskCount = status.pagination?.total ?? (status as any)._count ?? (status.tasks || []).length;
 
   return (
     <div className="kanban-column-container group">
@@ -208,14 +212,14 @@ const StatusColumn: React.FC<StatusColumnProps> = ({
         <div className="kanban-column-header flex justify-between items-center">
           <div className="kanban-column-header-content">
             {getStatusIndicator()}
-            <h3 className="kanban-column-title">{status.statusName}</h3>
+            <h3 className="kanban-column-title">{statusName}</h3>
             <Badge
               variant="secondary"
               className="kanban-column-counter"
               style={{
-                backgroundColor: `${status.statusColor}20`,
-                color: status.statusColor,
-                borderColor: `${status.statusColor}40`,
+                backgroundColor: `${statusColor}20`,
+                color: statusColor,
+                borderColor: `${statusColor}40`,
               }}
             >
               {taskCount}

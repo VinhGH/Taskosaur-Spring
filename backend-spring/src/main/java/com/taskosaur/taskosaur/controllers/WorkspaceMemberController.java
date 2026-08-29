@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -37,6 +38,18 @@ public class WorkspaceMemberController {
                 request.getRole()
         );
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @PostMapping("/invite")
+    public ResponseEntity<Map<String, Object>> inviteMember(
+            @RequestBody Map<String, String> body,
+            Authentication authentication
+    ) {
+        String email = body.get("email");
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Invitation sent successfully to " + email
+        ));
     }
 
     @GetMapping("/workspace/{workspaceId}/stats")

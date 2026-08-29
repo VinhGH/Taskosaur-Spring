@@ -22,6 +22,7 @@ import java.util.List;
 public class WorkspaceController {
 
     private final WorkspaceService workspaceService;
+    private final com.taskosaur.taskosaur.services.ChartsService chartsService;
 
     // POST /api/workspaces -> Tạo workspace
     @PostMapping
@@ -94,6 +95,33 @@ public class WorkspaceController {
         return ResponseEntity.ok(workspaceService.getWorkspaceById(id));
     }
 
+    // GET /api/workspaces/{id}/ancestors
+    @GetMapping("/{id}/ancestors")
+    public ResponseEntity<List<Workspace>> getAncestors(@PathVariable("id") String id) {
+        return ResponseEntity.ok(workspaceService.getAncestors(id));
+    }
+
+    // PATCH /api/workspaces/archive/{id}
+    @PatchMapping("/archive/{id}")
+    public ResponseEntity<Workspace> archiveWorkspace(@PathVariable("id") String id) {
+        return ResponseEntity.ok(workspaceService.archiveWorkspace(id));
+    }
+
+    // PATCH /api/workspaces/unarchive/{id}
+    @PatchMapping("/unarchive/{id}")
+    public ResponseEntity<Workspace> unarchiveWorkspace(@PathVariable("id") String id) {
+        return ResponseEntity.ok(workspaceService.unarchiveWorkspace(id));
+    }
+
+    // POST /api/workspaces/{id}/apply-inheritance
+    @PostMapping("/{id}/apply-inheritance")
+    public ResponseEntity<java.util.Map<String, Object>> applyInheritance(
+            @PathVariable("id") String id,
+            @RequestBody(required = false) java.util.Map<String, Object> options
+    ) {
+        return ResponseEntity.ok(workspaceService.applyInheritance(id, options != null ? options : java.util.Map.of()));
+    }
+
     // PATCH /api/workspaces/{id} -> Cập nhật workspace
     @PatchMapping("/{id}")
     public ResponseEntity<Workspace> update(
@@ -138,25 +166,10 @@ public class WorkspaceController {
     public ResponseEntity<java.util.Map<String, Object>> getWorkspaceCharts(
             @PathVariable("organizationId") String organizationId,
             @PathVariable("slug") String slug,
-            @RequestParam(name = "types", required = false) List<String> types) {
-        java.util.Map<String, Object> charts = new java.util.HashMap<>();
-        charts.put("kpi-metrics", java.util.Map.of(
-                "totalProjects", 0,
-                "activeProjects", 0,
-                "completionRate", 0,
-                "totalTasks", 0,
-                "completedTasks", 0,
-                "taskCompletionRate", 0,
-                "activeSprints", 0
-        ));
-        charts.put("project-status", List.of());
-        charts.put("task-priority", List.of());
-        charts.put("task-type", List.of());
-        charts.put("sprint-status", List.of());
-        charts.put("monthly-completion", List.of());
-        charts.put("workspace-activity", List.of());
-        charts.put("member-workload", List.of());
-        charts.put("resource-allocation", List.of());
-        return ResponseEntity.ok(charts);
+            @RequestParam(name = "types", required = false) List<String> types,
+            Authentication authentication
+    ) {
+        String userId = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(chartsService.getWorkspaceCharts(organizationId, slug, userId, types));
     }
 }

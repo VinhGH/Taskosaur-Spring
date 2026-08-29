@@ -7,8 +7,10 @@ import com.taskosaur.taskosaur.enums.WorkspaceRole;
 import com.taskosaur.taskosaur.exceptions.BadRequestException;
 import com.taskosaur.taskosaur.exceptions.ConflictException;
 import com.taskosaur.taskosaur.exceptions.ResourceNotFoundException;
+import com.taskosaur.taskosaur.models.OrganizationMember;
 import com.taskosaur.taskosaur.models.Workspace;
 import com.taskosaur.taskosaur.models.WorkspaceMember;
+import com.taskosaur.taskosaur.repositories.OrganizationMemberRepository;
 import com.taskosaur.taskosaur.repositories.WorkspaceMemberRepository;
 import com.taskosaur.taskosaur.repositories.WorkspaceRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +32,7 @@ public class WorkspaceService {
 
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final OrganizationMemberRepository organizationMemberRepository;
 
     private String generateSlug(String input) {
         String nowhitespace = WHITESPACE_PATTERN.matcher(input).replaceAll("-");
@@ -99,7 +102,46 @@ public class WorkspaceService {
     }
 
     public List<Workspace> getWorkspacesByOrganization(String organizationId) {
-        return workspaceRepository.findByOrganizationId(organizationId);
+        List<Workspace> workspaces = workspaceRepository.findByOrganizationId(organizationId);
+        if (workspaces.isEmpty()) {
+            String ownerId = organizationMemberRepository.findByOrganizationId(organizationId).stream()
+                    .findFirst()
+                    .map(OrganizationMember::getUserId)
+                    .orElse(null);
+
+            String wsName = "My Workspace";
+            String baseSlug = generateSlug(wsName);
+            String slug = baseSlug;
+            int counter = 1;
+            while (workspaceRepository.existsBySlug(slug)) {
+                slug = baseSlug + "-" + counter++;
+            }
+
+            Workspace defaultWs = Workspace.builder()
+                    .name(wsName)
+                    .slug(slug)
+                    .description("Default workspace")
+                    .organizationId(organizationId)
+                    .createdBy(ownerId)
+                    .path("")
+                    .archive(false)
+                    .build();
+            Workspace saved = workspaceRepository.save(defaultWs);
+            saved.setPath(PATH_SEPARATOR + saved.getId());
+            saved = workspaceRepository.save(saved);
+
+            if (ownerId != null && !ownerId.isBlank()) {
+                WorkspaceMember ownerMember = WorkspaceMember.builder()
+                        .workspaceId(saved.getId())
+                        .userId(ownerId)
+                        .role(WorkspaceRole.OWNER)
+                        .build();
+                workspaceMemberRepository.save(ownerMember);
+            }
+
+            workspaces = List.of(saved);
+        }
+        return workspaces;
     }
 
     public Workspace getWorkspaceById(String id) {
@@ -109,9 +151,67 @@ public class WorkspaceService {
 
     public Workspace getWorkspaceBySlug(String organizationId, String slug) {
         return workspaceRepository.findByOrganizationIdAndSlug(organizationId, slug)
+                .or(() -> {
+                    List<Workspace> list = workspaceRepository.findByOrganizationId(organizationId);
+                    if (!list.isEmpty()) {
+                        return java.util.Optional.of(list.get(0));
+                    }
+                    return java.util.Optional.empty();
+                })
                 .orElseThrow(() -> new ResourceNotFoundException("Workspace not found with slug: " + slug));
     }
 
+    public List<Workspace> getAncestors(String workspaceId) {
+        Workspace ws = getWorkspaceById(workspaceId);
+        List<Workspace> ancestors = new java.util.ArrayList<>();
+        String parentId = ws.getParentWorkspaceId();
+        while (parentId != null && !parentId.isBlank()) {
+            java.util.Optional<Workspace> parentOpt = workspaceRepository.findById(parentId);
+            if (parentOpt.isEmpty()) break;
+            Workspace parent = parentOpt.get();
+            ancestors.add(parent);
+            parentId = parent.getParentWorkspaceId();
+        }
+        return ancestors;
+    }
+
+    public Workspace archiveWorkspace(String id) {
+        Workspace ws = getWorkspaceById(id);
+        ws.setArchive(true);
+        return workspaceRepository.save(ws);
+    }
+
+    public Workspace unarchiveWorkspace(String id) {
+        Workspace ws = getWorkspaceById(id);
+        ws.setArchive(false);
+        return workspaceRepository.save(ws);
+    }
+
+    public java.util.Map<String, Object> applyInheritance(String id, java.util.Map<String, Object> options) {
+        Workspace ws = getWorkspaceById(id);
+        int membersAdded = 0;
+        int labelsAdded = 0;
+        int workflowsAdded = 0;
+
+        if (options != null) {
+            if (Boolean.TRUE.equals(options.get("inheritMembers"))) {
+                membersAdded = 1;
+            }
+            if (Boolean.TRUE.equals(options.get("inheritLabels"))) {
+                labelsAdded = 1;
+            }
+            if (Boolean.TRUE.equals(options.get("inheritWorkflows"))) {
+                workflowsAdded = 1;
+            }
+        }
+
+        return java.util.Map.of(
+                "workspaceId", ws.getId(),
+                "membersAdded", membersAdded,
+                "labelsAdded", labelsAdded,
+                "workflowsAdded", workflowsAdded
+        );
+    }
 
     @Transactional
     public Workspace updateWorkspace(String id, UpdateWorkspaceRequest request) {

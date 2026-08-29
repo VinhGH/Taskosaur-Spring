@@ -244,6 +244,102 @@ public class TaskController {
         return ResponseEntity.ok(List.of());
     }
 
+    // ─── POST /api/tasks/bulk-create ──────────────────────────────────────────
+    @PostMapping("/bulk-create")
+    public ResponseEntity<Map<String, Object>> bulkCreate(
+            @Valid @RequestBody BulkCreateTasksRequest request,
+            Authentication authentication
+    ) {
+        String currentUserId = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(taskService.bulkCreateTasks(request, currentUserId));
+    }
+
+    // ─── POST & DELETE /api/tasks/bulk-delete ───────────────────────────────────
+    @PostMapping({"/bulk-delete", "/bulk-delete-tasks"})
+    public ResponseEntity<Map<String, Object>> bulkDeletePost(@RequestBody BulkDeleteTasksRequest request) {
+        return ResponseEntity.ok(taskService.bulkDeleteTasks(request));
+    }
+
+    @DeleteMapping({"/bulk-delete", "/bulk-delete-tasks"})
+    public ResponseEntity<Map<String, Object>> bulkDelete(@RequestBody BulkDeleteTasksRequest request) {
+        return bulkDeletePost(request);
+    }
+
+    // ─── POST /api/tasks/bulk-status-update ────────────────────────────────────
+    @PostMapping("/bulk-status-update")
+    public ResponseEntity<Map<String, Object>> bulkUpdateStatus(
+            @RequestBody BulkUpdateTaskStatusRequest request,
+            Authentication authentication
+    ) {
+        String currentUserId = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(taskService.bulkUpdateTasksStatus(request, currentUserId));
+    }
+
+    // ─── POST /api/tasks/bulk-assign ───────────────────────────────────────────
+    @PostMapping("/bulk-assign")
+    public ResponseEntity<Map<String, Object>> bulkAssign(
+            @RequestBody BulkAssignTasksRequest request,
+            Authentication authentication
+    ) {
+        String currentUserId = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(taskService.bulkAssignTasks(request, currentUserId));
+    }
+
+    // ─── PATCH /api/tasks/{id}/assignees ────────────────────────────────────────
+    @PatchMapping("/{id}/assignees")
+    public ResponseEntity<TaskResponse> assignAssignees(
+            @PathVariable String id,
+            @RequestBody AssignTaskAssigneesRequest request,
+            Authentication authentication
+    ) {
+        String currentUserId = authentication != null ? authentication.getName() : null;
+        List<String> ids = request != null ? request.getAssigneeIds() : List.of();
+        TaskResponse response = taskService.assignTaskAssignees(id, ids, currentUserId);
+        return ResponseEntity.ok(response);
+    }
+
+    // ─── POST /api/tasks/{id}/recurrence ───────────────────────────────────────
+    @PostMapping("/{id}/recurrence")
+    public ResponseEntity<TaskResponse> addRecurrence(
+            @PathVariable String id,
+            @RequestBody Map<String, Object> body,
+            Authentication authentication
+    ) {
+        String currentUserId = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(taskService.addRecurrence(id, body, currentUserId));
+    }
+
+    // ─── PATCH /api/tasks/{id}/recurrence ──────────────────────────────────────
+    @PatchMapping("/{id}/recurrence")
+    public ResponseEntity<TaskResponse> updateRecurrence(
+            @PathVariable String id,
+            @RequestBody Map<String, Object> body,
+            Authentication authentication
+    ) {
+        String currentUserId = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(taskService.updateRecurrence(id, body, currentUserId));
+    }
+
+    // ─── DELETE /api/tasks/{id}/recurrence ─────────────────────────────────────
+    @DeleteMapping("/{id}/recurrence")
+    public ResponseEntity<TaskResponse> stopRecurrence(
+            @PathVariable String id,
+            Authentication authentication
+    ) {
+        String currentUserId = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(taskService.stopRecurrence(id, currentUserId));
+    }
+
+    // ─── POST /api/tasks/{id}/complete-occurrence ──────────────────────────────
+    @PostMapping("/{id}/complete-occurrence")
+    public ResponseEntity<TaskResponse> completeOccurrence(
+            @PathVariable String id,
+            Authentication authentication
+    ) {
+        String currentUserId = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(taskService.completeOccurrence(id, currentUserId));
+    }
+
     // ─── DELETE /api/tasks/{id} ────────────────────────────────────────────────
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable String id) {

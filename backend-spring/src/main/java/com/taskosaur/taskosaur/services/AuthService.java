@@ -1,9 +1,6 @@
 package com.taskosaur.taskosaur.services;
 
-import com.taskosaur.taskosaur.dto.auth.AuthResponse;
-import com.taskosaur.taskosaur.dto.auth.LoginRequest;
-import com.taskosaur.taskosaur.dto.auth.RegisterRequest;
-import com.taskosaur.taskosaur.dto.auth.SetupAdminRequest;
+import com.taskosaur.taskosaur.dto.auth.*;
 import com.taskosaur.taskosaur.enums.Role;
 import com.taskosaur.taskosaur.enums.UserStatus;
 import com.taskosaur.taskosaur.exceptions.BadRequestException;
@@ -13,12 +10,14 @@ import com.taskosaur.taskosaur.exceptions.UnauthorizedException;
 import com.taskosaur.taskosaur.models.User;
 import com.taskosaur.taskosaur.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +26,10 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final EmailService emailService;
+
+    @Value("${app.frontend-url:http://localhost:3001}")
+    private String frontendUrl;
 
     public boolean checkUsersExist() {
         return userRepository.count() > 0;
@@ -161,5 +164,64 @@ public class AuthService {
                 .user(user)
                 .message("Token refreshed successfully")
                 .build();
+    }
+
+    public void logout(String userId) {
+        if (userId != null && !userId.isBlank()) {
+            userRepository.findById(userId).ifPresent(user -> {
+                user.setRefreshToken(null);
+                userRepository.save(user);
+            });
+        }
+    }
+
+    public Map<String, Object> forgotPassword(String email) {
+        if (email == null || email.isBlank()) {
+            return Map.of("success", true, "message", "Password reset instructions sent to your email");
+        }
+        userRepository.findByEmail(email.trim().toLowerCase()).ifPresent(user -> {
+            String resetToken = UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", "");
+            user.setResetToken(resetToken);
+            user.setResetTokenExpiry(LocalDateTime.now(ZoneOffset.UTC).plusHours(24));
+            userRepository.save(user);
+
+            String resetUrl = frontendUrl + "/reset-password?token=" + resetToken;
+            emailService.sendPasswordResetEmail(user.getEmail(), user.getFirstName(), resetToken, resetUrl);
+        });
+        return Map.of("success", true, "message", "Password reset instructions sent to your email");
+    }
+
+    public VerifyResetTokenResponse verifyResetToken(String token) {
+        if (token == null || token.isBlank()) {
+            return new VerifyResetTokenResponse(false, "Invalid or expired token");
+        }
+        var userOpt = userRepository.findByResetToken(token);
+        if (userOpt.isEmpty()) {
+            return new VerifyResetTokenResponse(false, "Invalid or expired token");
+        }
+        User user = userOpt.get();
+        if (user.getResetTokenExpiry() == null || user.getResetTokenExpiry().isBefore(LocalDateTime.now(ZoneOffset.UTC))) {
+            return new VerifyResetTokenResponse(false, "Invalid or expired token");
+        }
+        return new VerifyResetTokenResponse(true, "Token is valid");
+    }
+
+    public Map<String, Object> resetPassword(ResetPasswordRequest request) {
+        if (request.getConfirmPassword() != null && !request.getPassword().equals(request.getConfirmPassword())) {
+            throw new BadRequestException("Passwords do not match");
+        }
+        User user = userRepository.findByResetToken(request.getToken())
+                .orElseThrow(() -> new BadRequestException("Invalid or expired token"));
+
+        if (user.getResetTokenExpiry() == null || user.getResetTokenExpiry().isBefore(LocalDateTime.now(ZoneOffset.UTC))) {
+            throw new BadRequestException("Invalid or expired token");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setResetToken(null);
+        user.setResetTokenExpiry(null);
+        userRepository.save(user);
+
+        return Map.of("success", true, "message", "Password has been reset successfully");
     }
 }

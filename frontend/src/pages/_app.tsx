@@ -12,6 +12,7 @@ import ChatProvider from "@/contexts/chat-context";
 import ChatPanel from "@/components/chat/ChatPanel";
 import { Toaster } from "@/components/ui/sonner";
 import { SEO } from "@/components/common/SEO";
+import { installToastTranslator } from "@/lib/toast-translator";
 
 function useExposeRouter() {
   const router = useRouter();
@@ -24,6 +25,10 @@ function useExposeRouter() {
 export default function MyApp({ Component, pageProps }: AppProps) {
   // Expose router globally for automation to use
   useExposeRouter();
+
+  useEffect(() => {
+    installToastTranslator();
+  }, []);
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <SEO />

@@ -26,8 +26,8 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
   if (isExiting && !isVisible) return null;
 
   return (
-    <div className={`splash-screen-container ${isExiting ? "fade-out" : ""}`}>
-      <div className="splash-logo-container">
+    <div className={`splash-screen-container ${isExiting ? "fade-out" : ""}`} suppressHydrationWarning>
+      <div className="splash-logo-container" suppressHydrationWarning>
         <div className="splash-logo-glow" />
         <div className="splash-logo">
           <Image

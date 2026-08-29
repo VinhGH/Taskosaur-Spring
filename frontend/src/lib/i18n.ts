@@ -2,6 +2,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import HttpApi from 'i18next-http-backend';
+import { installToastTranslator } from './toast-translator';
 
 i18n
   .use(HttpApi)
@@ -28,5 +29,9 @@ i18n
     defaultNS: 'common',
     load: 'languageOnly',
   });
+
+if (typeof window !== 'undefined') {
+  installToastTranslator();
+}
 
 export default i18n;

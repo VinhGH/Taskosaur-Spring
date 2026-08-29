@@ -76,6 +76,13 @@ public class Task {
     @Column(name = "updated_by_id")
     private String updatedBy;
 
+    @Column(name = "is_recurring")
+    @Builder.Default
+    private Boolean isRecurring = false;
+
+    @Column(name = "recurring_task_id")
+    private String recurringTaskId;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

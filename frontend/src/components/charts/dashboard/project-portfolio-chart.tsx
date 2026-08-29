@@ -17,13 +17,13 @@ interface ProjectPortfolioChartProps {
 
 export function ProjectPortfolioChart({ data }: ProjectPortfolioChartProps) {
   const { t } = useTranslation("workspace-home");
-  const chartData = data?.map((item) => ({
-    name: t(chartConfig[item.status]?.label) || item.status,
-    value: item._count.status,
-    fill: chartConfig[item.status]?.color || "#8B5CF6",
+  const chartData = (data || []).map((item) => ({
+    name: t(chartConfig[item?.status as keyof typeof chartConfig]?.label) || item?.status || "Unknown",
+    value: item?._count?.status ?? (item as any)?.count ?? 0,
+    fill: chartConfig[item?.status as keyof typeof chartConfig]?.color || "#8B5CF6",
   }));
 
-  const totalProjects = chartData.reduce((sum, item) => sum + item.value, 0);
+  const totalProjects = chartData.reduce((sum, item) => sum + (item.value || 0), 0);
 
   return (
     <ChartWrapper

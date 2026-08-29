@@ -3,6 +3,7 @@ package com.taskosaur.taskosaur.controllers;
 import com.taskosaur.taskosaur.dto.organization.CreateOrganizationRequest;
 import com.taskosaur.taskosaur.dto.organization.OrganizationResponse;
 import com.taskosaur.taskosaur.exceptions.UnauthorizedException;
+import com.taskosaur.taskosaur.services.ChartsService;
 import com.taskosaur.taskosaur.services.OrganizationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -22,6 +22,7 @@ import java.util.Map;
 public class OrganizationController {
 
     private final OrganizationService organizationService;
+    private final ChartsService chartsService;
 
     // ─── POST /api/organizations ───────────────────────────────────────────────
     @PostMapping
@@ -47,24 +48,32 @@ public class OrganizationController {
         return ResponseEntity.ok(organizationService.getOrganizationBySlug(slug, userId));
     }
 
+    // ─── GET /api/organizations/universal-search ──────────────────────────────
+    @GetMapping("/universal-search")
+    public ResponseEntity<Map<String, Object>> universalSearch(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String organizationId
+    ) {
+        return ResponseEntity.ok(organizationService.universalSearch(query, organizationId));
+    }
+
+    // ─── GET /api/organizations/{id}/stats ─────────────────────────────────────
+    @GetMapping("/{id}/stats")
+    public ResponseEntity<Map<String, Object>> getStats(@PathVariable String id) {
+        return ResponseEntity.ok(organizationService.getOrganizationStats(id));
+    }
+
     // ─── GET /api/organizations/{id}/charts ────────────────────────────────────
     @GetMapping("/{id}/charts")
     public ResponseEntity<Map<String, Object>> getCharts(
             @PathVariable String id,
-            @RequestParam(required = false) List<String> types
+            @RequestParam(required = false) List<String> types,
+            @RequestParam(required = false) String workspaceId,
+            @RequestParam(required = false) String projectId,
+            Authentication authentication
     ) {
-        Map<String, Object> charts = new HashMap<>();
-        charts.put("kpi-metrics", Map.of("totalProjects", 0, "activeProjects", 0, "completionRate", 0));
-        charts.put("project-portfolio", List.of());
-        charts.put("team-utilization", List.of());
-        charts.put("task-distribution", List.of());
-        charts.put("task-type", List.of());
-        charts.put("sprint-metrics", Map.of());
-        charts.put("quality-metrics", Map.of());
-        charts.put("workspace-project-count", List.of());
-        charts.put("member-workload", List.of());
-        charts.put("resource-allocation", List.of());
-        return ResponseEntity.ok(charts);
+        String userId = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(chartsService.getOrganizationCharts(id, userId, types, workspaceId, projectId));
     }
 
     // ─── GET /api/organizations/{id} ──────────────────────────────────────────

@@ -23,13 +23,13 @@ interface TaskTypeChartProps {
 
 export function TaskTypeChart({ data }: TaskTypeChartProps) {
   const { t } = useTranslation("workspace-home");
-  const chartData = data?.map((item) => ({
-    name: t(chartConfig[item.type]?.label) || item.type,
-    value: item._count.type,
-    fill: chartConfig[item.type]?.color || "#8B5CF6",
+  const chartData = (data || []).map((item) => ({
+    name: t(chartConfig[item?.type as keyof typeof chartConfig]?.label) || item?.type || "Task",
+    value: item?._count?.type ?? (item as any)?.count ?? 0,
+    fill: chartConfig[item?.type as keyof typeof chartConfig]?.color || "#8B5CF6",
   }));
 
-  const totalTasks = chartData?.reduce((sum, item) => sum + item.value, 0);
+  const totalTasks = chartData?.reduce((sum, item) => sum + (item.value || 0), 0);
 
   return (
     <ChartWrapper

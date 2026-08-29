@@ -22,11 +22,11 @@ export function ProjectStatusChart({ data }: ProjectStatusChartProps) {
   const router = useRouter();
   const { workspaceSlug } = router.query;
 
-  const chartData = data?.map((item) => ({
-    name: t(`projects:status.${item.status.toLowerCase()}`, chartConfig[item.status as keyof typeof chartConfig]?.label || item.status),
-    value: item._count.status,
-    color: chartConfig[item.status as keyof typeof chartConfig]?.color || "#8B5CF6",
-    id: item.status,
+  const chartData = (data || []).map((item) => ({
+    name: t(`projects:status.${(item?.status || "").toLowerCase()}`, chartConfig[item?.status as keyof typeof chartConfig]?.label || item?.status || "Unknown"),
+    value: item?._count?.status ?? (item as any)?.count ?? 0,
+    color: chartConfig[item?.status as keyof typeof chartConfig]?.color || "#8B5CF6",
+    id: item?.status || "PLANNING",
   }));
 
   const handleClick = (entry: any) => {
