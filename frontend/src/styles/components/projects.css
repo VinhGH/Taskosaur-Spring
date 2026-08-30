@@ -2,11 +2,11 @@
 
 /* ===== New Project Modal ===== */
 .projects-modal-container {
-  @apply sm:max-w-lg max-h-[100vh] overflow-y-auto;
+  @apply w-[94vw] sm:max-w-lg max-h-[92vh] overflow-y-auto p-4 sm:p-6 rounded-2xl;
 }
 
 .projects-modal-header {
-  @apply space-y-4 pb-2;
+  @apply space-y-3 pb-2;
 }
 
 .projects-modal-header-content {
@@ -14,23 +14,23 @@
 }
 
 .projects-modal-icon {
-  @apply flex h-12 w-12 items-center justify-center rounded-xl shadow-lg transition-all duration-300;
+  @apply flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl shadow-lg transition-all duration-300 shrink-0;
 }
 
 .projects-modal-icon-content {
-  @apply h-6 w-6 text-[var(--card)];
+  @apply h-5 w-5 sm:h-6 sm:w-6 text-[var(--card)];
 }
 
 .projects-modal-info {
-  /* No specific styles - just a container */
+  @apply min-w-0 flex-1;
 }
 
 .projects-modal-title {
-  @apply text-xl font-semibold text-[var(--foreground)];
+  @apply text-lg sm:text-xl font-semibold text-[var(--foreground)] truncate;
 }
 
 .projects-modal-description {
-  @apply text-sm text-[var(--muted-foreground)] mt-0.5;
+  @apply text-xs sm:text-sm text-[var(--muted-foreground)] mt-0.5 line-clamp-2;
 }
 
 .projects-modal-form {
