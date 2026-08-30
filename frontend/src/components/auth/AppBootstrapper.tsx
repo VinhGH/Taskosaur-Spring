@@ -121,7 +121,7 @@ export default function AppBootstrapper({ children }: AppBootstrapperProps) {
       if (isPublicRoute) {
         const authPages = ["/login", "/register", "/forgot-password", "/reset-password", "/setup"];
         if (router.pathname === "/") {
-          return { isAuth: true, redirectPath: "/dashboard", isOrg: true };
+          return { isAuth: true, isOrg: true };
         }
         if (!authPages.includes(router.pathname)) {
           return { isAuth: true, isOrg: true };
