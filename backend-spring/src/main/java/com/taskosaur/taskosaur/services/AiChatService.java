@@ -285,11 +285,14 @@ public class AiChatService {
             // Call OpenRouter / LLM
             String aiAnswer = callLlm(normalized, apiKey, getEffectiveApiUrl(), getEffectiveModel(), configuredMaxTokens);
 
+            // Extract clean user text if it contains browser automation debug context
+            String cleanUserText = extractCleanUserMessage(request.getMessage());
+
             // Persist user message to DB
             AiMessage userMsg = AiMessage.builder()
                     .conversationId(conversation.getId())
                     .role(MessageRole.USER)
-                    .content(request.getMessage())
+                    .content(cleanUserText)
                     .build();
             messageRepository.save(userMsg);
 
@@ -485,6 +488,19 @@ public class AiChatService {
         if (prompt == null || prompt.isBlank()) return "New Chat";
         String clean = prompt.replaceAll("\n", " ").trim();
         return clean.length() > 30 ? clean.substring(0, 30) + "..." : clean;
+    }
+
+    private String extractCleanUserMessage(String raw) {
+        if (raw == null) return "";
+        if (raw.startsWith("Task: ")) {
+            int idxUrl = raw.indexOf("\n\nCurrent URL:");
+            int idxElem = raw.indexOf("\n\nAvailable elements:");
+            int end = raw.length();
+            if (idxUrl != -1) end = Math.min(end, idxUrl);
+            if (idxElem != -1) end = Math.min(end, idxElem);
+            return raw.substring(6, end).trim();
+        }
+        return raw;
     }
 
     private String getSystemPrompt() {
