@@ -36,7 +36,6 @@ export default function MyApp({ Component, pageProps }: AppProps) {
         <ChatProvider>
           <AppBootstrapper>
             <Component {...pageProps} />
-            <ChatPanel />
           </AppBootstrapper>
         </ChatProvider>
       </AuthProvider>
