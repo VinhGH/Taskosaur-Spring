@@ -244,7 +244,7 @@ public class DatabaseSeederService {
 
         createSampleTask(project.getId(), 4, "Connect OpenRouter AI Assistant & Prompt Engineering",
                 "Build in-app conversational AI to parse natural language requests and execute project tasks automatically.",
-                TaskType.TASK, TaskPriority.URGENT, statusInProgress.getId(), sprint2.getId(), admin.getId(), 13,
+                TaskType.TASK, TaskPriority.HIGHEST, statusInProgress.getId(), sprint2.getId(), admin.getId(), 13,
                 now.minusDays(4), now.plusDays(3), null,
                 List.of(admin.getId(), alex.getId()), List.of(lblAi.getId(), lblBackend.getId()), admin.getId(),
                 "Vinh Admin: Integrated GPT-4o-mini and Gemini 2.0 Flash via OpenRouter. Response time is under 1.2s!");
