@@ -59,15 +59,12 @@ body {
   padding: 0;
 }
 
-.scrollbar-none::-webkit-scrollbar {
-  display: none;
-}
-
-.scrollbar-none {
-  -ms-overflow-style: none;
-  /* IE and Edge */
+@utility scrollbar-none {
   scrollbar-width: none;
-  /* Firefox */
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .comment-content h1 {
