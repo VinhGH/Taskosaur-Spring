@@ -9,6 +9,7 @@ import Header from "@/components/layout/Header";
 import Breadcrumb from "@/components/layout/Breadcrumb";
 import { useLayout } from "@/contexts/layout-context";
 import { NotificationProvider } from "@/contexts/notification-context";
+import ChatPanel from "@/components/chat/ChatPanel";
 
 interface CommonProvidersProps {
   children: ReactNode;
@@ -59,7 +60,7 @@ export default function PublicProviders({ children }: CommonProvidersProps) {
 
                     <div className="flex h-full w-full gap-2.5 md:gap-3 overflow-hidden z-10">
                       <Sidebar />
-                      <div className="flex-1 flex flex-col overflow-hidden rounded-xl md:rounded-2xl border border-white/40 dark:border-white/10 bg-[var(--panel)] backdrop-blur-2xl shadow-2xl shadow-indigo-950/20 dark:shadow-black/60">
+                      <div className="flex-1 min-w-0 flex flex-col overflow-hidden rounded-xl md:rounded-2xl border border-white/40 dark:border-white/10 bg-[var(--panel)] backdrop-blur-2xl shadow-2xl shadow-indigo-950/20 dark:shadow-black/60 transition-all duration-300 ease-in-out">
                         <Header />
                         <div
                           className="flex-1 overflow-y-scroll scrollbar-none"
@@ -74,6 +75,7 @@ export default function PublicProviders({ children }: CommonProvidersProps) {
                           <div className="max-w-[96%] mx-auto py-2">{children}</div>
                         </div>
                       </div>
+                      <ChatPanel />
                     </div>
                   </div>
                 )}

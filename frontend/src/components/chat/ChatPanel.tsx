@@ -594,19 +594,19 @@ export default function ChatPanel() {
 
 
 
+  if (!isChatOpen) return null;
+
   return (
     <>
-      {/* Chat Panel - positioned as sleek slide-over drawer */}
+      {/* Chat Panel - 3rd column in layout with matching rounded corners and glassmorphism */}
       <div
         id="chat-panel"
-        className={`fixed top-0 right-0 bottom-0 bg-[var(--panel)]/95 backdrop-blur-2xl border-l border-white/20 dark:border-white/10 shadow-2xl shadow-black/40 z-50 transform transition-transform duration-300 ease-in-out flex flex-col overflow-hidden ${
-          isChatOpen ? "translate-x-0" : "translate-x-full"
-        }`}
-        style={{ width: `${panelWidth}px`, maxWidth: "90vw" }}
+        className="flex-shrink-0 flex flex-col h-full overflow-hidden rounded-xl md:rounded-2xl border border-white/40 dark:border-white/10 bg-[var(--panel)] backdrop-blur-2xl shadow-2xl shadow-indigo-950/20 dark:shadow-black/60 transition-all duration-300 ease-in-out relative z-30"
+        style={{ width: `${panelWidth}px`, maxWidth: "45vw" }}
       >
         <div
           onMouseDown={handleMouseDown}
-          className="absolute left-0 top-0 bottom-0 w-0.5 cursor-col-resize bg-transparent hover:bg-gray-300/40"
+          className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize bg-transparent hover:bg-blue-500/40 transition-colors z-30"
         />
 
         {/* Sidebar Overlay */}
