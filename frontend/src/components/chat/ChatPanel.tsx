@@ -604,15 +604,15 @@ export default function ChatPanel() {
 
   return (
     <>
-      {/* Chat Panel - 3rd column in layout with matching rounded corners and glassmorphism */}
+      {/* Chat Panel - Full popup on mobile, 3rd column in flex layout on desktop */}
       <div
         id="chat-panel"
-        className="flex-shrink-0 flex flex-col h-full overflow-hidden rounded-xl md:rounded-2xl border border-white/40 dark:border-white/10 bg-[var(--panel)] backdrop-blur-2xl shadow-2xl shadow-indigo-950/20 dark:shadow-black/60 transition-all duration-300 ease-in-out relative z-30"
-        style={{ width: `${panelWidth}px`, maxWidth: "45vw" }}
+        className="fixed inset-2 md:static md:inset-auto flex-shrink-0 flex flex-col h-[calc(100%-1rem)] md:h-full w-auto md:w-[380px] lg:w-[400px] overflow-hidden rounded-2xl border border-white/40 dark:border-white/10 bg-[var(--panel)] backdrop-blur-2xl shadow-2xl shadow-indigo-950/40 dark:shadow-black/70 transition-all duration-300 ease-in-out z-50 md:z-30"
+        style={typeof window !== "undefined" && window.innerWidth >= 768 ? { width: `${panelWidth}px`, maxWidth: "45vw" } : {}}
       >
         <div
           onMouseDown={handleMouseDown}
-          className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize bg-transparent hover:bg-blue-500/40 transition-colors z-30"
+          className="hidden md:block absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize bg-transparent hover:bg-blue-500/40 transition-colors z-30"
         />
 
         {/* Sidebar Overlay */}
