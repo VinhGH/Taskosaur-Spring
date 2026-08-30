@@ -17,6 +17,8 @@ public class TaskosaurApplication {
 	private static final Logger logger = LoggerFactory.getLogger(TaskosaurApplication.class);
 
 	public static void main(String[] args) {
+		java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"));
+		System.setProperty("user.timezone", "UTC");
 		loadDotenv();
 		SpringApplication.run(TaskosaurApplication.class, args);
 	}
