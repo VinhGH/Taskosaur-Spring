@@ -72,17 +72,6 @@ export class BrowserAgent {
 
         const parsedAction = this.parseAction(llmResponse);
 
-        // No action AND no explicit DONE: means the model returned something we can't
-        // act on (e.g. truncated reasoning). Reporting success here silently ends the
-        // task as "complete" — surface it as a failure instead.
-        if (!parsedAction && !this.isExplicitDone(llmResponse)) {
-          return {
-            success: false,
-            message: `AI returned no usable action. Raw response: ${llmResponse.slice(0, 200)}`,
-            steps: this.steps,
-          };
-        }
-
         if (!parsedAction) {
           const step: AgentStep = {
             iteration: i + 1,

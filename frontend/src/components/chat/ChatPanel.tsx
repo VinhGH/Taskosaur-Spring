@@ -391,9 +391,15 @@ export default function ChatPanel() {
       },
     ]);
   }
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll only the chat container to bottom without scrolling window
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
   }, [messages]);
 
   // Listen for workspace/project creation events
@@ -751,6 +757,7 @@ export default function ChatPanel() {
 
         {/* Messages Area */}
         <div
+          ref={messagesContainerRef}
           className="flex-1 overflow-y-auto px-4 py-4 space-y-6 chatgpt-scrollbar"
           style={{
             scrollbarWidth: "none" /* Firefox */,
