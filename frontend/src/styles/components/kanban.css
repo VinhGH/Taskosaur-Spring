@@ -2,11 +2,11 @@
 
 /* Status Column */
 .kanban-column-container {
-  @apply flex-shrink-0 w-80 h-screen;
+  @apply flex-shrink-0 w-[84vw] sm:w-80 max-w-[340px] snap-center h-[calc(100vh-13rem)] md:h-[calc(100vh-10rem)];
 }
 
 .kanban-column-wrapper {
-  @apply rounded-md flex flex-col h-full;
+  @apply rounded-xl flex flex-col h-full shadow-sm;
   background-color: var(--muted);
 }
 

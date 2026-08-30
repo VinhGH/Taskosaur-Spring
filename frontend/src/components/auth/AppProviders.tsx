@@ -43,7 +43,7 @@ function AppProvidersContent({ children }: CommonProvidersProps) {
                     <>{children}</>
                   ) : (
                     <div
-                      className="min-h-screen relative flex flex-col h-screen overflow-hidden p-2 md:p-3 bg-gradient-to-br from-[#dbeafe] via-[#ede9fe] to-[#e0e7ff] dark:from-[#111827] dark:via-[#1e1b4b] dark:to-[#0f172a]"
+                      className="min-h-screen relative flex flex-col h-screen overflow-hidden p-1.5 sm:p-2.5 md:p-3 bg-gradient-to-br from-[#dbeafe] via-[#ede9fe] to-[#e0e7ff] dark:from-[#111827] dark:via-[#1e1b4b] dark:to-[#0f172a]"
                       style={{ scrollbarGutter: "stable" }}
                     >
                       {/* Vivid Multi-Color Aurora Mesh Lighting System */}
@@ -65,9 +65,9 @@ function AppProvidersContent({ children }: CommonProvidersProps) {
                       {/* Bottom Right: Vivid Coral/Rose */}
                       <div className="absolute -bottom-[10%] right-[10%] w-[45vw] h-[40vh] bg-rose-400/30 dark:bg-rose-500/30 rounded-full blur-[110px] pointer-events-none -z-10" />
 
-                      <div className="flex h-full w-full gap-2.5 md:gap-3 overflow-hidden z-10">
+                      <div className="flex h-full w-full gap-1.5 sm:gap-2.5 md:gap-3 overflow-hidden z-10">
                         <Sidebar />
-                        <div className="flex-1 min-w-0 flex flex-col overflow-hidden rounded-xl md:rounded-2xl border border-white/40 dark:border-white/10 bg-[var(--panel)] backdrop-blur-2xl shadow-2xl shadow-indigo-950/20 dark:shadow-black/60 transition-all duration-300 ease-in-out">
+                        <div className="flex-1 min-w-0 flex flex-col overflow-hidden rounded-lg sm:rounded-xl md:rounded-2xl border border-white/40 dark:border-white/10 bg-[var(--panel)] backdrop-blur-2xl shadow-2xl shadow-indigo-950/20 dark:shadow-black/60 transition-all duration-300 ease-in-out">
                           <Header />
                           <div
                             className="flex-1 overflow-y-scroll scrollbar-none"
@@ -79,7 +79,7 @@ function AppProvidersContent({ children }: CommonProvidersProps) {
                                 className="fixed z-[1000] inset-0 pointer-events-none"
                               />
                             )}
-                            <div className="max-w-[96%] mx-auto py-2">
+                            <div className="w-full max-w-full px-2 sm:px-3 md:max-w-[96%] mx-auto py-1 sm:py-2">
                               <Breadcrumb />
                               {children}
                             </div>
