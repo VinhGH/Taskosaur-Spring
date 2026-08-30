@@ -7,12 +7,7 @@
   margin-right: 0;
 }
 
-@media (min-width: 1280px) {
-  body.chat-open .header-container {
-    margin-right: 400px !important;
-    transition: margin-right 300ms ease-in-out;
-  }
-}
+
 
 .header-content {
   @apply flex h-16 items-center justify-between px-4 sm:px-6;

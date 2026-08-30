@@ -266,12 +266,5 @@
     @apply text-[var(--muted-foreground)] mb-4 max-w-md;
   }
 
-  body.chat-open .flex-1.overflow-y-scroll {
-    margin-right: 400px !important;
-    transition: margin-right 300ms ease-in-out;
-  }
 
-  .flex-1.overflow-y-scroll {
-    transition: margin-right 300ms ease-in-out;
-  }
 }

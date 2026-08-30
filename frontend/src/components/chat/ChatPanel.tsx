@@ -34,6 +34,17 @@ function sanitizeErrorMessage(msg: string): string {
   return msg.replace(/^Error:\s*/i, "").replace(/^LLM API error:\s*/i, "");
 }
 
+function formatUserDisplayMessage(content: string): string {
+  if (!content) return "";
+  if (content.startsWith("Task: ")) {
+    const match = content.match(/^Task:\s*([\s\S]*?)(?=\n\nCurrent URL:|\n\nAvailable elements:|$)/i);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+  }
+  return content;
+}
+
 export default function ChatPanel() {
   const { isChatOpen, toggleChat } = useChatContext();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -585,13 +596,13 @@ export default function ChatPanel() {
 
   return (
     <>
-      {/* Chat Panel - positioned below header */}
+      {/* Chat Panel - positioned as sleek slide-over drawer */}
       <div
         id="chat-panel"
-        className={`fixed top-0 right-0 bottom-0 bg-[var(--background)] border-l border-[var(--border)] z-40 transform transition-transform duration-300 ease-in-out flex flex-col overflow-hidden ${
+        className={`fixed top-0 right-0 bottom-0 bg-[var(--panel)]/95 backdrop-blur-2xl border-l border-white/20 dark:border-white/10 shadow-2xl shadow-black/40 z-50 transform transition-transform duration-300 ease-in-out flex flex-col overflow-hidden ${
           isChatOpen ? "translate-x-0" : "translate-x-full"
         }`}
-        style={{ width: `${panelWidth}px` }}
+        style={{ width: `${panelWidth}px`, maxWidth: "90vw" }}
       >
         <div
           onMouseDown={handleMouseDown}
@@ -798,7 +809,7 @@ export default function ChatPanel() {
                         <div className="flex items-start gap-3 max-w-[80%]">
                           <div className="bg-[#1E2939] text-white rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm">
                             <div className="text-sm whitespace-pre-wrap break-words">
-                              {message.content}
+                              {formatUserDisplayMessage(message.content)}
                             </div>
                           </div>
                           <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#1E2939] text-sm font-medium flex-shrink-0">
@@ -972,17 +983,8 @@ export default function ChatPanel() {
         </div>
       </div>
 
-      {/* Global styles for content squeeze and hidden scrollbars */}
+      {/* Global styles for hidden scrollbars & animations */}
       <style jsx global>{`
-        body.chat-open .flex-1.overflow-y-scroll {
-          margin-right: 400px !important;
-          transition: margin-right 300ms ease-in-out;
-        }
-
-        .flex-1.overflow-y-scroll {
-          transition: margin-right 300ms ease-in-out;
-        }
-
         /* Hide scrollbars completely */
         .chatgpt-scrollbar::-webkit-scrollbar {
           display: none;
