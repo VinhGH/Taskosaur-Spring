@@ -26,8 +26,8 @@ export default function TabView({
   ];
 
   return (
-    <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--background)]">
-      <nav className="flex space-x-6" aria-label="Tabs">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[var(--border)] bg-[var(--background)] gap-2 pb-1.5 sm:pb-0">
+      <nav className="flex space-x-4 sm:space-x-6 overflow-x-auto scrollbar-none flex-nowrap shrink-0 py-1" aria-label="Tabs">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = currentView === tab.id;
@@ -36,23 +36,27 @@ export default function TabView({
               key={tab.id}
               onClick={() => onViewChange(tab.id)}
               className={cn(
-                "flex items-center gap-2 px-1 py-2 text-sm font-medium relative transition-colors cursor-pointer",
+                "flex items-center gap-1.5 sm:gap-2 px-1.5 sm:px-1 py-1.5 sm:py-2 text-xs sm:text-sm font-medium relative transition-colors cursor-pointer whitespace-nowrap",
                 isActive
-                  ? "text-[var(--foreground)]"
+                  ? "text-[var(--foreground)] font-semibold"
                   : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
               )}
             >
-              <Icon size={16} />
-              {tab.label}
+              <Icon className="w-4 h-4 shrink-0" />
+              <span>{tab.label}</span>
               {isActive && (
-                <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--primary)]" />
+                <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--primary)] rounded-full" />
               )}
             </button>
           );
         })}
       </nav>
 
-      {rightContent && <div className="flex items-center">{rightContent}</div>}
+      {rightContent && (
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none shrink-0 pb-1 sm:pb-0">
+          {rightContent}
+        </div>
+      )}
     </div>
   );
 }

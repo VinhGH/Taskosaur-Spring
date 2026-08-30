@@ -209,7 +209,7 @@ export function FilterDropdown({
 
       <DropdownMenuContent
         align="end"
-        className={`${dropdownWidth} p-0 bg-[var(--card)] border border-[var(--border)] shadow-xl overflow-hidden flex flex-col rounded-lg`}
+        className={`${dropdownWidth} max-w-[92vw] p-0 bg-[var(--card)] border border-[var(--border)] shadow-xl overflow-hidden flex flex-col rounded-xl`}
         style={{ maxHeight: maxHeight }}
         sideOffset={4}
       >
