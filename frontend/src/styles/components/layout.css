@@ -445,11 +445,14 @@
 
 /* Mini Sidebar - Always visible on desktop */
 .layout-sidebar-mini {
-  @apply w-12 bg-[var(--mini-sidebar)] h-full flex flex-col pt-2 gap-2 items-center overflow-y-auto border-r border-[var(--sidebar-border)];
-  /* Always show on desktop */
+  @apply w-12 bg-[var(--mini-sidebar)] h-full flex flex-col pt-2 gap-2 items-center overflow-x-hidden overflow-y-auto border-r border-[var(--sidebar-border)];
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   display: none;
-  /* Add smooth transitions for hover effects */
-  /* transition: background-color 0.15s ease-in-out; */
+}
+
+.layout-sidebar-mini::-webkit-scrollbar {
+  display: none;
 }
 
 @media (min-width: 768px) {
