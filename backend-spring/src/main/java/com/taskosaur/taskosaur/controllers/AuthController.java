@@ -51,6 +51,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
+    @com.taskosaur.taskosaur.annotations.RateLimit(limit = 5, period = 60, keyPrefix = "auth_login", strategy = com.taskosaur.taskosaur.enums.RateLimitStrategy.BY_IP)
     public ResponseEntity<AuthResponse> login(
             @Valid @RequestBody LoginRequest request,
             HttpServletResponse response
@@ -101,6 +102,7 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
+    @com.taskosaur.taskosaur.annotations.RateLimit(limit = 3, period = 300, keyPrefix = "auth_forgot_password", strategy = com.taskosaur.taskosaur.enums.RateLimitStrategy.BY_IP)
     public ResponseEntity<Map<String, Object>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         return ResponseEntity.ok(authService.forgotPassword(request.getEmail()));
     }

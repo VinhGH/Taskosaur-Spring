@@ -45,6 +45,7 @@ public class TaskService {
     private final TaskStatusRepository taskStatusRepository;
     private final UserRepository userRepository;
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"org_analytics", "project_charts"}, allEntries = true)
     public TaskResponse createTask(CreateTaskRequest request, String userId) {
         Project project = projectRepository.findById(request.getProjectId())
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + request.getProjectId()));
@@ -96,6 +97,7 @@ public class TaskService {
         return prefix + "-" + taskNumber;
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"org_analytics", "project_charts"}, allEntries = true)
     public TaskResponse updateTask(String id, UpdateTaskRequest request, String userId) {
         Task task = findTaskOrThrow(id);
         applyTaskFieldUpdates(task, request);
@@ -555,6 +557,7 @@ public class TaskService {
         return buildTaskResponse(task);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"org_analytics", "project_charts"}, allEntries = true)
     public TaskResponse updateTaskStatus(String id, String statusId, String userId) {
         Task task = findTaskOrThrow(id);
         updateStatusField(task, statusId);
@@ -563,6 +566,7 @@ public class TaskService {
         return buildTaskResponse(updated);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"org_analytics", "project_charts"}, allEntries = true)
     public Map<String, Object> bulkCreateTasks(BulkCreateTasksRequest request, String userId) {
         Project project = projectRepository.findById(request.getProjectId())
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + request.getProjectId()));
@@ -776,6 +780,7 @@ public class TaskService {
                 .toList();
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"org_analytics", "project_charts"}, allEntries = true)
     public void deleteTask(String id) {
         Task task = findTaskOrThrow(id);
         taskAssigneeRepository.deleteByTaskId(task.getId());
