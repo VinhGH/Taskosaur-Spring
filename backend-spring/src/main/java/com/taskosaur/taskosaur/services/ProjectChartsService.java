@@ -23,6 +23,10 @@ public class ProjectChartsService {
     private final SprintRepository sprintRepository;
     private final TaskStatusRepository taskStatusRepository;
 
+    @org.springframework.cache.annotation.Cacheable(
+            value = "project_charts",
+            key = "#slug + '_' + (#types != null ? #types.toString() : 'all')"
+    )
     public Map<String, Object> getProjectCharts(String slug, List<String> types) {
         Project project = projectRepository.findBySlug(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with slug: " + slug));

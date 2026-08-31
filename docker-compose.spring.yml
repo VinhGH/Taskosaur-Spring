@@ -57,10 +57,11 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-noreply@taskosaur.com}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
       AI_MAX_TOKENS: ${AI_MAX_TOKENS:-4000}
       AI_REQUEST_TIMEOUT_MS: ${AI_REQUEST_TIMEOUT_MS:-60000}
       SPRING_JPA_SHOW_SQL: ${SPRING_JPA_SHOW_SQL:-false}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
     volumes:
       - spring_uploads:/app/uploads
     depends_on:
@@ -68,11 +69,29 @@ services:
         condition: service_healthy
       db-migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     networks:
       - taskosaur-spring-network
     restart: unless-stopped
 
-  # 4. Frontend Next.js + Nginx Reverse Proxy
+  # 4. Redis 7 In-Memory Cache & Rate Limiter
+  redis:
+    image: redis:7-alpine
+    container_name: taskosaur-redis
+    command: redis-server --save "" --appendonly no
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - taskosaur-spring-network
+    restart: unless-stopped
+
+  # 5. Frontend Next.js + Nginx Reverse Proxy
   frontend:
     build:
       context: .
@@ -90,6 +109,8 @@ volumes:
   postgres_data:
     driver: local
   spring_uploads:
+    driver: local
+  redis_data:
     driver: local
 
 networks:

@@ -78,6 +78,7 @@ public class AiChatController {
     }
 
     @PostMapping("/chat")
+    @com.taskosaur.taskosaur.annotations.RateLimit(limit = 10, period = 60, keyPrefix = "ai_chat", strategy = com.taskosaur.taskosaur.enums.RateLimitStrategy.BY_USER)
     public ResponseEntity<ChatResponseDto> chat(
             Authentication authentication,
             @Valid @RequestBody ChatRequestDto chatRequest
@@ -87,6 +88,7 @@ public class AiChatController {
     }
 
     @PostMapping("/test-connection")
+    @com.taskosaur.taskosaur.annotations.RateLimit(limit = 5, period = 60, keyPrefix = "ai_test", strategy = com.taskosaur.taskosaur.enums.RateLimitStrategy.BY_USER)
     public ResponseEntity<TestConnectionResponseDto> testConnection(
             @Valid @RequestBody TestConnectionDto testConnectionDto
     ) {
@@ -94,6 +96,7 @@ public class AiChatController {
     }
 
     @PostMapping("/generate-description")
+    @com.taskosaur.taskosaur.annotations.RateLimit(limit = 10, period = 60, keyPrefix = "ai_desc", strategy = com.taskosaur.taskosaur.enums.RateLimitStrategy.BY_USER)
     public ResponseEntity<GenerateDescriptionResponseDto> generateDescription(
             Authentication authentication,
             @Valid @RequestBody GenerateDescriptionDto dto

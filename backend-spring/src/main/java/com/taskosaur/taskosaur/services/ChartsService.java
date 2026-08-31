@@ -36,8 +36,12 @@ public class ChartsService {
     }
 
     /**
-     * Get real-time charts data for an organization.
+     * Get real-time charts data for an organization with Redis Caching.
      */
+    @org.springframework.cache.annotation.Cacheable(
+            value = "org_analytics",
+            key = "#orgId + '_' + (#types != null ? #types.toString() : 'all') + '_' + #filterWorkspaceId + '_' + #filterProjectId"
+    )
     public Map<String, Object> getOrganizationCharts(
             String orgId,
             String userId,
