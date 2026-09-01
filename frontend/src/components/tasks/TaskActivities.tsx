@@ -70,7 +70,12 @@ const TaskActivities: React.FC<TaskActivitiesProps> = ({ taskId, setLoading }) =
   };
 
   const generateSimpleMessage = (activity: TaskActivityType): string => {
-    const name = activity.user.firstName;
+    const user: any = activity.user || {};
+    const name =
+      user.name ||
+      (user.firstName && user.lastName
+        ? `${user.firstName} ${user.lastName}`.trim()
+        : user.firstName || user.username || user.email || "User");
 
     switch (activity.type) {
       case "TASK_CREATED":

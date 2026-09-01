@@ -151,7 +151,7 @@ export default function OrganizationSelector({
                   {getInitials(currentOrganization.name)}
                 </AvatarFallback>
               </Avatar>
-              <span className="header-org-selector-name max-[530px]:text-sm max-[530px]:font-medium truncate max-w-[120px]">
+              <span className="header-org-selector-name max-[530px]:text-sm max-[530px]:font-medium truncate max-w-[180px] sm:max-w-[240px] md:max-w-[280px] lg:max-w-[340px]">
                 {currentOrganization.name}
               </span>
             </div>

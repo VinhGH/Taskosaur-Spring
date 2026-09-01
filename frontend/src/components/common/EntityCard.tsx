@@ -30,21 +30,21 @@ export function EntityCard({
   const Inner = () => (
     <Card
       onClick={onClick}
-      className={`bg-[var(--card)] rounded-xl shadow-xs group hover:shadow-md hover:border-[var(--primary)]/50 transition-all duration-200 border border-[var(--border)] ${onClick || href ? "cursor-pointer" : ""} p-4 h-44 ${className}`}
+      className={`bg-[var(--card)] rounded-xl shadow-xs group hover:shadow-md hover:border-[var(--primary)]/50 transition-all duration-200 border border-[var(--border)] ${onClick || href ? "cursor-pointer" : ""} p-4.5 flex flex-col justify-between min-h-[195px] h-full gap-3 ${className}`}
     >
       {/* Top Row */}
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-3 w-full">
         {leading}
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold text-[var(--foreground)] group-hover:text-[var(--primary)] transition-colors line-clamp-2">
+          <div className="text-sm font-semibold text-[var(--foreground)] group-hover:text-[var(--primary)] transition-colors leading-snug line-clamp-2">
             {heading}
           </div>
           {subheading && (
-            <div className="text-xs text-[var(--muted-foreground)] line-clamp-1">{subheading}</div>
+            <div className="text-xs text-[var(--muted-foreground)] mt-0.5 line-clamp-1">{subheading}</div>
           )}
         </div>
         {role && (
-          <div className="inline-flex items-center px-2 py-1 rounded-full bg-[var(--muted)] text-[var(--muted-foreground)] text-xs font-medium">
+          <div className="inline-flex items-center px-2 py-0.5 rounded-full bg-[var(--muted)] text-[var(--muted-foreground)] text-[11px] font-medium shrink-0">
             {role
               ?.replace("_", " ")
               .toLowerCase()
@@ -54,13 +54,13 @@ export function EntityCard({
       </div>
 
       {/* Description */}
-      <div className="text-sm text-[var(--muted-foreground)] line-clamp-2 h-[50px]">
+      <div className="text-xs text-[var(--muted-foreground)] line-clamp-2 leading-relaxed flex-1">
         {description || "No description provided"}
       </div>
 
       {/* Footer */}
       {footer && (
-        <div className="flex items-center gap-4 text-xs text-[var(--muted-foreground)]">
+        <div className="flex items-center gap-4 text-xs text-[var(--muted-foreground)] mt-auto pt-2.5 border-t border-[var(--border)]/40 w-full">
           {footer}
         </div>
       )}

@@ -27,4 +27,6 @@ public class UpdateTaskRequest {
     private String sprintId;
     private String parentTaskId;
     private List<String> assigneeIds;
+    private List<String> reporterIds;
+    private List<String> labelIds;
 }

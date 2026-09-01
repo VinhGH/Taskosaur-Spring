@@ -31,6 +31,10 @@ public class TaskResponse {
     private String parentTaskId;
     private TaskStatus status;
     private List<AssigneeDto> assignees;
+    private List<AssigneeDto> reporters;
+    private AssigneeDto reporter;
+    private List<LabelDto> labels;
+    private ProjectDto project;
     private String createdBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -45,5 +49,29 @@ public class TaskResponse {
         private String firstName;
         private String lastName;
         private String avatar;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    public static class LabelDto {
+        private String id;
+        private String name;
+        private String color;
+        private String description;
+        private String projectId;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    public static class ProjectDto {
+        private String id;
+        private String name;
+        private String slug;
+        private String taskPrefix;
+        private String workspaceId;
     }
 }

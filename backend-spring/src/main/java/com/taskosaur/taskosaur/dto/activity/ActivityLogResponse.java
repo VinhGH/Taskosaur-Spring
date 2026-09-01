@@ -34,6 +34,8 @@ public class ActivityLogResponse {
     public static class UserSummaryDto {
         private String id;
         private String name;
+        private String firstName;
+        private String lastName;
         private String email;
         private String avatar;
     }

@@ -386,7 +386,7 @@
 }
 
 .header-org-selector-name {
-  @apply hidden md:block text-sm font-medium truncate max-w-[90px];
+  @apply hidden md:block text-sm font-medium truncate max-w-[200px] lg:max-w-[320px];
   color: var(--foreground);
 }
 

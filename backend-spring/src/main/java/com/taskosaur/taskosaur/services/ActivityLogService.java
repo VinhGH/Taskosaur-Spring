@@ -4,24 +4,20 @@ import com.taskosaur.taskosaur.dto.activity.ActivityLogResponse;
 import com.taskosaur.taskosaur.dto.activity.LogActivityParams;
 import com.taskosaur.taskosaur.models.ActivityLog;
 import com.taskosaur.taskosaur.models.Project;
-import com.taskosaur.taskosaur.models.Sprint;
 import com.taskosaur.taskosaur.models.Task;
 import com.taskosaur.taskosaur.models.Workspace;
-import com.taskosaur.taskosaur.repositories.ActivityLogRepository;
-import com.taskosaur.taskosaur.repositories.ProjectRepository;
-import com.taskosaur.taskosaur.repositories.TaskRepository;
-import com.taskosaur.taskosaur.repositories.UserRepository;
+import com.taskosaur.taskosaur.repositories.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Pattern;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -43,11 +39,11 @@ public class ActivityLogService {
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
-    private final com.taskosaur.taskosaur.repositories.WorkspaceRepository workspaceRepository;
-    private final com.taskosaur.taskosaur.repositories.SprintRepository sprintRepository;
+    private final WorkspaceRepository workspaceRepository;
+    private final SprintRepository sprintRepository;
 
     public void logActivity(LogActivityParams params) {
-        ActivityLog log = ActivityLog.builder()
+        ActivityLog activityLog = ActivityLog.builder()
                 .type(params.getType())
                 .description(params.getDescription())
                 .entityType(params.getEntityType())
@@ -58,7 +54,7 @@ public class ActivityLogService {
                 .organizationId(params.getOrganizationId())
                 .createdBy(params.getUserId())
                 .build();
-        activityLogRepository.save(log);
+        activityLogRepository.save(activityLog);
     }
 
     public List<ActivityLogResponse> getActivitiesByEntity(String entityIdOrSlug) {
@@ -79,67 +75,26 @@ public class ActivityLogService {
 
     public Map<String, Object> getRecentActivityByOrganization(String organizationId, int limit, int page, String entityType, String userId) {
         List<ActivityLog> all = activityLogRepository.findByOrganizationIdOrderByCreatedAtDesc(organizationId);
-        if (entityType != null && !entityType.isBlank()) {
-            all = all.stream().filter(a -> entityType.equalsIgnoreCase(a.getEntityType())).toList();
-        }
-        if (userId != null && !userId.isBlank()) {
-            all = all.stream().filter(a -> userId.equals(a.getUserId())).toList();
-        }
-
-        int totalCount = all.size();
-        int totalPages = totalCount > 0 ? (int) Math.ceil((double) totalCount / limit) : 0;
-        int skip = (page - 1) * limit;
-        List<ActivityLogResponse> paged = all.stream()
-                .skip(Math.max(0, skip))
-                .limit(limit)
-                .map(this::buildResponse)
-                .toList();
-
-        Map<String, Object> pagination = buildPagination(page, totalPages, totalCount, page < totalPages, page > 1);
-        return buildPagedResult(paged, pagination);
+        List<ActivityLog> filtered = filterActivities(all, entityType, userId);
+        return paginateActivities(filtered, limit, page);
     }
 
     public Map<String, Object> getRecentActivityByWorkspace(String workspaceId, int limit, int page, String entityType, String userId) {
-        var wsOpt = workspaceRepository.findById(workspaceId);
+        Optional<Workspace> wsOpt = workspaceRepository.findById(workspaceId);
         if (wsOpt.isEmpty()) {
-            Map<String, Object> pagination = buildPagination(page, 0, 0, false, false);
-            return buildPagedResult(List.of(), pagination);
+            return buildPagedResult(List.of(), buildPagination(page, 0, 0, false, false));
         }
 
-        var workspace = wsOpt.get();
-        List<Project> projects = projectRepository.findByWorkspaceId(workspaceId);
-        List<String> projectIds = projects.stream().map(Project::getId).toList();
-        List<Task> tasks = projectIds.isEmpty() ? List.of() : taskRepository.findByProjectIdIn(projectIds);
-        List<String> taskIds = tasks.stream().map(Task::getId).toList();
-
-        java.util.Set<String> validEntityIds = new java.util.HashSet<>();
-        validEntityIds.add(workspaceId);
-        validEntityIds.addAll(projectIds);
-        validEntityIds.addAll(taskIds);
+        Workspace workspace = wsOpt.get();
+        Set<String> validEntityIds = collectWorkspaceEntityIds(workspaceId);
 
         List<ActivityLog> all = activityLogRepository.findByOrganizationIdOrderByCreatedAtDesc(workspace.getOrganizationId())
                 .stream()
-                .filter(a -> validEntityIds.contains(a.getEntityId()) || workspaceId.equals(a.getEntityId()))
+                .filter(a -> validEntityIds.contains(a.getEntityId()))
                 .toList();
 
-        if (entityType != null && !entityType.isBlank()) {
-            all = all.stream().filter(a -> entityType.equalsIgnoreCase(a.getEntityType())).toList();
-        }
-        if (userId != null && !userId.isBlank()) {
-            all = all.stream().filter(a -> userId.equals(a.getUserId())).toList();
-        }
-
-        int totalCount = all.size();
-        int totalPages = totalCount > 0 ? (int) Math.ceil((double) totalCount / limit) : 0;
-        int skip = (page - 1) * limit;
-        List<ActivityLogResponse> paged = all.stream()
-                .skip(Math.max(0, skip))
-                .limit(limit)
-                .map(this::buildResponse)
-                .toList();
-
-        Map<String, Object> pagination = buildPagination(page, totalPages, totalCount, page < totalPages, page > 1);
-        return buildPagedResult(paged, pagination);
+        List<ActivityLog> filtered = filterActivities(all, entityType, userId);
+        return paginateActivities(filtered, limit, page);
     }
 
     public Map<String, Object> getOrganizationStats(String organizationId, int days) {
@@ -158,14 +113,40 @@ public class ActivityLogService {
     public Map<String, Object> getTaskActivities(String taskIdOrSlug, int limit, int page) {
         String effectiveTaskId = resolveTaskId(taskIdOrSlug);
         if (effectiveTaskId == null) {
-            Map<String, Object> pagination = buildPagination(page, 0, 0, false, false);
-            return buildPagedResult(List.of(), pagination);
+            return buildPagedResult(List.of(), buildPagination(page, 0, 0, false, false));
         }
 
         List<ActivityLog> all = activityLogRepository.findByEntityIdOrderByCreatedAtDesc(effectiveTaskId);
+        return paginateActivities(all, limit, page);
+    }
+
+    private List<ActivityLog> filterActivities(List<ActivityLog> logs, String entityType, String userId) {
+        return logs.stream()
+                .filter(a -> entityType == null || entityType.isBlank() || entityType.equalsIgnoreCase(a.getEntityType()))
+                .filter(a -> userId == null || userId.isBlank() || userId.equals(a.getUserId()))
+                .toList();
+    }
+
+    private Set<String> collectWorkspaceEntityIds(String workspaceId) {
+        Set<String> ids = new HashSet<>();
+        ids.add(workspaceId);
+
+        List<Project> projects = projectRepository.findByWorkspaceId(workspaceId);
+        List<String> projectIds = projects.stream().map(Project::getId).toList();
+        ids.addAll(projectIds);
+
+        if (!projectIds.isEmpty()) {
+            List<Task> tasks = taskRepository.findByProjectIdIn(projectIds);
+            tasks.forEach(t -> ids.add(t.getId()));
+        }
+        return ids;
+    }
+
+    private Map<String, Object> paginateActivities(List<ActivityLog> all, int limit, int page) {
         int totalCount = all.size();
         int totalPages = totalCount > 0 ? (int) Math.ceil((double) totalCount / limit) : 0;
         int skip = (page - 1) * limit;
+
         List<ActivityLogResponse> paged = all.stream()
                 .skip(Math.max(0, skip))
                 .limit(limit)
@@ -211,99 +192,113 @@ public class ActivityLogService {
                 .orElseGet(() -> projectRepository.findBySlug(entityIdOrSlug).map(Project::getId).orElse(null));
     }
 
-    private ActivityLogResponse buildResponse(ActivityLog log) {
-        ActivityLogResponse.UserSummaryDto userDto = null;
-        var userOpt = userRepository.findById(log.getUserId());
-        if (userOpt.isPresent()) {
-            var u = userOpt.get();
-            String firstName = u.getFirstName() != null ? u.getFirstName() : "";
-            String lastName = u.getLastName() != null ? u.getLastName() : "";
-            String fullName = (firstName + " " + lastName).trim();
-            userDto = ActivityLogResponse.UserSummaryDto.builder()
-                    .id(u.getId())
-                    .name(fullName.isEmpty() ? u.getUsername() : fullName)
-                    .email(u.getEmail())
-                    .avatar(u.getAvatar())
-                    .build();
-        }
-
-        String taskSlug = null;
-        String projectSlug = null;
-        String workspaceSlug = null;
-        String sprintSlug = null;
-
-        try {
-            if ("TASK".equalsIgnoreCase(log.getEntityType())) {
-                var taskOpt = taskRepository.findById(log.getEntityId());
-                if (taskOpt.isPresent()) {
-                    Task t = taskOpt.get();
-                    taskSlug = t.getSlug();
-                    if (t.getProjectId() != null) {
-                        var pOpt = projectRepository.findById(t.getProjectId());
-                        if (pOpt.isPresent()) {
-                            Project p = pOpt.get();
-                            projectSlug = p.getSlug();
-                            if (p.getWorkspaceId() != null) {
-                                workspaceSlug = workspaceRepository.findById(p.getWorkspaceId())
-                                        .map(com.taskosaur.taskosaur.models.Workspace::getSlug)
-                                        .orElse(null);
-                            }
-                        }
-                    }
-                }
-            } else if ("PROJECT".equalsIgnoreCase(log.getEntityType())) {
-                var pOpt = projectRepository.findById(log.getEntityId());
-                if (pOpt.isPresent()) {
-                    Project p = pOpt.get();
-                    projectSlug = p.getSlug();
-                    if (p.getWorkspaceId() != null) {
-                        workspaceSlug = workspaceRepository.findById(p.getWorkspaceId())
-                                .map(com.taskosaur.taskosaur.models.Workspace::getSlug)
-                                .orElse(null);
-                    }
-                }
-            } else if ("SPRINT".equalsIgnoreCase(log.getEntityType())) {
-                var sOpt = sprintRepository.findById(log.getEntityId());
-                if (sOpt.isPresent()) {
-                    Sprint s = sOpt.get();
-                    sprintSlug = s.getSlug();
-                    if (s.getProjectId() != null) {
-                        var pOpt = projectRepository.findById(s.getProjectId());
-                        if (pOpt.isPresent()) {
-                            Project p = pOpt.get();
-                            projectSlug = p.getSlug();
-                            if (p.getWorkspaceId() != null) {
-                                workspaceSlug = workspaceRepository.findById(p.getWorkspaceId())
-                                        .map(com.taskosaur.taskosaur.models.Workspace::getSlug)
-                                        .orElse(null);
-                            }
-                        }
-                    }
-                }
-            } else if ("WORKSPACE".equalsIgnoreCase(log.getEntityType())) {
-                workspaceSlug = workspaceRepository.findById(log.getEntityId())
-                        .map(com.taskosaur.taskosaur.models.Workspace::getSlug)
-                        .orElse(null);
-            }
-        } catch (Exception ignored) {
-        }
+    private ActivityLogResponse buildResponse(ActivityLog logEntity) {
+        ActivityLogResponse.UserSummaryDto userDto = resolveUserSummary(logEntity.getUserId());
+        SlugContext slugContext = resolveSlugContext(logEntity);
 
         return ActivityLogResponse.builder()
-                .id(log.getId())
-                .type(log.getType())
-                .description(log.getDescription())
-                .entityType(log.getEntityType())
-                .entityId(log.getEntityId())
-                .oldValue(log.getOldValue())
-                .newValue(log.getNewValue())
-                .userId(log.getUserId())
+                .id(logEntity.getId())
+                .type(logEntity.getType())
+                .description(logEntity.getDescription())
+                .entityType(logEntity.getEntityType())
+                .entityId(logEntity.getEntityId())
+                .oldValue(logEntity.getOldValue())
+                .newValue(logEntity.getNewValue())
+                .userId(logEntity.getUserId())
                 .user(userDto)
-                .organizationId(log.getOrganizationId())
-                .taskSlug(taskSlug)
-                .projectSlug(projectSlug)
-                .workspaceSlug(workspaceSlug)
-                .sprintSlug(sprintSlug)
-                .createdAt(log.getCreatedAt())
+                .organizationId(logEntity.getOrganizationId())
+                .taskSlug(slugContext.taskSlug())
+                .projectSlug(slugContext.projectSlug())
+                .workspaceSlug(slugContext.workspaceSlug())
+                .sprintSlug(slugContext.sprintSlug())
+                .createdAt(logEntity.getCreatedAt())
                 .build();
+    }
+
+    private ActivityLogResponse.UserSummaryDto resolveUserSummary(String userId) {
+        if (userId == null) return null;
+        return userRepository.findById(userId)
+                .map(u -> {
+                    String firstName = u.getFirstName() != null ? u.getFirstName() : "";
+                    String lastName = u.getLastName() != null ? u.getLastName() : "";
+                    String fullName = (firstName + " " + lastName).trim();
+                    return ActivityLogResponse.UserSummaryDto.builder()
+                            .id(u.getId())
+                            .name(fullName.isEmpty() ? u.getUsername() : fullName)
+                            .firstName(firstName)
+                            .lastName(lastName)
+                            .email(u.getEmail())
+                            .avatar(u.getAvatar())
+                            .build();
+                })
+                .orElse(null);
+    }
+
+    private record SlugContext(String taskSlug, String projectSlug, String workspaceSlug, String sprintSlug) {
+        static SlugContext empty() {
+            return new SlugContext(null, null, null, null);
+        }
+    }
+
+    private SlugContext resolveSlugContext(ActivityLog logEntity) {
+        String entityType = logEntity.getEntityType();
+        String entityId = logEntity.getEntityId();
+        if (entityType == null || entityId == null) {
+            return SlugContext.empty();
+        }
+
+        return switch (entityType.toUpperCase()) {
+            case "TASK" -> resolveTaskContext(entityId);
+            case "PROJECT" -> resolveProjectContext(entityId);
+            case "SPRINT" -> resolveSprintContext(entityId);
+            case "WORKSPACE" -> new SlugContext(null, null, resolveWorkspaceSlug(entityId), null);
+            default -> SlugContext.empty();
+        };
+    }
+
+    private SlugContext resolveTaskContext(String taskId) {
+        return taskRepository.findById(taskId)
+                .map(task -> {
+                    String projectSlug = null;
+                    String workspaceSlug = null;
+                    if (task.getProjectId() != null) {
+                        SlugContext pContext = resolveProjectContext(task.getProjectId());
+                        projectSlug = pContext.projectSlug();
+                        workspaceSlug = pContext.workspaceSlug();
+                    }
+                    return new SlugContext(task.getSlug(), projectSlug, workspaceSlug, null);
+                })
+                .orElseGet(SlugContext::empty);
+    }
+
+    private SlugContext resolveProjectContext(String projectId) {
+        return projectRepository.findById(projectId)
+                .map(p -> {
+                    String wsSlug = resolveWorkspaceSlug(p.getWorkspaceId());
+                    return new SlugContext(null, p.getSlug(), wsSlug, null);
+                })
+                .orElseGet(SlugContext::empty);
+    }
+
+    private SlugContext resolveSprintContext(String sprintId) {
+        return sprintRepository.findById(sprintId)
+                .map(s -> {
+                    String projectSlug = null;
+                    String workspaceSlug = null;
+                    if (s.getProjectId() != null) {
+                        SlugContext pContext = resolveProjectContext(s.getProjectId());
+                        projectSlug = pContext.projectSlug();
+                        workspaceSlug = pContext.workspaceSlug();
+                    }
+                    return new SlugContext(null, projectSlug, workspaceSlug, s.getSlug());
+                })
+                .orElseGet(SlugContext::empty);
+    }
+
+    private String resolveWorkspaceSlug(String workspaceId) {
+        if (workspaceId == null) return null;
+        return workspaceRepository.findById(workspaceId)
+                .map(Workspace::getSlug)
+                .orElse(null);
     }
 }

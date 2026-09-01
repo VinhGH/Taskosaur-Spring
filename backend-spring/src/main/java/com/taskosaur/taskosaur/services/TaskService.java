@@ -40,6 +40,9 @@ public class TaskService {
 
     private final TaskRepository taskRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
+    private final com.taskosaur.taskosaur.repositories.TaskReporterRepository taskReporterRepository;
+    private final com.taskosaur.taskosaur.repositories.TaskLabelRepository taskLabelRepository;
+    private final com.taskosaur.taskosaur.repositories.LabelRepository labelRepository;
     private final ProjectRepository projectRepository;
     private final WorkspaceRepository workspaceRepository;
     private final TaskStatusRepository taskStatusRepository;
@@ -74,6 +77,8 @@ public class TaskService {
 
         Task savedTask = taskRepository.save(task);
         saveTaskAssignees(savedTask.getId(), request.getAssigneeIds());
+        saveTaskReporters(savedTask.getId(), request.getReporterIds());
+        saveTaskLabels(savedTask.getId(), request.getLabelIds());
 
         return buildTaskResponse(savedTask);
     }
@@ -108,6 +113,12 @@ public class TaskService {
         Task savedTask = taskRepository.save(task);
         if (request.getAssigneeIds() != null) {
             updateAssignees(savedTask.getId(), request.getAssigneeIds());
+        }
+        if (request.getReporterIds() != null) {
+            updateReporters(savedTask.getId(), request.getReporterIds());
+        }
+        if (request.getLabelIds() != null) {
+            updateLabels(savedTask.getId(), request.getLabelIds());
         }
 
         return buildTaskResponse(savedTask);
@@ -179,6 +190,40 @@ public class TaskService {
                         .build())
                 .toList();
         taskAssigneeRepository.saveAll(assignees);
+    }
+
+    private void updateReporters(String taskId, List<String> reporterIds) {
+        taskReporterRepository.deleteByTaskId(taskId);
+        saveTaskReporters(taskId, reporterIds);
+    }
+
+    private void saveTaskReporters(String taskId, List<String> reporterIds) {
+        if (reporterIds == null || reporterIds.isEmpty()) return;
+        List<com.taskosaur.taskosaur.models.TaskReporter> reporters = reporterIds.stream()
+                .map(userId -> com.taskosaur.taskosaur.models.TaskReporter.builder()
+                        .taskId(taskId)
+                        .userId(userId)
+                        .build())
+                .toList();
+        taskReporterRepository.saveAll(reporters);
+    }
+
+    private void updateLabels(String taskId, List<String> labelIds) {
+        taskLabelRepository.deleteByIdTaskId(taskId);
+        saveTaskLabels(taskId, labelIds);
+    }
+
+    private void saveTaskLabels(String taskId, List<String> labelIds) {
+        if (labelIds == null || labelIds.isEmpty()) return;
+        List<com.taskosaur.taskosaur.models.TaskLabel> labels = labelIds.stream()
+                .map(labelId -> com.taskosaur.taskosaur.models.TaskLabel.builder()
+                        .id(com.taskosaur.taskosaur.models.TaskLabelId.builder()
+                                .taskId(taskId)
+                                .labelId(labelId)
+                                .build())
+                        .build())
+                .toList();
+        taskLabelRepository.saveAll(labels);
     }
 
     public Map<String, Object> getFilteredTasks(TaskFilterQuery query) {
@@ -788,6 +833,8 @@ public class TaskService {
     public void deleteTask(String id) {
         Task task = findTaskOrThrow(id);
         taskAssigneeRepository.deleteByTaskId(task.getId());
+        taskReporterRepository.deleteByTaskId(task.getId());
+        taskLabelRepository.deleteByIdTaskId(task.getId());
         taskRepository.delete(task);
     }
 
@@ -808,7 +855,6 @@ public class TaskService {
 
         List<TaskAssignee> assignees = taskAssigneeRepository.findByTaskId(task.getId());
         List<TaskResponse.AssigneeDto> assigneeDtos = new ArrayList<>();
-
         for (TaskAssignee a : assignees) {
             userRepository.findById(a.getUserId()).ifPresent(u ->
                 assigneeDtos.add(TaskResponse.AssigneeDto.builder()
@@ -819,6 +865,51 @@ public class TaskService {
                         .avatar(u.getAvatar())
                         .build())
             );
+        }
+
+        List<com.taskosaur.taskosaur.models.TaskReporter> reporters = taskReporterRepository.findByTaskId(task.getId());
+        List<TaskResponse.AssigneeDto> reporterDtos = new ArrayList<>();
+        for (var r : reporters) {
+            userRepository.findById(r.getUserId()).ifPresent(u ->
+                reporterDtos.add(TaskResponse.AssigneeDto.builder()
+                        .id(u.getId())
+                        .email(u.getEmail())
+                        .firstName(u.getFirstName())
+                        .lastName(u.getLastName())
+                        .avatar(u.getAvatar())
+                        .build())
+            );
+        }
+
+        List<com.taskosaur.taskosaur.models.TaskLabel> taskLabels = taskLabelRepository.findByIdTaskId(task.getId());
+        List<TaskResponse.LabelDto> labelDtos = new ArrayList<>();
+        for (var tl : taskLabels) {
+            if (tl.getId() != null && tl.getId().getLabelId() != null) {
+                labelRepository.findById(tl.getId().getLabelId()).ifPresent(l ->
+                    labelDtos.add(TaskResponse.LabelDto.builder()
+                            .id(l.getId())
+                            .name(l.getName())
+                            .color(l.getColor())
+                            .description(l.getDescription())
+                            .projectId(l.getProjectId())
+                            .build())
+                );
+            }
+        }
+
+        TaskResponse.ProjectDto projectDto = null;
+        if (task.getProjectId() != null) {
+            var projectOpt = projectRepository.findById(task.getProjectId());
+            if (projectOpt.isPresent()) {
+                var p = projectOpt.get();
+                projectDto = TaskResponse.ProjectDto.builder()
+                        .id(p.getId())
+                        .name(p.getName())
+                        .slug(p.getSlug())
+                        .taskPrefix(p.getTaskPrefix())
+                        .workspaceId(p.getWorkspaceId())
+                        .build();
+            }
         }
 
         return TaskResponse.builder()
@@ -839,6 +930,10 @@ public class TaskService {
                 .parentTaskId(task.getParentTaskId())
                 .status(status)
                 .assignees(assigneeDtos)
+                .reporters(reporterDtos)
+                .reporter(!reporterDtos.isEmpty() ? reporterDtos.get(0) : null)
+                .labels(labelDtos)
+                .project(projectDto)
                 .createdBy(task.getCreatedBy())
                 .createdAt(task.getCreatedAt())
                 .updatedAt(task.getUpdatedAt())
