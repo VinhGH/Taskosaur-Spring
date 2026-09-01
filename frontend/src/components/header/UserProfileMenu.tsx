@@ -158,6 +158,13 @@ export default function UserProfileMenu({
                 {isLoggingOut ? t("header:loggingOut") : t("header:logout")}
               </div>
             </DropdownMenuItem>
+
+            <div className="px-3 py-1.5 mt-1 border-t border-[var(--border)]/40 flex items-center justify-between text-[11px] text-[var(--muted-foreground)] select-none">
+              <span>{t("header:version", "Version")}</span>
+              <span className="font-mono font-medium px-1.5 py-0.5 rounded bg-[var(--muted)] text-[10px]">
+                {process.env.NEXT_PUBLIC_APP_VERSION || "v0.1.0"}
+              </span>
+            </div>
           </div>
         </DropdownMenuContent>
       </DropdownMenu>
