@@ -46,6 +46,7 @@ public class TaskService {
     private final UserRepository userRepository;
 
     @org.springframework.cache.annotation.CacheEvict(value = {"org_analytics", "project_charts"}, allEntries = true)
+    @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.TASK_CREATED, entityType = "TASK")
     public TaskResponse createTask(CreateTaskRequest request, String userId) {
         Project project = projectRepository.findById(request.getProjectId())
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + request.getProjectId()));
@@ -98,6 +99,7 @@ public class TaskService {
     }
 
     @org.springframework.cache.annotation.CacheEvict(value = {"org_analytics", "project_charts"}, allEntries = true)
+    @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.TASK_UPDATED, entityType = "TASK")
     public TaskResponse updateTask(String id, UpdateTaskRequest request, String userId) {
         Task task = findTaskOrThrow(id);
         applyTaskFieldUpdates(task, request);
@@ -558,6 +560,7 @@ public class TaskService {
     }
 
     @org.springframework.cache.annotation.CacheEvict(value = {"org_analytics", "project_charts"}, allEntries = true)
+    @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.TASK_STATUS_CHANGED, entityType = "TASK")
     public TaskResponse updateTaskStatus(String id, String statusId, String userId) {
         Task task = findTaskOrThrow(id);
         updateStatusField(task, statusId);
@@ -781,6 +784,7 @@ public class TaskService {
     }
 
     @org.springframework.cache.annotation.CacheEvict(value = {"org_analytics", "project_charts"}, allEntries = true)
+    @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.TASK_DELETED, entityType = "TASK")
     public void deleteTask(String id) {
         Task task = findTaskOrThrow(id);
         taskAssigneeRepository.deleteByTaskId(task.getId());

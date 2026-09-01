@@ -81,6 +81,7 @@ public class ProjectService {
         return uniquePrefix;
     }
 
+    @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.PROJECT_CREATED, entityType = "PROJECT")
     public ProjectResponse createProject(CreateProjectRequest request, String userId) {
         Workspace workspace = workspaceRepository.findById(request.getWorkspaceId())
                 .orElseThrow(() -> new ResourceNotFoundException("Workspace not found with id: " + request.getWorkspaceId()));
@@ -228,6 +229,7 @@ public class ProjectService {
         return result;
     }
 
+    @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.PROJECT_UPDATED, entityType = "PROJECT")
     public ProjectResponse updateProject(String id, UpdateProjectRequest request, String userId) {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));

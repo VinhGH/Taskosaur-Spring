@@ -21,6 +21,10 @@ public class ActivityLogResponse {
     private String userId;
     private UserSummaryDto user;
     private String organizationId;
+    private String taskSlug;
+    private String projectSlug;
+    private String workspaceSlug;
+    private String sprintSlug;
     private LocalDateTime createdAt;
 
     @Data

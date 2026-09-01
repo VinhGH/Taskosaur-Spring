@@ -79,6 +79,7 @@ public class SprintService {
     }
 
     @Transactional
+    @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.SPRINT_CREATED, entityType = "SPRINT")
     public SprintResponse createSprint(CreateSprintRequest request, String userId) {
         Project project = null;
         if (request.getProjectId() != null) {
@@ -190,6 +191,7 @@ public class SprintService {
     }
 
     @Transactional
+    @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.SPRINT_STARTED, entityType = "SPRINT")
     public SprintResponse startSprint(String id, String userId) {
         Sprint sprint = sprintRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint not found with id: " + id));
@@ -209,6 +211,7 @@ public class SprintService {
     }
 
     @Transactional
+    @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.SPRINT_COMPLETED, entityType = "SPRINT")
     public SprintResponse completeSprint(String id, String userId) {
         Sprint sprint = sprintRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint not found with id: " + id));

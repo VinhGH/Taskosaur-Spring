@@ -167,12 +167,26 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
     }
   ) => {
     try {
+      let parsedDueDate: string | undefined = undefined;
+      if (data.dueDate && typeof data.dueDate === "string" && data.dueDate.trim()) {
+        const raw = data.dueDate.trim();
+        const dateObj = new Date(raw.includes("T") ? raw : `${raw}T17:00:00.000Z`);
+        if (!isNaN(dateObj.getTime())) {
+          parsedDueDate = dateObj.toISOString();
+        } else {
+          const fallback = new Date(raw);
+          if (!isNaN(fallback.getTime())) {
+            parsedDueDate = fallback.toISOString();
+          }
+        }
+      }
+
       await createTask({
         title: data.title.trim(),
         projectId: projectId,
         statusId,
         reporterIds: data.reporterId ? [data.reporterId] : [],
-        dueDate: data.dueDate ? new Date(data.dueDate + "T17:00:00.000Z").toISOString() : undefined,
+        dueDate: parsedDueDate,
       });
       onRefresh?.();
     } catch (err) {
