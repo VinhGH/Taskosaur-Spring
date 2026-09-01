@@ -23,6 +23,7 @@ public class WorkspaceController {
 
     private final WorkspaceService workspaceService;
     private final com.taskosaur.taskosaur.services.ChartsService chartsService;
+    private final com.taskosaur.taskosaur.services.ActivityLogService activityLogService;
 
     // POST /api/workspaces -> Tạo workspace
     @PostMapping
@@ -76,17 +77,10 @@ public class WorkspaceController {
     public ResponseEntity<java.util.Map<String, Object>> getRecentActivities(
             @PathVariable("workspaceId") String workspaceId,
             @RequestParam(name = "limit", defaultValue = "10") int limit,
-            @RequestParam(name = "page", defaultValue = "1") int page) {
-        return ResponseEntity.ok(java.util.Map.of(
-                "activities", List.of(),
-                "pagination", java.util.Map.of(
-                        "currentPage", page,
-                        "totalPages", 0,
-                        "totalCount", 0,
-                        "hasNextPage", false,
-                        "hasPrevPage", false
-                )
-        ));
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "entityType", required = false) String entityType,
+            @RequestParam(name = "userId", required = false) String userId) {
+        return ResponseEntity.ok(activityLogService.getRecentActivityByWorkspace(workspaceId, limit, page, entityType, userId));
     }
 
     // GET /api/workspaces/{id} -> Lấy chi tiết 1 workspace

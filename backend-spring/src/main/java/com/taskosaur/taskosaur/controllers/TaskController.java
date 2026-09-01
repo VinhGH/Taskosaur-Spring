@@ -208,8 +208,8 @@ public class TaskController {
         return ResponseEntity.ok(taskService.getTaskById(id));
     }
 
-    // ─── PATCH /api/tasks/{id} ─────────────────────────────────────────────────
-    @PatchMapping("/{id}")
+    // ─── PATCH/PUT /api/tasks/{id} ─────────────────────────────────────────────
+    @RequestMapping(value = "/{id}", method = {RequestMethod.PATCH, RequestMethod.PUT})
     public ResponseEntity<TaskResponse> update(
             @PathVariable String id,
             @RequestBody UpdateTaskRequest request,

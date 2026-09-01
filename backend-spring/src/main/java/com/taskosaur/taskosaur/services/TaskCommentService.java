@@ -31,6 +31,7 @@ public class TaskCommentService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
 
+    @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.TASK_COMMENTED, entityType = "TASK")
     public TaskCommentResponse createComment(String taskIdOrSlug, CreateTaskCommentRequest request, String userId) {
         String effectiveTaskId = resolveTaskId(taskIdOrSlug);
 
