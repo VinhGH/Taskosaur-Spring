@@ -562,6 +562,14 @@ export default function Sidebar() {
           </>
         )}
       </nav>
+
+      {/* Sidebar Footer with Version */}
+      <div className="mt-auto pt-3 border-t border-[var(--sidebar-border)]/40 flex items-center justify-between text-[11px] text-[var(--sidebar-muted)] font-mono select-none">
+        <span className="font-semibold tracking-tight text-[10px] uppercase opacity-70">Taskosaur</span>
+        <span className="px-1.5 py-0.5 rounded bg-[var(--sidebar-accent)]/50 text-[10px] font-medium text-[var(--sidebar-foreground)]">
+          {process.env.NEXT_PUBLIC_APP_VERSION || "v0.1.0"}
+        </span>
+      </div>
     </div>
   );
 
