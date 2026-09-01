@@ -160,7 +160,7 @@ function OrganizationSettingsPageContent() {
             <EmptyState />
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {organizations.map((organization) => {
               const access = canAccess(organization);
               return (
@@ -173,17 +173,17 @@ function OrganizationSettingsPageContent() {
                   }}
                   className={`${
                     access
-                      ? "hover:border-[var(--primary)]/30 transition-colors duration-200"
+                      ? "hover:border-[var(--primary)]/50 transition-all duration-200"
                       : "cursor-default"
                   }`}
                   leading={
-                    <div className="relative">
+                    <div className="relative shrink-0">
                       <div
                         className={cn(
-                          "w-9 h-9 rounded-md flex items-center justify-center font-semibold text-sm",
+                          "w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm shadow-xs",
                           organization.isDefault
-                            ? "bg-gradient-to-br from-[var(--primary)] to-[var(--primary)]/80 text-[var(--primary-foreground)] ring-2 ring-[var(--primary)]/30 ring-offset-1 ring-offset-[var(--card)]"
-                            : "bg-gradient-to-br from-[var(--primary)] to-[var(--primary)]/80 text-[var(--primary-foreground)]"
+                            ? "bg-gradient-to-br from-[var(--primary)] to-[var(--primary)]/85 text-[var(--primary-foreground)] ring-2 ring-[var(--primary)]/30 ring-offset-2 ring-offset-[var(--card)]"
+                            : "bg-gradient-to-br from-[var(--primary)] to-[var(--primary)]/85 text-[var(--primary-foreground)]"
                         )}
                       >
                         {organization.name?.charAt(0)?.toUpperCase() || "?"}
@@ -192,11 +192,11 @@ function OrganizationSettingsPageContent() {
                   }
                   heading={
                     <div className="flex items-center justify-between w-full gap-2">
-                      <span className="font-semibold text-[var(--foreground)] truncate text-sm capitalize">
+                      <span className="font-semibold text-[var(--foreground)] text-sm capitalize line-clamp-1">
                         {organization.name}
                       </span>
                       {organization.isDefault ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 flex-shrink-0 uppercase tracking-wide">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0 border border-emerald-500/30">
                           <Check className="h-3 w-3" />
                           {t("organization_management.default_badge")}
                         </span>
@@ -213,7 +213,7 @@ function OrganizationSettingsPageContent() {
                               handleSetDefaultOrganization(organization.id);
                             }}
                             aria-label={t("organization_management.set_default")}
-                            className="h-6 px-2 py-0 rounded-full text-[10px] font-medium text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--accent)] border border-[var(--border)] transition-all duration-200 flex-shrink-0"
+                            className="h-6 px-2 py-0 rounded-full text-[10px] font-medium text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--accent)] border border-[var(--border)] transition-all duration-200 shrink-0"
                           >
                             {t("organization_management.set_default")}
                           </Button>
@@ -222,14 +222,14 @@ function OrganizationSettingsPageContent() {
                     </div>
                   }
                   subheading={
-                    <div className="flex items-center gap-2 flex-wrap ">
-                      <span className="text-xs text-[var(--muted-foreground)]">
+                    <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                      <span className="text-xs text-[var(--muted-foreground)] font-mono">
                         {organization.slug}
                       </span>
                       {organization?.userRole && (
                         <Badge
                           variant="secondary"
-                          className="text-xs px-1.5 py-0 h-4 bg-[var(--accent)] text-[var(--accent-foreground)] border-none font-medium"
+                          className="text-[11px] px-2 py-0.5 h-auto bg-[var(--accent)] text-[var(--accent-foreground)] border border-[var(--border)] font-semibold rounded-md uppercase"
                         >
                           {organization.userRole}
                         </Badge>
@@ -237,31 +237,28 @@ function OrganizationSettingsPageContent() {
                     </div>
                   }
                   description={
-                    <p className="text-xs text-[var(--muted-foreground)] line-clamp-2 h-10 capitalize">
+                    <p className="text-xs text-[var(--muted-foreground)] line-clamp-2 leading-relaxed">
                       {organization.description || t("organization_management.no_description")}
                     </p>
                   }
                   footer={
-                    <div className="flex flex-col gap-2 w-full pt-2 border-t border-[var(--border)]/50">
-                      {/* Stats Row */}
-                      <div className="flex items-center gap-3 text-xs text-[var(--muted-foreground)]">
-                        <span className="flex items-center gap-1 font-medium">
-                          <ChartNoAxesGantt className="h-3.5 w-3.5 text-[var(--primary)]" />
-                          <span className="text-[var(--foreground)]">
-                            {t("organization_management.workspaces_count", {
-                              count: organization._count?.workspaces || 0,
-                            })}
-                          </span>
+                    <div className="flex items-center gap-4 text-xs text-[var(--muted-foreground)] w-full">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <ChartNoAxesGantt className="h-3.5 w-3.5 text-[var(--primary)]" />
+                        <span className="text-[var(--foreground)]">
+                          {t("organization_management.workspaces_count", {
+                            count: organization._count?.workspaces || 0,
+                          })}
                         </span>
-                        <span className="flex items-center gap-1 font-medium">
-                          <Users className="h-3.5 w-3.5 text-[var(--primary)]" />
-                          <span className="text-[var(--foreground)]">
-                            {t("organization_management.members_count", {
-                              count: organization._count?.members || 0,
-                            })}
-                          </span>
+                      </span>
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <Users className="h-3.5 w-3.5 text-[var(--primary)]" />
+                        <span className="text-[var(--foreground)]">
+                          {t("organization_management.members_count", {
+                            count: organization._count?.members || 0,
+                          })}
                         </span>
-                      </div>
+                      </span>
                     </div>
                   }
                 />

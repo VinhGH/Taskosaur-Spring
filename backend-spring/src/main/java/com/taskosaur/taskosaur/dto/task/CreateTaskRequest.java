@@ -38,6 +38,8 @@ public class CreateTaskRequest {
     private String parentTaskId;
 
     private List<String> assigneeIds;
+    private List<String> reporterIds;
+    private List<String> labelIds;
 
     private Integer storyPoints;
 
