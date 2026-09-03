@@ -130,76 +130,81 @@ const TaskCard: React.FC<TaskCardProps> = ({
       onDragEnd={onDragEnd}
       onClick={handleClick}
       className={cn(
-        "rounded-lg border mb-3 cursor-move transition-all duration-200 hover:shadow-md h-[150px]",
-        isDragging && "opacity-50 rotate-1 shadow-lg",
+        "rounded-lg border mb-2 cursor-grab active:cursor-grabbing transition-all duration-150 hover:shadow-xs hover:border-[var(--primary)]/50 group/card",
+        isDragging && "opacity-50 rotate-1 shadow-md",
         onClick && "hover:cursor-pointer"
       )}
       style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
     >
-      <CardContent className="p-4">
+      <CardContent className="p-3">
         {/* Task Title */}
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-start gap-1.5 mb-2">
           <h4
-            className="text-sm font-medium line-clamp-1"
+            className="text-xs sm:text-[13px] font-medium leading-snug line-clamp-2 flex-1 group-hover/card:text-[var(--primary)] transition-colors"
             style={{ color: "var(--foreground)" }}
+            title={task.title}
           >
             {task.title}
           </h4>
           {task.isArchived && (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 flex-shrink-0">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 flex-shrink-0">
               Archived
             </span>
           )}
         </div>
 
-        {/* Category Tag */}
-        <div className="mb-3">
-          <span
-            className={`inline-block px-2 py-1 rounded text-xs font-medium text-[var(--muted-foreground)]`}
-          >
-            {task.priority}
-          </span>
-        </div>
+        {/* Priority & Meta & Assignees in Compact Row */}
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--border)]/30">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Priority Badge */}
+            <span
+              className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide uppercase"
+              style={{
+                backgroundColor: `${priorityColor}18`,
+                color: priorityColor,
+                border: `1px solid ${priorityColor}35`,
+              }}
+            >
+              {task.priority}
+            </span>
 
-        {/* Bottom Section */}
-        <div className="flex items-center justify-between">
-          {/* Left side - Meta info */}
-          <div
-            className="flex items-center gap-3 text-xs"
-            style={{ color: "var(--muted-foreground)" }}
-          >
+            {/* Due Date */}
+            {task.dueDate && (
+              <div
+                className={cn(
+                  "flex items-center gap-1 text-[11px]",
+                  isOverdue ? "text-red-500 font-medium" : "text-[var(--muted-foreground)]"
+                )}
+              >
+                <HiCalendarDays size={12} className={isOverdue ? "text-red-500" : "text-[var(--muted-foreground)]"} />
+                <span>{formatDueDate(task.dueDate)}</span>
+              </div>
+            )}
+
+            {/* Comment Count */}
             {task.commentCount && task.commentCount > 0 && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 text-[11px] text-[var(--muted-foreground)]">
                 <HiChatBubbleLeft size={12} />
                 <span>{task.commentCount}</span>
               </div>
             )}
 
+            {/* Subtask Count */}
             {task.subtaskCount && task.subtaskCount > 0 && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 text-[11px] text-[var(--muted-foreground)]">
                 <HiPaperClip size={12} />
                 <span>{task.subtaskCount}</span>
-              </div>
-            )}
-
-            {task.dueDate && (
-              <div
-                className={cn("flex items-center gap-1", isOverdue && "text-red-500")}
-                style={isOverdue ? { color: "var(--destructive)" } : {}}
-              >
-                <HiCalendarDays size={12} />
-                <span>{formatDueDate(task.dueDate)}</span>
               </div>
             )}
           </div>
 
           {/* Right side - Assignee Avatars */}
           {hasAssignees && (
-            <div className="flex items-center -space-x-2">
+            <div className="flex items-center -space-x-1.5 shrink-0">
               {assignees.slice(0, 3).map((assignee, index) => (
                 <div
                   key={assignee.id}
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium border-2 border-[var(--card)]"
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-medium border-2 border-[var(--card)]"
                   style={{
                     backgroundColor: priorityColor,
                     color: "var(--primary-foreground)",
@@ -212,8 +217,8 @@ const TaskCard: React.FC<TaskCardProps> = ({
                       src={assignee.avatar}
                       alt={`${assignee.firstName} ${assignee.lastName}`}
                       className="w-full h-full rounded-full object-cover"
-                      height={24}
-                      width={24}
+                      height={20}
+                      width={20}
                     />
                   ) : (
                     getInitials(assignee.firstName, assignee.lastName)
@@ -221,15 +226,9 @@ const TaskCard: React.FC<TaskCardProps> = ({
                 </div>
               ))}
 
-              {/* Show +N if more than 3 assignees */}
               {assignees.length > 3 && (
                 <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium border-2 border-[var(--card)]"
-                  style={{
-                    backgroundColor: "var(--muted)",
-                    color: "var(--muted-foreground)",
-                    zIndex: 0,
-                  }}
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-medium border-2 border-[var(--card)] bg-[var(--muted)] text-[var(--muted-foreground)]"
                   title={`${assignees.length - 3} more assignees`}
                 >
                   +{assignees.length - 3}

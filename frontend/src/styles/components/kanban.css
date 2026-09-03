@@ -2,16 +2,16 @@
 
 /* Status Column */
 .kanban-column-container {
-  @apply flex-shrink-0 w-[84vw] sm:w-80 max-w-[340px] snap-center h-[calc(100vh-13rem)] md:h-[calc(100vh-10rem)];
+  @apply flex-shrink-0 w-[275px] sm:w-[280px] snap-start h-full;
 }
 
 .kanban-column-wrapper {
-  @apply rounded-xl flex flex-col h-full shadow-sm;
+  @apply rounded-xl flex flex-col h-full shadow-xs border border-[var(--border)]/40;
   background-color: var(--muted);
 }
 
 .kanban-column-header {
-  @apply flex items-center justify-between px-4 py-2;
+  @apply flex items-center justify-between px-3 py-2;
 }
 
 .kanban-column-header-content {

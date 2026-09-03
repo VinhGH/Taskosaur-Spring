@@ -30,6 +30,7 @@ public class InvitationService {
     private final OrganizationRepository organizationRepository;
     private final ProjectMemberRepository projectMemberRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final OrganizationMemberRepository organizationMemberRepository;
     private final EmailService emailService;
 
     @Value("${app.frontend-url:http://localhost:3001}")
@@ -212,37 +213,100 @@ public class InvitationService {
 
         // Add user as member to the target entity
         if (inv.getProjectId() != null) {
-            if (!projectMemberRepository.existsByProjectIdAndUserId(inv.getProjectId(), currentUserId)) {
-                Role projectRole = Role.MEMBER;
-                try {
-                    projectRole = Role.valueOf(inv.getRole());
-                } catch (IllegalArgumentException ignored) {
-                    // Default to MEMBER
+            Project project = projectRepository.findById(inv.getProjectId()).orElse(null);
+            if (project != null) {
+                // 1. Add to project_members
+                if (!projectMemberRepository.existsByProjectIdAndUserId(project.getId(), currentUserId)) {
+                    Role projectRole = Role.MEMBER;
+                    try {
+                        projectRole = Role.valueOf(inv.getRole());
+                    } catch (IllegalArgumentException ignored) {
+                        // Default to MEMBER
+                    }
+                    ProjectMember pm = ProjectMember.builder()
+                            .projectId(project.getId())
+                            .userId(currentUserId)
+                            .role(projectRole)
+                            .createdBy(inv.getInviterId())
+                            .build();
+                    projectMemberRepository.save(pm);
                 }
-                ProjectMember pm = ProjectMember.builder()
-                        .projectId(inv.getProjectId())
-                        .userId(currentUserId)
-                        .role(projectRole)
-                        .createdBy(inv.getInviterId())
-                        .build();
-                projectMemberRepository.save(pm);
+
+                // 2. Add to workspace_members if not present
+                String wsId = project.getWorkspaceId();
+                if (wsId != null && !workspaceMemberRepository.existsByWorkspaceIdAndUserId(wsId, currentUserId)) {
+                    WorkspaceMember wm = WorkspaceMember.builder()
+                            .workspaceId(wsId)
+                            .userId(currentUserId)
+                            .role(WorkspaceRole.MEMBER)
+                            .build();
+                    workspaceMemberRepository.save(wm);
+                }
+
+                // 3. Add to organization_members if not present
+                if (wsId != null) {
+                    workspaceRepository.findById(wsId).ifPresent(ws -> {
+                        String orgId = ws.getOrganizationId();
+                        if (orgId != null && !organizationMemberRepository.existsByUserIdAndOrganizationId(currentUserId, orgId)) {
+                            OrganizationMember om = OrganizationMember.builder()
+                                    .organizationId(orgId)
+                                    .userId(currentUserId)
+                                    .role(Role.MEMBER)
+                                    .createdBy(inv.getInviterId())
+                                    .build();
+                            organizationMemberRepository.save(om);
+                        }
+                    });
+                }
             }
         }
 
         if (inv.getWorkspaceId() != null) {
-            if (!workspaceMemberRepository.existsByWorkspaceIdAndUserId(inv.getWorkspaceId(), currentUserId)) {
-                WorkspaceRole wsRole = WorkspaceRole.MEMBER;
+            Workspace ws = workspaceRepository.findById(inv.getWorkspaceId()).orElse(null);
+            if (ws != null) {
+                if (!workspaceMemberRepository.existsByWorkspaceIdAndUserId(ws.getId(), currentUserId)) {
+                    WorkspaceRole wsRole = WorkspaceRole.MEMBER;
+                    try {
+                        wsRole = WorkspaceRole.valueOf(inv.getRole());
+                    } catch (IllegalArgumentException ignored) {
+                        // Fall back to MEMBER
+                    }
+                    WorkspaceMember wm = WorkspaceMember.builder()
+                            .workspaceId(ws.getId())
+                            .userId(currentUserId)
+                            .role(wsRole)
+                            .build();
+                    workspaceMemberRepository.save(wm);
+                }
+
+                String orgId = ws.getOrganizationId();
+                if (orgId != null && !organizationMemberRepository.existsByUserIdAndOrganizationId(currentUserId, orgId)) {
+                    OrganizationMember om = OrganizationMember.builder()
+                            .organizationId(orgId)
+                            .userId(currentUserId)
+                            .role(Role.MEMBER)
+                            .createdBy(inv.getInviterId())
+                            .build();
+                    organizationMemberRepository.save(om);
+                }
+            }
+        }
+
+        if (inv.getOrganizationId() != null) {
+            if (!organizationMemberRepository.existsByUserIdAndOrganizationId(currentUserId, inv.getOrganizationId())) {
+                Role orgRole = Role.MEMBER;
                 try {
-                    wsRole = WorkspaceRole.valueOf(inv.getRole());
+                    orgRole = Role.valueOf(inv.getRole());
                 } catch (IllegalArgumentException ignored) {
                     // Fall back to MEMBER
                 }
-                WorkspaceMember wm = WorkspaceMember.builder()
-                        .workspaceId(inv.getWorkspaceId())
+                OrganizationMember om = OrganizationMember.builder()
+                        .organizationId(inv.getOrganizationId())
                         .userId(currentUserId)
-                        .role(wsRole)
+                        .role(orgRole)
+                        .createdBy(inv.getInviterId())
                         .build();
-                workspaceMemberRepository.save(wm);
+                organizationMemberRepository.save(om);
             }
         }
 

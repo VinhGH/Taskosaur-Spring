@@ -30,6 +30,7 @@ public class TaskCommentService {
     private final TaskCommentRepository taskCommentRepository;
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
+    private final WebSocketEventService webSocketEventService;
 
     @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.TASK_COMMENTED, entityType = "TASK")
     public TaskCommentResponse createComment(String taskIdOrSlug, CreateTaskCommentRequest request, String userId) {
@@ -44,7 +45,15 @@ public class TaskCommentService {
                 .build();
 
         TaskComment savedComment = taskCommentRepository.save(comment);
-        return buildResponse(savedComment);
+        TaskCommentResponse response = buildResponse(savedComment);
+        try {
+            taskRepository.findById(effectiveTaskId).ifPresent(t ->
+                webSocketEventService.notifyCommentAdded(t.getProjectId(), effectiveTaskId, response)
+            );
+        } catch (Exception ignored) {
+            // Non-critical broadcast
+        }
+        return response;
     }
 
     public List<TaskCommentResponse> getCommentsByTask(String taskIdOrSlug) {

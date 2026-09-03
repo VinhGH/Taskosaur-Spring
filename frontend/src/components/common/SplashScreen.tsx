@@ -28,8 +28,8 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
   return (
     <div className={`splash-screen-container ${isExiting ? "fade-out" : ""}`} suppressHydrationWarning>
       <div className="splash-logo-container" suppressHydrationWarning>
-        <div className="splash-logo-glow" />
-        <div className="splash-logo">
+        <div className="splash-logo-glow" suppressHydrationWarning />
+        <div className="splash-logo" suppressHydrationWarning>
           <Image
             src="/taskosaur-logo.svg"
             alt="Taskosaur Logo"
@@ -40,17 +40,18 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
         </div>
       </div>
 
-      <div className="splash-content">
-        <p className="splash-status-text">{displayText}...</p>
+      <div className="splash-content" suppressHydrationWarning>
+        <p className="splash-status-text" suppressHydrationWarning>{displayText}...</p>
         
-        <div className="splash-progress-track">
+        <div className="splash-progress-track" suppressHydrationWarning>
           {progress !== undefined ? (
             <div 
               className="splash-progress-bar" 
               style={{ width: `${progress}%` }} 
+              suppressHydrationWarning
             />
           ) : (
-            <div className="splash-progress-bar splash-progress-indeterminate" />
+            <div className="splash-progress-bar splash-progress-indeterminate" suppressHydrationWarning />
           )}
         </div>
       </div>

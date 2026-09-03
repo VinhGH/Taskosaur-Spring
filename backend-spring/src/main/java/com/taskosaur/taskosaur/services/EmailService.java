@@ -30,6 +30,16 @@ public class EmailService {
     @Value("${spring.mail.username:}")
     private String mailUsername;
 
+    @Value("${spring.mail.password:}")
+    private String mailPassword;
+
+    private String resolveConfig(String val, String envKey, String defaultVal) {
+        if (val != null && !val.isBlank()) return val;
+        String env = System.getenv(envKey);
+        if (env != null && !env.isBlank()) return env;
+        return System.getProperty(envKey, defaultVal);
+    }
+
     @Async
     public void sendInvitationEmail(
             String toEmail,
@@ -56,15 +66,9 @@ public class EmailService {
                 ================================================================================
                 """, toEmail, inviterName, entityType, entityName, role, invitationUrl, formattedDate);
 
-        String effectiveHost = (mailHost != null && !mailHost.isBlank())
-                ? mailHost
-                : System.getProperty("SMTP_HOST", "smtp.gmail.com");
-
-        String effectiveUser = (mailUsername != null && !mailUsername.isBlank())
-                ? mailUsername
-                : System.getProperty("SMTP_USER", "");
-
-        String effectivePass = System.getProperty("SMTP_PASS", "");
+        String effectiveHost = resolveConfig(mailHost, "SMTP_HOST", "smtp.gmail.com");
+        String effectiveUser = resolveConfig(mailUsername, "SMTP_USER", "");
+        String effectivePass = resolveConfig(mailPassword, "SMTP_PASS", "");
 
         String fromAddress = (smtpFrom != null && !smtpFrom.isBlank() && !smtpFrom.contains("example.com"))
                 ? smtpFrom
@@ -138,15 +142,9 @@ public class EmailService {
                 ================================================================================
                 """, toEmail, userName, resetToken, resetUrl);
 
-        String effectiveHost = (mailHost != null && !mailHost.isBlank())
-                ? mailHost
-                : System.getProperty("SMTP_HOST", "smtp.gmail.com");
-
-        String effectiveUser = (mailUsername != null && !mailUsername.isBlank())
-                ? mailUsername
-                : System.getProperty("SMTP_USER", "");
-
-        String effectivePass = System.getProperty("SMTP_PASS", "");
+        String effectiveHost = resolveConfig(mailHost, "SMTP_HOST", "smtp.gmail.com");
+        String effectiveUser = resolveConfig(mailUsername, "SMTP_USER", "");
+        String effectivePass = resolveConfig(mailPassword, "SMTP_PASS", "");
 
         String fromAddress = (smtpFrom != null && !smtpFrom.isBlank() && !smtpFrom.contains("example.com"))
                 ? smtpFrom
