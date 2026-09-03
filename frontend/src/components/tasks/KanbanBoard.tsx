@@ -238,16 +238,16 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   if (isLoading) {
     return (
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div className="flex gap-3 overflow-x-auto pb-2 h-[calc(100vh-215px)] min-h-[460px]">
         {[...Array(4)].map((_, i) => (
           <div
             key={i}
-            className="flex-shrink-0 w-80 bg-[var(--muted)]/30 rounded-lg p-4 animate-pulse"
+            className="flex-shrink-0 w-[275px] sm:w-[280px] bg-[var(--muted)]/30 rounded-xl p-3 animate-pulse h-full"
           >
-            <div className="h-6 bg-[var(--muted)] rounded mb-4" />
-            <div className="space-y-3">
-              {[...Array(3)].map((__, j) => (
-                <div key={j} className="h-20 bg-[var(--muted)] rounded" />
+            <div className="h-5 bg-[var(--muted)] rounded mb-3" />
+            <div className="space-y-2">
+              {[...Array(4)].map((__, j) => (
+                <div key={j} className="h-16 bg-[var(--muted)] rounded-lg" />
               ))}
             </div>
           </div>
@@ -258,7 +258,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   return (
     <>
-      <div className="flex flex-nowrap gap-4 overflow-x-auto pb-4">
+      <div className="w-full flex flex-nowrap gap-3 overflow-x-auto overflow-y-hidden pb-2 items-stretch h-[calc(100vh-215px)] min-h-[460px]">
         {localKanbanData.map((status) => (
           <StatusColumn
             key={status.statusId}

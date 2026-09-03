@@ -41,6 +41,8 @@ import {
 import { CsvImportModal } from "@/components/tasks/CsvImportModal";
 import { NewTaskModal } from "@/components/tasks/NewTaskModal";
 import { SEO } from "@/components/common/SEO";
+import { socketService } from "@/lib/socket";
+import { SocketEvents } from "@/types/socket";
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState<T>(value);
 
@@ -567,6 +569,34 @@ const sprintId = resolvedSprintId;
   useEffect(() => {
     loadTasks();
   }, [loadTasks, selectedAssignees, selectedReporters, selectedStatuses, selectedPriorities, debouncedSearchQuery, sortField, sortOrder]);
+
+  // Real-time synchronization via Spring Boot WebSocket STOMP
+  useEffect(() => {
+    if (!project?.id) return;
+
+    socketService.joinRoom("project", project.id);
+
+    const handleTaskChange = () => {
+      if (currentView === "kanban" && projectSlug && sprintId) {
+        loadKanbanData(projectSlug as string, sprintId as string);
+      } else if (currentView === "list") {
+        loadTasks();
+      }
+    };
+
+    socketService.on(SocketEvents.TASK_CREATED, handleTaskChange);
+    socketService.on(SocketEvents.TASK_UPDATED, handleTaskChange);
+    socketService.on(SocketEvents.TASK_STATUS_CHANGED, handleTaskChange);
+    socketService.on(SocketEvents.TASK_DELETED, handleTaskChange);
+
+    return () => {
+      socketService.off(SocketEvents.TASK_CREATED, handleTaskChange);
+      socketService.off(SocketEvents.TASK_UPDATED, handleTaskChange);
+      socketService.off(SocketEvents.TASK_STATUS_CHANGED, handleTaskChange);
+      socketService.off(SocketEvents.TASK_DELETED, handleTaskChange);
+      socketService.leaveRoom("project", project.id);
+    };
+  }, [project?.id, currentView, projectSlug, sprintId, loadKanbanData, loadTasks]);
 
   useEffect(() => {
     if (currentView === "kanban") {

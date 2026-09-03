@@ -47,6 +47,7 @@ public class TaskService {
     private final WorkspaceRepository workspaceRepository;
     private final TaskStatusRepository taskStatusRepository;
     private final UserRepository userRepository;
+    private final WebSocketEventService webSocketEventService;
 
     @org.springframework.cache.annotation.CacheEvict(value = {"org_analytics", "project_charts"}, allEntries = true)
     @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.TASK_CREATED, entityType = "TASK")
@@ -80,7 +81,13 @@ public class TaskService {
         saveTaskReporters(savedTask.getId(), request.getReporterIds());
         saveTaskLabels(savedTask.getId(), request.getLabelIds());
 
-        return buildTaskResponse(savedTask);
+        TaskResponse response = buildTaskResponse(savedTask);
+        try {
+            webSocketEventService.notifyTaskCreated(savedTask.getProjectId(), response);
+        } catch (Exception e) {
+            log.warn("WebSocket broadcast failed for task creation: {}", e.getMessage());
+        }
+        return response;
     }
 
     private String resolveInitialStatusId(String requestedStatusId, String workflowId) {
@@ -121,7 +128,13 @@ public class TaskService {
             updateLabels(savedTask.getId(), request.getLabelIds());
         }
 
-        return buildTaskResponse(savedTask);
+        TaskResponse response = buildTaskResponse(savedTask);
+        try {
+            webSocketEventService.notifyTaskUpdated(savedTask.getProjectId(), savedTask.getId(), response);
+        } catch (Exception e) {
+            log.warn("WebSocket broadcast failed for task update: {}", e.getMessage());
+        }
+        return response;
     }
 
     private void applyTaskFieldUpdates(Task task, UpdateTaskRequest request) {
@@ -611,7 +624,16 @@ public class TaskService {
         updateStatusField(task, statusId);
         task.setUpdatedBy(userId);
         Task updated = taskRepository.save(task);
-        return buildTaskResponse(updated);
+        TaskResponse response = buildTaskResponse(updated);
+        try {
+            Map<String, Object> statusChange = new HashMap<>();
+            statusChange.put("statusId", statusId);
+            statusChange.put("task", response);
+            webSocketEventService.notifyTaskStatusChanged(updated.getProjectId(), updated.getId(), statusChange);
+        } catch (Exception e) {
+            log.warn("WebSocket broadcast failed for status change: {}", e.getMessage());
+        }
+        return response;
     }
 
     @org.springframework.cache.annotation.CacheEvict(value = {"org_analytics", "project_charts"}, allEntries = true)
@@ -832,10 +854,17 @@ public class TaskService {
     @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.TASK_DELETED, entityType = "TASK")
     public void deleteTask(String id) {
         Task task = findTaskOrThrow(id);
-        taskAssigneeRepository.deleteByTaskId(task.getId());
-        taskReporterRepository.deleteByTaskId(task.getId());
-        taskLabelRepository.deleteByIdTaskId(task.getId());
+        String projectId = task.getProjectId();
+        String taskId = task.getId();
+        taskAssigneeRepository.deleteByTaskId(taskId);
+        taskReporterRepository.deleteByTaskId(taskId);
+        taskLabelRepository.deleteByIdTaskId(taskId);
         taskRepository.delete(task);
+        try {
+            webSocketEventService.notifyTaskDeleted(projectId, taskId);
+        } catch (Exception e) {
+            log.warn("WebSocket broadcast failed for task deletion: {}", e.getMessage());
+        }
     }
 
     private Task findTaskOrThrow(String idOrSlug) {

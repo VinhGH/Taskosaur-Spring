@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useGroupedTasks } from "@/hooks/useGroupedTasks";
+import { cn } from "@/lib/utils";
 
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
@@ -42,6 +43,8 @@ import {
 import { useSlugRedirect, cacheSlugId } from "@/hooks/useSlugRedirect";
 import { SEO } from "@/components/common/SEO";
 import { TokenManager } from "@/lib/api";
+import { socketService } from "@/lib/socket";
+import { SocketEvents } from "@/types/socket";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState<T>(value);
@@ -632,6 +635,34 @@ function ProjectTasksContent() {
   useEffect(() => {
     setCurrentPage(1);
   }, [groupBy]);
+
+  // Real-time synchronization via Spring Boot WebSocket STOMP
+  useEffect(() => {
+    if (!project?.id) return;
+
+    socketService.joinRoom("project", project.id);
+
+    const handleTaskChange = () => {
+      if (currentView === "kanban" && projectSlug) {
+        loadKanbanData(projectSlug as string);
+      } else if (currentView === "list") {
+        loadTasks();
+      }
+    };
+
+    socketService.on(SocketEvents.TASK_CREATED, handleTaskChange);
+    socketService.on(SocketEvents.TASK_UPDATED, handleTaskChange);
+    socketService.on(SocketEvents.TASK_STATUS_CHANGED, handleTaskChange);
+    socketService.on(SocketEvents.TASK_DELETED, handleTaskChange);
+
+    return () => {
+      socketService.off(SocketEvents.TASK_CREATED, handleTaskChange);
+      socketService.off(SocketEvents.TASK_UPDATED, handleTaskChange);
+      socketService.off(SocketEvents.TASK_STATUS_CHANGED, handleTaskChange);
+      socketService.off(SocketEvents.TASK_DELETED, handleTaskChange);
+      socketService.leaveRoom("project", project.id);
+    };
+  }, [project?.id, currentView, projectSlug, loadKanbanData, loadTasks]);
 
   const statusFilters = useMemo(
     () =>
@@ -1312,7 +1343,7 @@ function ProjectTasksContent() {
       </div>
 
       {/* Scrollable Content */}
-      <div className="rounded-md">
+      <div className={cn("rounded-md", currentView === "kanban" && "overflow-hidden")}>
         {error ? <ErrorState error={error} onRetry={handleRetry} /> : renderContent()}
       </div>
 

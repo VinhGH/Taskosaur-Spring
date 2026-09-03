@@ -20,6 +20,7 @@ import { CardsSkeleton } from "@/components/skeletons/CardsSkeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
+import { setCurrentOrganizationId } from "@/utils/hierarchyContext";
 
 function OrganizationSettingsPageContent() {
   const { t } = useTranslation("settings");
@@ -27,7 +28,12 @@ function OrganizationSettingsPageContent() {
   const { getCurrentOrganizationId } = useWorkspaceContext();
   const { getUserAccess } = useAuth();
   const [hasAccess, setHasAccess] = useState(false);
-  const { getUserOrganizations, isLoading: orgLoading, setDefaultOrganization } = useOrganization();
+  const {
+    getUserOrganizations,
+    isLoading: orgLoading,
+    setDefaultOrganization,
+    setCurrentOrganization,
+  } = useOrganization();
   const { getCurrentUser } = useAuth();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -86,12 +92,33 @@ function OrganizationSettingsPageContent() {
 
   const handleSetDefaultOrganization = async (organizationId: string) => {
     try {
-      const updatedMember = await setDefaultOrganization(organizationId);
+      await setDefaultOrganization(organizationId);
+      const targetOrg = organizations.find((o) => o.id === organizationId);
+      if (targetOrg) {
+        setCurrentOrganization(targetOrg);
+        setCurrentOrganizationId(targetOrg.id);
+      }
       await fetchOrganizations();
       toast.success(t("organization_management.default_updated"));
     } catch (error) {
       console.error("Failed to set default organization:", error);
       toast.error(t("organization_management.default_update_failed"));
+    }
+  };
+
+  const handleSelectOrOpenOrg = (organization: Organization) => {
+    const access = canAccess(organization);
+    // Luôn chuyển đổi tổ chức đang hoạt động sang tổ chức được chọn
+    setCurrentOrganization(organization);
+    setCurrentOrganizationId(organization.id);
+
+    if (access) {
+      // OWNER / ADMIN -> Vào trang cấu hình cài đặt
+      router.push(`/settings/${organization.slug}`);
+    } else {
+      // MEMBER / VIEWER -> Đổi sang tổ chức này và chuyển sang Dashboard
+      toast.success(`Đã chuyển sang tổ chức ${organization.name}`);
+      router.push("/dashboard");
     }
   };
 
@@ -166,16 +193,8 @@ function OrganizationSettingsPageContent() {
               return (
                 <EntityCard
                   key={organization.id}
-                  onClick={() => {
-                    if (access) {
-                      router.push(`/settings/${organization.slug}`);
-                    }
-                  }}
-                  className={`${
-                    access
-                      ? "hover:border-[var(--primary)]/50 transition-all duration-200"
-                      : "cursor-default"
-                  }`}
+                  onClick={() => handleSelectOrOpenOrg(organization)}
+                  className="hover:border-[var(--primary)]/50 transition-all duration-200 cursor-pointer"
                   leading={
                     <div className="relative shrink-0">
                       <div
