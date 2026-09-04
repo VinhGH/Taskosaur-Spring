@@ -3,6 +3,9 @@ import { notificationApi } from "@/utils/api/notificationApi";
 import { Notification } from "@/types";
 import { useOrganization } from "@/contexts/organization-context";
 import { useAuth } from "@/contexts/auth-context";
+import { socketService } from "@/lib/socket";
+import { toast } from "sonner";
+import { useRouter } from "next/router";
 
 interface NotificationState {
   unreadCount: number;
@@ -184,6 +187,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         Promise.all([fetchUnreadCount(), fetchRecentNotifications(), fetchUnreadCountsByOrg()]);
     }, [fetchUnreadCount, fetchRecentNotifications, fetchUnreadCountsByOrg]);
 
+  const router = useRouter();
+
   // Initial fetch
   useEffect(() => {
       if (userId && organizationId) {
@@ -193,6 +198,67 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           fetchUnreadCountsByOrg();
       }
   }, [userId, organizationId, fetchRecentNotifications, fetchUnreadCountsByOrg]);
+
+  // Real-time WebSocket Notification Listener
+  useEffect(() => {
+    if (!userId) return;
+
+    // Join personal notification room
+    socketService.joinRoom("user", userId);
+
+    const handleRealtimeNotification = (payload: any) => {
+      const notification = payload?.notification || payload;
+      if (!notification) return;
+
+      console.log("[NotificationContext] Received real-time notification:", notification);
+
+      // 1. Cập nhật ngay lập tức unreadCount và recentNotifications vào React State
+      setState((prev) => {
+        const newUnreadCount = typeof payload?.unreadCount === "number"
+          ? payload.unreadCount
+          : prev.unreadCount + 1;
+
+        const exists = prev.recentNotifications.some((n) => n.id === notification.id);
+        const updatedRecent = exists
+          ? prev.recentNotifications
+          : [notification, ...prev.recentNotifications].slice(0, 20);
+
+        return {
+          ...prev,
+          unreadCount: newUnreadCount,
+          recentNotifications: updatedRecent,
+        };
+      });
+
+      // 2. Bật Toast popup nổi bật ở góc màn hình
+      const actionUrl = notification.actionUrl;
+      toast(notification.title || "Thông báo mới", {
+        description: notification.message || "",
+        duration: 6000,
+        action: actionUrl
+          ? {
+              label: "Xem ngay",
+              onClick: () => {
+                const targetUrl = actionUrl.startsWith("http")
+                  ? new URL(actionUrl).pathname
+                  : actionUrl;
+                router.push(targetUrl);
+              },
+            }
+          : undefined,
+      });
+
+      // 3. Cập nhật số lượng thông báo chưa đọc theo từng tổ chức
+      fetchUnreadCountsByOrg();
+    };
+
+    socketService.on("notification", handleRealtimeNotification);
+
+    return () => {
+      socketService.off("notification", handleRealtimeNotification);
+      socketService.leaveRoom("user", userId);
+    };
+  }, [userId, router, fetchUnreadCountsByOrg]);
 
   const value = useMemo(() => ({
     ...state,

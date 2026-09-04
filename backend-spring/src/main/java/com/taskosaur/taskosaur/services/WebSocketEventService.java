@@ -79,6 +79,17 @@ public class WebSocketEventService {
         log.debug("Sent comment:added for task {}", taskId);
     }
 
+    public void notifyUserNotification(String userId, Object notification, long unreadCount) {
+        if (userId == null) return;
+        Map<String, Object> data = new HashMap<>();
+        data.put("notification", notification);
+        data.put("unreadCount", unreadCount);
+        WebSocketMessage message = buildMessage("notification", data);
+
+        messagingTemplate.convertAndSend("/topic/user/" + userId, message);
+        log.info("Sent real-time notification to /topic/user/{}", userId);
+    }
+
     private WebSocketMessage buildMessage(String event, Object data) {
         return new WebSocketMessage(event, data, Instant.now().toString());
     }

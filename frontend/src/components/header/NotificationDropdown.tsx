@@ -40,8 +40,8 @@ export default function NotificationDropdown({
   organizationId,
   className = "",
 }: NotificationDropdownProps) {
-  // Use context for Unread Count to keep it in sync globally
-  const { unreadCount: globalUnreadCount, refreshNotifications } = useNotification();
+  // Use context for Unread Count and real-time recent notifications to keep it in sync globally
+  const { unreadCount: globalUnreadCount, recentNotifications, refreshNotifications } = useNotification();
   
   // Local state for the dropdown list items
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -50,6 +50,13 @@ export default function NotificationDropdown({
   const [markingAsRead, setMarkingAsRead] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const router = useRouter();
+
+  // Tự động cập nhật danh sách hiển thị khi có thông báo WebSocket mới
+  useEffect(() => {
+    if (recentNotifications && recentNotifications.length > 0) {
+      setNotifications(recentNotifications as any);
+    }
+  }, [recentNotifications]);
 
   useEffect(() => {
     // When dropdown opens, fetch the list AND refresh global count

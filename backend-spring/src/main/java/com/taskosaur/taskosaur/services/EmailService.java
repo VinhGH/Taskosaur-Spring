@@ -290,4 +290,138 @@ public class EmailService {
                 </html>
                 """.formatted(inviterName, entityType, entityName, role, invitationUrl, invitationUrl, invitationUrl, formattedDate);
     }
+
+    @Async
+    public void sendNotificationEmail(
+            String toEmail,
+            String recipientName,
+            String actorName,
+            String title,
+            String messageContent,
+            String actionUrl
+    ) {
+        log.info("""
+                
+                ================================================================================
+                🔔 [SYSTEM NOTIFICATION EMAIL]
+                To: {}
+                Recipient: {}
+                Actor: {}
+                Title: {}
+                Message: {}
+                Action URL: {}
+                ================================================================================
+                """, toEmail, recipientName, actorName, title, messageContent, actionUrl);
+
+        String effectiveHost = resolveConfig(mailHost, "SMTP_HOST", "smtp.gmail.com");
+        String effectiveUser = resolveConfig(mailUsername, "SMTP_USER", "");
+        String effectivePass = resolveConfig(mailPassword, "SMTP_PASS", "");
+
+        String fromAddress = (smtpFrom != null && !smtpFrom.isBlank() && !smtpFrom.contains("example.com"))
+                ? smtpFrom
+                : effectiveUser;
+
+        boolean isRealSmtpConfigured = effectiveHost != null
+                && !effectiveHost.contains("example.com")
+                && !effectiveUser.isBlank();
+
+        if (!isRealSmtpConfigured) {
+            log.warn("SMTP credentials not detected (host: {}, user: {}). Real notification email skipped.", effectiveHost, effectiveUser);
+            return;
+        }
+
+        try {
+            if (mailSender instanceof JavaMailSenderImpl impl) {
+                if (impl.getUsername() == null || impl.getUsername().isBlank()) {
+                    impl.setUsername(effectiveUser);
+                }
+                if ((impl.getPassword() == null || impl.getPassword().isBlank()) && !effectivePass.isBlank()) {
+                    impl.setPassword(effectivePass);
+                }
+                if (impl.getHost() == null || impl.getHost().isBlank() || impl.getHost().contains("example.com")) {
+                    impl.setHost(effectiveHost);
+                }
+            }
+
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            String senderEmail = fromAddress.isBlank() ? effectiveUser : fromAddress;
+            helper.setFrom(new InternetAddress(senderEmail, "Taskosaur", "UTF-8"));
+            helper.setReplyTo(senderEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("[Taskosaur] " + title);
+
+            String plainText = """
+                    Xin chào %s,
+                    
+                    %s
+                    
+                    Xem chi tiết tại:
+                    %s
+                    
+                    Trân trọng,
+                    Taskosaur Team
+                    """.formatted(
+                    recipientName != null ? recipientName : "bạn",
+                    messageContent,
+                    actionUrl
+            );
+
+            String html = buildNotificationHtml(recipientName, actorName, title, messageContent, actionUrl);
+            helper.setText(plainText, html);
+
+            mailSender.send(message);
+            log.info("Notification email successfully delivered to {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send notification email to {}: {}", toEmail, e.getMessage(), e);
+        }
+    }
+
+    private String buildNotificationHtml(
+            String recipientName,
+            String actorName,
+            String title,
+            String messageContent,
+            String actionUrl
+    ) {
+        String displayName = recipientName != null && !recipientName.isBlank() ? recipientName : "bạn";
+        return """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                  <meta charset="utf-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                  <title>%s</title>
+                </head>
+                <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f5f7; margin: 0; padding: 40px 20px;">
+                  <div style="max-width: 560px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                    <div style="background-color: #2563eb; padding: 24px; text-align: center;">
+                      <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">Taskosaur</h1>
+                    </div>
+                    <div style="padding: 32px 24px;">
+                      <h2 style="color: #1f2937; margin-top: 0; font-size: 20px;">%s</h2>
+                      <p style="color: #4b5563; font-size: 16px; line-height: 1.5;">
+                        Xin chào <strong>%s</strong>,<br><br>
+                        %s
+                      </p>
+                      <div style="text-align: center; margin: 32px 0;">
+                        <a href="%s" style="background-color: #2563eb; color: #ffffff; padding: 12px 32px; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 6px; display: inline-block;">
+                          Xem chi tiết công việc
+                        </a>
+                      </div>
+                      <p style="color: #6b7280; font-size: 14px; line-height: 1.4;">
+                        Hoặc truy cập qua liên kết sau:<br>
+                        <a href="%s" style="color: #2563eb; word-break: break-all;">%s</a>
+                      </p>
+                      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
+                      <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+                        Email này được gửi tự động từ hệ thống quản lý công việc Taskosaur.
+                      </p>
+                    </div>
+                  </div>
+                </body>
+                </html>
+                """.formatted(title, title, displayName, messageContent, actionUrl, actionUrl, actionUrl);
+    }
 }
