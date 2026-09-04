@@ -25,4 +25,16 @@ public class NotificationResponse {
     private String organizationId;
     private LocalDateTime readAt;
     private LocalDateTime createdAt;
+    private UserSummaryDto createdByUser;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class UserSummaryDto {
+        private String id;
+        private String firstName;
+        private String lastName;
+        private String avatar;
+    }
 }

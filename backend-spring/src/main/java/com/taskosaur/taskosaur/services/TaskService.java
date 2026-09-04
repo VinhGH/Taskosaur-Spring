@@ -48,6 +48,7 @@ public class TaskService {
     private final TaskStatusRepository taskStatusRepository;
     private final UserRepository userRepository;
     private final WebSocketEventService webSocketEventService;
+    private final NotificationService notificationService;
 
     @org.springframework.cache.annotation.CacheEvict(value = {"org_analytics", "project_charts"}, allEntries = true)
     @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.TASK_CREATED, entityType = "TASK")
@@ -87,6 +88,17 @@ public class TaskService {
         } catch (Exception e) {
             log.warn("WebSocket broadcast failed for task creation: {}", e.getMessage());
         }
+
+        try {
+            if (request.getAssigneeIds() != null) {
+                for (String aId : request.getAssigneeIds()) {
+                    notificationService.notifyTaskAssigned(savedTask, aId, userId);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to dispatch task creation assignment notification: {}", e.getMessage());
+        }
+
         return response;
     }
 
@@ -114,6 +126,9 @@ public class TaskService {
     @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.TASK_UPDATED, entityType = "TASK")
     public TaskResponse updateTask(String id, UpdateTaskRequest request, String userId) {
         Task task = findTaskOrThrow(id);
+        List<String> oldAssigneeIds = taskAssigneeRepository.findByTaskId(id).stream()
+                .map(com.taskosaur.taskosaur.models.TaskAssignee::getUserId)
+                .toList();
         applyTaskFieldUpdates(task, request);
         task.setUpdatedBy(userId);
 
@@ -134,6 +149,19 @@ public class TaskService {
         } catch (Exception e) {
             log.warn("WebSocket broadcast failed for task update: {}", e.getMessage());
         }
+
+        try {
+            if (request.getAssigneeIds() != null) {
+                for (String aId : request.getAssigneeIds()) {
+                    if (aId != null && !oldAssigneeIds.contains(aId)) {
+                        notificationService.notifyTaskAssigned(savedTask, aId, userId);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to dispatch task update assignment notification: {}", e.getMessage());
+        }
+
         return response;
     }
 
@@ -621,6 +649,7 @@ public class TaskService {
     @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.TASK_STATUS_CHANGED, entityType = "TASK")
     public TaskResponse updateTaskStatus(String id, String statusId, String userId) {
         Task task = findTaskOrThrow(id);
+        String oldStatusId = task.getStatusId();
         updateStatusField(task, statusId);
         task.setUpdatedBy(userId);
         Task updated = taskRepository.save(task);
@@ -633,6 +662,21 @@ public class TaskService {
         } catch (Exception e) {
             log.warn("WebSocket broadcast failed for status change: {}", e.getMessage());
         }
+
+        try {
+            if (oldStatusId != null && !oldStatusId.equals(statusId)) {
+                String oldStatusName = taskStatusRepository.findById(oldStatusId)
+                        .map(com.taskosaur.taskosaur.models.TaskStatus::getName)
+                        .orElse(oldStatusId);
+                String newStatusName = taskStatusRepository.findById(statusId)
+                        .map(com.taskosaur.taskosaur.models.TaskStatus::getName)
+                        .orElse(statusId);
+                notificationService.notifyTaskStatusChanged(updated, oldStatusName, newStatusName, userId);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to dispatch status change notification: {}", e.getMessage());
+        }
+
         return response;
     }
 
