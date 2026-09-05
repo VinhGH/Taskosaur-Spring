@@ -15,7 +15,7 @@ Comprehensive guide to run Taskosaur in production and development mode using Do
 | File | Purpose |
 | :--- | :--- |
 | **`docker-compose.spring.yml`** | Production orchestration for Java Spring Boot + Next.js Nginx + PostgreSQL |
-| **`backend-spring/Dockerfile`** | Multi-stage build for Java 25 Spring Boot (Temurin 25 JDK -> JRE) |
+| **`backend/Dockerfile`** | Multi-stage build for Java 25 Spring Boot (Temurin 25 JDK -> JRE) |
 | **`frontend/Dockerfile`** | Multi-stage build for Next.js (Static Export -> Nginx Web Server) |
 | **`docker/nginx.conf`** | Nginx reverse proxy configuration (port 80 -> Spring Boot port 3000) |
 | **`docker/db-migrate.Dockerfile`** | Automated PostgreSQL schema migration runner |
@@ -65,7 +65,7 @@ docker compose -f docker-compose.spring.yml up -d --build
 ### View Live Logs
 ```bash
 # Spring Boot (Java) logs
-docker compose -f docker-compose.spring.yml logs -f backend-spring
+docker compose -f docker-compose.spring.yml logs -f backend
 
 # Frontend (Nginx) logs
 docker compose -f docker-compose.spring.yml logs -f frontend
@@ -89,7 +89,7 @@ docker stats
 docker compose -f docker-compose.spring.yml restart
 
 # Restart Spring Boot only
-docker compose -f docker-compose.spring.yml restart backend-spring
+docker compose -f docker-compose.spring.yml restart backend
 
 # Stop all containers
 docker compose -f docker-compose.spring.yml down

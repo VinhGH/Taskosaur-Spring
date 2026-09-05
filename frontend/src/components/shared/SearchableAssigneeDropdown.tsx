@@ -3,6 +3,7 @@ import { Users, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getAvatarUrl } from "@/lib/utils";
 import {
   Command,
   CommandEmpty,
@@ -71,7 +72,7 @@ export default function SearchableAssigneeDropdown({
             <div className="flex items-center gap-2">
               <Avatar className="w-6 h-6">
                 <AvatarImage
-                  src={selectedUser.user.avatar || "/placeholder.svg"}
+                  src={getAvatarUrl(selectedUser.user.avatar) || "/placeholder.svg"}
                   alt={`${selectedUser.user.firstName} ${selectedUser.user.lastName}`}
                 />
                 <AvatarFallback className="text-xs">
@@ -126,7 +127,7 @@ export default function SearchableAssigneeDropdown({
                 >
                   <Avatar className="w-6 h-6">
                     <AvatarImage
-                      src={user.user.avatar || "/placeholder.svg"}
+                      src={getAvatarUrl(user.user.avatar) || "/placeholder.svg"}
                       alt={`${user.user.firstName} ${user.user.lastName}`}
                     />
                     <AvatarFallback className="text-xs">

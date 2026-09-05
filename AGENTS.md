@@ -5,10 +5,11 @@ This document provides guidance for AI agents working with the Taskosaur project
 ## Project Overview
 
 Taskosaur is an open-source project management platform with conversational AI task execution. It's built as a monorepo with:
-- **Backend**: NestJS API server (port 3000)
+- **Backend**: Spring Boot 25 API server (port 3000)
 - **Frontend**: Next.js application (port 3001)
-- **Database**: PostgreSQL with Prisma ORM
-- **Queue**: Redis with BullMQ
+- **Database**: PostgreSQL with Prisma ORM migrations (`database/prisma`)
+- **Queue/Cache**: Redis
+
 
 ## Development Setup
 
@@ -93,17 +94,17 @@ npm run clean:backend    # Clean backend build artifacts
 
 ```
 taskosaur/
-├── backend/                # NestJS Backend (Port 3000)
+├── backend/                # Java 25 Spring Boot Backend (Port 3000)
 │   ├── src/
-│   │   ├── modules/       # Feature modules (auth, tasks, projects, etc.)
-│   │   ├── common/        # Shared utilities and middleware
-│   │   ├── config/        # Configuration files
-│   │   ├── gateway/       # WebSocket gateway
-│   │   ├── seeder/        # Database seeding
-│   │   └── prisma/        # Database service
-│   ├── prisma/            # Database schema and migrations
-│   ├── public/            # Static files
-│   └── uploads/           # File uploads
+│   │   ├── main/java/com/taskosaur/taskosaur/
+│   │   │   ├── controllers/
+│   │   │   ├── services/
+│   │   │   ├── models/
+│   │   │   ├── repositories/
+│   │   │   └── config/
+│   │   └── main/resources/
+├── database/               # Database Schema & Migrations
+│   └── prisma/             # Prisma schema & PostgreSQL migrations
 ├── frontend/              # Next.js Frontend (Port 3001)
 │   ├── src/
 │   │   ├── app/          # App Router pages

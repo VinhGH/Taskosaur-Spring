@@ -1,7 +1,7 @@
 import React from "react";
 import { CardContent } from "@/components/ui/card";
 import { HiChatBubbleLeft, HiCalendarDays, HiPaperClip } from "react-icons/hi2";
-import { cn } from "@/lib/utils";
+import { cn, getAvatarUrl } from "@/lib/utils";
 import Image from "next/image";
 import { getRelativeDateLabel, isDateOverdue as checkDateOverdue } from "@/utils/date";
 
@@ -99,6 +99,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
   const isOverdue = task.dueDate ? checkDateOverdue(task.dueDate, task.completedAt) : false;
   const category = getCategoryFromDescription(task.description);
   const priorityColor = getPriorityColor(task.priority);
+  const [avatarErrors, setAvatarErrors] = React.useState<Record<string, boolean>>({});
 
   // Handle click with proper event handling
   const handleClick = (e: React.MouseEvent) => {
@@ -212,13 +213,14 @@ const TaskCard: React.FC<TaskCardProps> = ({
                   }}
                   title={`${assignee.firstName} ${assignee.lastName}`}
                 >
-                  {assignee.avatar ? (
+                  {assignee.avatar && !avatarErrors[assignee.id] ? (
                     <Image
-                      src={assignee.avatar}
+                      src={getAvatarUrl(assignee.avatar) || assignee.avatar}
                       alt={`${assignee.firstName} ${assignee.lastName}`}
                       className="w-full h-full rounded-full object-cover"
                       height={20}
                       width={20}
+                      onError={() => setAvatarErrors((prev) => ({ ...prev, [assignee.id]: true }))}
                     />
                   ) : (
                     getInitials(assignee.firstName, assignee.lastName)
