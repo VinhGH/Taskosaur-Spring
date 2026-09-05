@@ -61,7 +61,7 @@ export default function NotificationDropdown({
   useEffect(() => {
     // When dropdown opens, fetch the list AND refresh global count
     const fetchNotifications = async () => {
-      if (!dropdownOpen || !userId || !organizationId) return;
+      if (!dropdownOpen || !userId) return;
       
       // trigger global refresh
       refreshNotifications();
@@ -69,15 +69,21 @@ export default function NotificationDropdown({
       try {
         setLoading(true);
         // We fetch explicitly for the dropdown list
-        const response = await notificationApi.getNotificationsByUserAndOrganization(
-          userId,
-          organizationId,
-          {
-            isRead: false,
-            page: 1,
-            limit: 5,
-          }
-        );
+        const response = organizationId
+          ? await notificationApi.getNotificationsByUserAndOrganization(
+              userId,
+              organizationId,
+              {
+                isRead: false,
+                page: 1,
+                limit: 5,
+              }
+            )
+          : await notificationApi.getUserNotifications({
+              isRead: false,
+              page: 1,
+              limit: 5,
+            });
 
         setNotifications(response.notifications);
       } catch (error) {
@@ -152,7 +158,7 @@ export default function NotificationDropdown({
     }, 100);
   };
 
-  if (!userId || !organizationId) return null;
+  if (!userId) return null;
 
   return (
     <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
