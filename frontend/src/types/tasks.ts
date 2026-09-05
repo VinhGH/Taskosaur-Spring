@@ -384,14 +384,17 @@ export interface TimeEntry {
   id: string;
   description?: string;
   timeSpent: number; // in minutes
+  startTime?: string;
+  endTime?: string;
   date: string;
   taskId: string;
   userId: string;
-  user: {
+  user?: {
     id: string;
     firstName: string;
     lastName: string;
     avatar?: string;
+    email?: string;
   };
   createdAt: string;
   updatedAt: string;

@@ -1,15 +1,18 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Task, TimeEntry } from "@/types/tasks";
 import UserAvatar from "@/components/ui/avatars/UserAvatar";
 import { Button } from "@/components/ui";
 import ConfirmationModal from "@/components/modals/ConfirmationModal";
 import { formatDateForDisplay } from "@/utils/date";
+import { timeEntriesApi } from "@/utils/api/timeEntriesApi";
+import { toast } from "sonner";
+import { HiPlay, HiStop, HiArrowDownTray, HiPlus, HiPencil, HiTrash } from "react-icons/hi2";
 
 interface TimeTrackingProps {
   task: Task;
-  onLogTime: (timeEntry: Omit<TimeEntry, "id" | "createdAt" | "updatedAt">) => void;
-  onUpdateTime: (timeEntryId: string, timeEntry: Partial<TimeEntry>) => void;
-  onDeleteTime: (timeEntryId: string) => void;
+  onLogTime?: (timeEntry: Omit<TimeEntry, "id" | "createdAt" | "updatedAt">) => void;
+  onUpdateTime?: (timeEntryId: string, timeEntry: Partial<TimeEntry>) => void;
+  onDeleteTime?: (timeEntryId: string) => void;
 }
 
 export default function TimeTracking({
@@ -18,12 +21,15 @@ export default function TimeTracking({
   onUpdateTime,
   onDeleteTime,
 }: TimeTrackingProps) {
+  const [entries, setEntries] = useState<TimeEntry[]>(task.timeEntries || []);
+  const [loadingEntries, setLoadingEntries] = useState(false);
   const [showLogTime, setShowLogTime] = useState(false);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timerStart, setTimerStart] = useState<Date | null>(null);
   const [timerElapsed, setTimerElapsed] = useState(0);
   const [timeEntryToDelete, setTimeEntryToDelete] = useState<TimeEntry | null>(null);
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+  const [isActionLoading, setIsActionLoading] = useState(false);
 
   const [timeLogData, setTimeLogData] = useState({
     timeSpent: 0,
@@ -37,24 +43,96 @@ export default function TimeTracking({
     date: "",
   });
 
-  // Timer functionality
-  const startTimer = () => {
-    setIsTimerRunning(true);
-    setTimerStart(new Date());
-    setTimerElapsed(0);
-  };
+  // Fetch entries from backend API
+  const fetchEntries = useCallback(async () => {
+    if (!task?.id) return;
+    try {
+      setLoadingEntries(true);
+      const data = await timeEntriesApi.getTaskTimeEntries(task.id);
+      if (Array.isArray(data)) {
+        setEntries(data);
+      }
+    } catch (error) {
+      console.warn("Could not load time entries from API, using task props", error);
+      if (task.timeEntries) {
+        setEntries(task.timeEntries);
+      }
+    } finally {
+      setLoadingEntries(false);
+    }
+  }, [task?.id, task?.timeEntries]);
 
-  const stopTimer = () => {
-    if (timerStart) {
-      const elapsed = Math.floor((new Date().getTime() - timerStart.getTime()) / 1000 / 60); // minutes
-      setTimerElapsed(elapsed);
-      setIsTimerRunning(false);
-      setTimeLogData((prev) => ({ ...prev, timeSpent: elapsed }));
-      setShowLogTime(true);
+  // Check active timer on mount
+  useEffect(() => {
+    fetchEntries();
+
+    const checkActiveTimer = async () => {
+      try {
+        const active = await timeEntriesApi.getActiveTimer();
+        if (active && active.taskId === task.id && active.startTime) {
+          setIsTimerRunning(true);
+          const start = new Date(active.startTime);
+          setTimerStart(start);
+          const elapsed = Math.floor((Date.now() - start.getTime()) / 1000);
+          setTimerElapsed(Math.max(0, elapsed));
+        }
+      } catch (e) {
+        // Silently ignore
+      }
+    };
+
+    checkActiveTimer();
+  }, [fetchEntries, task.id]);
+
+  // Timer interval ticker
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isTimerRunning && timerStart) {
+      interval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - timerStart.getTime()) / 1000);
+        setTimerElapsed(Math.max(0, elapsed));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isTimerRunning, timerStart]);
+
+  // Start timer
+  const handleStartTimer = async () => {
+    try {
+      setIsActionLoading(true);
+      await timeEntriesApi.startTimer(task.id);
+      setIsTimerRunning(true);
+      setTimerStart(new Date());
+      setTimerElapsed(0);
+      toast.success("Đã bắt đầu bấm giờ làm việc");
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || "Không thể bắt đầu bấm giờ";
+      toast.error(msg);
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
-  const resetTimer = () => {
+  // Stop timer
+  const handleStopTimer = async () => {
+    try {
+      setIsActionLoading(true);
+      const res = await timeEntriesApi.stopTimer(task.id, timeLogData.description);
+      setIsTimerRunning(false);
+      setTimerStart(null);
+      setTimerElapsed(0);
+      await fetchEntries();
+      const minutes = res?.timeEntry?.timeSpent || Math.floor(timerElapsed / 60);
+      toast.success(`Đã dừng bấm giờ và ghi nhận ${minutes} phút`);
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || "Không thể dừng bấm giờ";
+      toast.error(msg);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleResetTimer = () => {
     setIsTimerRunning(false);
     setTimerStart(null);
     setTimerElapsed(0);
@@ -81,7 +159,7 @@ export default function TimeTracking({
   };
 
   const getTotalTimeSpent = () => {
-    return task.timeEntries?.reduce((total, entry) => total + entry.timeSpent, 0) || 0;
+    return entries.reduce((total, entry) => total + (entry.timeSpent || 0), 0);
   };
 
   const getTimeRemaining = () => {
@@ -97,103 +175,181 @@ export default function TimeTracking({
     return Math.min(100, (totalSpent / estimated) * 100);
   };
 
-  const handleLogTime = () => {
-    if (timeLogData.timeSpent > 0) {
-      onLogTime({
-        description: timeLogData.description,
-        timeSpent: timeLogData.timeSpent,
-        date: timeLogData.date,
-        taskId: task.id,
-        userId: "user-1", // Current user
-        user: {
-          id: "user-1",
-          firstName: "John",
-          lastName: "Doe",
-          avatar: "/api/placeholder/32/32",
-        },
-      });
+  // Manual log time
+  const handleLogTime = async () => {
+    if (timeLogData.timeSpent <= 0) return;
 
+    try {
+      setIsActionLoading(true);
+      await timeEntriesApi.createTimeEntry({
+        taskId: task.id,
+        timeSpent: timeLogData.timeSpent,
+        description: timeLogData.description,
+        date: new Date(timeLogData.date).toISOString(),
+      });
+      await fetchEntries();
+      if (onLogTime) {
+        onLogTime({
+          description: timeLogData.description,
+          timeSpent: timeLogData.timeSpent,
+          date: timeLogData.date,
+          taskId: task.id,
+          userId: "",
+        });
+      }
       setTimeLogData({
         timeSpent: 0,
         description: "",
         date: new Date().toISOString().split("T")[0],
       });
       setShowLogTime(false);
+      toast.success("Đã ghi nhận thời gian làm việc");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Lỗi khi lưu thời gian");
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
-  const handleEditTime = (entry: TimeEntry) => {
+  // Edit time entry
+  const handleOpenEdit = (entry: TimeEntry) => {
     setEditingEntry(entry);
     setEditData({
       timeSpent: entry.timeSpent,
       description: entry.description || "",
-      date: entry.date,
+      date: entry.date ? new Date(entry.date).toISOString().split("T")[0] : "",
     });
   };
 
-  const handleUpdateTime = () => {
-    if (editingEntry) {
-      onUpdateTime(editingEntry.id, editData);
+  const handleUpdateTime = async () => {
+    if (!editingEntry) return;
+
+    try {
+      setIsActionLoading(true);
+      await timeEntriesApi.updateTimeEntry(editingEntry.id, {
+        timeSpent: editData.timeSpent,
+        description: editData.description,
+        date: editData.date ? new Date(editData.date).toISOString() : undefined,
+      });
+      await fetchEntries();
+      if (onUpdateTime) {
+        onUpdateTime(editingEntry.id, editData);
+      }
       setEditingEntry(null);
-      setEditData({ timeSpent: 0, description: "", date: "" });
+      toast.success("Đã cập nhật bản ghi thời gian");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Lỗi khi cập nhật");
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
-  const handleDeleteTime = (entry: TimeEntry) => {
-    onDeleteTime(entry.id);
-    setTimeEntryToDelete(null);
+  // Delete time entry
+  const handleDeleteTime = async (entry: TimeEntry) => {
+    try {
+      setIsActionLoading(true);
+      await timeEntriesApi.deleteTimeEntry(entry.id);
+      await fetchEntries();
+      if (onDeleteTime) {
+        onDeleteTime(entry.id);
+      }
+      setTimeEntryToDelete(null);
+      toast.success("Đã xóa bản ghi thời gian");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Lỗi khi xóa bản ghi");
+    } finally {
+      setIsActionLoading(false);
+    }
   };
 
-  // Update timer display
-  React.useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isTimerRunning && timerStart) {
-      interval = setInterval(() => {
-        const elapsed = Math.floor((new Date().getTime() - timerStart.getTime()) / 1000);
-        setTimerElapsed(elapsed);
-      }, 1000);
+  // Export worklog to CSV
+  const handleExportCsv = () => {
+    if (entries.length === 0) {
+      toast.info("Chưa có dữ liệu làm việc để xuất");
+      return;
     }
-    return () => clearInterval(interval);
-  }, [isTimerRunning, timerStart]);
+
+    const headers = ["Task", "Thành viên", "Email", "Ngày", "Số phút", "Số giờ", "Mô tả công việc"];
+    const rows = entries.map((entry) => {
+      const userName = entry.user ? `${entry.user.firstName || ""} ${entry.user.lastName || ""}`.trim() : "Unknown";
+      const userEmail = entry.user?.email || "";
+      const dateStr = entry.date ? formatDateForDisplay(entry.date) : "";
+      const minutes = entry.timeSpent || 0;
+      const hours = (minutes / 60).toFixed(2);
+      const desc = (entry.description || "").replace(/"/g, '""');
+      return [
+        `"${task.title || task.slug || ""}"`,
+        `"${userName}"`,
+        `"${userEmail}"`,
+        `"${dateStr}"`,
+        minutes,
+        hours,
+        `"${desc}"`,
+      ].join(",");
+    });
+
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `worklog-${task.slug || task.id}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Đã xuất bảng thống kê giờ làm (CSV)");
+  };
 
   return (
     <div className="space-y-6">
-      {/* Time Summary */}
-      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Time Summary</h3>
+      {/* Time Summary Card */}
+      <div className="bg-gray-50 dark:bg-gray-800/80 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Tổng quan Thời gian Làm việc</h3>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCsv}
+            disabled={entries.length === 0}
+            className="flex items-center gap-1 text-xs"
+          >
+            <HiArrowDownTray className="w-4 h-4" />
+            <span>Xuất Worklog (CSV)</span>
+          </Button>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="text-center">
+          <div className="bg-white dark:bg-gray-900/60 p-4 rounded-lg border border-gray-100 dark:border-gray-800 text-center">
             <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
               {formatTime(getTotalTimeSpent())}
             </div>
-            <div className="text-sm text-gray-500 dark:text-gray-400">Time Spent</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider">Đã làm việc</div>
           </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+          <div className="bg-white dark:bg-gray-900/60 p-4 rounded-lg border border-gray-100 dark:border-gray-800 text-center">
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
               {formatTime(task.originalEstimate || 0)}
             </div>
-            <div className="text-sm text-gray-500 dark:text-gray-400">Original Estimate</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider">Ước tính ban đầu</div>
           </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+          <div className="bg-white dark:bg-gray-900/60 p-4 rounded-lg border border-gray-100 dark:border-gray-800 text-center">
+            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
               {formatTime(getTimeRemaining())}
             </div>
-            <div className="text-sm text-gray-500 dark:text-gray-400">Time Remaining</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider">Thời gian còn lại</div>
           </div>
         </div>
 
         {/* Progress Bar */}
-        {task.originalEstimate && (
+        {task.originalEstimate && task.originalEstimate > 0 && (
           <div className="mb-4">
-            <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
-              <span>Progress</span>
+            <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+              <span>Tiến độ hoàn thành</span>
               <span>{Math.round(getProgressPercentage())}%</span>
             </div>
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
               <div
                 className={`h-2 rounded-full transition-all duration-300 ${
-                  getProgressPercentage() > 100 ? "bg-red-500" : "bg-blue-500"
+                  getProgressPercentage() > 100 ? "bg-rose-500" : "bg-blue-500"
                 }`}
                 style={{ width: `${Math.min(100, getProgressPercentage())}%` }}
               />
@@ -201,86 +357,78 @@ export default function TimeTracking({
           </div>
         )}
 
-        {/* Timer */}
+        {/* Timer Box */}
         <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center space-x-4">
-              <div className="text-xl font-mono text-gray-900 dark:text-white">
+              <div className="text-2xl font-mono font-semibold text-gray-900 dark:text-white px-3 py-1 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
                 {formatDuration(timerElapsed)}
               </div>
               <div className="flex space-x-2">
                 {!isTimerRunning ? (
-                  <Button onClick={startTimer}>
-                    <svg
-                      className="w-4 h-4 mr-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h1m4 0h1m-6-8h1m4 0h1M12 5v14m7-7H5"
-                      />
-                    </svg>
-                    Start Timer
+                  <Button
+                    onClick={handleStartTimer}
+                    disabled={isActionLoading}
+                    className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    <HiPlay className="w-4 h-4" />
+                    <span>Bắt đầu tính giờ</span>
                   </Button>
                 ) : (
-                  <Button onClick={stopTimer} variant="secondary">
-                    <svg
-                      className="w-4 h-4 mr-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    Stop Timer
+                  <Button
+                    onClick={handleStopTimer}
+                    disabled={isActionLoading}
+                    className="flex items-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white"
+                  >
+                    <HiStop className="w-4 h-4" />
+                    <span>Dừng & Lưu</span>
                   </Button>
                 )}
-                <Button onClick={resetTimer} variant="outline">
-                  Reset
+                <Button onClick={handleResetTimer} variant="outline" size="sm">
+                  Đặt lại
                 </Button>
               </div>
             </div>
-            <Button onClick={() => setShowLogTime(true)} variant="outline">
-              Log Time
+
+            <Button
+              onClick={() => setShowLogTime(true)}
+              variant="outline"
+              className="flex items-center gap-1.5 text-sm"
+            >
+              <HiPlus className="w-4 h-4" />
+              <span>Ghi nhận thủ công</span>
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Time Entries */}
+      {/* Time Entries List */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Time Entries</h3>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            {task.timeEntries?.length || 0} entries
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Nhật ký Thời gian (Worklog)</h3>
+          <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2.5 py-1 rounded-full">
+            {entries.length} bản ghi
           </span>
         </div>
 
-        {task.timeEntries && task.timeEntries.length > 0 ? (
+        {loadingEntries ? (
+          <div className="text-center py-6 text-sm text-gray-500">Đang tải nhật ký...</div>
+        ) : entries.length > 0 ? (
           <div className="space-y-3">
-            {task.timeEntries.map((entry) => (
+            {entries.map((entry) => (
               <div
                 key={entry.id}
-                className="flex items-center justify-between p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700"
+                className="flex items-center justify-between p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:border-gray-300 dark:hover:border-gray-600 transition"
               >
                 <div className="flex items-center space-x-3">
-                  <UserAvatar user={entry.user} size="sm" />
+                  <UserAvatar user={entry.user || "User"} size="sm" showPresence={true} />
                   <div>
                     <div className="flex items-center space-x-2">
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {formatTime(entry.timeSpent)}
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {formatTime(entry.timeSpent || 0)}
                       </span>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        on {formatDateForDisplay(entry.date)}
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        vào ngày {formatDateForDisplay(entry.date)}
                       </span>
                     </div>
                     {entry.description && (
@@ -293,66 +441,41 @@ export default function TimeTracking({
 
                 <div className="flex items-center space-x-2">
                   <button
-                    onClick={() => handleEditTime(entry)}
-                    className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 p-1"
+                    onClick={() => handleOpenEdit(entry)}
+                    className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                    title="Chỉnh sửa"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                      />
-                    </svg>
+                    <HiPencil className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setTimeEntryToDelete(entry)}
-                    className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 p-1"
+                    className="text-gray-400 hover:text-rose-600 dark:hover:text-rose-400 p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                    title="Xóa bản ghi"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
+                    <HiTrash className="w-4 h-4" />
                   </button>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            <svg
-              className="mx-auto h-12 w-12 text-gray-400 mb-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <p>No time entries</p>
-            <p className="text-sm">Start tracking time to see entries here</p>
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+            <p className="font-medium">Chưa có bản ghi thời gian nào</p>
+            <p className="text-xs mt-1">Bấm nút tính giờ hoặc nhập thủ công để bắt đầu theo dõi</p>
           </div>
         )}
       </div>
 
-      {/* Log Time Modal */}
+      {/* Manual Log Modal */}
       {showLogTime && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Log Time</h3>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 shadow-xl border border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Ghi nhận Giờ làm việc</h3>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Time Spent (minutes) *
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Thời gian làm việc (phút) *
                 </label>
                 <input
                   type="number"
@@ -360,18 +483,18 @@ export default function TimeTracking({
                   onChange={(e) =>
                     setTimeLogData((prev) => ({
                       ...prev,
-                      timeSpent: parseInt(e.target.value) || 0,
+                      timeSpent: Math.max(0, parseInt(e.target.value) || 0),
                     }))
                   }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  min="0"
-                  step="1"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  min="1"
+                  step="5"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Description
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Mô tả công việc
                 </label>
                 <textarea
                   value={timeLogData.description}
@@ -379,64 +502,66 @@ export default function TimeTracking({
                     setTimeLogData((prev) => ({ ...prev, description: e.target.value }))
                   }
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="What did you work on?"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="Bạn đã hoàn thành những gì?"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Date
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Ngày làm việc
                 </label>
                 <input
                   type="date"
                   value={timeLogData.date}
                   onChange={(e) => setTimeLogData((prev) => ({ ...prev, date: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
               </div>
             </div>
 
             <div className="flex justify-end space-x-3 mt-6">
               <Button variant="secondary" onClick={() => setShowLogTime(false)}>
-                Cancel
+                Hủy
               </Button>
-              <Button onClick={handleLogTime} disabled={timeLogData.timeSpent === 0}>
-                Log Time
+              <Button
+                onClick={handleLogTime}
+                disabled={timeLogData.timeSpent <= 0 || isActionLoading}
+              >
+                Lưu thời gian
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Edit Time Modal */}
+      {/* Edit Modal */}
       {editingEntry && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full p-6 shadow-xl border border-gray-200 dark:border-gray-700">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Edit Time Entry
+              Chỉnh sửa Bản ghi Thời gian
             </h3>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Time Spent (minutes) *
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Thời gian (phút) *
                 </label>
                 <input
                   type="number"
                   value={editData.timeSpent}
                   onChange={(e) =>
-                    setEditData((prev) => ({ ...prev, timeSpent: parseInt(e.target.value) || 0 }))
+                    setEditData((prev) => ({ ...prev, timeSpent: Math.max(0, parseInt(e.target.value) || 0) }))
                   }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  min="0"
-                  step="1"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  min="1"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Description
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Mô tả công việc
                 </label>
                 <textarea
                   value={editData.description}
@@ -444,46 +569,48 @@ export default function TimeTracking({
                     setEditData((prev) => ({ ...prev, description: e.target.value }))
                   }
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="What did you work on?"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Date
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Ngày làm việc
                 </label>
                 <input
                   type="date"
                   value={editData.date}
                   onChange={(e) => setEditData((prev) => ({ ...prev, date: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
               </div>
             </div>
 
             <div className="flex justify-end space-x-3 mt-6">
               <Button variant="secondary" onClick={() => setEditingEntry(null)}>
-                Cancel
+                Hủy
               </Button>
-              <Button onClick={handleUpdateTime} disabled={editData.timeSpent === 0}>
-                Update Time
+              <Button
+                onClick={handleUpdateTime}
+                disabled={editData.timeSpent <= 0 || isActionLoading}
+              >
+                Cập nhật
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete Time Confirmation */}
+      {/* Delete Confirmation */}
       {timeEntryToDelete && (
         <ConfirmationModal
           isOpen={true}
           onClose={() => setTimeEntryToDelete(null)}
           onConfirm={() => handleDeleteTime(timeEntryToDelete)}
-          title="Delete Time Entry"
-          message={`Are you sure you want to delete this time entry of ${formatTime(timeEntryToDelete.timeSpent)}?`}
-          confirmText="Delete"
-          cancelText="Cancel"
+          title="Xóa Bản ghi Thời gian"
+          message={`Bạn có chắc chắn muốn xóa bản ghi thời gian ${formatTime(timeEntryToDelete.timeSpent)} này không?`}
+          confirmText="Xóa"
+          cancelText="Hủy"
           type="danger"
         />
       )}

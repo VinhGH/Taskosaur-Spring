@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import TaskComments from "./TaskComments";
 import Subtasks from "./Subtasks";
+import TimeTracking from "./TimeTracking";
 import DropdownAction from "@/components/common/DropdownAction";
 import { UpdateTaskRequest } from "@/types/task-dto";
 import TaskAttachments from "./TaskAttachment";
@@ -1170,6 +1171,22 @@ export default function TaskDetailClient({
                 />
               </div>
             )}
+
+            {/* Time Tracking & Worklogs Section */}
+            <div className="pt-2">
+              <TimeTracking
+                task={task}
+                onLogTime={() => {
+                  onTaskRefetch && onTaskRefetch();
+                }}
+                onUpdateTime={() => {
+                  onTaskRefetch && onTaskRefetch();
+                }}
+                onDeleteTime={() => {
+                  onTaskRefetch && onTaskRefetch();
+                }}
+              />
+            </div>
 
             <div className="">
               <TaskComments

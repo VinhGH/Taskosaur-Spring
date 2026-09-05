@@ -90,6 +90,36 @@ public class WebSocketEventService {
         log.info("Sent real-time notification to /topic/user/{}", userId);
     }
 
+    public void notifyTimeStarted(String projectId, String taskId, Object timeEntry) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("taskId", taskId);
+        data.put("timeEntry", timeEntry);
+        WebSocketMessage message = buildMessage("time:started", data);
+
+        if (projectId != null) {
+            messagingTemplate.convertAndSend("/topic/project/" + projectId, message);
+        }
+        if (taskId != null) {
+            messagingTemplate.convertAndSend("/topic/task/" + taskId, message);
+        }
+        log.debug("Sent time:started for task {}", taskId);
+    }
+
+    public void notifyTimeStopped(String projectId, String taskId, Object timeEntry) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("taskId", taskId);
+        data.put("timeEntry", timeEntry);
+        WebSocketMessage message = buildMessage("time:stopped", data);
+
+        if (projectId != null) {
+            messagingTemplate.convertAndSend("/topic/project/" + projectId, message);
+        }
+        if (taskId != null) {
+            messagingTemplate.convertAndSend("/topic/task/" + taskId, message);
+        }
+        log.debug("Sent time:stopped for task {}", taskId);
+    }
+
     private WebSocketMessage buildMessage(String event, Object data) {
         return new WebSocketMessage(event, data, Instant.now().toString());
     }

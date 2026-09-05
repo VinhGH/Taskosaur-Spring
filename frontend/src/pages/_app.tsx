@@ -7,6 +7,7 @@ import "@/lib/i18n";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import AuthProvider from "@/contexts/auth-context";
+import PresenceProvider from "@/contexts/presence-context";
 import AppBootstrapper from "@/components/auth/AppBootstrapper";
 import ChatProvider from "@/contexts/chat-context";
 import ChatPanel from "@/components/chat/ChatPanel";
@@ -33,11 +34,13 @@ export default function MyApp({ Component, pageProps }: AppProps) {
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <SEO />
       <AuthProvider>
-        <ChatProvider>
-          <AppBootstrapper>
-            <Component {...pageProps} />
-          </AppBootstrapper>
-        </ChatProvider>
+        <PresenceProvider>
+          <ChatProvider>
+            <AppBootstrapper>
+              <Component {...pageProps} />
+            </AppBootstrapper>
+          </ChatProvider>
+        </PresenceProvider>
       </AuthProvider>
       <Toaster expand={false} richColors closeButton />
     </ThemeProvider>
