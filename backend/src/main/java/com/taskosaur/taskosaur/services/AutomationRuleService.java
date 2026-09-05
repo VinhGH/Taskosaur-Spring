@@ -30,6 +30,8 @@ public class AutomationRuleService {
     private final TaskRepository taskRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
     private final TaskCommentRepository taskCommentRepository;
+    private final ProjectRepository projectRepository;
+    private final WorkspaceRepository workspaceRepository;
     private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
 
@@ -230,27 +232,56 @@ public class AutomationRuleService {
                     }
                 }
                 case SEND_NOTIFICATION -> {
-                    String title = (String) actionConfig.getOrDefault("title", "Automated Rule Alert");
-                    String message = (String) actionConfig.getOrDefault("message", "Rule triggered for task " + task.getSlug());
+                    String taskTitle = (task.getTitle() != null && !task.getTitle().isBlank()) ? task.getTitle() : task.getSlug();
+                    String title = (String) actionConfig.getOrDefault("title", "Cảnh báo khẩn cấp: Độ ưu tiên CAO NHẤT");
+                    String message = (String) actionConfig.getOrDefault("message", "Công việc \"" + taskTitle + "\" đã được kích hoạt cảnh báo khẩn cấp!");
+                    
+                    Project project = task.getProjectId() != null ? projectRepository.findById(task.getProjectId()).orElse(null) : null;
+                    Workspace workspace = project != null && project.getWorkspaceId() != null ? workspaceRepository.findById(project.getWorkspaceId()).orElse(null) : null;
+                    String wsSlug = workspace != null ? workspace.getSlug() : "default";
+                    String prjSlug = project != null ? project.getSlug() : "default";
+                    String actionUrl = "/" + wsSlug + "/" + prjSlug + "/tasks/" + task.getId();
+
                     String targetUserId = (String) actionConfig.get("recipientId");
-                    if (targetUserId == null || targetUserId.isBlank()) {
-                        targetUserId = triggeredByUserId != null ? triggeredByUserId : task.getCreatedBy();
+                    Set<String> recipientIds = new LinkedHashSet<>();
+                    if (targetUserId != null && !targetUserId.isBlank()) {
+                        recipientIds.add(targetUserId);
+                    } else {
+                        List<TaskAssignee> assignees = taskAssigneeRepository.findByTaskId(task.getId());
+                        if (assignees != null) {
+                            for (TaskAssignee a : assignees) {
+                                if (a.getUserId() != null && !a.getUserId().isBlank()) {
+                                    recipientIds.add(a.getUserId());
+                                }
+                            }
+                        }
+                        if (task.getCreatedBy() != null && !task.getCreatedBy().isBlank()) {
+                            recipientIds.add(task.getCreatedBy());
+                        }
+                        if (triggeredByUserId != null && !triggeredByUserId.isBlank()) {
+                            recipientIds.add(triggeredByUserId);
+                        }
                     }
 
-                    if (targetUserId != null) {
-                        notificationService.createNotification(CreateNotificationParams.builder()
-                                .type(NotificationType.SYSTEM)
-                                .priority(NotificationPriority.HIGH)
-                                .title(title)
-                                .message(message)
-                                .entityType("TASK")
-                                .entityId(task.getId())
-                                .actionUrl("/tasks/" + (task.getSlug() != null ? task.getSlug() : task.getId()))
-                                .userId(targetUserId)
-                                .creatorId(triggeredByUserId)
-                                .build());
-                        actionResult.put("notificationSentTo", targetUserId);
+                    for (String recipientId : recipientIds) {
+                        try {
+                            notificationService.sendAndBroadcastNotification(CreateNotificationParams.builder()
+                                    .type(NotificationType.SYSTEM)
+                                    .priority(NotificationPriority.URGENT)
+                                    .title(title)
+                                    .message(message)
+                                    .entityType("TASK")
+                                    .entityId(task.getId())
+                                    .actionUrl(actionUrl)
+                                    .userId(recipientId)
+                                    .organizationId(rule.getOrganizationId())
+                                    .creatorId(triggeredByUserId)
+                                    .build());
+                        } catch (Exception ne) {
+                            log.warn("Failed to broadcast automation alert to user {}: {}", recipientId, ne.getMessage());
+                        }
                     }
+                    actionResult.put("notificationsSentTo", recipientIds);
                 }
                 case ADD_COMMENT -> {
                     String commentText = (String) actionConfig.getOrDefault("content", actionConfig.get("comment"));
