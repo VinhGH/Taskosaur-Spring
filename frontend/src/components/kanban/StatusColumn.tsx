@@ -287,12 +287,11 @@ const StatusColumn: React.FC<StatusColumnProps> = ({
                     <label className="kanban-create-task-label">Due date</label>
                     <Input
                       type="date"
-                      min={dayjs().format("YYYY-MM-DD")}
-                      value={taskForm.dueDate ? dayjs(taskForm.dueDate).format("YYYY-MM-DD") : ""}
+                      value={taskForm.dueDate || ""}
                       onChange={(e) =>
                         setTaskForm((p) => ({
                           ...p,
-                          dueDate: dayjs(e.target.value).format("YYYY-MM-DD"),
+                          dueDate: e.target.value,
                         }))
                       }
                       className="kanban-create-task-date-input"

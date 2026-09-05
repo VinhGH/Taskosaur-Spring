@@ -164,6 +164,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
       title: string;
       dueDate: string;
       reporterId: string;
+      priority?: "LOW" | "MEDIUM" | "HIGH" | "HIGHEST";
     }
   ) => {
     try {
@@ -185,6 +186,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
         title: data.title.trim(),
         projectId: projectId,
         statusId,
+        priority: data.priority || "MEDIUM",
         reporterIds: data.reporterId ? [data.reporterId] : [],
         dueDate: parsedDueDate,
       });

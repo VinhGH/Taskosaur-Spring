@@ -102,6 +102,9 @@ public class TaskService {
 
         try {
             automationRuleService.evaluateRules(com.taskosaur.taskosaur.enums.TriggerType.TASK_CREATED, savedTask, Map.of("task", response), userId);
+            if (savedTask.getPriority() != null) {
+                automationRuleService.evaluateRules(com.taskosaur.taskosaur.enums.TriggerType.TASK_UPDATED, savedTask, Map.of("priority", savedTask.getPriority().name()), userId);
+            }
         } catch (Exception e) {
             log.warn("Automation rule evaluation failed on task creation: {}", e.getMessage());
         }
