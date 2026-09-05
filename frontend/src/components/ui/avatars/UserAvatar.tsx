@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { usePresence } from "@/contexts/presence-context";
+import { getAvatarUrl } from "@/lib/utils";
 
 interface UserAvatarProps {
   user:
@@ -99,7 +100,8 @@ export default function UserAvatar({
 
   const userName = getUserName();
   const initial = userName ? userName.charAt(0).toUpperCase() : "U";
-  const avatarImage = typeof user !== "string" && user ? user.avatar : undefined;
+  const rawAvatar = typeof user !== "string" && user ? user.avatar : undefined;
+  const avatarImage = getAvatarUrl(rawAvatar);
 
   // Only show image if we have a valid URL/path and no error occurred
   const shouldShowImage =

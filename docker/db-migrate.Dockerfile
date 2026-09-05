@@ -4,10 +4,10 @@ FROM node:22-alpine
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-COPY backend/package.json ./backend/
-COPY backend/prisma ./backend/prisma
+COPY database/package.json ./database/
+COPY database/prisma ./database/prisma
 COPY scripts ./scripts
 
 RUN npm install --ignore-scripts
 
-CMD ["npx", "prisma", "migrate", "deploy", "--schema=backend/prisma/schema.prisma"]
+CMD ["npx", "prisma", "migrate", "deploy", "--schema=database/prisma/schema.prisma"]

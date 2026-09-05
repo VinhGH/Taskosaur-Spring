@@ -24,7 +24,7 @@
 > ### 📜 Attribution & License Notice
 > This project is an adaptation based on the original open-source project [**Taskosaur/Taskosaur**](https://github.com/Taskosaur/Taskosaur). 
 > 
-> While maintaining the original UI/UX design, conversational AI workflow, and PostgreSQL schema, this repository re-architects and ports the backend to **Java 25 Spring Boot (`backend-spring`)** with JPA/Hibernate, JJWT security, multi-language i18n support, and a unified production Docker Compose stack (Spring Boot + Next.js Nginx + PostgreSQL).
+> While maintaining the original UI/UX design, conversational AI workflow, and PostgreSQL schema, this repository re-architects and ports the backend to **Java 25 Spring Boot (`backend`)** with JPA/Hibernate, JJWT security, multi-language i18n support, and a unified production Docker Compose stack (Spring Boot + Next.js Nginx + PostgreSQL).
 > 
 > All credit and copyright for the original design, branding, and concept belong to the [Taskosaur Team](https://github.com/Taskosaur).
 
@@ -46,7 +46,7 @@
 
 ```
 taskosaur/
-├── backend-spring/         # Java 25 Spring Boot API Server (Port 3000)
+├── backend/                # Java 25 Spring Boot API Server (Port 3000)
 │   ├── src/main/java/     # Controllers, Services, Entities, Security, DTOs
 │   ├── src/main/resources/# application.yaml configuration
 │   ├── pom.xml            # Maven dependencies (JPA, Security, JJWT, Lombok)
@@ -136,7 +136,7 @@ npm run db:migrate:deploy
 
 ### 2. Run Spring Boot Backend
 ```bash
-cd backend-spring
+cd backend
 ./mvnw clean spring-boot:run
 ```
 *Backend runs on port `3000` (or configured `SERVER_PORT`).*
