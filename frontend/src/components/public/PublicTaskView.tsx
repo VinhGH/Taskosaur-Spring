@@ -39,7 +39,9 @@ export default function PublicTaskView({ task, token }: PublicTaskViewProps) {
 
       const fullUrl = fileUrl.startsWith('http')
         ? fileUrl
-        : `${apiUrl}/uploads${fileUrl}`;
+        : fileUrl.startsWith('/uploads')
+          ? `${apiUrl}${fileUrl}`
+          : `${apiUrl}/uploads${fileUrl}`;
 
       const response = await fetch(fullUrl);
       if (!response.ok) throw new Error('Failed to fetch file');

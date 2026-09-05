@@ -18,12 +18,16 @@ import EmailIntegrationSettings from "@/components/inbox/EmailIntegrationSetting
 import EmailRulesManager from "@/components/inbox/EmailRulesManager";
 import TrelloSyncPanel from "@/components/integrations/TrelloSyncPanel";
 import JiraSyncPanel from "@/components/integrations/JiraSyncPanel";
+import AutomationRulesManager from "@/components/automations/AutomationRulesManager";
+import { projectApi } from "@/utils/api/projectApi";
+import { taskStatusApi } from "@/utils/api/taskStatusApi";
 import { Select } from "@/components/ui";
 import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Cog } from "lucide-react";
 import { IoWarning } from "react-icons/io5";
 import { FaTrello } from "react-icons/fa";
 import { SiJira } from "react-icons/si";
+import { HiBolt } from "react-icons/hi2";
 
 import ActionButton from "@/components/common/ActionButton";
 import ErrorState from "@/components/common/ErrorState";
@@ -71,6 +75,16 @@ function ProjectSettingsContent() {
     status: "ACTIVE",
     visibility: "PRIVATE",
   });
+
+  const [projectMembers, setProjectMembers] = useState<any[]>([]);
+  const [statuses, setStatuses] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (project?.id) {
+      projectApi.getProjectMembers(project.id).then(setProjectMembers).catch(() => {});
+      taskStatusApi.getTaskStatusByProject(project.id).then(setStatuses).catch(() => {});
+    }
+  }, [project?.id]);
 
   const retryFetch = () => {
     toast.info(t("refreshing"));
@@ -392,6 +406,7 @@ function ProjectSettingsContent() {
 
   const tabs = [
     { id: "general", name: t("tabs.general", "General"), icon: HiCog },
+    { id: "automations", name: t("tabs.automations", "Automations"), icon: HiBolt },
     { id: "email", name: t("tabs.email", "Email Setup"), icon: HiEnvelope },
     { id: "rules", name: t("tabs.rules", "Rules"), icon: IoWarning },
     { id: "trello", name: t("tabs.trello", "Trello Sync"), icon: FaTrello },
@@ -618,6 +633,15 @@ function ProjectSettingsContent() {
                   </div>
                 </div>
               </div>
+            )}
+
+            {activeTab === "automations" && project && (
+              <AutomationRulesManager
+                projectId={project.id}
+                workspaceId={project.workspaceId}
+                projectMembers={projectMembers}
+                statuses={statuses}
+              />
             )}
 
             {activeTab === "email" && project && (

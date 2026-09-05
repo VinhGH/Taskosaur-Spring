@@ -33,9 +33,10 @@ public class PublicTaskController {
     private final TaskCommentRepository taskCommentRepository;
     private final TaskAttachmentRepository taskAttachmentRepository;
     private final TaskAttachmentService taskAttachmentService;
+    private final com.taskosaur.taskosaur.repositories.UserRepository userRepository;
 
     @GetMapping("/tasks/{token}")
-    public ResponseEntity<TaskResponse> getPublicTaskByToken(@PathVariable String token) {
+    public ResponseEntity<Map<String, Object>> getPublicTaskByToken(@PathVariable String token) {
         PublicTaskShare share = publicTaskShareRepository.findByToken(token)
                 .orElseThrow(() -> new ResourceNotFoundException("Invalid or expired share token"));
 
@@ -43,7 +44,50 @@ public class PublicTaskController {
             throw new ResourceNotFoundException("This share link has expired or been revoked");
         }
 
-        return ResponseEntity.ok(taskService.getTaskById(share.getTaskId()));
+        TaskResponse task = taskService.getTaskById(share.getTaskId());
+
+        Map<String, Object> response = new java.util.HashMap<>();
+        response.put("id", task.getId());
+        response.put("title", task.getTitle());
+        response.put("description", task.getDescription());
+        response.put("type", task.getType());
+        response.put("priority", task.getPriority());
+        response.put("taskNumber", task.getTaskNumber());
+        response.put("slug", task.getSlug());
+        response.put("startDate", task.getStartDate());
+        response.put("dueDate", task.getDueDate());
+        response.put("completedAt", task.getCompletedAt());
+        response.put("storyPoints", task.getStoryPoints());
+        response.put("status", task.getStatus());
+        response.put("assignees", task.getAssignees());
+        response.put("labels", task.getLabels());
+        response.put("project", task.getProject());
+        response.put("createdAt", task.getCreatedAt());
+
+        if (task.getCreatedBy() != null) {
+            userRepository.findById(task.getCreatedBy()).ifPresent(u -> {
+                Map<String, Object> userMap = new java.util.HashMap<>();
+                userMap.put("id", u.getId());
+                userMap.put("firstName", u.getFirstName());
+                userMap.put("lastName", u.getLastName());
+                userMap.put("avatar", u.getAvatar() != null ? u.getAvatar() : "");
+                response.put("createdBy", userMap);
+            });
+        }
+
+        List<TaskAttachment> attachments = taskAttachmentRepository.findByTaskIdOrderByCreatedAtDesc(task.getId());
+        List<Map<String, Object>> attachmentDtos = attachments.stream().map(a -> {
+            Map<String, Object> attMap = new java.util.HashMap<>();
+            attMap.put("id", a.getId());
+            attMap.put("fileName", a.getFileName());
+            attMap.put("fileSize", a.getFileSize() != null ? a.getFileSize() : 0);
+            attMap.put("mimeType", a.getMimeType() != null ? a.getMimeType() : "application/octet-stream");
+            attMap.put("url", a.getUrl() != null ? a.getUrl() : "");
+            return attMap;
+        }).toList();
+        response.put("attachments", attachmentDtos);
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/tasks/{token}/attachments/{attachmentId}")

@@ -1,0 +1,14 @@
+package com.taskosaur.taskosaur.enums;
+
+public enum TriggerType {
+    TASK_CREATED,
+    TASK_UPDATED,
+    TASK_STATUS_CHANGED,
+    TASK_ASSIGNED,
+    TASK_DUE_DATE_APPROACHING,
+    TASK_OVERDUE,
+    SPRINT_STARTED,
+    SPRINT_COMPLETED,
+    PROJECT_CREATED,
+    COMMENT_ADDED
+}
