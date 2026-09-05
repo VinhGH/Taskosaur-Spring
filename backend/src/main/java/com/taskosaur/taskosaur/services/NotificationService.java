@@ -247,6 +247,62 @@ public class NotificationService {
         sendAndBroadcastNotification(params);
     }
 
+    public void notifyTaskUrgentPriority(Task task, String actorId) {
+        if (task == null || task.getId() == null) {
+            return;
+        }
+
+        List<TaskAssignee> assignees = taskAssigneeRepository.findByTaskId(task.getId());
+        if (assignees == null || assignees.isEmpty()) {
+            return;
+        }
+
+        Project project = task.getProjectId() != null
+                ? projectRepository.findById(task.getProjectId()).orElse(null)
+                : null;
+        Workspace workspace = project != null && project.getWorkspaceId() != null
+                ? workspaceRepository.findById(project.getWorkspaceId()).orElse(null)
+                : null;
+
+        String wsSlug = workspace != null ? workspace.getSlug() : "default";
+        String prjSlug = project != null ? project.getSlug() : "default";
+        String actionUrl = "/" + wsSlug + "/" + prjSlug + "/tasks/" + task.getId();
+
+        String actorName = actorId != null
+                ? userRepository.findById(actorId).map(this::getUserDisplayName).orElse("Thành viên dự án")
+                : "Hệ thống";
+
+        String projectName = project != null ? project.getName() : "Dự án";
+        String taskTitle = (task.getTitle() != null && !task.getTitle().isBlank()) ? task.getTitle() : "Công việc";
+        String title = "🚨 [KHẨN CẤP] Công việc ưu tiên CAO NHẤT: " + taskTitle;
+        String message = actorName + " đã đặt mức độ ưu tiên CAO NHẤT cho công việc \"" + taskTitle + "\" thuộc dự án \"" + projectName + "\". Bạn được phân công thực hiện và cần xử lý ngay lập tức!";
+
+        for (TaskAssignee assignee : assignees) {
+            if (assignee.getUserId() == null || assignee.getUserId().isBlank()) {
+                continue;
+            }
+
+            CreateNotificationParams params = CreateNotificationParams.builder()
+                    .userId(assignee.getUserId())
+                    .creatorId(actorId)
+                    .type(NotificationType.SYSTEM)
+                    .priority(NotificationPriority.URGENT)
+                    .title(title)
+                    .message(message)
+                    .entityType("task")
+                    .entityId(task.getId())
+                    .actionUrl(actionUrl)
+                    .organizationId(workspace != null ? workspace.getOrganizationId() : null)
+                    .build();
+
+            try {
+                sendAndBroadcastNotification(params);
+            } catch (Exception e) {
+                log.warn("Failed to dispatch urgent priority notification to user {}: {}", assignee.getUserId(), e.getMessage());
+            }
+        }
+    }
+
     public void notifyMention(Task task, TaskComment comment, String mentionedUserId, String actorId) {
         if (mentionedUserId == null || mentionedUserId.isBlank() || mentionedUserId.equals(actorId)) {
             return;

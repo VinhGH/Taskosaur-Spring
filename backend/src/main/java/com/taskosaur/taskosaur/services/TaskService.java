@@ -104,6 +104,9 @@ public class TaskService {
             automationRuleService.evaluateRules(com.taskosaur.taskosaur.enums.TriggerType.TASK_CREATED, savedTask, Map.of("task", response), userId);
             if (savedTask.getPriority() != null) {
                 automationRuleService.evaluateRules(com.taskosaur.taskosaur.enums.TriggerType.TASK_UPDATED, savedTask, Map.of("priority", savedTask.getPriority().name()), userId);
+                if (savedTask.getPriority() == TaskPriority.HIGHEST) {
+                    notificationService.notifyTaskUrgentPriority(savedTask, userId);
+                }
             }
         } catch (Exception e) {
             log.warn("Automation rule evaluation failed on task creation: {}", e.getMessage());
@@ -175,6 +178,9 @@ public class TaskService {
         try {
             if (request.getPriority() != null) {
                 automationRuleService.evaluateRules(com.taskosaur.taskosaur.enums.TriggerType.TASK_UPDATED, savedTask, Map.of("priority", request.getPriority().name()), userId);
+                if (request.getPriority() == TaskPriority.HIGHEST) {
+                    notificationService.notifyTaskUrgentPriority(savedTask, userId);
+                }
             }
         } catch (Exception e) {
             log.warn("Automation rule evaluation failed on task update: {}", e.getMessage());

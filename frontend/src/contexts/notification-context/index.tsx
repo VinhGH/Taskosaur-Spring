@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { socketService } from "@/lib/socket";
 import { toast } from "sonner";
 import { useRouter } from "next/router";
+import UrgentTaskModal from "@/components/notifications/UrgentTaskModal";
 
 interface NotificationState {
   unreadCount: number;
@@ -36,6 +37,28 @@ export const useNotification = () => {
   return context;
 };
 
+function playEmergencyChime() {
+  if (typeof window === "undefined") return;
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.35);
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.35);
+  } catch (e) {
+    // Audio context may be restricted by browser policy before first interaction
+  }
+}
+
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<NotificationState>({
     unreadCount: 0,
@@ -44,6 +67,18 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     isLoading: false,
     error: null,
   });
+
+  const [urgentAlert, setUrgentAlert] = useState<{
+    isOpen: boolean;
+    notification: any | null;
+  }>({
+    isOpen: false,
+    notification: null,
+  });
+
+  const dismissUrgentAlert = useCallback(() => {
+    setUrgentAlert({ isOpen: false, notification: null });
+  }, []);
 
   const { currentOrganization } = useOrganization();
   const { user } = useAuth();
@@ -248,7 +283,23 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           : undefined,
       });
 
-      // 3. Cập nhật số lượng thông báo chưa đọc theo từng tổ chức
+      // 3. Nếu là thông báo KHẨN CẤP / ƯU TIÊN CAO NHẤT (HIGHEST) -> Bật Popup Modal đập thẳng vào màn hình
+      const isUrgent =
+        notification.priority === "URGENT" ||
+        (typeof notification.title === "string" &&
+          (notification.title.includes("KHẨN CẤP") ||
+            notification.title.includes("CAO NHẤT") ||
+            notification.title.includes("HIGHEST")));
+
+      if (isUrgent) {
+        setUrgentAlert({
+          isOpen: true,
+          notification,
+        });
+        playEmergencyChime();
+      }
+
+      // 4. Cập nhật số lượng thông báo chưa đọc theo từng tổ chức
       fetchUnreadCountsByOrg();
     };
 
@@ -274,6 +325,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   return (
     <NotificationContext.Provider value={value}>
       {children}
+      <UrgentTaskModal
+        isOpen={urgentAlert.isOpen}
+        notification={urgentAlert.notification}
+        onClose={dismissUrgentAlert}
+      />
     </NotificationContext.Provider>
   );
 };
