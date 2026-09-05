@@ -81,15 +81,33 @@ function ProjectSettingsContent() {
 
   useEffect(() => {
     if (project?.id) {
-      projectApi.getProjectMembers(project.id).then(setProjectMembers).catch(() => {});
-      taskStatusApi.getTaskStatusByProject(project.id).then(setStatuses).catch(() => {});
+      projectApi
+        .getProjectMembers(project.id)
+        .then((members) => {
+          if (Array.isArray(members)) setProjectMembers(members);
+        })
+        .catch(() => {});
+      taskStatusApi
+        .getTaskStatusByProject(project.id)
+        .then((s) => {
+          if (Array.isArray(s)) setStatuses(s);
+        })
+        .catch(() => {});
     }
   }, [project?.id]);
 
   const retryFetch = () => {
     toast.info(t("refreshing"));
     const fetchProject = async () => {
-      if (!workspaceSlug || !projectSlug || !isAuthenticated()) {
+      if (!router.isReady) return;
+
+      const wsSlug = typeof workspaceSlug === "string" ? workspaceSlug : "";
+      const prSlug = typeof projectSlug === "string" ? projectSlug : "";
+      if (!wsSlug || !prSlug || wsSlug.startsWith("[") || prSlug.startsWith("[")) {
+        return;
+      }
+
+      if (!isAuthenticated()) {
         setError(t("auth_required"));
         setLoading(false);
         return;
@@ -209,7 +227,15 @@ function ProjectSettingsContent() {
   useEffect(() => {
     let isActive = true;
     const fetchProject = async () => {
-      if (!workspaceSlug || !projectSlug || !isAuthenticated()) {
+      if (!router.isReady) return;
+
+      const wsSlug = typeof workspaceSlug === "string" ? workspaceSlug : "";
+      const prSlug = typeof projectSlug === "string" ? projectSlug : "";
+      if (!wsSlug || !prSlug || wsSlug.startsWith("[") || prSlug.startsWith("[")) {
+        return;
+      }
+
+      if (!isAuthenticated()) {
         setError(t("auth_required"));
         setLoading(false);
         router.push("/login");
@@ -307,7 +333,7 @@ function ProjectSettingsContent() {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [router.isReady, workspaceSlug, projectSlug, isAuthenticated]);
 
   const handleSave = async () => {
     if (!project) return;
