@@ -59,6 +59,9 @@ class SocketService {
       // Auto-resubscribe to active rooms
       this.resubscribeActiveRooms();
 
+      // Subscribe to global presence topic
+      this.subscribeToTopic("presence", "");
+
       this.dispatchCustomEvent(SocketEvents.CONNECTED, {
         timestamp: new Date().toISOString(),
       });
@@ -95,6 +98,7 @@ class SocketService {
    */
   private resubscribeActiveRooms() {
     this.roomSubscriptions.clear();
+    this.subscribeToTopic("presence", "");
     this.activeRooms.forEach(({ room, id }) => {
       this.subscribeToTopic(room, id);
     });
@@ -104,9 +108,8 @@ class SocketService {
    * Joins a specific room (project, workspace, task, organization)
    * Maps to Spring STOMP topic: /topic/{room}/{id}
    */
-  joinRoom(room: "project" | "workspace" | "organization" | "task" | "user", id: string) {
-    if (!id) return;
-    const roomKey = `${room}:${id}`;
+  joinRoom(room: "project" | "workspace" | "organization" | "task" | "user" | "presence", id: string = "") {
+    const roomKey = id ? `${room}:${id}` : room;
     this.activeRooms.set(roomKey, { room, id });
 
     if (this.connected && this.client?.active) {
@@ -117,12 +120,12 @@ class SocketService {
   /**
    * Subscribes to a Spring STOMP destination topic.
    */
-  private subscribeToTopic(room: string, id: string) {
+  private subscribeToTopic(room: string, id: string = "") {
     if (!this.client?.active) return;
-    const roomKey = `${room}:${id}`;
+    const roomKey = id ? `${room}:${id}` : room;
     if (this.roomSubscriptions.has(roomKey)) return;
 
-    const topicDestination = `/topic/${room}/${id}`;
+    const topicDestination = id ? `/topic/${room}/${id}` : `/topic/${room}`;
 
     try {
       const subscription = this.client.subscribe(topicDestination, (message) => {

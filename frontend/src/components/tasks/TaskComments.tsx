@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useTask } from "../../contexts/task-context";
 import UserAvatar from "@/components/ui/avatars/UserAvatar";
+import { socketService } from "@/lib/socket";
+import { SocketEvents } from "@/types/socket";
 import {
   HiChatBubbleLeftRight,
   HiClock,
@@ -334,6 +336,108 @@ export default function TaskComments({
     if (userString) setCurrentUser(JSON.parse(userString));
   }, []);
 
+  // Real-time Typing Indicator state
+  const [typingUsers, setTypingUsers] = useState<Record<string, { userName: string; timestamp: number }>>({});
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isTypingRef = useRef(false);
+
+  useEffect(() => {
+    if (!taskId) return;
+    socketService.joinRoom("task", taskId);
+
+    const handleRemoteTyping = (data: any) => {
+      if (data?.taskId === taskId && data?.userId && data?.userId !== currentUser?.id) {
+        setTypingUsers((prev) => ({
+          ...prev,
+          [data.userId]: {
+            userName: data.userName || "Một thành viên",
+            timestamp: Date.now(),
+          },
+        }));
+      }
+    };
+
+    const handleRemoteStoppedTyping = (data: any) => {
+      if (data?.taskId === taskId && data?.userId) {
+        setTypingUsers((prev) => {
+          const next = { ...prev };
+          delete next[data.userId];
+          return next;
+        });
+      }
+    };
+
+    socketService.on(SocketEvents.USER_TYPING, handleRemoteTyping);
+    socketService.on(SocketEvents.USER_STOPPED_TYPING, handleRemoteStoppedTyping);
+
+    const cleanupInterval = setInterval(() => {
+      const now = Date.now();
+      setTypingUsers((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        Object.keys(next).forEach((k) => {
+          if (now - next[k].timestamp > 4000) {
+            delete next[k];
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }, 2000);
+
+    return () => {
+      socketService.off(SocketEvents.USER_TYPING, handleRemoteTyping);
+      socketService.off(SocketEvents.USER_STOPPED_TYPING, handleRemoteStoppedTyping);
+      clearInterval(cleanupInterval);
+    };
+  }, [taskId, currentUser?.id]);
+
+  const handleContentChange = useCallback(
+    (val: string) => {
+      setCommentContent(val || "");
+      if (!currentUser || !taskId) return;
+
+      const currentName = currentUser.firstName
+        ? `${currentUser.firstName} ${currentUser.lastName || ""}`.trim()
+        : currentUser.email?.split("@")[0] || "Thành viên";
+
+      if (!isTypingRef.current) {
+        isTypingRef.current = true;
+        socketService.emit(`task/${taskId}/typing`, {
+          userId: currentUser.id,
+          userName: currentName,
+          isTyping: true,
+        });
+      }
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      typingTimeoutRef.current = setTimeout(() => {
+        isTypingRef.current = false;
+        socketService.emit(`task/${taskId}/typing`, {
+          userId: currentUser.id,
+          userName: currentName,
+          isTyping: false,
+        });
+      }, 2500);
+    },
+    [currentUser, taskId]
+  );
+
+  const typingUsersList = useMemo(() => Object.values(typingUsers), [typingUsers]);
+  const typingText = useMemo(() => {
+    if (typingUsersList.length === 0) return null;
+    if (typingUsersList.length === 1) {
+      return `${typingUsersList[0].userName} đang soạn bình luận...`;
+    }
+    if (typingUsersList.length === 2) {
+      return `${typingUsersList[0].userName} và ${typingUsersList[1].userName} đang soạn bình luận...`;
+    }
+    return `${typingUsersList[0].userName} và ${typingUsersList.length - 1} người khác đang soạn bình luận...`;
+  }, [typingUsersList]);
+
   const formatTimestamp = useCallback((createdAt: string, updatedAt: string) => {
     if (!createdAt) return { text: "Unknown time", isEdited: false, fullDate: "" };
     const created = new Date(createdAt);
@@ -598,6 +702,18 @@ export default function TaskComments({
       if (onTaskRefetch) {
         onTaskRefetch();
       }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      if (isTypingRef.current && currentUser && taskId) {
+        isTypingRef.current = false;
+        socketService.emit(`task/${taskId}/typing`, {
+          userId: currentUser.id,
+          userName: currentUser.firstName || "Thành viên",
+          isTyping: false,
+        });
+      }
+
       setCommentContent("");
       editorRef.current?.clear();
       setEditingCommentId(null);
@@ -823,13 +939,25 @@ export default function TaskComments({
           {commentsList}
         </div>
 
+        {/* Real-time Typing Indicator */}
+        {typingText && (
+          <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 py-1.5 px-3 bg-blue-50/70 dark:bg-blue-950/40 rounded-lg border border-blue-200/60 dark:border-blue-800/40 animate-pulse">
+            <div className="flex items-center space-x-1">
+              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></span>
+            </div>
+            <span className="font-medium italic">{typingText}</span>
+          </div>
+        )}
+
         {/* Dual Mode Editor (Markdown / Rich Text) */}
         {hasAccess && (
           <div>
             <DualModeEditor
               ref={editorRef}
               value={commentContent}
-              onChange={(val) => setCommentContent(val || "")}
+              onChange={handleContentChange}
               placeholder={editingCommentId ? t("comments.editPlaceholder") : t("comments.addPlaceholder")}
               height={200}
               colorMode={colorMode}
