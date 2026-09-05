@@ -59,6 +59,30 @@ function playEmergencyChime() {
   }
 }
 
+function isNotificationUrgent(notification: any): boolean {
+  if (!notification) return false;
+  const priorityUpper = String(notification.priority || "").toUpperCase();
+  if (priorityUpper === "URGENT") return true;
+
+  const titleLower = String(notification.title || "").toLowerCase();
+  const messageLower = String(notification.message || "").toLowerCase();
+
+  const urgentKeywords = [
+    "khẩn cấp",
+    "cao nhất",
+    "highest",
+    "urgent",
+    "báo động",
+    "cảnh báo",
+    "ưu tiên cao nhất",
+  ];
+
+  return (
+    urgentKeywords.some((kw) => titleLower.includes(kw)) ||
+    urgentKeywords.some((kw) => messageLower.includes(kw))
+  );
+}
+
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<NotificationState>({
     unreadCount: 0,
@@ -77,8 +101,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   });
 
   const dismissUrgentAlert = useCallback(() => {
+    if (urgentAlert.notification?.id && typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem(`seen_urgent_${urgentAlert.notification.id}`, "true");
+      } catch (e) {}
+    }
     setUrgentAlert({ isOpen: false, notification: null });
-  }, []);
+  }, [urgentAlert.notification]);
 
   const { currentOrganization } = useOrganization();
   const { user } = useAuth();
@@ -152,6 +181,23 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
          unreadCount: count,
          isLoading: false 
        }));
+
+       // Hiển thị ngay cảnh báo công việc khẩn cấp nếu có thông báo chưa đọc chưa bị đóng trong phiên này
+       if (typeof window !== "undefined" && Array.isArray(response.notifications)) {
+         const unreadUrgent = response.notifications.find((n: any) => {
+           if (n.isRead) return false;
+           if (sessionStorage.getItem(`seen_urgent_${n.id}`)) return false;
+           return isNotificationUrgent(n);
+         });
+
+         if (unreadUrgent) {
+           setUrgentAlert({
+             isOpen: true,
+             notification: unreadUrgent,
+           });
+           playEmergencyChime();
+         }
+       }
      } catch (error) {
        console.error("Failed to fetch recent notifications", error);
        setState(prev => ({ ...prev, isLoading: false, error: "Failed to fetch notifications" }));
@@ -284,14 +330,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       });
 
       // 3. Nếu là thông báo KHẨN CẤP / ƯU TIÊN CAO NHẤT (HIGHEST) -> Bật Popup Modal đập thẳng vào màn hình
-      const isUrgent =
-        notification.priority === "URGENT" ||
-        (typeof notification.title === "string" &&
-          (notification.title.includes("KHẨN CẤP") ||
-            notification.title.includes("CAO NHẤT") ||
-            notification.title.includes("HIGHEST")));
-
-      if (isUrgent) {
+      if (isNotificationUrgent(notification)) {
         setUrgentAlert({
           isOpen: true,
           notification,
@@ -329,6 +368,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         isOpen={urgentAlert.isOpen}
         notification={urgentAlert.notification}
         onClose={dismissUrgentAlert}
+        onMarkAsRead={markAsRead}
       />
     </NotificationContext.Provider>
   );

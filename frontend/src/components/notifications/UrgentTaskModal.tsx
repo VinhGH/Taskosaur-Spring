@@ -13,12 +13,14 @@ interface UrgentTaskModalProps {
   isOpen: boolean;
   notification: any | null;
   onClose: () => void;
+  onMarkAsRead?: (notificationId: string) => void;
 }
 
 export const UrgentTaskModal: React.FC<UrgentTaskModalProps> = ({
   isOpen,
   notification,
   onClose,
+  onMarkAsRead,
 }) => {
   const router = useRouter();
 
@@ -39,7 +41,17 @@ export const UrgentTaskModal: React.FC<UrgentTaskModalProps> = ({
 
   const actionUrl = notification.actionUrl || "";
 
+  const handleDismiss = () => {
+    if (notification?.id && onMarkAsRead) {
+      onMarkAsRead(notification.id);
+    }
+    onClose();
+  };
+
   const handleNavigate = () => {
+    if (notification?.id && onMarkAsRead) {
+      onMarkAsRead(notification.id);
+    }
     onClose();
     if (actionUrl) {
       const target = actionUrl.startsWith("http")
@@ -114,7 +126,7 @@ export const UrgentTaskModal: React.FC<UrgentTaskModalProps> = ({
         <div className="p-6 pt-0 flex flex-col sm:flex-row gap-3">
           <Button
             variant="outline"
-            onClick={onClose}
+            onClick={handleDismiss}
             className="w-full sm:w-auto h-11 px-5 rounded-xl border-[var(--border)] hover:bg-[var(--accent)] text-[var(--muted-foreground)] font-medium"
           >
             <HiCheck className="w-4 h-4 mr-1.5" />
