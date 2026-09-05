@@ -29,7 +29,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToggleSwitch } from "@/components/common/ToggleButton";
-import ActionButton from "@/components/common/ActionButton";
 import {
   HiBolt,
   HiPlus,
@@ -41,6 +40,8 @@ import {
   HiArrowRight,
   HiShieldExclamation,
   HiUserGroup,
+  HiCheck,
+  HiXMark,
 } from "react-icons/hi2";
 import { toast } from "sonner";
 import { formatDateTimeForDisplay } from "@/utils/date";
@@ -288,13 +289,14 @@ export default function AutomationRulesManager({
               {t("automations.subtitle")}
             </p>
           </div>
-          <ActionButton
+          <button
+            type="button"
             onClick={handleOpenCreateModal}
-            className="flex items-center gap-2 cursor-pointer shadow-sm"
+            className="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold text-sm shadow-md shadow-blue-600/20 hover:shadow-lg hover:shadow-blue-600/30 transition-all active:scale-[0.98] flex items-center gap-2 cursor-pointer"
           >
             <HiPlus className="w-4 h-4" />
             <span>{t("automations.new_rule")}</span>
-          </ActionButton>
+          </button>
         </CardHeader>
 
         <CardContent className="pt-6 space-y-6">
@@ -866,22 +868,34 @@ export default function AutomationRulesManager({
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-[var(--border)]">
-            <Button
-              variant="outline"
+          <DialogFooter className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 pt-4 border-t border-[var(--border)] mt-3">
+            <button
+              type="button"
               onClick={() => setIsModalOpen(false)}
               disabled={submitting}
-              className="border-[var(--border)] hover:bg-[var(--hover-bg)] text-[var(--foreground)] cursor-pointer rounded-lg px-4"
+              className="w-full sm:w-auto h-10 px-5 rounded-xl border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--hover-bg)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] font-medium text-sm transition-all duration-150 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
             >
-              {t("automations.modal.btn_cancel")}
-            </Button>
-            <ActionButton
+              <HiXMark className="w-4 h-4 opacity-70" />
+              <span>{t("automations.modal.btn_cancel")}</span>
+            </button>
+            <button
+              type="button"
               onClick={handleSaveRule}
               disabled={submitting}
-              className="cursor-pointer rounded-lg px-5 shadow-sm"
+              className="w-full sm:w-auto h-10 px-6 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold text-sm shadow-md shadow-blue-600/25 hover:shadow-lg hover:shadow-blue-600/35 transition-all duration-150 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
             >
-              {submitting ? t("automations.modal.btn_saving") : t("automations.modal.btn_create")}
-            </ActionButton>
+              {submitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>{t("automations.modal.btn_saving")}</span>
+                </>
+              ) : (
+                <>
+                  <HiCheck className="w-4 h-4 stroke-[2.5]" />
+                  <span>{t("automations.modal.btn_create")}</span>
+                </>
+              )}
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -966,14 +980,14 @@ export default function AutomationRulesManager({
             )}
           </div>
 
-          <DialogFooter className="pt-2 border-t border-[var(--border)]">
-            <Button
-              variant="outline"
+          <DialogFooter className="flex items-center justify-end pt-3 border-t border-[var(--border)] mt-2">
+            <button
+              type="button"
               onClick={() => setIsHistoryOpen(false)}
-              className="border-[var(--border)] hover:bg-[var(--hover-bg)] text-[var(--foreground)] rounded-lg px-4 cursor-pointer"
+              className="h-10 px-5 rounded-xl border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--hover-bg)] text-[var(--foreground)] font-medium text-sm transition-all active:scale-[0.98] cursor-pointer"
             >
               {t("automations.history.btn_close")}
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
