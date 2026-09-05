@@ -26,7 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -253,7 +255,23 @@ public class NotificationService {
         }
 
         List<TaskAssignee> assignees = taskAssigneeRepository.findByTaskId(task.getId());
-        if (assignees == null || assignees.isEmpty()) {
+        Set<String> recipientUserIds = new LinkedHashSet<>();
+        if (assignees != null && !assignees.isEmpty()) {
+            for (TaskAssignee assignee : assignees) {
+                if (assignee.getUserId() != null && !assignee.getUserId().isBlank()) {
+                    recipientUserIds.add(assignee.getUserId());
+                }
+            }
+        } else {
+            // Fallback: Nếu công việc chưa phân công ai, thông báo trực tiếp cho người kích hoạt / người tạo
+            if (actorId != null && !actorId.isBlank()) {
+                recipientUserIds.add(actorId);
+            } else if (task.getCreatedBy() != null && !task.getCreatedBy().isBlank()) {
+                recipientUserIds.add(task.getCreatedBy());
+            }
+        }
+
+        if (recipientUserIds.isEmpty()) {
             return;
         }
 
@@ -277,13 +295,9 @@ public class NotificationService {
         String title = "🚨 [KHẨN CẤP] Công việc ưu tiên CAO NHẤT: " + taskTitle;
         String message = actorName + " đã đặt mức độ ưu tiên CAO NHẤT cho công việc \"" + taskTitle + "\" thuộc dự án \"" + projectName + "\". Bạn được phân công thực hiện và cần xử lý ngay lập tức!";
 
-        for (TaskAssignee assignee : assignees) {
-            if (assignee.getUserId() == null || assignee.getUserId().isBlank()) {
-                continue;
-            }
-
+        for (String recipientId : recipientUserIds) {
             CreateNotificationParams params = CreateNotificationParams.builder()
-                    .userId(assignee.getUserId())
+                    .userId(recipientId)
                     .creatorId(actorId)
                     .type(NotificationType.SYSTEM)
                     .priority(NotificationPriority.URGENT)
@@ -298,7 +312,7 @@ public class NotificationService {
             try {
                 sendAndBroadcastNotification(params);
             } catch (Exception e) {
-                log.warn("Failed to dispatch urgent priority notification to user {}: {}", assignee.getUserId(), e.getMessage());
+                log.warn("Failed to dispatch urgent priority notification to user {}: {}", recipientId, e.getMessage());
             }
         }
     }
