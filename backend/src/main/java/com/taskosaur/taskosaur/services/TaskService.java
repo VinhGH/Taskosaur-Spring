@@ -49,6 +49,7 @@ public class TaskService {
     private final UserRepository userRepository;
     private final WebSocketEventService webSocketEventService;
     private final NotificationService notificationService;
+    private final AutomationRuleService automationRuleService;
 
     @org.springframework.cache.annotation.CacheEvict(value = {"org_analytics", "project_charts"}, allEntries = true)
     @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.TASK_CREATED, entityType = "TASK")
@@ -97,6 +98,12 @@ public class TaskService {
             }
         } catch (Exception e) {
             log.warn("Failed to dispatch task creation assignment notification: {}", e.getMessage());
+        }
+
+        try {
+            automationRuleService.evaluateRules(com.taskosaur.taskosaur.enums.TriggerType.TASK_CREATED, savedTask, Map.of("task", response), userId);
+        } catch (Exception e) {
+            log.warn("Automation rule evaluation failed on task creation: {}", e.getMessage());
         }
 
         return response;
@@ -160,6 +167,14 @@ public class TaskService {
             }
         } catch (Exception e) {
             log.warn("Failed to dispatch task update assignment notification: {}", e.getMessage());
+        }
+
+        try {
+            if (request.getPriority() != null) {
+                automationRuleService.evaluateRules(com.taskosaur.taskosaur.enums.TriggerType.TASK_UPDATED, savedTask, Map.of("priority", request.getPriority().name()), userId);
+            }
+        } catch (Exception e) {
+            log.warn("Automation rule evaluation failed on task update: {}", e.getMessage());
         }
 
         return response;
@@ -675,6 +690,17 @@ public class TaskService {
             }
         } catch (Exception e) {
             log.warn("Failed to dispatch status change notification: {}", e.getMessage());
+        }
+
+        try {
+            automationRuleService.evaluateRules(
+                    com.taskosaur.taskosaur.enums.TriggerType.TASK_STATUS_CHANGED,
+                    updated,
+                    Map.of("oldStatusId", oldStatusId != null ? oldStatusId : "", "newStatusId", statusId),
+                    userId
+            );
+        } catch (Exception e) {
+            log.warn("Automation rule evaluation failed on status change: {}", e.getMessage());
         }
 
         return response;
