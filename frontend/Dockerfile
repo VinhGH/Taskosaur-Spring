@@ -9,7 +9,7 @@ WORKDIR /app
 # Copy root workspace package files and build scripts
 COPY package.json package-lock.json ./
 COPY frontend/package.json ./frontend/
-COPY backend/package.json ./backend/
+COPY database/package.json ./database/
 COPY scripts ./scripts
 
 # Install dependencies without running dev hooks
