@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { formatDateTimeForDisplay } from "@/utils/date";
 import { isValidSlug } from "@/utils/slugUtils";
 import { HiXMark, HiPaperAirplane, HiSparkles, HiArrowPath, HiStop, HiMicrophone, HiPlus, HiTrash, HiPencil, HiBars3, HiChatBubbleLeft } from "react-icons/hi2";
+import { Plus, ListTodo, CheckCircle2, ArrowRightLeft, Zap, Trash2 } from "lucide-react";
 import { useChatContext } from "@/contexts/chat-context";
 import { mcpServer, extractContextFromPath, Conversation } from "@/lib/mcp-server";
 import { usePathname, useRouter } from "next/navigation";
@@ -637,7 +638,7 @@ export default function ChatPanel() {
         {
           role: "system",
           content:
-            "🔄 Context cleared. You are now in global mode - specify workspace and project for your next actions.",
+            "Context cleared. You are now in global mode - specify workspace and project for your next actions.",
           timestamp: new Date(),
         },
       ]);
@@ -860,23 +861,32 @@ export default function ChatPanel() {
                       <button
                         type="button"
                         onClick={() => setInputValue("Tạo task 'Thiết kế trang thanh toán' độ ưu tiên HIGH")}
-                        className="text-xs px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-medium transition-colors"
+                        className="inline-flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border border-border/70 hover:border-blue-500/40 bg-card hover:bg-blue-500/5 text-gray-800 dark:text-gray-200 font-medium transition-all shadow-xs group"
                       >
-                        ✨ Tạo task mẫu
+                        <span className="size-5 rounded-md flex items-center justify-center bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 group-hover:bg-blue-500/20 transition-colors">
+                          <Plus className="w-3.5 h-3.5" />
+                        </span>
+                        <span>Tạo task mẫu</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setInputValue("Liệt kê các task trong dự án này")}
-                        className="text-xs px-2.5 py-1 rounded-lg bg-gray-500/10 hover:bg-gray-500/20 text-gray-700 dark:text-gray-300 font-medium transition-colors"
+                        className="inline-flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border border-border/70 hover:border-indigo-500/40 bg-card hover:bg-indigo-500/5 text-gray-800 dark:text-gray-200 font-medium transition-all shadow-xs group"
                       >
-                        📋 Liệt kê task
+                        <span className="size-5 rounded-md flex items-center justify-center bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-500/20 transition-colors">
+                          <ListTodo className="w-3.5 h-3.5" />
+                        </span>
+                        <span>Liệt kê task</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setInputValue("Chuyển task sang DONE")}
-                        className="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-medium transition-colors"
+                        className="inline-flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border border-border/70 hover:border-emerald-500/40 bg-card hover:bg-emerald-500/5 text-gray-800 dark:text-gray-200 font-medium transition-all shadow-xs group"
                       >
-                        🚀 Đổi sang DONE
+                        <span className="size-5 rounded-md flex items-center justify-center bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-500/20 transition-colors">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        </span>
+                        <span>Đổi sang DONE</span>
                       </button>
                     </div>
                   </div>
@@ -929,12 +939,13 @@ export default function ChatPanel() {
                                 {message.actions.map((act, actIdx) => (
                                   <div
                                     key={actIdx}
-                                    className="flex items-center gap-2 p-2 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-800/40 text-xs text-blue-900 dark:text-blue-200"
+                                    className="flex items-center gap-2 p-2 rounded-xl bg-gray-50/80 dark:bg-gray-900/40 border border-gray-200/70 dark:border-gray-700/70 text-xs text-gray-900 dark:text-gray-100"
                                   >
                                     {act.action === "CREATE_TASK" && (
                                       <>
-                                        <span className="px-1.5 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold text-[10px]">
-                                          ✨ ĐÃ TẠO
+                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 font-semibold text-[11px]">
+                                          <Plus className="w-3 h-3" />
+                                          <span>ĐÃ TẠO</span>
                                         </span>
                                         <span className="font-semibold text-blue-700 dark:text-blue-300">
                                           {act.taskSlug}
@@ -949,11 +960,12 @@ export default function ChatPanel() {
                                     )}
                                     {act.action === "UPDATE_STATUS" && (
                                       <>
-                                        <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold text-[10px]">
-                                          🔄 CHUYỂN TRẠNG THÁI
+                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold text-[11px]">
+                                          <ArrowRightLeft className="w-3 h-3" />
+                                          <span>TRẠNG THÁI</span>
                                         </span>
                                         <span className="font-semibold">{act.taskSlug}</span>
-                                        <span>➔</span>
+                                        <span className="text-gray-400">→</span>
                                         <span className="font-bold text-emerald-600 dark:text-emerald-400">
                                           {act.newStatus}
                                         </span>
@@ -961,11 +973,12 @@ export default function ChatPanel() {
                                     )}
                                     {act.action === "UPDATE_PRIORITY" && (
                                       <>
-                                        <span className="px-1.5 py-0.5 rounded-md bg-purple-500/15 text-purple-600 dark:text-purple-400 font-bold text-[10px]">
-                                          ⚡ ĐỘ ƯU TIÊN
+                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 font-semibold text-[11px]">
+                                          <Zap className="w-3 h-3" />
+                                          <span>ƯU TIÊN</span>
                                         </span>
                                         <span className="font-semibold">{act.taskSlug}</span>
-                                        <span>➔</span>
+                                        <span className="text-gray-400">→</span>
                                         <span className="font-bold text-purple-600 dark:text-purple-400">
                                           {act.priority}
                                         </span>
@@ -973,20 +986,24 @@ export default function ChatPanel() {
                                     )}
                                     {act.action === "DELETE_TASK" && (
                                       <>
-                                        <span className="px-1.5 py-0.5 rounded-md bg-red-500/15 text-red-600 dark:text-red-400 font-bold text-[10px]">
-                                          🗑️ ĐÃ XÓA
+                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 font-semibold text-[11px]">
+                                          <Trash2 className="w-3 h-3" />
+                                          <span>ĐÃ XÓA</span>
                                         </span>
-                                        <span className="font-semibold line-through text-red-700 dark:text-red-300">
+                                        <span className="font-semibold line-through text-rose-700 dark:text-rose-300">
                                           {act.taskSlug}
                                         </span>
                                       </>
                                     )}
                                     {act.action === "LIST_TASKS" && (
                                       <>
-                                        <span className="px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-bold text-[10px]">
-                                          📋 DANH SÁCH
+                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-semibold text-[11px]">
+                                          <ListTodo className="w-3 h-3" />
+                                          <span>DANH SÁCH</span>
                                         </span>
-                                        <span>Tìm thấy {act.count} công việc phù hợp</span>
+                                        <span className="font-medium text-gray-700 dark:text-gray-300">
+                                          Tìm thấy {act.count} công việc phù hợp
+                                        </span>
                                       </>
                                     )}
                                   </div>
