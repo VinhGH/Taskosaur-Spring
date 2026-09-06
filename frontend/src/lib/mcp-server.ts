@@ -1,9 +1,12 @@
 import api from "@/lib/api";
 import * as crypto from 'crypto';
 
-interface ChatMessage {
+export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
+  actions?: Array<any>;
+  steps?: Array<any>;
+  logs?: string[];
 }
 
 // MCP Server configuration for Taskosaur context

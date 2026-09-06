@@ -299,20 +299,83 @@ export default function ChatPanel() {
     }
   }, []);
 
-  // Load messages from current conversation
+  // Load messages from current conversation (with full persistence for steps, logs, actions)
   const loadMessagesFromHistory = useCallback(() => {
     try {
       const conv = mcpServer.getCurrentConversation();
-      if (conv) {
-        const convertedMessages: Message[] = conv.messages.map((msg, index) => ({
-          role: msg.role === "system" ? "assistant" : msg.role,
-          content: msg.content,
-          timestamp: new Date(Date.now() - (conv.messages.length - index) * 1000),
-          isStreaming: false,
-        }));
+      if (conv && conv.id) {
+        // 1. Check local rich messages cache first
+        const savedRich =
+          typeof window !== "undefined"
+            ? localStorage.getItem(`taskosaur_chat_rich_messages_${conv.id}`)
+            : null;
 
-        setMessages(convertedMessages);
-        return true;
+        if (savedRich) {
+          try {
+            const parsed: Message[] = JSON.parse(savedRich);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const restored: Message[] = parsed.map((m) => ({
+                ...m,
+                timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
+                isStreaming: false,
+              }));
+              setMessages(restored);
+              return true;
+            }
+          } catch (pe) {
+            console.warn("Failed to parse saved rich messages:", pe);
+          }
+        }
+
+        // 2. Fallback to conv.messages (from backend or mcpServer)
+        if (conv.messages && conv.messages.length > 0) {
+          const convertedMessages: Message[] = conv.messages.map((msg: any, index: number) => {
+            let content = msg.content || "";
+            let actions = msg.actions || [];
+            let steps = msg.steps || [];
+            let logs = msg.logs || [];
+
+            // Parse embedded meta comment if present in content
+            if (content.includes("<!--TASKOSAUR_META:")) {
+              const start = content.indexOf("<!--TASKOSAUR_META:") + 19;
+              const end = content.indexOf("-->", start);
+              if (end !== -1) {
+                try {
+                  const metaJson = content.substring(start, end);
+                  const meta = JSON.parse(metaJson);
+                  if (meta.actions && (!actions || actions.length === 0)) actions = meta.actions;
+                  if (meta.steps && (!steps || steps.length === 0)) steps = meta.steps;
+                  if (meta.logs && (!logs || logs.length === 0)) logs = meta.logs;
+                  content = content.substring(0, content.indexOf("<!--TASKOSAUR_META:")).trim();
+                } catch (e) {
+                  // ignore
+                }
+              }
+            }
+
+            return {
+              role: (msg.role === "system" ? "assistant" : msg.role) as Message["role"],
+              content,
+              timestamp: new Date(Date.now() - (conv.messages.length - index) * 1000),
+              isStreaming: false,
+              actions,
+              steps,
+              logs,
+              isThoughtExpanded: false,
+            };
+          });
+
+          setMessages(convertedMessages);
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem(
+                `taskosaur_chat_rich_messages_${conv.id}`,
+                JSON.stringify(convertedMessages)
+              );
+            } catch (e) {}
+          }
+          return true;
+        }
       }
     } catch (error) {
       console.warn("Failed to load messages from conversation history:", error);
@@ -374,9 +437,10 @@ export default function ChatPanel() {
         const currentConv = mcpServer.getCurrentConversation();
         setCurrentConversationId(currentConv?.id || "");
         await refreshConversations();
+        loadMessagesFromHistory();
       });
     }
-  }, [pathname, getCurrentUser, refreshConversations]);
+  }, [pathname, getCurrentUser, refreshConversations, loadMessagesFromHistory]);
 
   // Update context when path changes (unless manually cleared)
   useEffect(() => {
@@ -393,25 +457,39 @@ export default function ChatPanel() {
     }
   }, [currentConversationId, loadMessagesFromHistory]);
 
-  // Sync messages state back to active conversation in DB
+  // Sync messages state back to active conversation in DB and local storage
   useEffect(() => {
     let active = true;
     const syncHistory = async () => {
+      const currentConv = mcpServer.getCurrentConversation();
+      if (currentConv && currentConv.id && messages.length > 0) {
+        try {
+          localStorage.setItem(
+            `taskosaur_chat_rich_messages_${currentConv.id}`,
+            JSON.stringify(messages)
+          );
+        } catch (e) {}
+      }
+
       const chatHistory: ChatMessage[] = messages
         .filter((m) => !m.isStreaming && m.role !== "system" && m.content && m.content.trim() !== "")
         .map((m) => ({
           role: m.role,
           content: m.content,
+          actions: m.actions,
+          steps: m.steps,
+          logs: m.logs,
         }));
 
-      const currentConv = mcpServer.getCurrentConversation();
       if (currentConv && currentConv.id) {
-        // Clean currentConv.messages to contain only role and content for comparison
         const currentMessagesCleaned = (currentConv.messages || [])
           .filter((m) => m.role !== "system")
           .map((m) => ({
             role: m.role,
             content: m.content,
+            actions: m.actions,
+            steps: m.steps,
+            logs: m.logs,
           }));
 
         const currentHistoryJson = JSON.stringify(currentMessagesCleaned);
@@ -700,7 +778,19 @@ export default function ChatPanel() {
         isThoughtExpanded: false,
       };
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages((prev) => {
+        const updated = [...prev, assistantMessage];
+        const activeConv = mcpServer.getCurrentConversation();
+        if (typeof window !== "undefined" && activeConv?.id) {
+          try {
+            localStorage.setItem(
+              `taskosaur_chat_rich_messages_${activeConv.id}`,
+              JSON.stringify(updated)
+            );
+          } catch (e) {}
+        }
+        return updated;
+      });
       await refreshConversations();
     } catch (err: any) {
       console.error("AI execution error:", err);
@@ -716,17 +806,28 @@ export default function ChatPanel() {
         detail: idx === 2 ? "Gặp sự cố khi thực thi" : s.detail,
       }));
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: sanitizeErrorMessage(errMsg),
-          timestamp: new Date(),
-          steps: failedSteps,
-          logs: [...liveLogs, `› [Error] ${errMsg}`],
-          isThoughtExpanded: true,
-        },
-      ]);
+      const errAssistantMessage: Message = {
+        role: "assistant",
+        content: sanitizeErrorMessage(errMsg),
+        timestamp: new Date(),
+        steps: failedSteps,
+        logs: [...liveLogs, `› [Error] ${errMsg}`],
+        isThoughtExpanded: true,
+      };
+
+      setMessages((prev) => {
+        const updated = [...prev, errAssistantMessage];
+        const activeConv = mcpServer.getCurrentConversation();
+        if (typeof window !== "undefined" && activeConv?.id) {
+          try {
+            localStorage.setItem(
+              `taskosaur_chat_rich_messages_${activeConv.id}`,
+              JSON.stringify(updated)
+            );
+          } catch (e) {}
+        }
+        return updated;
+      });
     } finally {
       clearLiveThinkingTimers();
       setIsLoading(false);
@@ -792,6 +893,12 @@ export default function ChatPanel() {
   };
 
   const clearChat = async () => {
+    const conv = mcpServer.getCurrentConversation();
+    if (conv?.id && typeof window !== "undefined") {
+      try {
+        localStorage.removeItem(`taskosaur_chat_rich_messages_${conv.id}`);
+      } catch (e) {}
+    }
     setMessages([]);
     await mcpServer.clearHistory();
     browserAgentRef.current?.reset();
