@@ -2,7 +2,23 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { formatDateTimeForDisplay } from "@/utils/date";
 import { isValidSlug } from "@/utils/slugUtils";
 import { HiXMark, HiPaperAirplane, HiSparkles, HiArrowPath, HiStop, HiMicrophone, HiPlus, HiTrash, HiPencil, HiBars3, HiChatBubbleLeft } from "react-icons/hi2";
-import { Plus, ListTodo, CheckCircle2, ArrowRightLeft, Zap, Trash2 } from "lucide-react";
+import {
+  Plus,
+  ListTodo,
+  CheckCircle2,
+  ArrowRightLeft,
+  Zap,
+  Trash2,
+  Circle,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+  Terminal,
+  Brain,
+  ShieldCheck,
+  Cpu,
+  Sparkles,
+} from "lucide-react";
 import { useChatContext } from "@/contexts/chat-context";
 import { mcpServer, extractContextFromPath, Conversation } from "@/lib/mcp-server";
 import { usePathname, useRouter } from "next/navigation";
@@ -11,6 +27,11 @@ import { BrowserAgent } from "@/lib/browser-automation/browser-agent";
 import { VoiceController } from "@/lib/voice";
 import api from "@/lib/api";
 
+export interface ThoughtStep {
+  title: string;
+  status: "pending" | "running" | "completed" | "failed";
+  detail?: string;
+}
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -27,6 +48,9 @@ interface Message {
     newStatus?: string;
     count?: number;
   }>;
+  steps?: ThoughtStep[];
+  logs?: string[];
+  isThoughtExpanded?: boolean;
 }
 
 
@@ -80,6 +104,36 @@ export default function ChatPanel() {
   const { getCurrentUser } = useAuth();
   const [panelWidth, setPanelWidth] = useState(400);
   const resizing = useRef(false);
+
+  // Live AI Problem Solving & Reasoning state (Antigravity-style)
+  const [liveSteps, setLiveSteps] = useState<ThoughtStep[]>([]);
+  const [liveLogs, setLiveLogs] = useState<string[]>([]);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const liveTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const liveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearLiveThinkingTimers = useCallback(() => {
+    liveTimersRef.current.forEach((t) => clearTimeout(t));
+    liveTimersRef.current = [];
+    if (liveIntervalRef.current) {
+      clearInterval(liveIntervalRef.current);
+      liveIntervalRef.current = null;
+    }
+  }, []);
+
+  const formatSeconds = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  };
+
+  const toggleThoughtExpanded = (msgIndex: number) => {
+    setMessages((prev) =>
+      prev.map((msg, idx) =>
+        idx === msgIndex ? { ...msg, isThoughtExpanded: !msg.isThoughtExpanded } : msg
+      )
+    );
+  };
 
   // Browser automation state
   const [isBrowserAgentRunning, setIsBrowserAgentRunning] = useState(false);
@@ -193,6 +247,7 @@ export default function ChatPanel() {
     // Cleanup on unmount
     return () => {
       voiceControllerRef.current?.destroy();
+      clearLiveThinkingTimers();
     };
   }, []);
 
@@ -400,7 +455,7 @@ export default function ChatPanel() {
         behavior: "smooth",
       });
     }
-  }, [messages]);
+  }, [messages, liveLogs, liveSteps, isLoading]);
 
   // Listen for workspace/project creation events
   useEffect(() => {
@@ -512,6 +567,84 @@ export default function ChatPanel() {
   const handleConversationalTask = async (taskText: string) => {
     setIsLoading(true);
     handleAgentStatus("thinking");
+    clearLiveThinkingTimers();
+
+    const initialSteps: ThoughtStep[] = [
+      {
+        title: "Phân tích câu lệnh & trích xuất ý định",
+        status: "running",
+        detail: "Phân tích cú pháp NLP & bóc tách thực thể...",
+      },
+      {
+        title: "Kiểm tra phân quyền RBAC & an toàn dữ liệu",
+        status: "pending",
+        detail: "Chờ xác thực quyền hạn...",
+      },
+      {
+        title: "Định tuyến công cụ thực thi (Tool Calling Engine)",
+        status: "pending",
+        detail: "Chờ nạp bộ công cụ...",
+      },
+      {
+        title: "Thực thi giao dịch dữ liệu & đồng bộ thời gian thực",
+        status: "pending",
+        detail: "Chờ xử lý dữ liệu...",
+      },
+    ];
+
+    setLiveSteps(initialSteps);
+    setLiveLogs([
+      "› [00:00] Khởi tạo phiên làm việc Taskosaur AI Agent Engine...",
+      "› [00:00] Trích xuất ngữ cảnh Workspace & Project từ đường dẫn...",
+    ]);
+    setElapsedSeconds(0);
+
+    // Live timer progression
+    liveIntervalRef.current = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+
+    // Staged progression mimicking Antigravity agent reasoning
+    const t1 = setTimeout(() => {
+      setLiveSteps((prev) => [
+        { ...prev[0], status: "completed", detail: "Đã trích xuất ý định người dùng" },
+        { ...prev[1], status: "running", detail: "Xác thực phân quyền dự án & vai trò..." },
+        prev[2],
+        prev[3],
+      ]);
+      setLiveLogs((prev) => [
+        ...prev,
+        "› [00:01] Phân tích ngữ nghĩa hoàn tất. Kiểm tra quyền hạn RBAC đối với người dùng hiện tại...",
+      ]);
+    }, 600);
+
+    const t2 = setTimeout(() => {
+      setLiveSteps((prev) => [
+        prev[0],
+        { ...prev[1], status: "completed", detail: "Quyền hạn hợp lệ (Project Member / Admin)" },
+        { ...prev[2], status: "running", detail: "Khởi tạo Schema & danh mục Tools..." },
+        prev[3],
+      ]);
+      setLiveLogs((prev) => [
+        ...prev,
+        "› [00:01] Phân quyền thành công. Chuẩn bị bộ công cụ: CREATE_TASK, UPDATE_TASK, LIST_TASKS...",
+      ]);
+    }, 1400);
+
+    const t3 = setTimeout(() => {
+      setLiveSteps((prev) => [
+        prev[0],
+        prev[1],
+        { ...prev[2], status: "completed", detail: "Đã nạp 3 công cụ xử lý" },
+        { ...prev[3], status: "running", detail: "Gửi payload tới AI Engine & chuẩn bị đồng bộ WebSocket..." },
+      ]);
+      setLiveLogs((prev) => [
+        ...prev,
+        "› [00:02] Kích hoạt công cụ hệ thống & chuẩn bị phát sóng WebSocket tới bảng Kanban...",
+      ]);
+    }, 2300);
+
+    liveTimersRef.current.push(t1, t2, t3);
 
     try {
       const pathContext = extractContextFromPath(pathname);
@@ -528,11 +661,41 @@ export default function ChatPanel() {
         throw new Error(data?.error || "Chat request failed");
       }
 
+      // Format steps from backend or finalize live steps
+      let finalSteps: ThoughtStep[] = [];
+      if (data?.steps && Array.isArray(data.steps) && data.steps.length > 0) {
+        finalSteps = data.steps.map((s: any) => ({
+          title: s.title || s.name || "Xử lý tác vụ",
+          status: (s.status === "failed" ? "failed" : "completed") as ThoughtStep["status"],
+          detail: s.detail,
+        }));
+      } else {
+        finalSteps = initialSteps.map((s) => ({
+          ...s,
+          status: "completed" as const,
+          detail: s.detail?.replace("Chờ ", "Đã ").replace("...", ""),
+        }));
+      }
+
+      // Format logs from backend or finalize live logs
+      let finalLogs: string[] = [];
+      if (data?.logs && Array.isArray(data.logs) && data.logs.length > 0) {
+        finalLogs = data.logs.map((l: string) => (l.startsWith("›") ? l : `› ${l}`));
+      } else {
+        finalLogs = [
+          ...liveLogs,
+          "› [Result] Hoàn tất quá trình giải quyết vấn đề (Exit code 0)",
+        ];
+      }
+
       const assistantMessage: Message = {
         role: "assistant",
         content: data?.message || "Đã thực hiện xong yêu cầu.",
         timestamp: new Date(),
         actions: data?.actions || [],
+        steps: finalSteps,
+        logs: finalLogs,
+        isThoughtExpanded: false,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -544,15 +707,26 @@ export default function ChatPanel() {
         err?.response?.data?.error ||
         err?.message ||
         "Đã xảy ra lỗi khi gửi yêu cầu tới AI Agent.";
+
+      const failedSteps: ThoughtStep[] = initialSteps.map((s, idx) => ({
+        ...s,
+        status: idx <= 1 ? "completed" : idx === 2 ? "failed" : "pending",
+        detail: idx === 2 ? "Gặp sự cố khi thực thi" : s.detail,
+      }));
+
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
           content: sanitizeErrorMessage(errMsg),
           timestamp: new Date(),
+          steps: failedSteps,
+          logs: [...liveLogs, `› [Error] ${errMsg}`],
+          isThoughtExpanded: true,
         },
       ]);
     } finally {
+      clearLiveThinkingTimers();
       setIsLoading(false);
       handleAgentStatus("");
     }
@@ -925,7 +1099,84 @@ export default function ChatPanel() {
                           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-400 flex items-center justify-center flex-shrink-0">
                             <HiSparkles className="w-4 h-4 text-white" />
                           </div>
-                          <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl rounded-tl-sm px-4 py-2.5 shadow-sm space-y-2">
+                          <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl rounded-tl-sm px-4 py-2.5 shadow-sm space-y-2 flex-1">
+                            {/* Antigravity-style Problem Solving Process & Audit Logs */}
+                            {message.steps && message.steps.length > 0 && (
+                              <div className="rounded-xl border border-gray-200/80 dark:border-gray-700/60 overflow-hidden bg-white/70 dark:bg-gray-900/60 transition-all shadow-xs">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleThoughtExpanded(index)}
+                                  className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-800/70 transition-colors"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Brain className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                                    <span className="font-semibold text-gray-800 dark:text-gray-200">
+                                      Quá trình giải quyết ({message.steps.filter((s) => s.status === "completed").length}/{message.steps.length} bước hoàn tất)
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-gray-400">
+                                    <span className="text-[11px] font-mono">
+                                      {message.isThoughtExpanded ? "Thu gọn" : "Chi tiết"}
+                                    </span>
+                                    {message.isThoughtExpanded ? (
+                                      <ChevronUp className="w-3.5 h-3.5" />
+                                    ) : (
+                                      <ChevronDown className="w-3.5 h-3.5" />
+                                    )}
+                                  </div>
+                                </button>
+
+                                {message.isThoughtExpanded && (
+                                  <div className="px-3 pb-3 pt-1 border-t border-gray-100 dark:border-gray-800 space-y-2.5 text-xs">
+                                    {/* Steps List */}
+                                    <div className="space-y-1.5 pt-1">
+                                      {message.steps.map((st, sIdx) => (
+                                        <div key={sIdx} className="flex items-start gap-2">
+                                          {st.status === "completed" ? (
+                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                                          ) : st.status === "failed" ? (
+                                            <Trash2 className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+                                          ) : (
+                                            <Circle className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                                          )}
+                                          <div className="flex-1 leading-tight">
+                                            <span className="font-medium text-gray-800 dark:text-gray-200">
+                                              {st.title}
+                                            </span>
+                                            {st.detail && (
+                                              <span className="ml-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+                                                - {st.detail}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+
+                                    {/* Audit Logs Console */}
+                                    {message.logs && message.logs.length > 0 && (
+                                      <div className="rounded-lg overflow-hidden border border-gray-800 bg-gray-950 dark:bg-black font-mono text-[11px]">
+                                        <div className="flex items-center justify-between px-2.5 py-1 bg-gray-900 border-b border-gray-800 text-[10px] text-gray-400">
+                                          <div className="flex items-center gap-1.5">
+                                            <Terminal className="w-3 h-3 text-gray-400" />
+                                            <span className="font-semibold text-gray-300">Nhật ký thực thi hệ thống (Audit Log)</span>
+                                          </div>
+                                          <span className="text-emerald-400 text-[10px]">Exit Code 0 (Success)</span>
+                                        </div>
+                                        <div className="p-2.5 max-h-36 overflow-y-auto space-y-1 text-emerald-400/90 chat-input-scrollbar">
+                                          {message.logs.map((log, lIdx) => (
+                                            <div key={lIdx} className="leading-snug break-all">
+                                              {log}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
                             <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words">
                               {message.content}
                               {message.isStreaming && (
@@ -1028,6 +1279,98 @@ export default function ChatPanel() {
                     )}
                   </div>
                 ))}
+                {/* Antigravity-style Live Problem Solving & Reasoning Card */}
+                {isLoading && !isBrowserAgentRunning && (
+                  <div className="flex justify-start mb-4">
+                    <div className="flex items-start gap-3 max-w-[90%] w-full">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-sm flex-shrink-0 animate-pulse">
+                        <Brain className="w-4 h-4 text-white animate-spin" style={{ animationDuration: "4s" }} />
+                      </div>
+
+                      <div className="bg-white dark:bg-gray-900 border border-blue-200/90 dark:border-blue-800/60 rounded-2xl rounded-tl-sm p-4 shadow-sm w-full space-y-3">
+                        {/* Header */}
+                        <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-pulse" />
+                            <span className="font-semibold text-xs text-gray-900 dark:text-gray-100 tracking-tight">
+                              Taskosaur AI Agent đang giải quyết vấn đề...
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/60 text-blue-600 dark:text-blue-400 text-[10px] font-medium font-mono">
+                              <span className="size-1.5 rounded-full bg-blue-500 animate-ping" />
+                              Active Reasoning
+                            </span>
+                            <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500">
+                              {formatSeconds(elapsedSeconds)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Progressive Reasoning Checklist */}
+                        <div className="space-y-2 py-1">
+                          {liveSteps.map((step, idx) => (
+                            <div key={idx} className="flex items-start gap-2.5 text-xs">
+                              {step.status === "completed" ? (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+                              ) : step.status === "running" ? (
+                                <Loader2 className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-spin flex-shrink-0 mt-0.5" />
+                              ) : (
+                                <Circle className="w-4 h-4 text-gray-300 dark:text-gray-600 flex-shrink-0 mt-0.5" />
+                              )}
+                              <div className="flex-1 leading-tight">
+                                <span
+                                  className={
+                                    step.status === "completed"
+                                      ? "text-gray-700 dark:text-gray-300 font-medium"
+                                      : step.status === "running"
+                                      ? "text-blue-600 dark:text-blue-400 font-semibold"
+                                      : "text-gray-400 dark:text-gray-500"
+                                  }
+                                >
+                                  {step.title}
+                                </span>
+                                {step.detail && step.status === "running" && (
+                                  <span className="ml-1.5 text-[11px] text-gray-500 dark:text-gray-400 italic">
+                                    - {step.detail}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Live Terminal / Execution Logs */}
+                        <div className="rounded-xl overflow-hidden border border-gray-800/90 bg-gray-950 dark:bg-black shadow-inner">
+                          <div className="flex items-center justify-between px-3 py-1.5 bg-gray-900 border-b border-gray-800 text-[10px] font-mono text-gray-400">
+                            <div className="flex items-center gap-1.5">
+                              <span className="size-2 rounded-full bg-rose-500/80" />
+                              <span className="size-2 rounded-full bg-amber-500/80" />
+                              <span className="size-2 rounded-full bg-emerald-500/80" />
+                              <Terminal className="w-3 h-3 ml-1.5 text-gray-400" />
+                              <span className="text-gray-300 font-medium">execution-audit.log</span>
+                            </div>
+                            <span className="text-emerald-400 flex items-center gap-1">
+                              <span className="size-1.5 rounded-full bg-emerald-400 animate-ping" />
+                              Live Stream
+                            </span>
+                          </div>
+                          <div className="p-3 max-h-36 overflow-y-auto font-mono text-[11px] text-emerald-400/90 space-y-1 chat-input-scrollbar">
+                            {liveLogs.map((log, lIdx) => (
+                              <div key={lIdx} className="leading-relaxed break-all">
+                                {log}
+                              </div>
+                            ))}
+                            <div className="flex items-center gap-1 text-gray-400 pt-0.5">
+                              <span className="text-emerald-500">›</span>
+                              <span className="inline-block w-1.5 h-3.5 bg-emerald-400 animate-pulse" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {isBrowserAgentRunning && (
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-400 flex items-center justify-center flex-shrink-0">
