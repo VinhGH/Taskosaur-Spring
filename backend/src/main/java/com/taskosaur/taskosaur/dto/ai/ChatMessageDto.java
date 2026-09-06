@@ -20,5 +20,11 @@ public class ChatMessageDto {
     private String tool_call_id;
 
     private Object tool_calls;
+
+    private java.util.List<java.util.Map<String, Object>> actions;
+
+    private java.util.List<java.util.Map<String, String>> steps;
+
+    private java.util.List<String> logs;
 }
 

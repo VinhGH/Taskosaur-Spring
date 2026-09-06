@@ -98,6 +98,70 @@ public class AiChatService {
         return envModel != null && !envModel.isBlank() ? envModel : "openai/gpt-4o-mini";
     }
 
+    private ChatMessageDto mapToChatMessageDto(AiMessage m) {
+        String rawContent = m.getContent();
+        String cleanContent = rawContent;
+        List<Map<String, Object>> actions = null;
+        List<Map<String, String>> steps = null;
+        List<String> logs = null;
+
+        if (rawContent != null && rawContent.contains("<!--TASKOSAUR_META:")) {
+            int start = rawContent.indexOf("<!--TASKOSAUR_META:") + 19;
+            int end = rawContent.indexOf("-->", start);
+            if (end != -1) {
+                try {
+                    String metaJson = rawContent.substring(start, end);
+                    Map<String, Object> metaMap = objectMapper.readValue(metaJson, new TypeReference<Map<String, Object>>() {});
+                    if (metaMap.get("actions") instanceof List<?> list) {
+                        actions = (List<Map<String, Object>>) (List<?>) list;
+                    }
+                    if (metaMap.get("steps") instanceof List<?> list) {
+                        steps = (List<Map<String, String>>) (List<?>) list;
+                    }
+                    if (metaMap.get("logs") instanceof List<?> list) {
+                        logs = (List<String>) (List<?>) list;
+                    }
+                    int commentIdx = rawContent.indexOf("<!--TASKOSAUR_META:");
+                    cleanContent = rawContent.substring(0, commentIdx).trim();
+                } catch (Exception e) {
+                    log.debug("Could not parse metadata from message content: {}", e.getMessage());
+                }
+            }
+        }
+
+        return ChatMessageDto.builder()
+                .role(m.getRole().name().toLowerCase())
+                .content(cleanContent)
+                .actions(actions)
+                .steps(steps)
+                .logs(logs)
+                .build();
+    }
+
+    private String stripMetaComment(String content) {
+        if (content == null) return "";
+        int idx = content.indexOf("<!--TASKOSAUR_META:");
+        if (idx != -1) {
+            return content.substring(0, idx).trim();
+        }
+        return content;
+    }
+
+    private String embedMetadata(String content, List<Map<String, Object>> actions, List<Map<String, String>> steps, List<String> logs) {
+        if (content == null) content = "";
+        Map<String, Object> meta = new HashMap<>();
+        if (actions != null && !actions.isEmpty()) meta.put("actions", actions);
+        if (steps != null && !steps.isEmpty()) meta.put("steps", steps);
+        if (logs != null && !logs.isEmpty()) meta.put("logs", logs);
+
+        if (meta.isEmpty()) return content;
+        try {
+            return content + "\n<!--TASKOSAUR_META:" + objectMapper.writeValueAsString(meta) + "-->";
+        } catch (Exception e) {
+            return content;
+        }
+    }
+
     // =========================================================================
     // CONVERSATIONS MANAGEMENT
     // =========================================================================
@@ -106,12 +170,7 @@ public class AiChatService {
         List<AiConversation> conversations = conversationRepository.findByUserIdOrderByUpdatedAtDesc(userId);
         return conversations.stream().map(c -> {
             List<AiMessage> messages = messageRepository.findByConversationIdOrderByCreatedAtAsc(c.getId());
-            List<ChatMessageDto> msgDtos = messages.stream().map(m ->
-                    ChatMessageDto.builder()
-                            .role(m.getRole().name().toLowerCase())
-                            .content(m.getContent())
-                            .build()
-            ).toList();
+            List<ChatMessageDto> msgDtos = messages.stream().map(this::mapToChatMessageDto).toList();
 
             return ConversationResponseDto.builder()
                     .id(c.getId())
@@ -165,12 +224,7 @@ public class AiChatService {
         AiConversation saved = conversationRepository.save(conversation);
 
         List<AiMessage> messages = messageRepository.findByConversationIdOrderByCreatedAtAsc(saved.getId());
-        List<ChatMessageDto> msgDtos = messages.stream().map(m ->
-                ChatMessageDto.builder()
-                        .role(m.getRole().name().toLowerCase())
-                        .content(m.getContent())
-                        .build()
-        ).toList();
+        List<ChatMessageDto> msgDtos = messages.stream().map(this::mapToChatMessageDto).toList();
 
         return ConversationResponseDto.builder()
                 .id(saved.getId())
@@ -208,22 +262,18 @@ public class AiChatService {
         if (dto.getMessages() != null) {
             for (ChatMessageDto m : dto.getMessages()) {
                 MessageRole role = parseRole(m.getRole());
+                String contentToSave = embedMetadata(m.getContent(), m.getActions(), m.getSteps(), m.getLogs());
                 AiMessage message = AiMessage.builder()
                         .conversationId(conversation.getId())
                         .role(role)
-                        .content(m.getContent())
+                        .content(contentToSave)
                         .build();
                 messageRepository.save(message);
             }
         }
 
         List<AiMessage> messages = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversation.getId());
-        List<ChatMessageDto> msgDtos = messages.stream().map(m ->
-                ChatMessageDto.builder()
-                        .role(m.getRole().name().toLowerCase())
-                        .content(m.getContent())
-                        .build()
-        ).toList();
+        List<ChatMessageDto> msgDtos = messages.stream().map(this::mapToChatMessageDto).toList();
 
         return ConversationResponseDto.builder()
                 .id(conversation.getId())
@@ -283,9 +333,10 @@ public class AiChatService {
             } else {
                 List<AiMessage> dbMessages = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversation.getId());
                 for (AiMessage dbMsg : dbMessages) {
+                    String cleanContent = stripMetaComment(dbMsg.getContent());
                     fullHistory.add(ChatMessageDto.builder()
                             .role(dbMsg.getRole().name().toLowerCase())
-                            .content(dbMsg.getContent())
+                            .content(cleanContent)
                             .build());
                 }
             }
@@ -370,10 +421,11 @@ public class AiChatService {
             messageRepository.save(userMsg);
 
             // Persist AI response to DB
+            String contentToSave = embedMetadata(aiAnswer, executedActions, steps, executionLogs);
             AiMessage assistantMsg = AiMessage.builder()
                     .conversationId(conversation.getId())
                     .role(MessageRole.ASSISTANT)
-                    .content(aiAnswer)
+                    .content(contentToSave)
                     .build();
             messageRepository.save(assistantMsg);
 
