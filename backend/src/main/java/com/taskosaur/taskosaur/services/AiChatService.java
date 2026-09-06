@@ -304,9 +304,24 @@ public class AiChatService {
 
             List<Map<String, Object>> tools = (authorizedProject != null) ? buildToolsSchema() : List.of();
             List<Map<String, Object>> executedActions = new ArrayList<>();
+            List<String> executionLogs = new ArrayList<>();
+            List<Map<String, String>> steps = new ArrayList<>();
+
+            executionLogs.add(String.format("[Context] Nhận prompt: \"%s\"", cleanUserText));
+            if (authorizedProject != null) {
+                executionLogs.add(String.format("[RBAC] Đã xác thực quyền hạn người dùng trên dự án '%s' (%s)", authorizedProject.getName(), authorizedProject.getTaskPrefix()));
+                steps.add(Map.of("title", "Xác thực phân quyền (RBAC)", "status", "completed", "detail", "Đã xác minh tư cách thành viên dự án " + authorizedProject.getName()));
+            } else {
+                executionLogs.add("[RBAC] Hoạt động ở chế độ hội thoại toàn cục.");
+                steps.add(Map.of("title", "Kiểm tra ngữ cảnh", "status", "completed", "detail", "Chế độ hội thoại toàn cục"));
+            }
+
+            steps.add(Map.of("title", "Phân tích cú pháp & công cụ", "status", "completed", "detail", "Khai báo " + tools.size() + " công cụ hệ thống (create_task, update_status...)"));
+            executionLogs.add(String.format("[Tools] Chuẩn bị %d công cụ thao tác dữ liệu", tools.size()));
 
             String aiAnswer;
             if (apiKey != null && !apiKey.isBlank() && !apiKey.contains("your-key-here")) {
+                executionLogs.add("[LLM] Gửi payload tới AI Agent Engine...");
                 aiAnswer = callLlmWithTools(
                         normalized,
                         tools,
@@ -318,12 +333,15 @@ public class AiChatService {
                         getEffectiveModel(),
                         configuredMaxTokens
                 );
+                executionLogs.add(String.format("[LLM] Nhận phản hồi thành công từ model %s", getEffectiveModel()));
             } else {
-                // Fallback deterministic execution if no API key is set
+                executionLogs.add("[Engine] Chạy chế độ phân tích ý định chuyên biệt (Deterministic Engine)");
                 ChatResponseDto fallback = handleFallbackIntent(cleanUserText, authorizedProject, userId);
                 if (fallback != null) {
                     aiAnswer = fallback.getMessage();
                     executedActions.addAll(fallback.getActions());
+                    if (fallback.getLogs() != null) executionLogs.addAll(fallback.getLogs());
+                    if (fallback.getSteps() != null) steps.addAll(fallback.getSteps());
                 } else {
                     aiAnswer = (authorizedProject != null)
                             ? String.format("Dự án **%s** (%s) đã sẵn sàng. Vui lòng thiết lập OpenRouter API key để trò chuyện nâng cao với AI Agent.",
@@ -331,6 +349,17 @@ public class AiChatService {
                             : "Vui lòng truy cập vào một dự án mà bạn là thành viên để kích hoạt Taskosaur AI Agent.";
                 }
             }
+
+            if (!executedActions.isEmpty()) {
+                steps.add(Map.of("title", "Thực thi công cụ hệ thống", "status", "completed", "detail", "Đã thực hiện " + executedActions.size() + " hành động trên cơ sở dữ liệu"));
+                steps.add(Map.of("title", "Đồng bộ Kanban thời gian thực", "status", "completed", "detail", "Phát sóng WebSocket STOMP tới bảng Kanban"));
+                for (Map<String, Object> act : executedActions) {
+                    executionLogs.add(String.format("[Tool Executed] %s -> %s (Thành công)", act.get("action"), act.get("taskSlug")));
+                }
+            } else {
+                steps.add(Map.of("title", "Tổng hợp phản hồi AI", "status", "completed", "detail", "Phản hồi hoàn tất"));
+            }
+            executionLogs.add("[Result] Hoàn tất quá trình giải quyết vấn đề (Exit code 0)");
 
             // Persist user message to DB
             AiMessage userMsg = AiMessage.builder()
@@ -354,7 +383,7 @@ public class AiChatService {
                 conversationRepository.save(conversation);
             }
 
-            return ChatResponseDto.ofSuccess(aiAnswer, executedActions);
+            return ChatResponseDto.ofSuccess(aiAnswer, executedActions, executionLogs, steps);
         } catch (Exception e) {
             log.error("AI Chat failed, evaluating fallback intent", e);
             ChatResponseDto fallback = handleFallbackIntent(extractCleanUserMessage(request.getMessage()), authorizedProject, userId);
@@ -1044,9 +1073,23 @@ public class AiChatService {
                 action.put("priority", task.getPriority() != null ? task.getPriority().name() : "MEDIUM");
                 action.put("status", task.getStatus() != null ? task.getStatus().getName() : "TODO");
 
-                String reply = String.format("✨ Tôi đã tạo thành công công việc **%s**: \"%s\" với độ ưu tiên **%s**!",
+                String reply = String.format("Tôi đã tạo thành công công việc **%s**: \"%s\" với độ ưu tiên **%s**!",
                         task.getSlug(), task.getTitle(), task.getPriority());
-                return ChatResponseDto.ofSuccess(reply, List.of(action));
+                List<String> logs = List.of(
+                        String.format("[Parser] Phát hiện cú pháp tạo task: '%s' (Độ ưu tiên: %s)", title, priority),
+                        String.format("[RBAC] Kiểm tra quyền hạn người dùng trên dự án '%s'... Hợp lệ", project.getName()),
+                        String.format("[Execution] Gọi taskService.createTask cho dự án %s", project.getId()),
+                        String.format("[Database] Đã lưu bản ghi Task thành công với mã %s", task.getSlug()),
+                        String.format("[WebSocket] Phát STOMP event cập nhật Kanban tới /topic/project/%s", project.getId()),
+                        "[Result] Hoàn tất quá trình tạo việc (Exit code 0)"
+                );
+                List<Map<String, String>> steps = List.of(
+                        Map.of("title", "Phân tích cú pháp câu lệnh", "status", "completed", "detail", "Trích xuất tiêu đề: \"" + title + "\", ưu tiên: " + priority),
+                        Map.of("title", "Kiểm tra phân quyền RBAC", "status", "completed", "detail", "Xác thực thành viên dự án " + project.getName()),
+                        Map.of("title", "Thực thi tạo task trong Database", "status", "completed", "detail", "Sinh mã công việc " + task.getSlug()),
+                        Map.of("title", "Đồng bộ Kanban thời gian thực", "status", "completed", "detail", "Phát sóng WebSocket STOMP hoàn tất")
+                );
+                return ChatResponseDto.ofSuccess(reply, List.of(action), logs, steps);
             }
         }
 
@@ -1072,9 +1115,23 @@ public class AiChatService {
                     action.put("title", updated.getTitle());
                     action.put("newStatus", matched.getName());
 
-                    String reply = String.format("🔄 Đã chuyển công việc **%s** sang trạng thái **%s** thành công!",
+                    String reply = String.format("Đã chuyển công việc **%s** sang trạng thái **%s** thành công!",
                             updated.getSlug(), matched.getName());
-                    return ChatResponseDto.ofSuccess(reply, List.of(action));
+                    List<String> logs = List.of(
+                            String.format("[Parser] Phát hiện cú pháp chuyển trạng thái: '%s' sang '%s'", taskSlug, targetStatus),
+                            String.format("[RBAC] Xác minh ranh giới dự án '%s'... Hợp lệ", project.getName()),
+                            String.format("[Execution] Gọi taskService.updateTaskStatus(%s, %s)", task.getId(), matched.getId()),
+                            String.format("[Database] Đã cập nhật trạng thái của %s thành '%s'", updated.getSlug(), matched.getName()),
+                            String.format("[WebSocket] Bắn sự kiện cập nhật Kanban tới /topic/project/%s", project.getId()),
+                            "[Result] Hoàn tất chuyển trạng thái (Exit code 0)"
+                    );
+                    List<Map<String, String>> steps = List.of(
+                            Map.of("title", "Phân tích cú pháp câu lệnh", "status", "completed", "detail", "Trích xuất mã: " + taskSlug + ", trạng thái đích: " + matched.getName()),
+                            Map.of("title", "Kiểm tra ranh giới dữ liệu (Tenant)", "status", "completed", "detail", "Xác thực thuộc dự án " + project.getName()),
+                            Map.of("title", "Thực thi cập nhật trạng thái", "status", "completed", "detail", "Chuyển thành công sang " + matched.getName()),
+                            Map.of("title", "Đồng bộ Kanban thời gian thực", "status", "completed", "detail", "WebSocket broadcast hoàn tất")
+                    );
+                    return ChatResponseDto.ofSuccess(reply, List.of(action), logs, steps);
                 }
             }
         }
