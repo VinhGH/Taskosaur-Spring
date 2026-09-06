@@ -1,0 +1,295 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+  pull_request:
+    branches: [ "main", "dev" ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ===========================================================================
+  # 1. Smart Path Filtering
+  # ===========================================================================
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      database: ${{ steps.filter.outputs.database }}
+      docker: ${{ steps.filter.outputs.docker }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Path Filter
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'database/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'frontend/**'
+              - 'database/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yml'
+            database:
+              - 'database/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yml'
+            docker:
+              - 'docker/**'
+              - 'Dockerfile*'
+              - 'backend/Dockerfile'
+              - 'frontend/Dockerfile'
+              - 'docker-compose*.yml'
+              - '.github/workflows/ci.yml'
+
+  # ===========================================================================
+  # 2. Database Validation (Prisma ORM & PostgreSQL Schema)
+  # ===========================================================================
+  database-check:
+    name: Database Schema Check
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.database == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Prisma Schema
+        run: npx --workspace=database prisma validate --schema=database/prisma/schema.prisma
+
+      - name: Generate Prisma Client
+        run: npm run db:generate
+
+  # ===========================================================================
+  # 3. Frontend CI (Next.js 16 + TypeScript + ESLint + Turbopack)
+  # ===========================================================================
+  frontend-ci:
+    name: Frontend Lint & Build
+    runs-on: ubuntu-latest
+    needs: [changes, database-check]
+    if: |
+      always() &&
+      (needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch') &&
+      (needs.database-check.result == 'success' || needs.database-check.result == 'skipped')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore Next.js Turbopack Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            frontend/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('frontend/src/**/*.{js,jsx,ts,tsx}') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
+
+      - name: Lint Frontend (ESLint)
+        run: npm run lint:frontend
+
+      - name: Build Frontend Production Export
+        env:
+          NEXT_PUBLIC_API_BASE_URL: /api
+          NEXT_PUBLIC_SOCKET_URL: ""
+          NODE_ENV: production
+        run: npm run build:frontend
+
+  # ===========================================================================
+  # 4. Backend CI (Java 25 Spring Boot Maven + PostgreSQL 16 + Redis 7)
+  # ===========================================================================
+  backend-ci:
+    name: Backend Test & Package (Java 25)
+    runs-on: ubuntu-latest
+    needs: [changes, database-check]
+    if: |
+      always() &&
+      (needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch') &&
+      (needs.database-check.result == 'success' || needs.database-check.result == 'skipped')
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: taskosaur
+          POSTGRES_PASSWORD: taskosaur
+          POSTGRES_DB: taskosaur
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U taskosaur"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22 (for DB Migrations)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy Prisma Migrations to PostgreSQL Container
+        env:
+          DATABASE_URL: postgresql://taskosaur:taskosaur@localhost:5432/taskosaur?schema=public
+        run: npm run db:migrate:deploy
+
+      - name: Setup Java 25 (Eclipse Temurin)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Make Maven Wrapper Executable
+        run: chmod +x backend/mvnw
+
+      - name: Compile and Test Backend (Spring Boot 25)
+        env:
+          SPRING_DATABASE_URL: jdbc:postgresql://localhost:5432/taskosaur?stringtype=unspecified&options=-c%20timezone%3DUTC
+          POSTGRES_USER: taskosaur
+          POSTGRES_PASSWORD: taskosaur
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          JWT_SECRET: ci-test-jwt-secret-key-for-taskosaur-testing-purposes-only-123456
+          JWT_ACCESS_EXPIRY_MS: 900000
+          JWT_REFRESH_EXPIRY_MS: 604800000
+          SPRING_JPA_SHOW_SQL: false
+        run: |
+          cd backend
+          ./mvnw test -B
+
+      - name: Package Backend Application (JAR)
+        run: |
+          cd backend
+          ./mvnw package -DskipTests -B
+
+      - name: Upload Backend Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: taskosaur-backend-jar
+          path: backend/target/*.jar
+          retention-days: 7
+
+  # ===========================================================================
+  # 5. Docker Compose & Containerization Check
+  # ===========================================================================
+  docker-verify:
+    name: Docker Verification
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.docker == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose Syntax
+        run: |
+          docker compose -f docker-compose.dev.yml config --quiet
+          docker compose -f docker-compose.prod.yml config --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Dry-Run Build Backend Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          tags: taskosaur-backend:test
+          cache-from: type=gha
+
+      - name: Dry-Run Build DB Migrate Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/db-migrate.Dockerfile
+          push: false
+          tags: taskosaur-db-migrate:test
+          cache-from: type=gha
+
+  # ===========================================================================
+  # 6. Branch Protection Gatekeeper
+  # ===========================================================================
+  ci-gatekeeper:
+    name: CI Gatekeeper
+    runs-on: ubuntu-latest
+    needs: [changes, database-check, frontend-ci, backend-ci, docker-verify]
+    if: always()
+    steps:
+      - name: Evaluate All CI Jobs Status
+        run: |
+          FAILED=0
+          
+          check_job() {
+            local name=$1
+            local result=$2
+            echo "Evaluation -> Job $name: $result"
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              FAILED=1
+            fi
+          }
+
+          check_job "database-check" "${{ needs.database-check.result }}"
+          check_job "frontend-ci" "${{ needs.frontend-ci.result }}"
+          check_job "backend-ci" "${{ needs.backend-ci.result }}"
+          check_job "docker-verify" "${{ needs.docker-verify.result }}"
+
+          if [ $FAILED -ne 0 ]; then
+            echo "❌ Pipeline failed: One or more required CI jobs did not succeed."
+            exit 1
+          else
+            echo "✅ Pipeline passed: All jobs succeeded or were skipped safely."
+          fi
