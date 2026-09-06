@@ -27,7 +27,7 @@ permissions:
 
 env:
   DOCKER_ORG: ${{ secrets.DOCKER_ORG || 'taskosaur' }}
-  PLATFORMS: linux/amd64,linux/arm64
+  PLATFORMS: linux/amd64
 
 jobs:
   publish:
@@ -40,11 +40,6 @@ jobs:
 
       - name: Create .env from example
         run: cp .env.example .env
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: all
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
