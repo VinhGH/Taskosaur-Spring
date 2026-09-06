@@ -72,6 +72,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Create .env from example
+        run: cp .env.example .env
+
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
@@ -82,9 +85,13 @@ jobs:
         run: npm ci
 
       - name: Validate Prisma Schema
-        run: npx --workspace=database prisma validate --schema=database/prisma/schema.prisma
+        env:
+          DATABASE_URL: "postgresql://taskosaur:taskosaur@localhost:5432/taskosaur?schema=public"
+        run: npx prisma validate --schema=database/prisma/schema.prisma
 
       - name: Generate Prisma Client
+        env:
+          DATABASE_URL: "postgresql://taskosaur:taskosaur@localhost:5432/taskosaur?schema=public"
         run: npm run db:generate
 
   # ===========================================================================
@@ -101,6 +108,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Create .env from example
+        run: cp .env.example .env
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
@@ -171,6 +181,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Create .env from example
+        run: cp .env.example .env
+
       - name: Setup Node.js 22 (for DB Migrations)
         uses: actions/setup-node@v4
         with:
@@ -190,7 +203,14 @@ jobs:
         with:
           java-version: '25'
           distribution: 'temurin'
-          cache: 'maven'
+
+      - name: Cache Maven Packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('backend/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
 
       - name: Make Maven Wrapper Executable
         run: chmod +x backend/mvnw
@@ -233,6 +253,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Create .env from example
+        run: cp .env.example .env
 
       - name: Validate Docker Compose Syntax
         run: |
