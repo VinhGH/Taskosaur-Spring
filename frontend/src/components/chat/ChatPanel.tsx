@@ -221,28 +221,14 @@ export default function ChatPanel() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isListening]);
 
-  // Auto-resize textarea function
-  const adjustTextareaHeight = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      // Reset height to auto to get the correct scrollHeight
-      textarea.style.height = "auto";
-
-      // Calculate new height based on content
-      const newHeight = Math.min(textarea.scrollHeight, 120); // Max height of 120px
-      textarea.style.height = `${newHeight}px`;
-    }
-  }, []);
-
-  // Handle input change with auto-resize
+  // Handle input change without auto-expanding height
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       setInputValue(e.target.value);
-      // Adjust height after state update
-      setTimeout(adjustTextareaHeight, 0);
     },
-    [adjustTextareaHeight]
+    []
   );
+
 
   const refreshConversations = useCallback(async () => {
     if (typeof window !== "undefined") {
@@ -1115,12 +1101,11 @@ export default function ChatPanel() {
                 }
                 disabled={isLoading || isBrowserAgentRunning || !user || isListening}
                 rows={1}
-                className="flex-1 px-4 py-3 bg-[var(--muted)] border-[var(--border)] focus:ring-1 focus:ring-[var(--border)] focus:border-transparent transition-all duration-200 rounded-xl shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
+                className="flex-1 px-4 py-3 bg-[var(--muted)] border border-[var(--border)] focus:ring-1 focus:ring-[var(--border)] focus:border-transparent transition-all duration-200 rounded-xl shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed overflow-y-auto resize-none chat-input-scrollbar text-sm"
                 style={{
-                  minHeight: "48px",
-                  maxHeight: "120px",
-                  lineHeight: "1.5",
                   height: "48px",
+                  maxHeight: "48px",
+                  lineHeight: "1.5",
                 }}
               />
               {isBrowserAgentRunning ? (
@@ -1153,7 +1138,7 @@ export default function ChatPanel() {
 
       {/* Global styles for hidden scrollbars & animations */}
       <style jsx global>{`
-        /* Hide scrollbars completely */
+        /* Hide scrollbars completely for message list */
         .chatgpt-scrollbar::-webkit-scrollbar {
           display: none;
         }
@@ -1165,6 +1150,25 @@ export default function ChatPanel() {
           -ms-overflow-style: none; /* Internet Explorer 10+ */
         }
 
+        /* Custom slim scrollbar for chat input textarea */
+        .chat-input-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .chat-input-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .chat-input-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(156, 163, 175, 0.4);
+          border-radius: 4px;
+        }
+        .chat-input-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(156, 163, 175, 0.7);
+        }
+        .chat-input-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
+        }
+
         .thinking-fade {
           animation: fade-swap 4s ease-in-out infinite;
         }
@@ -1173,6 +1177,7 @@ export default function ChatPanel() {
           95% { opacity: 0; }
         }
       `}</style>
+
     </>
   );
 }
