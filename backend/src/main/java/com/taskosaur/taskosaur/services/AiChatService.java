@@ -330,7 +330,7 @@ public class AiChatService {
             // Add system prompt with strict security policy and project context
             fullHistory.add(ChatMessageDto.builder()
                     .role("system")
-                    .content(buildSystemPrompt(authorizedProject))
+                    .content(buildSystemPrompt(authorizedProject, userId))
                     .build());
 
             // Add existing history from DB if not provided in request
@@ -675,7 +675,7 @@ public class AiChatService {
 
                     User assigneeUser = null;
                     if (args.has("assignee") && !args.get("assignee").asText().isBlank()) {
-                        assigneeUser = resolveProjectMember(args.get("assignee").asText().trim(), authorizedProject);
+                        assigneeUser = resolveProjectMember(args.get("assignee").asText().trim(), authorizedProject, userId);
                         if (assigneeUser != null) {
                             createReqBuilder.assigneeIds(List.of(assigneeUser.getId()));
                         }
@@ -683,7 +683,7 @@ public class AiChatService {
 
                     User reporterUser = null;
                     if (args.has("reporter") && !args.get("reporter").asText().isBlank()) {
-                        reporterUser = resolveProjectMember(args.get("reporter").asText().trim(), authorizedProject);
+                        reporterUser = resolveProjectMember(args.get("reporter").asText().trim(), authorizedProject, userId);
                         if (reporterUser != null) {
                             createReqBuilder.reporterIds(List.of(reporterUser.getId()));
                         }
@@ -770,7 +770,7 @@ public class AiChatService {
                 }
                 case "assign_task_members" -> {
                     String taskIdOrSlug = args.has("taskIdOrSlug") ? args.get("taskIdOrSlug").asText().trim() : "";
-                    Task task = findTaskSafely(taskIdOrSlug);
+                    Task task = findTaskSafely(taskIdOrSlug, authorizedProject);
                     if (task == null) {
                         return "{\"error\": \"Không tìm thấy công việc: " + taskIdOrSlug + "\"}";
                     }
@@ -784,14 +784,14 @@ public class AiChatService {
                     User reporterUser = null;
 
                     if (args.has("assignee") && !args.get("assignee").asText().isBlank()) {
-                        assigneeUser = resolveProjectMember(args.get("assignee").asText().trim(), authorizedProject);
+                        assigneeUser = resolveProjectMember(args.get("assignee").asText().trim(), authorizedProject, userId);
                         if (assigneeUser != null) {
                             updateReqBuilder.assigneeIds(List.of(assigneeUser.getId()));
                         }
                     }
 
                     if (args.has("reporter") && !args.get("reporter").asText().isBlank()) {
-                        reporterUser = resolveProjectMember(args.get("reporter").asText().trim(), authorizedProject);
+                        reporterUser = resolveProjectMember(args.get("reporter").asText().trim(), authorizedProject, userId);
                         if (reporterUser != null) {
                             updateReqBuilder.reporterIds(List.of(reporterUser.getId()));
                         }
@@ -829,7 +829,7 @@ public class AiChatService {
                     String taskIdOrSlug = args.has("taskIdOrSlug") ? args.get("taskIdOrSlug").asText().trim() : "";
                     String targetStatus = args.has("targetStatus") ? args.get("targetStatus").asText().trim() : "";
 
-                    Task task = findTaskSafely(taskIdOrSlug);
+                    Task task = findTaskSafely(taskIdOrSlug, authorizedProject);
                     if (task == null) {
                         return "{\"error\": \"Không tìm thấy công việc với mã: " + taskIdOrSlug + "\"}";
                     }
@@ -867,7 +867,7 @@ public class AiChatService {
                     String taskIdOrSlug = args.has("taskIdOrSlug") ? args.get("taskIdOrSlug").asText().trim() : "";
                     String priorityStr = args.has("priority") ? args.get("priority").asText().toUpperCase().trim() : "MEDIUM";
 
-                    Task task = findTaskSafely(taskIdOrSlug);
+                    Task task = findTaskSafely(taskIdOrSlug, authorizedProject);
                     if (task == null) {
                         return "{\"error\": \"Không tìm thấy công việc: " + taskIdOrSlug + "\"}";
                     }
@@ -960,7 +960,7 @@ public class AiChatService {
                 }
                 case "delete_task" -> {
                     String taskIdOrSlug = args.has("taskIdOrSlug") ? args.get("taskIdOrSlug").asText().trim() : "";
-                    Task task = findTaskSafely(taskIdOrSlug);
+                    Task task = findTaskSafely(taskIdOrSlug, authorizedProject);
                     if (task == null) {
                         return "{\"error\": \"Không tìm thấy công việc: " + taskIdOrSlug + "\"}";
                     }
@@ -1035,25 +1035,82 @@ public class AiChatService {
         return null;
     }
 
-    private Task findTaskSafely(String idOrSlug) {
-        if (idOrSlug == null || idOrSlug.isBlank()) return null;
-        String clean = idOrSlug.trim();
+    private Task findTaskSafely(String idOrSlugOrTitle, Project project) {
+        if (idOrSlugOrTitle == null || idOrSlugOrTitle.isBlank()) return null;
+        String clean = idOrSlugOrTitle.replaceAll("^[\"']+|[\"']+$", "").trim();
+        if (clean.isBlank()) return null;
+
+        // 1. UUID match
         if (UUID_PATTERN.matcher(clean).matches()) {
             Optional<Task> opt = taskRepository.findById(clean);
             if (opt.isPresent()) return opt.get();
         }
-        return taskRepository.findBySlug(clean.toUpperCase()).orElseGet(() ->
-                taskRepository.findBySlug(clean).orElse(null)
-        );
+
+        // 2. Slug match (case-insensitive)
+        Optional<Task> bySlug = taskRepository.findBySlug(clean.toUpperCase());
+        if (bySlug.isPresent()) return bySlug.get();
+        bySlug = taskRepository.findBySlug(clean);
+        if (bySlug.isPresent()) return bySlug.get();
+
+        // 3. Project scoped title & relative match
+        if (project != null) {
+            List<Task> projectTasks = taskRepository.findByProjectId(project.getId());
+
+            // 3a. Relative references ("task đó", "công việc đó", "task vừa tạo", "task này", "đó")
+            String lower = clean.toLowerCase();
+            if (lower.equals("task đó") || lower.equals("công việc đó") || lower.equals("task vừa tạo")
+                    || lower.equals("task nay") || lower.equals("task này") || lower.equals("đó")) {
+                if (!projectTasks.isEmpty()) {
+                    return projectTasks.stream()
+                            .max(Comparator.comparing(Task::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
+                            .orElse(projectTasks.get(0));
+                }
+            }
+
+            // 3b. Exact Title match (case-insensitive)
+            for (Task t : projectTasks) {
+                if (t.getTitle() != null && t.getTitle().trim().equalsIgnoreCase(clean)) {
+                    return t;
+                }
+            }
+
+            // 3c. Title contains / fuzzy match
+            for (Task t : projectTasks) {
+                if (t.getTitle() != null) {
+                    String tTitle = t.getTitle().toLowerCase().trim();
+                    if (tTitle.contains(lower) || lower.contains(tTitle)) {
+                        return t;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
-    private User resolveProjectMember(String identifier, Project project) {
+    private User resolveProjectMember(String identifier, Project project, String currentUserId) {
         if (identifier == null || identifier.isBlank() || project == null) {
             return null;
         }
-        String clean = identifier.trim().toLowerCase().replaceAll("^@", "");
+        String raw = identifier.replaceAll("^[\"']+|[\"']+$", "").trim();
+        String clean = raw.toLowerCase().replaceAll("^@", "");
 
-        // 1. Gather candidate member IDs strictly within authorized project/workspace boundaries
+        // 0. Relative personal pronouns ("tôi", "tài khoản này", "tài khoản hiện tại", "chính tôi", "me", "myself")
+        if (clean.equals("tôi") || clean.equals("tài khoản này") || clean.equals("tài khoản hiện tại")
+                || clean.equals("chính tôi") || clean.equals("me") || clean.equals("myself")) {
+            if (currentUserId != null && !"anonymous".equals(currentUserId)) {
+                Optional<User> curUser = userRepository.findById(currentUserId);
+                if (curUser.isPresent()) {
+                    return curUser.get();
+                }
+            }
+        }
+
+        // 1. Extract embedded email if present (e.g. "tài khoản có mail là t.vinh.1109z@gmail.com")
+        var emailMatcher = Pattern.compile("([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})").matcher(raw);
+        String extractedEmail = emailMatcher.find() ? emailMatcher.group(1).toLowerCase() : null;
+
+        // 2. Gather candidate member IDs strictly within authorized project/workspace boundaries
         Set<String> memberUserIds = new HashSet<>();
         if (project.getCreatedBy() != null) {
             memberUserIds.add(project.getCreatedBy());
@@ -1063,11 +1120,18 @@ public class AiChatService {
             workspaceMemberRepository.findByWorkspaceId(project.getWorkspaceId()).forEach(wm -> memberUserIds.add(wm.getUserId()));
         }
 
-        if (memberUserIds.isEmpty()) {
-            return null;
-        }
+        List<User> members = memberUserIds.isEmpty() ? List.of() : userRepository.findAllById(memberUserIds);
 
-        List<User> members = userRepository.findAllById(memberUserIds);
+        // Priority 0: Match extracted email
+        if (extractedEmail != null) {
+            for (User u : members) {
+                if (u.getEmail() != null && u.getEmail().equalsIgnoreCase(extractedEmail)) return u;
+            }
+            Optional<User> byEmail = userRepository.findByEmail(extractedEmail);
+            if (byEmail.isPresent()) {
+                return byEmail.get();
+            }
+        }
 
         // Priority 1: Exact ID match
         for (User u : members) {
@@ -1099,7 +1163,7 @@ public class AiChatService {
             if (u.getLastName() != null && u.getLastName().trim().equalsIgnoreCase(clean)) return u;
         }
 
-        // Priority 6: Substring / contains match
+        // Priority 6: Substring / contains match (bidirectional)
         for (User u : members) {
             String f = u.getFirstName() != null ? u.getFirstName().toLowerCase() : "";
             String l = u.getLastName() != null ? u.getLastName().toLowerCase() : "";
@@ -1108,7 +1172,14 @@ public class AiChatService {
             if (full1.contains(clean) || clean.contains(full1) || full2.contains(clean) || clean.contains(full2)) {
                 return u;
             }
-            if (u.getEmail() != null && u.getEmail().toLowerCase().contains(clean)) return u;
+            if (u.getEmail() != null) {
+                String ue = u.getEmail().toLowerCase();
+                if (ue.contains(clean) || clean.contains(ue)) return u;
+            }
+            if (u.getUsername() != null) {
+                String un = u.getUsername().toLowerCase();
+                if (un.contains(clean) || clean.contains(un)) return u;
+            }
         }
 
         return null;
@@ -1263,8 +1334,8 @@ public class AiChatService {
                                 "parameters", Map.of(
                                         "type", "object",
                                         "properties", Map.of(
-                                                "taskIdOrSlug", Map.of("type", "string", "description", "Mã slug công việc (ví dụ: TSK-1) hoặc UUID"),
-                                                "assignee", Map.of("type", "string", "description", "Tên, username hoặc email của người được giao thực hiện"),
+                                                "taskIdOrSlug", Map.of("type", "string", "description", "Mã slug công việc (ví dụ: TSK-1), tiêu đề công việc (ví dụ: 'Tối ưu CI/CD'), hoặc 'task đó'"),
+                                                "assignee", Map.of("type", "string", "description", "Tên, username hoặc email của người được giao thực hiện, hoặc 'tôi' / 'tài khoản này'"),
                                                 "reporter", Map.of("type", "string", "description", "Tên, username hoặc email của người báo cáo task")
                                         ),
                                         "required", List.of("taskIdOrSlug")
@@ -1334,7 +1405,7 @@ public class AiChatService {
         );
     }
 
-    private String buildSystemPrompt(Project project) {
+    private String buildSystemPrompt(Project project, String currentUserId) {
         if (project == null) {
             return """
                     You are Taskosaur AI Agent, a smart project management companion.
@@ -1368,6 +1439,19 @@ public class AiChatService {
             memberSummary.append(String.format("- %s (@%s, email: %s)\n", fullName, u.getUsername() != null ? u.getUsername() : "no-user", u.getEmail()));
         }
 
+        // Current logged-in user (caller)
+        User currentUser = null;
+        if (currentUserId != null && !"anonymous".equals(currentUserId)) {
+            currentUser = userRepository.findById(currentUserId).orElse(null);
+        }
+        String currentUserInfo = (currentUser != null)
+                ? String.format("- Name: %s, Username: @%s, Email: %s, ID: %s",
+                        ((currentUser.getFirstName() != null ? currentUser.getFirstName() : "") + " " + (currentUser.getLastName() != null ? currentUser.getLastName() : "")).trim(),
+                        currentUser.getUsername() != null ? currentUser.getUsername() : "unknown",
+                        currentUser.getEmail() != null ? currentUser.getEmail() : "unknown",
+                        currentUser.getId())
+                : "- Unknown / Anonymous";
+
         String projectDuration = String.format("%s đến %s",
                 project.getStartDate() != null ? formatDateTime(project.getStartDate()) : "Chưa đặt",
                 project.getEndDate() != null ? formatDateTime(project.getEndDate()) : "Chưa đặt");
@@ -1379,6 +1463,12 @@ public class AiChatService {
                 - Task Prefix: %s
                 - Project ID: %s
                 - Project Duration: %s
+
+                === CURRENT LOGGED-IN USER (CALLER) ===
+                %s
+                * CRITICAL INSTRUCTION: When the user refers to themselves ("tôi", "tài khoản này", "tài khoản hiện tại", "chính tôi", "me"), assign to this Current Logged-in User!
+                * CRITICAL INSTRUCTION: When the user mentions an email (e.g. "t.vinh.1109z@gmail.com") or name, pass that exact email or name as the assignee/reporter argument.
+                * CRITICAL INSTRUCTION: When the user identifies a task by its title (e.g. "Tối ưu CI/CD"), slug (e.g. "TSK-18"), or "task đó", pass that title or slug directly into `taskIdOrSlug`. The backend resolves titles and slugs automatically.
 
                 === PROJECT WORKFLOW COLUMNS ===
                 %s
@@ -1403,6 +1493,7 @@ public class AiChatService {
                 project.getTaskPrefix() != null ? project.getTaskPrefix() : "TASK",
                 project.getId(),
                 projectDuration,
+                currentUserInfo,
                 statusSummary,
                 memberSummary.length() > 0 ? memberSummary : "Chưa có thành viên nào khác\n",
                 project.getName(),
@@ -1479,13 +1570,13 @@ public class AiChatService {
             User assigneeUser = null;
             var assignM = Pattern.compile("(?i)(?:giao\\s+cho|assign\\s+to|phân\\s+công\\s+cho)\\s+([a-zA-Z0-9_@.àáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệđìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵ\\s]+?)(?=\\s+(?:người\\s+báo\\s+cáo|reporter|báo\\s+cáo|độ\\s+ưu\\s+tiên|mức\\s+độ|priority|$))").matcher(msg);
             if (assignM.find()) {
-                assigneeUser = resolveProjectMember(assignM.group(1).trim(), project);
+                assigneeUser = resolveProjectMember(assignM.group(1).trim(), project, userId);
             }
 
             User reporterUser = null;
             var repM = Pattern.compile("(?i)(?:người\\s+báo\\s+cáo|reporter|báo\\s+cáo\\s+bởi|báo\\s+cáo\\s+là)[:\\s]*([a-zA-Z0-9_@.àáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệđìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵ\\s]+?)(?=\\s+(?:giao\\s+cho|assign\\s+to|độ\\s+ưu\\s+tiên|mức\\s+độ|priority|$))").matcher(msg);
             if (repM.find()) {
-                reporterUser = resolveProjectMember(repM.group(1).trim(), project);
+                reporterUser = resolveProjectMember(repM.group(1).trim(), project, userId);
             }
 
             String title = msg.replaceFirst("(?i)^(?:tạo|thêm|create)\\s+(?:task|công việc|nhiệm vụ)?[:\\s]*", "").trim();
@@ -1558,64 +1649,126 @@ public class AiChatService {
             }
         }
 
-        // Pattern 2: Assign task directly (e.g. "Giao task TSK-1 cho Vinh")
-        var assignMatcher = Pattern.compile(
-                "(?i)(?:giao|phân\\s+công|assign)\\s+(?:task|công\\s+việc)?\\s*([a-zA-Z0-9_-]+)\\s+(?:cho|to)\\s+([^\s,]+)"
-        ).matcher(msg);
+        // Pattern 2: Assign task / set assignee and reporter
+        // Supports task titles (e.g. "Tối ưu CI/CD"), slugs (e.g. TSK-18), relative "task đó",
+        // personal pronouns ("tôi", "tài khoản này"), email addresses, and typos ("thưucj hiện")
+        boolean isAssignIntent = msg.toLowerCase().matches(".*(?i)(?:người\\s+(?:thực|thưucj)\\s*hiện|assignee|giao\\s+cho|phân\\s+công|người\\s+báo\\s+cáo|reporter|giao\\s+task).*");
+        if (isAssignIntent && !msg.toLowerCase().matches("(?i)^(?:tạo|thêm|create)\\s+(?:task|công việc|nhiệm vụ).*")) {
+            String taskRef = null;
+            var quoteMatcher = Pattern.compile("[\"']([^\"']+)[\"']").matcher(msg);
+            if (quoteMatcher.find()) {
+                taskRef = quoteMatcher.group(1).trim();
+            }
+            if (taskRef == null) {
+                var slugMatcher = Pattern.compile("(?i)(?:task|công\\s+việc)?\\s*([A-Za-z0-9]+-[0-9]+)").matcher(msg);
+                if (slugMatcher.find()) {
+                    taskRef = slugMatcher.group(1).trim();
+                }
+            }
+            if (taskRef == null) {
+                var relMatcher = Pattern.compile("(?i)(task\\s+đó|công\\s+việc\\s+đó|task\\s+này|task\\s+vừa\\s+tạo)").matcher(msg);
+                if (relMatcher.find()) {
+                    taskRef = relMatcher.group(1).trim();
+                }
+            }
+            if (taskRef == null) {
+                var simpleMatcher = Pattern.compile("(?i)(?:cho\\s+task|giao\\s+task|task|công\\s+việc)\\s+([a-zA-Z0-9_-]+)").matcher(msg);
+                if (simpleMatcher.find()) {
+                    taskRef = simpleMatcher.group(1).trim();
+                }
+            }
+            if (taskRef == null) {
+                taskRef = "task đó";
+            }
 
-        if (assignMatcher.find()) {
-            String taskSlug = assignMatcher.group(1).trim();
-            String memberIdent = assignMatcher.group(2).trim();
+            String assigneeRaw = null;
+            var assigneeM = Pattern.compile("(?i)(?:người\\s+(?:thực|thưucj)\\s*hiện|assignee|giao\\s+cho|phân\\s+công\\s+cho)(?:\\s*là|\\s*:|\\s+để)?\\s*([^.,;\n]+?)(?=\\s*(?:[.,;]|và\\s+người|và|$|người\\s+báo\\s+cáo|reporter))").matcher(msg);
+            if (assigneeM.find()) {
+                assigneeRaw = assigneeM.group(1).trim();
+            } else {
+                var simpleAssignM = Pattern.compile("(?i)(?:giao|phân\\s+công|assign)\\s+(?:task|công\\s+việc)?\\s*[a-zA-Z0-9_\"'\\s-]+\\s+(?:cho|to)\\s+([^.,;\n]+)").matcher(msg);
+                if (simpleAssignM.find()) {
+                    assigneeRaw = simpleAssignM.group(1).trim();
+                }
+            }
 
-            Task task = findTaskSafely(taskSlug);
+            String reporterRaw = null;
+            var repM = Pattern.compile("(?i)(?:người\\s+báo\\s+cáo|reporter|báo\\s+cáo\\s+bởi|báo\\s+cáo\\s+là)(?:\\s*là|\\s*:)?\\s*([^.,;\n]+?)(?=\\s*(?:[.,;]|và\\s+người|và|$|người\\s+(?:thực|thưucj)\\s*hiện|assignee))").matcher(msg);
+            if (repM.find()) {
+                reporterRaw = repM.group(1).trim();
+            }
+
+            Task task = findTaskSafely(taskRef, project);
             if (task != null && project.getId().equals(task.getProjectId())) {
-                User member = resolveProjectMember(memberIdent, project);
-                if (member != null) {
-                    UpdateTaskRequest updateReq = UpdateTaskRequest.builder()
-                            .assigneeIds(List.of(member.getId()))
-                            .build();
-                    TaskResponse updated = taskService.updateTask(task.getId(), updateReq, userId);
+                User assigneeUser = (assigneeRaw != null) ? resolveProjectMember(assigneeRaw, project, userId) : null;
+                User reporterUser = (reporterRaw != null) ? resolveProjectMember(reporterRaw, project, userId) : null;
+
+                if (assigneeUser != null || reporterUser != null) {
+                    UpdateTaskRequest.UpdateTaskRequestBuilder updateReqBuilder = UpdateTaskRequest.builder();
+                    if (assigneeUser != null) {
+                        updateReqBuilder.assigneeIds(List.of(assigneeUser.getId()));
+                    }
+                    if (reporterUser != null) {
+                        updateReqBuilder.reporterIds(List.of(reporterUser.getId()));
+                    }
+
+                    TaskResponse updated = taskService.updateTask(task.getId(), updateReqBuilder.build(), userId);
 
                     Map<String, Object> action = new LinkedHashMap<>();
                     action.put("action", "ASSIGN_TASK");
                     action.put("taskId", updated.getId());
                     action.put("taskSlug", updated.getSlug());
                     action.put("title", updated.getTitle());
-                    action.put("assignee", (member.getFirstName() + " " + member.getLastName()).trim());
-                    action.put("assigneeUsername", member.getUsername());
+                    if (assigneeUser != null) {
+                        action.put("assignee", (assigneeUser.getFirstName() + " " + assigneeUser.getLastName()).trim());
+                        action.put("assigneeUsername", assigneeUser.getUsername());
+                    }
+                    if (reporterUser != null) {
+                        action.put("reporter", (reporterUser.getFirstName() + " " + reporterUser.getLastName()).trim());
+                        action.put("reporterUsername", reporterUser.getUsername());
+                    }
 
-                    String reply = String.format("Đã phân công công việc **%s** cho **%s** (@%s) thành công!",
-                            updated.getSlug(), (member.getFirstName() + " " + member.getLastName()).trim(), member.getUsername());
+                    StringBuilder replySb = new StringBuilder();
+                    replySb.append(String.format("Đã cập nhật phân công công việc **%s** (\"%s\")", updated.getSlug(), updated.getTitle()));
+                    if (assigneeUser != null) {
+                        replySb.append(String.format(" - Người thực hiện: **%s** (@%s)", (assigneeUser.getFirstName() + " " + assigneeUser.getLastName()).trim(), assigneeUser.getUsername()));
+                    }
+                    if (reporterUser != null) {
+                        replySb.append(String.format(" - Người báo cáo: **%s** (@%s)", (reporterUser.getFirstName() + " " + reporterUser.getLastName()).trim(), reporterUser.getUsername()));
+                    }
+                    replySb.append(" thành công!");
 
-                    List<String> logs = List.of(
-                            String.format("[Parser] Phân tích câu lệnh phân công: task %s cho %s", taskSlug, memberIdent),
-                            String.format("[RBAC] Tìm thấy thành viên hợp lệ: %s (@%s)", member.getFirstName() + " " + member.getLastName(), member.getUsername()),
-                            String.format("[Execution] Gọi taskService.updateTask(%s)", task.getId()),
-                            String.format("[Database] Đã cập nhật assignee của task %s", updated.getSlug()),
-                            String.format("[WebSocket] Bắn STOMP event cập nhật Kanban tới /topic/project/%s", project.getId()),
-                            "[Result] Phân công thành công (Exit code 0)"
-                    );
+                    List<String> logs = new ArrayList<>();
+                    logs.add(String.format("[Parser] Phân tích phân công: task '%s', assignee: %s, reporter: %s", taskRef, assigneeRaw, reporterRaw));
+                    if (assigneeUser != null) logs.add(String.format("[RBAC] Tìm thấy người thực hiện: %s (@%s)", assigneeUser.getFirstName() + " " + assigneeUser.getLastName(), assigneeUser.getUsername()));
+                    if (reporterUser != null) logs.add(String.format("[RBAC] Tìm thấy người báo cáo: %s (@%s)", reporterUser.getFirstName() + " " + reporterUser.getLastName(), reporterUser.getUsername()));
+                    logs.add(String.format("[Execution] Gọi taskService.updateTask(%s)", task.getId()));
+                    logs.add(String.format("[Database] Đã cập nhật thành viên của task %s", updated.getSlug()));
+                    logs.add(String.format("[WebSocket] Bắn STOMP event cập nhật Kanban tới /topic/project/%s", project.getId()));
+                    logs.add("[Result] Phân công thành công (Exit code 0)");
+
                     List<Map<String, String>> steps = List.of(
-                            Map.of("title", "Phân tích câu lệnh", "status", "completed", "detail", "Giao " + taskSlug + " cho " + member.getUsername()),
-                            Map.of("title", "Xác thực thành viên dự án", "status", "completed", "detail", "Thành viên thuộc dự án " + project.getName()),
-                            Map.of("title", "Cập nhật người thực hiện", "status", "completed", "detail", "Gán thành công trong DB"),
-                            Map.of("title", "Đồng bộ Kanban thời gian thực", "status", "completed", "detail", "Broadcast STOMP hoàn tất")
+                            Map.of("title", "Phân tích câu lệnh phân công", "status", "completed", "detail", "Task: " + updated.getSlug()),
+                            Map.of("title", "Xác thực thành viên dự án", "status", "completed", "detail", "Kiểm tra quyền hạn trong dự án " + project.getName()),
+                            Map.of("title", "Cập nhật phân công trong Database", "status", "completed", "detail", "Gán người thực hiện / báo cáo"),
+                            Map.of("title", "Đồng bộ bảng Kanban thời gian thực", "status", "completed", "detail", "WebSocket broadcast hoàn tất")
                     );
-                    return ChatResponseDto.ofSuccess(reply, List.of(action), logs, steps);
+
+                    return ChatResponseDto.ofSuccess(replySb.toString(), List.of(action), logs, steps);
                 }
             }
         }
 
         // Pattern 3: Update status
         var statusMatcher = Pattern.compile(
-                "(?i)(?:chuyển|cập nhật|đổi|update|move)\\s+(?:task|công việc)?\\s*([a-zA-Z0-9_-]+)\\s+(?:sang|thành|to|vào)\\s+[\"']?([^\"'\n]+?)[\"']?$"
+                "(?i)(?:chuyển|cập nhật|đổi|update|move)\\s+(?:task|công việc)?\\s*([a-zA-Z0-9_\"'\\s-]+?)\\s+(?:sang|thành|to|vào)\\s+[\"']?([^\"'\n]+?)[\"']?$"
         ).matcher(msg);
 
         if (statusMatcher.find()) {
             String taskSlug = statusMatcher.group(1).trim();
             String targetStatus = statusMatcher.group(2).trim();
 
-            Task task = findTaskSafely(taskSlug);
+            Task task = findTaskSafely(taskSlug, project);
             if (task != null && project.getId().equals(task.getProjectId())) {
                 List<TaskStatus> statuses = taskStatusRepository.findByWorkflowIdOrderByPositionAsc(project.getWorkflowId());
                 TaskStatus matched = resolveTargetStatus(statuses, targetStatus);
