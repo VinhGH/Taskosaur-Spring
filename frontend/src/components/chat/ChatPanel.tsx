@@ -18,6 +18,10 @@ import {
   ShieldCheck,
   Cpu,
   Sparkles,
+  Calendar,
+  UserCheck,
+  UserPlus,
+  Clock,
 } from "lucide-react";
 import { useChatContext } from "@/contexts/chat-context";
 import { mcpServer, extractContextFromPath, Conversation } from "@/lib/mcp-server";
@@ -49,6 +53,14 @@ interface Message {
     status?: string;
     newStatus?: string;
     count?: number;
+    startDate?: string;
+    endDate?: string;
+    dueDate?: string;
+    assignee?: string;
+    assigneeUsername?: string;
+    reporter?: string;
+    reporterUsername?: string;
+    projectName?: string;
   }>;
   steps?: ThoughtStep[];
   logs?: string[];
@@ -1163,6 +1175,26 @@ export default function ChatPanel() {
                       </button>
                       <button
                         type="button"
+                        onClick={() => setInputValue("Setup dự án từ ngày 01/10/2026 đến ngày 31/12/2026")}
+                        className="inline-flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border border-purple-200/80 hover:border-purple-300 bg-purple-50/90 hover:bg-purple-100/90 text-purple-700 dark:border-purple-800/50 dark:bg-purple-950/40 dark:hover:bg-purple-900/40 dark:text-purple-300 font-medium transition-all shadow-xs group"
+                      >
+                        <span className="size-5 rounded-md flex items-center justify-center bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 group-hover:bg-purple-200 dark:group-hover:bg-purple-800/60 transition-colors">
+                          <Calendar className="w-3.5 h-3.5" />
+                        </span>
+                        <span>Setup ngày dự án</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setInputValue("Tạo task 'Thiết kế database' giao cho Vinh")}
+                        className="inline-flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border border-sky-200/80 hover:border-sky-300 bg-sky-50/90 hover:bg-sky-100/90 text-sky-700 dark:border-sky-800/50 dark:bg-sky-950/40 dark:hover:bg-sky-900/40 dark:text-sky-300 font-medium transition-all shadow-xs group"
+                      >
+                        <span className="size-5 rounded-md flex items-center justify-center bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300 group-hover:bg-sky-200 dark:group-hover:bg-sky-800/60 transition-colors">
+                          <UserCheck className="w-3.5 h-3.5" />
+                        </span>
+                        <span>Giao task thành viên</span>
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => setInputValue("Chuyển task sang DONE")}
                         className="inline-flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border border-emerald-200/80 hover:border-emerald-300 bg-emerald-50/90 hover:bg-emerald-100/90 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 dark:text-emerald-300 font-medium transition-all shadow-xs group"
                       >
@@ -1332,7 +1364,7 @@ export default function ChatPanel() {
                                 {message.actions.map((act, actIdx) => (
                                   <div
                                     key={actIdx}
-                                    className="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-gray-900/60 border border-gray-200/80 dark:border-gray-800/80 text-xs text-gray-900 dark:text-gray-100 shadow-xs"
+                                    className="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-gray-900/60 border border-gray-200/80 dark:border-gray-800/80 text-xs text-gray-900 dark:text-gray-100 shadow-xs flex-wrap"
                                   >
                                     {act.action === "CREATE_TASK" && (
                                       <>
@@ -1344,9 +1376,61 @@ export default function ChatPanel() {
                                           {act.taskSlug}
                                         </span>
                                         <span className="truncate flex-1 font-medium text-gray-800 dark:text-gray-200">{act.title}</span>
+                                        {act.assignee && (
+                                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200/80 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/40">
+                                            <UserCheck className="w-3 h-3" />
+                                            @{act.assigneeUsername || act.assignee}
+                                          </span>
+                                        )}
+                                        {act.reporter && (
+                                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-700 border border-purple-200/80 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/40">
+                                            <UserPlus className="w-3 h-3" />
+                                            báo cáo: @{act.reporterUsername || act.reporter}
+                                          </span>
+                                        )}
+                                        {act.dueDate && (
+                                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700">
+                                            <Clock className="w-3 h-3" />
+                                            {act.dueDate}
+                                          </span>
+                                        )}
                                         {act.priority && (
                                           <span className="px-1.5 py-0.5 rounded text-[10px] uppercase font-bold bg-amber-50 text-amber-800 border border-amber-200/80 dark:bg-amber-500/20 dark:text-amber-300 dark:border-transparent">
                                             {act.priority}
+                                          </span>
+                                        )}
+                                      </>
+                                    )}
+                                    {act.action === "SETUP_PROJECT_DATES" && (
+                                      <>
+                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-700 dark:text-blue-400 font-semibold text-[11px]">
+                                          <Calendar className="w-3 h-3" />
+                                          <span>DỰ ÁN</span>
+                                        </span>
+                                        <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                          {act.projectName || "Dự án"}
+                                        </span>
+                                        <span className="text-gray-400">Thời hạn:</span>
+                                        <span className="font-bold text-blue-700 dark:text-blue-400">
+                                          {act.startDate || "Chưa đặt"} → {act.endDate || "Chưa đặt"}
+                                        </span>
+                                      </>
+                                    )}
+                                    {act.action === "ASSIGN_TASK" && (
+                                      <>
+                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-semibold text-[11px]">
+                                          <UserCheck className="w-3 h-3" />
+                                          <span>PHÂN CÔNG</span>
+                                        </span>
+                                        <span className="font-semibold text-gray-900 dark:text-gray-100">{act.taskSlug}</span>
+                                        {act.assignee && (
+                                          <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
+                                            Giao cho: @{act.assigneeUsername || act.assignee}
+                                          </span>
+                                        )}
+                                        {act.reporter && (
+                                          <span className="text-gray-500 dark:text-gray-400 text-[11px]">
+                                            (Báo cáo: @{act.reporterUsername || act.reporter})
                                           </span>
                                         )}
                                       </>
