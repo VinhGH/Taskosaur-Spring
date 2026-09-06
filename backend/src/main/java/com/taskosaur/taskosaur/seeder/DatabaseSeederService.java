@@ -275,7 +275,7 @@ public class DatabaseSeederService {
                 TaskType.TASK, TaskPriority.MEDIUM, statusDone.getId(), sprint2.getId(), admin.getId(), 5,
                 now.minusDays(2), now, now,
                 List.of(admin.getId()), List.of(lblDevops.getId()), admin.getId(),
-                "Vinh Admin: Domain http://taskosaur-vinh.malaysiawest.cloudapp.azure.com is live!");
+                "Vinh Admin: Domain http://taskosaur.malaysiawest.cloudapp.azure.com is live!");
 
         createSampleTask(project.getId(), 9, "Implement Real-time WebSocket Notifications",
                 "Setup live socket notifications for task assignments, comment mentions, and sprint updates.",
