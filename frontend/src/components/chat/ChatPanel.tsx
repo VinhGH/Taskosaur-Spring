@@ -22,7 +22,11 @@ import {
   UserCheck,
   UserPlus,
   Clock,
+  Copy,
+  Check,
+  Undo2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useChatContext } from "@/contexts/chat-context";
 import { mcpServer, extractContextFromPath, Conversation } from "@/lib/mcp-server";
 import { usePathname, useRouter } from "next/navigation";
@@ -158,6 +162,81 @@ export default function ChatPanel() {
   const [isListening, setIsListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState("");
   const [voiceError, setVoiceError] = useState<string | null>(null);
+
+  // Copy & Rollback message state and handlers
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+  const handleCopyMessage = useCallback(async (content: string, index: number) => {
+    try {
+      const clean = formatUserDisplayMessage(content);
+      await navigator.clipboard.writeText(clean);
+      setCopiedIndex(index);
+      toast.success("Đã sao chép nội dung tin nhắn!");
+      setTimeout(() => {
+        setCopiedIndex(null);
+      }, 2000);
+    } catch (err) {
+      console.error("Failed to copy message:", err);
+      toast.error("Không thể sao chép tin nhắn");
+    }
+  }, []);
+
+  const handleRollbackMessage = useCallback((index: number) => {
+    if (isLoading || isBrowserAgentRunning) {
+      toast.warning("Vui lòng đợi AI hoàn thành câu trả lời trước khi rollback.");
+      return;
+    }
+
+    const targetMessage = messages[index];
+    if (!targetMessage) return;
+
+    if (targetMessage.role === "user") {
+      // 1. Trích xuất nội dung tin nhắn người dùng đưa lại vào ô chat
+      const cleanText = formatUserDisplayMessage(targetMessage.content);
+      setInputValue(cleanText);
+
+      // 2. Rollback danh sách tin nhắn: cắt bỏ từ tin nhắn này trở đi
+      const newMessages = messages.slice(0, index);
+      setMessages(newMessages);
+
+      toast.info("Đã rollback tin nhắn. Bạn có thể chỉnh sửa và gửi lại.");
+
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.selectionStart = textareaRef.current.value.length;
+          textareaRef.current.selectionEnd = textareaRef.current.value.length;
+        }
+      }, 50);
+    } else if (targetMessage.role === "assistant") {
+      // Nếu rollback từ câu trả lời của AI:
+      // Tìm tin nhắn người dùng ngay trước đó (index - 1)
+      const prevUserMsg = index > 0 && messages[index - 1].role === "user" ? messages[index - 1] : null;
+
+      if (prevUserMsg) {
+        const cleanText = formatUserDisplayMessage(prevUserMsg.content);
+        setInputValue(cleanText);
+
+        // Rollback cắt bỏ câu trả lời này và tin nhắn người dùng trước đó để người dùng sửa lại
+        const newMessages = messages.slice(0, index - 1);
+        setMessages(newMessages);
+        toast.info("Đã rollback câu trả lời. Câu hỏi trước đó đã được đưa lại vào khung nhập.");
+      } else {
+        // Chỉ cắt bỏ câu trả lời này
+        const newMessages = messages.slice(0, index);
+        setMessages(newMessages);
+        toast.info("Đã thu hồi câu trả lời.");
+      }
+
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.selectionStart = textareaRef.current.value.length;
+          textareaRef.current.selectionEnd = textareaRef.current.value.length;
+        }
+      }, 50);
+    }
+  }, [messages, isLoading, isBrowserAgentRunning]);
 
   // Agent status display
   const thinkingWords = useRef([
@@ -474,7 +553,7 @@ export default function ChatPanel() {
     let active = true;
     const syncHistory = async () => {
       const currentConv = mcpServer.getCurrentConversation();
-      if (currentConv && currentConv.id && messages.length > 0) {
+      if (currentConv && currentConv.id) {
         try {
           localStorage.setItem(
             `taskosaur_chat_rich_messages_${currentConv.id}`,
@@ -1212,15 +1291,40 @@ export default function ChatPanel() {
                 {messages.map((message, index) => (
                   <div key={index} className="group">
                     {message.role === "user" ? (
-                      // User Message - Right aligned like
-                      <div className="flex justify-end mb-4">
-                        <div className="flex items-start gap-3 max-w-[80%]">
-                          <div className="bg-[#1E2939] text-white rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm">
-                            <div className="text-sm whitespace-pre-wrap break-words">
-                              {formatUserDisplayMessage(message.content)}
+                      // User Message - Right aligned
+                      <div className="flex justify-end mb-4 group/userMsg">
+                        <div className="flex items-start gap-2.5 max-w-[85%]">
+                          <div className="flex flex-col items-end">
+                            <div className="bg-[#1E2939] text-white rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm">
+                              <div className="text-sm whitespace-pre-wrap break-words">
+                                {formatUserDisplayMessage(message.content)}
+                              </div>
+                            </div>
+                            {/* Action Buttons: Copy & Rollback */}
+                            <div className="flex items-center gap-0.5 mt-1 pr-1 opacity-60 group-hover/userMsg:opacity-100 transition-opacity">
+                              <button
+                                type="button"
+                                onClick={() => handleCopyMessage(message.content, index)}
+                                title={copiedIndex === index ? "Đã sao chép" : "Sao chép tin nhắn"}
+                                className="p-1 rounded hover:bg-gray-200/60 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                              >
+                                {copiedIndex === index ? (
+                                  <Check className="w-3.5 h-3.5 text-emerald-500" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRollbackMessage(index)}
+                                title="Rollback lại tin nhắn này để chỉnh sửa"
+                                className="p-1 rounded hover:bg-gray-200/60 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                              >
+                                <Undo2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </div>
-                          <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#1E2939] text-sm font-medium flex-shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#1E2939] text-sm font-medium flex-shrink-0 shadow-xs border border-gray-100 dark:border-transparent">
                             {user?.firstName?.[0]?.toUpperCase() +
                               user?.lastName?.[0]?.toUpperCase() || "U"}
                           </div>
@@ -1485,6 +1589,32 @@ export default function ChatPanel() {
                                     )}
                                   </div>
                                 ))}
+                              </div>
+                            )}
+
+                            {/* Action Buttons: Copy & Rollback */}
+                            {!message.isStreaming && (
+                              <div className="flex items-center gap-0.5 pt-1.5 opacity-60 hover:opacity-100 transition-opacity">
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyMessage(message.content, index)}
+                                  title={copiedIndex === index ? "Đã sao chép" : "Sao chép câu trả lời"}
+                                  className="p-1 rounded hover:bg-gray-200/60 dark:hover:bg-gray-700/60 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                                >
+                                  {copiedIndex === index ? (
+                                    <Check className="w-3.5 h-3.5 text-emerald-500" />
+                                  ) : (
+                                    <Copy className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRollbackMessage(index)}
+                                  title="Rollback câu trả lời & chỉnh sửa câu hỏi"
+                                  className="p-1 rounded hover:bg-gray-200/60 dark:hover:bg-gray-700/60 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                                >
+                                  <Undo2 className="w-3.5 h-3.5" />
+                                </button>
                               </div>
                             )}
                           </div>
