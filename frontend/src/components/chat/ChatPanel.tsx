@@ -8,13 +8,26 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { BrowserAgent } from "@/lib/browser-automation/browser-agent";
 import { VoiceController } from "@/lib/voice";
+import api from "@/lib/api";
+
 
 interface Message {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
   isStreaming?: boolean;
+  actions?: Array<{
+    action: string;
+    taskId?: string;
+    taskSlug?: string;
+    title?: string;
+    priority?: string;
+    status?: string;
+    newStatus?: string;
+    count?: number;
+  }>;
 }
+
 
 interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -509,19 +522,69 @@ export default function ChatPanel() {
     }
   };
 
+  const handleConversationalTask = async (taskText: string) => {
+    setIsLoading(true);
+    handleAgentStatus("thinking");
+
+    try {
+      const pathContext = extractContextFromPath(pathname);
+      const response = await api.post("/ai-chat/chat", {
+        message: taskText,
+        workspaceId: pathContext.currentWorkspace,
+        projectId: pathContext.currentProject,
+        sessionId: mcpServer.sessionId,
+        currentOrganizationId: localStorage.getItem("currentOrganizationId"),
+      });
+
+      const data = response.data;
+      if (data?.success === false && !data?.message) {
+        throw new Error(data?.error || "Chat request failed");
+      }
+
+      const assistantMessage: Message = {
+        role: "assistant",
+        content: data?.message || "Đã thực hiện xong yêu cầu.",
+        timestamp: new Date(),
+        actions: data?.actions || [],
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+      await refreshConversations();
+    } catch (err: any) {
+      console.error("AI execution error:", err);
+      const errMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Đã xảy ra lỗi khi gửi yêu cầu tới AI Agent.";
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: sanitizeErrorMessage(errMsg),
+          timestamp: new Date(),
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+      handleAgentStatus("");
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading || isBrowserAgentRunning) return;
 
+    const text = inputValue.trim();
     const userMessage: Message = {
       role: "user",
-      content: inputValue,
+      content: text,
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
 
-    await handleBrowserAutomation(userMessage.content);
+    await handleConversationalTask(text);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -546,7 +609,7 @@ export default function ChatPanel() {
     }
   };
 
-  /** Handle a voice message — adds it to chat and sends through the automation pipeline. */
+  /** Handle a voice message — adds it to chat and sends through conversational task execution. */
   const handleVoiceMessage = async (message: string) => {
     if (!message.trim() || isLoading || isBrowserAgentRunning) return;
 
@@ -557,8 +620,9 @@ export default function ChatPanel() {
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    await handleBrowserAutomation(message);
+    await handleConversationalTask(message);
   };
+
 
   const handleStopAgent = () => {
     browserAgentRef.current?.stop();
@@ -806,6 +870,29 @@ export default function ChatPanel() {
                         "Navigate to [workspace] workspace"
                       </li>
                     </ul>
+                    <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-200/40 dark:border-gray-700/40 mt-3">
+                      <button
+                        type="button"
+                        onClick={() => setInputValue("Tạo task 'Thiết kế trang thanh toán' độ ưu tiên HIGH")}
+                        className="text-xs px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-medium transition-colors"
+                      >
+                        ✨ Tạo task mẫu
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setInputValue("Liệt kê các task trong dự án này")}
+                        className="text-xs px-2.5 py-1 rounded-lg bg-gray-500/10 hover:bg-gray-500/20 text-gray-700 dark:text-gray-300 font-medium transition-colors"
+                      >
+                        📋 Liệt kê task
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setInputValue("Chuyển task sang DONE")}
+                        className="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-medium transition-colors"
+                      >
+                        🚀 Đổi sang DONE
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -836,19 +923,90 @@ export default function ChatPanel() {
                         </div>
                       </div>
                     ) : (
-                      // Assistant Message - Left aligned like
+                      // Assistant Message - Left aligned
                       <div className="flex justify-start mb-4">
                         <div className="flex items-start gap-3 max-w-[85%]">
                           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-400 flex items-center justify-center flex-shrink-0">
                             <HiSparkles className="w-4 h-4 text-white" />
                           </div>
-                          <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl rounded-tl-sm px-4 py-2.5 shadow-sm">
+                          <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl rounded-tl-sm px-4 py-2.5 shadow-sm space-y-2">
                             <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words">
                               {message.content}
                               {message.isStreaming && (
                                 <span className="inline-block w-2 h-4 ml-1 bg-blue-600 animate-pulse rounded" />
                               )}
                             </div>
+
+                            {/* Action Confirmation Cards */}
+                            {message.actions && message.actions.length > 0 && (
+                              <div className="pt-2 border-t border-gray-200/60 dark:border-gray-700/60 space-y-1.5">
+                                {message.actions.map((act, actIdx) => (
+                                  <div
+                                    key={actIdx}
+                                    className="flex items-center gap-2 p-2 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-800/40 text-xs text-blue-900 dark:text-blue-200"
+                                  >
+                                    {act.action === "CREATE_TASK" && (
+                                      <>
+                                        <span className="px-1.5 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold text-[10px]">
+                                          ✨ ĐÃ TẠO
+                                        </span>
+                                        <span className="font-semibold text-blue-700 dark:text-blue-300">
+                                          {act.taskSlug}
+                                        </span>
+                                        <span className="truncate flex-1 font-medium">{act.title}</span>
+                                        {act.priority && (
+                                          <span className="px-1.5 py-0.5 rounded text-[10px] uppercase font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                                            {act.priority}
+                                          </span>
+                                        )}
+                                      </>
+                                    )}
+                                    {act.action === "UPDATE_STATUS" && (
+                                      <>
+                                        <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold text-[10px]">
+                                          🔄 CHUYỂN TRẠNG THÁI
+                                        </span>
+                                        <span className="font-semibold">{act.taskSlug}</span>
+                                        <span>➔</span>
+                                        <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                          {act.newStatus}
+                                        </span>
+                                      </>
+                                    )}
+                                    {act.action === "UPDATE_PRIORITY" && (
+                                      <>
+                                        <span className="px-1.5 py-0.5 rounded-md bg-purple-500/15 text-purple-600 dark:text-purple-400 font-bold text-[10px]">
+                                          ⚡ ĐỘ ƯU TIÊN
+                                        </span>
+                                        <span className="font-semibold">{act.taskSlug}</span>
+                                        <span>➔</span>
+                                        <span className="font-bold text-purple-600 dark:text-purple-400">
+                                          {act.priority}
+                                        </span>
+                                      </>
+                                    )}
+                                    {act.action === "DELETE_TASK" && (
+                                      <>
+                                        <span className="px-1.5 py-0.5 rounded-md bg-red-500/15 text-red-600 dark:text-red-400 font-bold text-[10px]">
+                                          🗑️ ĐÃ XÓA
+                                        </span>
+                                        <span className="font-semibold line-through text-red-700 dark:text-red-300">
+                                          {act.taskSlug}
+                                        </span>
+                                      </>
+                                    )}
+                                    {act.action === "LIST_TASKS" && (
+                                      <>
+                                        <span className="px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-bold text-[10px]">
+                                          📋 DANH SÁCH
+                                        </span>
+                                        <span>Tìm thấy {act.count} công việc phù hợp</span>
+                                      </>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

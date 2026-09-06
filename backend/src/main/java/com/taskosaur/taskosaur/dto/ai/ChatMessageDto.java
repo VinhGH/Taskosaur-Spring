@@ -1,5 +1,6 @@
 package com.taskosaur.taskosaur.dto.ai;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
@@ -7,10 +8,17 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ChatMessageDto {
     @NotBlank(message = "Role must not be blank")
-    private String role; // "system", "user", "assistant"
+    private String role; // "system", "user", "assistant", "tool"
 
-    @NotBlank(message = "Content must not be blank")
     private String content;
+
+    private String name;
+
+    private String tool_call_id;
+
+    private Object tool_calls;
 }
+
