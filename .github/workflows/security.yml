@@ -3,8 +3,10 @@ name: Security & Vulnerability Audit
 on:
   schedule:
     - cron: '0 0 * * 1' # Weekly on Monday 00:00 UTC
+  push:
+    branches: [ "main", "dev" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
   workflow_dispatch:
 
 permissions:
@@ -30,4 +32,4 @@ jobs:
       - name: Run NPM Audit
         run: |
           echo "Auditing production dependencies for security vulnerabilities..."
-          npm audit --omit=dev --audit-level=high || true
+          npm audit --omit=dev || true
