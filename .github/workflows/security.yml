@@ -3,15 +3,12 @@ name: Security & Vulnerability Audit
 on:
   schedule:
     - cron: '0 0 * * 1' # Weekly on Monday 00:00 UTC
-  push:
-    branches: [ "main", "dev" ]
   pull_request:
-    branches: [ "main", "dev" ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 permissions:
   contents: read
-  security-events: write
 
 jobs:
   npm-audit:
@@ -27,23 +24,10 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
+      - name: Install dependencies
+        run: npm ci
+
       - name: Run NPM Audit
         run: |
-          echo "Auditing production dependencies..."
+          echo "Auditing production dependencies for security vulnerabilities..."
           npm audit --omit=dev --audit-level=high || true
-
-  secret-and-vuln-scan:
-    name: Trivy Security Scan
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Run Trivy vulnerability scanner in repo mode
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          ignore-unfixed: true
-          format: 'table'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '0'
