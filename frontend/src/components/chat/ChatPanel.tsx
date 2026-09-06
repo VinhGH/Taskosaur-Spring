@@ -26,6 +26,8 @@ import { useAuth } from "@/contexts/auth-context";
 import { BrowserAgent } from "@/lib/browser-automation/browser-agent";
 import { VoiceController } from "@/lib/voice";
 import api from "@/lib/api";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export interface ThoughtStep {
   title: string;
@@ -1177,8 +1179,41 @@ export default function ChatPanel() {
                               </div>
                             )}
 
-                            <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words">
-                              {message.content}
+                            <div className="text-sm text-gray-900 dark:text-gray-100 break-words leading-relaxed">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  p: ({ children }) => (
+                                    <p className="mb-2 last:mb-0 leading-relaxed whitespace-pre-wrap">{children}</p>
+                                  ),
+                                  strong: ({ children }) => (
+                                    <strong className="font-bold text-gray-950 dark:text-white bg-blue-50/70 dark:bg-blue-900/30 px-1 py-0.5 rounded text-[13px] border border-blue-200/50 dark:border-blue-700/40">
+                                      {children}
+                                    </strong>
+                                  ),
+                                  em: ({ children }) => <em className="italic">{children}</em>,
+                                  code: ({ children }) => (
+                                    <code className="px-1.5 py-0.5 rounded bg-gray-200/70 dark:bg-gray-700/60 font-mono text-[12px] text-pink-600 dark:text-pink-400">
+                                      {children}
+                                    </code>
+                                  ),
+                                  ul: ({ children }) => <ul className="list-disc list-inside space-y-1 my-1.5">{children}</ul>,
+                                  ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 my-1.5">{children}</ol>,
+                                  li: ({ children }) => <li className="text-sm leading-relaxed">{children}</li>,
+                                  a: ({ href, children }) => (
+                                    <a
+                                      href={href}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 dark:text-blue-400 underline hover:no-underline font-medium"
+                                    >
+                                      {children}
+                                    </a>
+                                  ),
+                                }}
+                              >
+                                {message.content}
+                              </ReactMarkdown>
                               {message.isStreaming && (
                                 <span className="inline-block w-2 h-4 ml-1 bg-blue-600 animate-pulse rounded" />
                               )}
