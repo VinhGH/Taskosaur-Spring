@@ -358,7 +358,7 @@
 
 /* ===== Sidebar ===== */
 .layout-sidebar-container {
-  @apply flex h-full z-50 rounded-xl md:rounded-2xl overflow-hidden border border-white/40 dark:border-white/10 bg-[var(--sidebar)] backdrop-blur-2xl shadow-2xl shadow-indigo-950/20 dark:shadow-black/60;
+  @apply flex h-full z-50 rounded-xl md:rounded-2xl overflow-hidden border border-gray-200/80 dark:border-white/10 bg-[var(--sidebar)] backdrop-blur-2xl shadow-2xl shadow-indigo-950/20 dark:shadow-black/60;
 }
 .layout-sidebar-link-active {
   @apply bg-[var(--sidebar-ring)];
