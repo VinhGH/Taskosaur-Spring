@@ -658,7 +658,7 @@ export default function ChatPanel() {
       {/* Chat Panel - Full popup on mobile, 3rd column in flex layout on desktop */}
       <div
         id="chat-panel"
-        className="fixed inset-2 md:static md:inset-auto flex-shrink-0 flex flex-col h-[calc(100%-1rem)] md:h-full w-auto md:w-[380px] lg:w-[400px] overflow-hidden rounded-2xl border border-white/40 dark:border-white/10 bg-[var(--panel)] backdrop-blur-2xl shadow-2xl shadow-indigo-950/40 dark:shadow-black/70 transition-all duration-300 ease-in-out z-50 md:z-30"
+        className="fixed inset-2 md:static md:inset-auto flex-shrink-0 flex flex-col h-[calc(100%-1rem)] md:h-full w-auto md:w-[380px] lg:w-[400px] overflow-hidden rounded-2xl border border-gray-200/80 dark:border-white/10 bg-[var(--panel)] backdrop-blur-2xl shadow-2xl shadow-indigo-950/10 dark:shadow-black/70 transition-all duration-300 ease-in-out z-50 md:z-30"
         style={typeof window !== "undefined" && window.innerWidth >= 768 ? { width: `${panelWidth}px`, maxWidth: "45vw" } : {}}
       >
         <div
@@ -761,7 +761,7 @@ export default function ChatPanel() {
         </div>
 
         {/* Chat Header - Always pinned at top */}
-        <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--card)]/95 backdrop-blur shadow-sm z-20">
+        <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-200/80 dark:border-[var(--border)] bg-white/95 dark:bg-[var(--card)]/95 backdrop-blur shadow-xs z-20">
           <div className="flex items-center gap-2">
             <button
               onClick={async () => {
@@ -818,52 +818,52 @@ export default function ChatPanel() {
             {messages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center text-[var(--muted)] max-w-sm">
-                  <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-400 flex items-center justify-center">
+                  <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-400 flex items-center justify-center shadow-md">
                     <HiSparkles className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="text-lg font-semibold text-primary mb-2">
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100 mb-1.5 tracking-tight">
                     Hi! I'm your Taskosaur AI Assistant
                   </h3>
-                  <p className="text-sm mb-4 text-gray-600 dark:text-gray-400">
+                  <p className="text-xs sm:text-sm mb-4 text-gray-500 dark:text-gray-400">
                     I can help you manage tasks, projects, and workspaces
                   </p>
-                  <div className="text-left bg-[var(--accent)] rounded-lg p-4">
-                    <p className="text-sm font-medium mb-2 text-[var(--muted-foreground)]">
+                  <div className="text-left bg-gray-50/90 dark:bg-gray-800/40 border border-gray-200/80 dark:border-gray-700/60 rounded-xl p-4 shadow-xs">
+                    <p className="text-xs font-semibold uppercase tracking-wider mb-2.5 text-gray-500 dark:text-gray-400">
                       Try these commands:
                     </p>
-                    <ul className="text-sm space-y-1.5 text-gray-600 dark:text-gray-400">
-                      <li className="flex items-start gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 flex-shrink-0"></span>
+                    <ul className="text-xs space-y-2 text-gray-700 dark:text-gray-300 font-medium">
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>
                         "Create a task called [name]"
                       </li>
-                      <li className="flex items-start gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 flex-shrink-0"></span>
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>
                         "Show high priority tasks"
                       </li>
-                      <li className="flex items-start gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 flex-shrink-0"></span>
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>
                         "Mark [task] as done"
                       </li>
-                      <li className="flex items-start gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 flex-shrink-0"></span>
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>
                         "Create a workspace called [name]"
                       </li>
-                      <li className="flex items-start gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 flex-shrink-0"></span>
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>
                         "List my projects"
                       </li>
-                      <li className="flex items-start gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2 flex-shrink-0"></span>
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>
                         "Navigate to [workspace] workspace"
                       </li>
                     </ul>
-                    <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-200/40 dark:border-gray-700/40 mt-3">
+                    <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-200 dark:border-gray-700/60 mt-3.5">
                       <button
                         type="button"
                         onClick={() => setInputValue("Tạo task 'Thiết kế trang thanh toán' độ ưu tiên HIGH")}
-                        className="inline-flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border border-border/70 hover:border-blue-500/40 bg-card hover:bg-blue-500/5 text-gray-800 dark:text-gray-200 font-medium transition-all shadow-xs group"
+                        className="inline-flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border border-blue-200/80 hover:border-blue-300 bg-blue-50/90 hover:bg-blue-100/90 text-blue-700 dark:border-blue-800/50 dark:bg-blue-950/40 dark:hover:bg-blue-900/40 dark:text-blue-300 font-medium transition-all shadow-xs group"
                       >
-                        <span className="size-5 rounded-md flex items-center justify-center bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 group-hover:bg-blue-500/20 transition-colors">
+                        <span className="size-5 rounded-md flex items-center justify-center bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/60 transition-colors">
                           <Plus className="w-3.5 h-3.5" />
                         </span>
                         <span>Tạo task mẫu</span>
@@ -871,9 +871,9 @@ export default function ChatPanel() {
                       <button
                         type="button"
                         onClick={() => setInputValue("Liệt kê các task trong dự án này")}
-                        className="inline-flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border border-border/70 hover:border-indigo-500/40 bg-card hover:bg-indigo-500/5 text-gray-800 dark:text-gray-200 font-medium transition-all shadow-xs group"
+                        className="inline-flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border border-indigo-200/80 hover:border-indigo-300 bg-indigo-50/90 hover:bg-indigo-100/90 text-indigo-700 dark:border-indigo-800/50 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/40 dark:text-indigo-300 font-medium transition-all shadow-xs group"
                       >
-                        <span className="size-5 rounded-md flex items-center justify-center bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-500/20 transition-colors">
+                        <span className="size-5 rounded-md flex items-center justify-center bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/60 transition-colors">
                           <ListTodo className="w-3.5 h-3.5" />
                         </span>
                         <span>Liệt kê task</span>
@@ -881,9 +881,9 @@ export default function ChatPanel() {
                       <button
                         type="button"
                         onClick={() => setInputValue("Chuyển task sang DONE")}
-                        className="inline-flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border border-border/70 hover:border-emerald-500/40 bg-card hover:bg-emerald-500/5 text-gray-800 dark:text-gray-200 font-medium transition-all shadow-xs group"
+                        className="inline-flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border border-emerald-200/80 hover:border-emerald-300 bg-emerald-50/90 hover:bg-emerald-100/90 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 dark:text-emerald-300 font-medium transition-all shadow-xs group"
                       >
-                        <span className="size-5 rounded-md flex items-center justify-center bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-500/20 transition-colors">
+                        <span className="size-5 rounded-md flex items-center justify-center bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/60 transition-colors">
                           <CheckCircle2 className="w-3.5 h-3.5" />
                         </span>
                         <span>Đổi sang DONE</span>
@@ -939,20 +939,20 @@ export default function ChatPanel() {
                                 {message.actions.map((act, actIdx) => (
                                   <div
                                     key={actIdx}
-                                    className="flex items-center gap-2 p-2 rounded-xl bg-gray-50/80 dark:bg-gray-900/40 border border-gray-200/70 dark:border-gray-700/70 text-xs text-gray-900 dark:text-gray-100"
+                                    className="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-gray-900/60 border border-gray-200/80 dark:border-gray-800/80 text-xs text-gray-900 dark:text-gray-100 shadow-xs"
                                   >
                                     {act.action === "CREATE_TASK" && (
                                       <>
-                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 font-semibold text-[11px]">
+                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-700 dark:text-blue-400 font-semibold text-[11px]">
                                           <Plus className="w-3 h-3" />
                                           <span>ĐÃ TẠO</span>
                                         </span>
                                         <span className="font-semibold text-blue-700 dark:text-blue-300">
                                           {act.taskSlug}
                                         </span>
-                                        <span className="truncate flex-1 font-medium">{act.title}</span>
+                                        <span className="truncate flex-1 font-medium text-gray-800 dark:text-gray-200">{act.title}</span>
                                         {act.priority && (
-                                          <span className="px-1.5 py-0.5 rounded text-[10px] uppercase font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                                          <span className="px-1.5 py-0.5 rounded text-[10px] uppercase font-bold bg-amber-50 text-amber-800 border border-amber-200/80 dark:bg-amber-500/20 dark:text-amber-300 dark:border-transparent">
                                             {act.priority}
                                           </span>
                                         )}
@@ -960,33 +960,33 @@ export default function ChatPanel() {
                                     )}
                                     {act.action === "UPDATE_STATUS" && (
                                       <>
-                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold text-[11px]">
+                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-semibold text-[11px]">
                                           <ArrowRightLeft className="w-3 h-3" />
                                           <span>TRẠNG THÁI</span>
                                         </span>
-                                        <span className="font-semibold">{act.taskSlug}</span>
+                                        <span className="font-semibold text-gray-900 dark:text-gray-100">{act.taskSlug}</span>
                                         <span className="text-gray-400">→</span>
-                                        <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                        <span className="font-bold text-emerald-700 dark:text-emerald-400">
                                           {act.newStatus}
                                         </span>
                                       </>
                                     )}
                                     {act.action === "UPDATE_PRIORITY" && (
                                       <>
-                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 font-semibold text-[11px]">
+                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 text-purple-700 dark:text-purple-400 font-semibold text-[11px]">
                                           <Zap className="w-3 h-3" />
                                           <span>ƯU TIÊN</span>
                                         </span>
-                                        <span className="font-semibold">{act.taskSlug}</span>
+                                        <span className="font-semibold text-gray-900 dark:text-gray-100">{act.taskSlug}</span>
                                         <span className="text-gray-400">→</span>
-                                        <span className="font-bold text-purple-600 dark:text-purple-400">
+                                        <span className="font-bold text-purple-700 dark:text-purple-400">
                                           {act.priority}
                                         </span>
                                       </>
                                     )}
                                     {act.action === "DELETE_TASK" && (
                                       <>
-                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 font-semibold text-[11px]">
+                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-700 dark:text-rose-400 font-semibold text-[11px]">
                                           <Trash2 className="w-3 h-3" />
                                           <span>ĐÃ XÓA</span>
                                         </span>
@@ -997,11 +997,11 @@ export default function ChatPanel() {
                                     )}
                                     {act.action === "LIST_TASKS" && (
                                       <>
-                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-semibold text-[11px]">
+                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 text-indigo-700 dark:text-indigo-400 font-semibold text-[11px]">
                                           <ListTodo className="w-3 h-3" />
                                           <span>DANH SÁCH</span>
                                         </span>
-                                        <span className="font-medium text-gray-700 dark:text-gray-300">
+                                        <span className="font-medium text-gray-800 dark:text-gray-200">
                                           Tìm thấy {act.count} công việc phù hợp
                                         </span>
                                       </>
@@ -1061,7 +1061,7 @@ export default function ChatPanel() {
         </div>
 
         {/* Chat Input Area - Fixed at bottom with auto-expanding textarea */}
-        <div className="flex-shrink-0 border-t border-[var(--border)] bg-[var(--background)] p-4">
+        <div className="flex-shrink-0 border-t border-gray-200/80 dark:border-[var(--border)] bg-white/90 dark:bg-[var(--card)]/90 backdrop-blur p-4">
             {/* Interim transcript display (shown while listening) */}
             {isListening && interimTranscript && (
               <div className="mb-2 px-1">
@@ -1094,10 +1094,10 @@ export default function ChatPanel() {
               <button
                 onClick={handleToggleVoice}
                 disabled={isLoading || isBrowserAgentRunning}
-                className={`p-3 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed ${
+                className={`p-3 rounded-full flex items-center justify-center transition-all duration-200 shadow-xs hover:shadow-sm flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed ${
                   isListening
                     ? "bg-red-500 hover:bg-red-600 text-white animate-pulse"
-                    : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
+                    : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200/60 dark:border-gray-700/60"
                 }`}
                 title={isListening ? "Stop listening" : "Start voice input"}
               >
@@ -1118,7 +1118,7 @@ export default function ChatPanel() {
                 }
                 disabled={isLoading || isBrowserAgentRunning || !user || isListening}
                 rows={1}
-                className="flex-1 px-4 py-3 bg-[var(--muted)] border border-[var(--border)] focus:ring-1 focus:ring-[var(--border)] focus:border-transparent transition-all duration-200 rounded-xl shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed overflow-y-auto resize-none chat-input-scrollbar text-sm"
+                className="flex-1 px-4 py-3 bg-gray-50 dark:bg-[var(--muted)] border border-gray-200/80 dark:border-[var(--border)] focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500 transition-all duration-200 rounded-xl shadow-xs hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed overflow-y-auto resize-none chat-input-scrollbar text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
                 style={{
                   height: "48px",
                   maxHeight: "48px",
@@ -1144,7 +1144,7 @@ export default function ChatPanel() {
                 <button
                   onClick={handleSendMessage}
                   disabled={!inputValue.trim() || isLoading || !user}
-                  className="p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-full flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none flex-shrink-0"
+                  className="p-3 bg-blue-600 hover:bg-blue-500 active:scale-95 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-full flex items-center justify-center transition-all duration-200 shadow-xs hover:shadow-sm disabled:shadow-none flex-shrink-0"
                 >
                   <HiPaperAirplane className="w-4 h-4" />
                 </button>
