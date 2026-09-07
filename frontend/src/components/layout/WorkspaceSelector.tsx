@@ -7,7 +7,7 @@ import {
   setCurrentWorkspaceId,
   clearCurrentProjectId,
 } from "@/utils/hierarchyContext";
-import { HiChevronDown, HiCheck } from "react-icons/hi2";
+import { ChevronDown, Check } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -104,50 +104,62 @@ export default function WorkspaceSelector({ currentWorkspaceSlug }: WorkspaceSel
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <div className="layout-workspace-selector-trigger">
-          <div className="layout-workspace-selector-icon">
-            {currentWorkspace ? getInitials(currentWorkspace.name) : "W"}
+        <div className="layout-workspace-selector-trigger group flex items-center justify-between gap-2 px-2.5 py-1.5 w-full rounded-lg cursor-pointer border border-[var(--sidebar-border)] bg-[var(--sidebar-accent)]/30 hover:bg-[var(--sidebar-accent)]/70 transition-all duration-200">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="layout-workspace-selector-icon flex-shrink-0 w-7 h-7 rounded-md bg-[var(--sidebar-primary)] flex items-center justify-center text-[var(--sidebar-primary-foreground)] text-xs font-bold shadow-2xs">
+              {currentWorkspace ? getInitials(currentWorkspace.name) : "W"}
+            </div>
+
+            <div className="layout-workspace-selector-content min-w-0 flex-1">
+              {isLoading ? (
+                <div className="layout-workspace-selector-loading h-3.5 bg-[var(--sidebar-muted)]/40 rounded w-24 animate-pulse" />
+              ) : (
+                <div className="layout-workspace-selector-title text-xs font-semibold text-[var(--sidebar-foreground)] truncate">
+                  {currentWorkspace ? currentWorkspace.name : t("selectWorkspace")}
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="layout-workspace-selector-content">
-            {isLoading ? (
-              <div className="layout-workspace-selector-loading" />
-            ) : (
-              <div className="layout-workspace-selector-title">
-                {currentWorkspace ? currentWorkspace.name : t("selectWorkspace")}
-              </div>
-            )}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-wider uppercase bg-[var(--sidebar-accent)] text-[var(--sidebar-muted)] border border-[var(--sidebar-border)]">
+              Workspace
+            </span>
+            <ChevronDown className="w-3.5 h-3.5 text-[var(--sidebar-muted)] transition-transform duration-200 group-hover:text-[var(--sidebar-foreground)]" />
           </div>
-
-          <HiChevronDown className="layout-workspace-selector-chevron" />
         </div>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
-        className="layout-workspace-selector-dropdown"
+        className="layout-workspace-selector-dropdown w-64 p-1.5 bg-[var(--popover)] border border-[var(--border)] rounded-xl shadow-lg"
         align="start"
-        sideOffset={8}
+        sideOffset={6}
       >
         {workspaces.map((workspace) => (
           <DropdownMenuItem
             key={workspace.id}
             onClick={() => handleWorkspaceSelect(workspace)}
-            className={`layout-workspace-selector-item ${currentWorkspace?.id === workspace.id ? "layout-workspace-selector-item-selected" : ""
-              }`}
+            className={`layout-workspace-selector-item flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${
+              currentWorkspace?.id === workspace.id
+                ? "bg-[var(--primary)]/10 text-[var(--primary)] font-medium"
+                : "hover:bg-[var(--accent)] text-[var(--sidebar-foreground)]"
+            }`}
           >
-            <Avatar className="layout-workspace-selector-item-avatar">
-              <AvatarFallback className="layout-workspace-selector-item-avatar-fallback">
+            <Avatar className="h-6 w-6 rounded-md">
+              <AvatarFallback className="text-[10px] font-bold text-white rounded-md bg-[var(--primary)] flex items-center justify-center">
                 {getInitials(workspace.name)}
               </AvatarFallback>
             </Avatar>
-            <div className="layout-workspace-selector-item-content">
-              <div className="layout-workspace-selector-item-name">{workspace.name}</div>
-              <div className="layout-workspace-selector-item-description">
-                {workspace.description || t("noDescription")}
-              </div>
+            <div className="layout-workspace-selector-item-content min-w-0 flex-1">
+              <div className="layout-workspace-selector-item-name text-xs font-medium truncate">{workspace.name}</div>
+              {workspace.description && (
+                <div className="layout-workspace-selector-item-description text-[10px] text-[var(--sidebar-muted)] truncate">
+                  {workspace.description}
+                </div>
+              )}
             </div>
             {currentWorkspace?.id === workspace.id && (
-              <HiCheck className="layout-workspace-selector-item-check" />
+              <Check className="w-3.5 h-3.5 text-[var(--primary)] flex-shrink-0" />
             )}
           </DropdownMenuItem>
         ))}

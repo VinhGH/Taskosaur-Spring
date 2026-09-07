@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { HiChevronDown, HiCheck } from "react-icons/hi2";
+import { ChevronDown, Check } from "lucide-react";
 import { Project } from "@/types";
 
 interface ProjectSelectorProps {
@@ -105,58 +105,70 @@ export default function ProjectSelector({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <div className="layout-project-selector-trigger">
-          <div
-            className="layout-project-selector-icon"
-            style={{ backgroundColor: currentProject?.color || "var(--sidebar-primary)" }}
-          >
-            {currentProject ? getProjectKey(currentProject) : "P"}
+        <div className="layout-project-selector-trigger group flex items-center justify-between gap-2 px-2.5 py-1.5 w-full rounded-lg cursor-pointer border border-[var(--sidebar-border)] bg-[var(--sidebar-accent)]/30 hover:bg-[var(--sidebar-accent)]/70 transition-all duration-200">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div
+              className="layout-project-selector-icon flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-white text-xs font-bold shadow-2xs"
+              style={{ backgroundColor: currentProject?.color || "var(--sidebar-primary)" }}
+            >
+              {currentProject ? getProjectKey(currentProject) : "P"}
+            </div>
+
+            <div className="layout-project-selector-content min-w-0 flex-1">
+              {isLoading ? (
+                <div className="layout-project-selector-loading h-3.5 bg-[var(--sidebar-muted)]/40 rounded w-24 animate-pulse" />
+              ) : (
+                <div className="layout-project-selector-title text-xs font-semibold text-[var(--sidebar-foreground)] truncate">
+                  {currentProject ? currentProject.name : t("selectProject")}
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="layout-project-selector-content">
-            {isLoading ? (
-              <div className="layout-project-selector-loading" />
-            ) : (
-              <div className="layout-project-selector-title">
-                {currentProject ? currentProject.name : t("selectProject")}
-              </div>
-            )}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-wider uppercase bg-[var(--sidebar-accent)] text-[var(--sidebar-muted)] border border-[var(--sidebar-border)]">
+              {t("project") || "Dự án"}
+            </span>
+            <ChevronDown className="w-3.5 h-3.5 text-[var(--sidebar-muted)] transition-transform duration-200 group-hover:text-[var(--sidebar-foreground)]" />
           </div>
-
-          <HiChevronDown className="layout-project-selector-chevron" />
         </div>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
-        className="layout-project-selector-dropdown"
+        className="layout-project-selector-dropdown w-64 p-1.5 bg-[var(--popover)] border border-[var(--border)] rounded-xl shadow-lg"
         align="start"
-        sideOffset={8}
+        sideOffset={6}
       >
         {projects.map((project) => (
           <DropdownMenuItem
             key={project.id}
             onClick={() => handleProjectSelect(project)}
-            className={`layout-project-selector-item ${currentProject?.id === project.id ? "layout-project-selector-item-selected" : ""
-              }`}
+            className={`layout-project-selector-item flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${
+              currentProject?.id === project.id
+                ? "bg-[var(--primary)]/10 text-[var(--primary)] font-medium"
+                : "hover:bg-[var(--accent)] text-[var(--sidebar-foreground)]"
+            }`}
           >
-            <Avatar className="layout-project-selector-item-avatar">
+            <Avatar className="h-6 w-6 rounded-md">
               <AvatarFallback
-                className="layout-project-selector-item-avatar-fallback"
+                className="text-[10px] font-bold text-white rounded-md flex items-center justify-center"
                 style={{ backgroundColor: project.color || "var(--primary)" }}
               >
                 {getProjectKey(project)}
               </AvatarFallback>
             </Avatar>
 
-            <div className="layout-project-selector-item-content">
-              <div className="layout-project-selector-item-name">{project.name}</div>
-              <div className="layout-project-selector-item-description">
-                {project.description || t("noDescription")}
-              </div>
+            <div className="layout-project-selector-item-content min-w-0 flex-1">
+              <div className="layout-project-selector-item-name text-xs font-medium truncate">{project.name}</div>
+              {project.description && (
+                <div className="layout-project-selector-item-description text-[10px] text-[var(--sidebar-muted)] truncate">
+                  {project.description}
+                </div>
+              )}
             </div>
 
             {currentProject?.id === project.id && (
-              <HiCheck className="layout-project-selector-item-check" />
+              <Check className="w-3.5 h-3.5 text-[var(--primary)] flex-shrink-0" />
             )}
           </DropdownMenuItem>
         ))}

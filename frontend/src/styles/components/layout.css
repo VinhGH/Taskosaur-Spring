@@ -531,7 +531,7 @@
 }
 
 .layout-sidebar-header {
-  @apply h-10 mb-4 pb-4 border-b border-[var(--sidebar-border)] flex items-center justify-between relative;
+  @apply min-h-10 h-auto mb-3 pb-3 border-b border-[var(--sidebar-border)] flex flex-col items-start justify-between relative;
 }
 
 .layout-sidebar-header-dashboard {

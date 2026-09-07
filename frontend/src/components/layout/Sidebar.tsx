@@ -2,7 +2,24 @@ import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getSidebarCollapsedState, toggleSidebar as toggleSidebarUtil } from "@/utils/sidebarUtils";
-import { Plus } from "lucide-react";
+import {
+  LayoutDashboard,
+  Building2,
+  FolderKanban,
+  ListTodo,
+  Timer,
+  CalendarDays,
+  Users,
+  SlidersHorizontal,
+  Settings,
+  ShieldCheck,
+  ChevronLeft,
+  ChevronDown,
+  Home,
+  Menu,
+  Activity,
+  Plus,
+} from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/router";
 import ResizableSidebar from "./ResizableSidebar";
@@ -10,20 +27,8 @@ import WorkspaceSelector from "./WorkspaceSelector";
 import ProjectSelector from "./ProjectSelector";
 import WorkspaceTree from "./WorkspaceTree";
 import Tooltip from "@/components/common/ToolTip";
-
-import {
-  HiHome,
-  HiViewGrid,
-  HiClipboardList,
-  HiUsers,
-  HiCalendar,
-  HiCog,
-  HiMenu,
-  HiLightningBolt,
-  HiViewBoards,
-  HiShieldCheck,
-} from "react-icons/hi";
 import { useProject } from "@/contexts/project-context";
+import { useWorkspace } from "@/contexts/workspace-context";
 
 // Type definitions
 interface NavItem {
@@ -100,6 +105,23 @@ export default function Sidebar() {
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
   const { currentWorkspaceSlug, currentProjectSlug } = usePathnameParsing(pathname, isMounted);
+  const { workspaces, getWorkspaceBySlug } = useWorkspace();
+  const [currentWorkspace, setCurrentWorkspace] = useState<any>(null);
+
+  useEffect(() => {
+    if (!currentWorkspaceSlug || currentWorkspaceSlug.startsWith("[")) {
+      setCurrentWorkspace(null);
+      return;
+    }
+    const found = workspaces?.find((w) => w.slug === currentWorkspaceSlug);
+    if (found) {
+      setCurrentWorkspace(found);
+      return;
+    }
+    getWorkspaceBySlug(currentWorkspaceSlug)
+      .then(setCurrentWorkspace)
+      .catch(() => setCurrentWorkspace(null));
+  }, [currentWorkspaceSlug, workspaces, getWorkspaceBySlug]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -143,35 +165,35 @@ export default function Sidebar() {
       {
         name: t("dashboard"),
         href: "/dashboard",
-        icon: <HiHome size={16} />,
+        icon: <LayoutDashboard size={16} strokeWidth={1.8} />,
         title: t("globalDashboard"),
         disabled: !isAuth,
       },
       {
         name: t("workspaces"),
         href: "/workspaces",
-        icon: <HiViewGrid size={16} />,
+        icon: <Building2 size={16} strokeWidth={1.8} />,
         title: t("allWorkspaces"),
         disabled: !isAuth,
       },
       {
         name: t("projects"),
         href: "/projects",
-        icon: <HiViewBoards size={16} />,
+        icon: <FolderKanban size={16} strokeWidth={1.8} />,
         title: t("allProjects"),
         disabled: !isAuth,
       },
       {
         name: t("tasks"),
         href: "/tasks",
-        icon: <HiClipboardList size={16} />,
+        icon: <ListTodo size={16} strokeWidth={1.8} />,
         title: t("allTasks"),
         disabled: !isAuth,
       },
       {
         name: t("activities"),
         href: "/activities",
-        icon: <HiCalendar size={16} />,
+        icon: <Activity size={16} strokeWidth={1.8} />,
         title: t("allActivities"),
         disabled: !isAuth,
       },
@@ -181,7 +203,7 @@ export default function Sidebar() {
             {
               name: t("settings"),
               href: "/settings",
-              icon: <HiCog size={16} />,
+              icon: <Settings size={16} strokeWidth={1.8} />,
               title: t("allSettings"),
               disabled: false,
             },
@@ -193,7 +215,7 @@ export default function Sidebar() {
             {
               name: t("admin"),
               href: "/admin",
-              icon: <HiShieldCheck size={16} />,
+              icon: <ShieldCheck size={16} strokeWidth={1.8} />,
               title: t("systemAdministration"),
               disabled: false,
             },
@@ -208,37 +230,37 @@ export default function Sidebar() {
       currentWorkspaceSlug
         ? [
             {
-              name: t("overview"),
+              name: t("workspaceOverview") || "Tổng quan Workspace",
               href: `/${currentWorkspaceSlug}`,
-              icon: <HiViewGrid size={16} />,
+              icon: <LayoutDashboard size={16} strokeWidth={1.8} />,
               title: t("workspaceOverview"),
               disabled: !isAuth,
             },
             {
               name: t("projects"),
               href: `/${currentWorkspaceSlug}/projects`,
-              icon: <HiViewBoards size={16} />,
+              icon: <FolderKanban size={16} strokeWidth={1.8} />,
               title: t("workspaceProjects"),
               disabled: !isAuth,
             },
             {
               name: t("members"),
               href: `/${currentWorkspaceSlug}/members`,
-              icon: <HiUsers size={16} />,
+              icon: <Users size={16} strokeWidth={1.8} />,
               title: t("workspaceMembers"),
               disabled: !isAuth,
             },
             {
               name: t("activities"),
               href: `/${currentWorkspaceSlug}/activities`,
-              icon: <HiCalendar size={16} />,
+              icon: <Activity size={16} strokeWidth={1.8} />,
               title: t("workspaceActivity"),
               disabled: !isAuth,
             },
             {
               name: t("tasks"),
               href: `/${currentWorkspaceSlug}/tasks`,
-              icon: <HiClipboardList size={16} />,
+              icon: <ListTodo size={16} strokeWidth={1.8} />,
               title: t("workspaceTasks"),
               disabled: !isAuth,
             },
@@ -248,7 +270,7 @@ export default function Sidebar() {
                   {
                     name: t("settings"),
                     href: `/${currentWorkspaceSlug}/settings`,
-                    icon: <HiCog size={16} />,
+                    icon: <SlidersHorizontal size={16} strokeWidth={1.8} />,
                     title: t("workspaceSettings"),
                     disabled: false,
                   },
@@ -263,23 +285,23 @@ export default function Sidebar() {
   const defaultProjectNavItems = useMemo(
     () => [
       {
-        name: t("overview"),
+        name: t("projectOverview") || "Tổng quan dự án",
         href: currentWorkspaceSlug && currentProjectSlug ? `/${currentWorkspaceSlug}/${currentProjectSlug}` : "#",
-        icon: <HiViewBoards size={16} />,
+        icon: <LayoutDashboard size={16} strokeWidth={1.8} />,
         title: t("projectOverview"),
         disabled: false, // usually for unauthenticated users
       },
       {
         name: t("tasks"),
         href: currentWorkspaceSlug && currentProjectSlug ? `/${currentWorkspaceSlug}/${currentProjectSlug}/tasks` : "#",
-        icon: <HiClipboardList size={16} />,
+        icon: <ListTodo size={16} strokeWidth={1.8} />,
         title: t("tasks"),
         disabled: false,
       },
       {
         name: t("sprints"),
         href: currentWorkspaceSlug && currentProjectSlug ? `/${currentWorkspaceSlug}/${currentProjectSlug}/sprints` : "#",
-        icon: <HiLightningBolt size={16} />,
+        icon: <Timer size={16} strokeWidth={1.8} />,
         title: t("sprints"),
         disabled: false,
       },
@@ -297,44 +319,44 @@ export default function Sidebar() {
     return currentWorkspaceSlug && currentProjectSlug
       ? [
           {
-            name: t("overview"),
+            name: t("projectOverview") || "Tổng quan dự án",
             href: `/${currentWorkspaceSlug}/${currentProjectSlug}`,
-            icon: <HiViewBoards size={16} />,
+            icon: <LayoutDashboard size={16} strokeWidth={1.8} />,
             title: t("projectOverview"),
             disabled: false,
           },
           {
             name: t("tasks"),
             href: `/${currentWorkspaceSlug}/${currentProjectSlug}/tasks`,
-            icon: <HiClipboardList size={16} />,
+            icon: <ListTodo size={16} strokeWidth={1.8} />,
             title: t("tasks"),
             disabled: false,
           },
           {
             name: t("sprints"),
             href: `/${currentWorkspaceSlug}/${currentProjectSlug}/sprints`,
-            icon: <HiLightningBolt size={16} />,
+            icon: <Timer size={16} strokeWidth={1.8} />,
             title: t("sprints"),
             disabled: false,
           },
           {
             name: t("calendar"),
             href: `/${currentWorkspaceSlug}/${currentProjectSlug}/calendar`,
-            icon: <HiCalendar size={16} />,
+            icon: <CalendarDays size={16} strokeWidth={1.8} />,
             title: t("calendar"),
             disabled: false,
           },
           {
             name: t("members"),
             href: `/${currentWorkspaceSlug}/${currentProjectSlug}/members`,
-            icon: <HiUsers size={16} />,
+            icon: <Users size={16} strokeWidth={1.8} />,
             title: t("members"),
             disabled: false,
           },
           {
             name: t("settings"),
             href: `/${currentWorkspaceSlug}/${currentProjectSlug}/settings`,
-            icon: <HiCog size={16} />,
+            icon: <SlidersHorizontal size={16} strokeWidth={1.8} />,
             title: t("settings"),
             disabled: false,
           },
@@ -451,7 +473,7 @@ export default function Sidebar() {
           <div className="layout-sidebar-header-dashboard">
             <div className="layout-sidebar-header-dashboard-content">
               <div className="layout-sidebar-header-dashboard-icon">
-                <HiViewBoards size={16} />
+                <FolderKanban size={16} />
               </div>
               <span className="layout-sidebar-header-dashboard-title">
                 {currentProject ? currentProject.name : t("project")}
@@ -460,7 +482,7 @@ export default function Sidebar() {
           </div>
         )}
 
-        {/* Authenticated State - Original Logic */}
+        {/* Authenticated State */}
         {isAuth && (
           <>
             {/* Global Dashboard */}
@@ -472,39 +494,104 @@ export default function Sidebar() {
                 );
 
                 return (
-                  <div className="layout-sidebar-header-dashboard">
-                    <div className="layout-sidebar-header-dashboard-content">
-                      <div className="layout-sidebar-header-dashboard-icon">
-                        {activeItem ? activeItem.icon : "TS"}
+                  <div className="w-full flex items-center justify-between py-1">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white shadow-2xs flex-shrink-0">
+                        {activeItem ? activeItem.icon : <LayoutDashboard size={16} />}
                       </div>
-                      <span className="layout-sidebar-header-dashboard-title">
-                        {activeItem ? activeItem.name : "Taskosaur"}
-                      </span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm font-semibold text-[var(--sidebar-foreground)] truncate leading-tight">
+                          {activeItem ? activeItem.name : "Taskosaur"}
+                        </span>
+                        <span className="text-[10px] text-[var(--sidebar-muted)] font-medium truncate">
+                          {t("globalDashboard") || "Bảng điều khiển chung"}
+                        </span>
+                      </div>
                     </div>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-wider uppercase bg-[var(--sidebar-accent)] text-[var(--sidebar-muted)] border border-[var(--sidebar-border)] flex-shrink-0">
+                      Global
+                    </span>
                   </div>
                 );
               })()}
 
-            {/* Workspace Level */}
+            {/* Workspace Level: Parent Home Link + Workspace Selector */}
             {currentWorkspaceSlug && !currentProjectSlug && (
-              <WorkspaceSelector currentWorkspaceSlug={currentWorkspaceSlug} />
+              <div className="w-full flex flex-col gap-2">
+                <Link
+                  href="/dashboard"
+                  className="group/parent flex items-center justify-between px-2 py-1.5 rounded-lg text-xs font-medium text-[var(--sidebar-muted)] hover:text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)] transition-all duration-200"
+                  title="Quay về Trang chủ (Home Dashboard)"
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <ChevronLeft className="w-3.5 h-3.5 flex-shrink-0 text-[var(--sidebar-muted)] group-hover/parent:text-[var(--sidebar-foreground)] transition-transform duration-200 group-hover/parent:-translate-x-0.5" />
+                    <Home className="w-3.5 h-3.5 flex-shrink-0 opacity-70" />
+                    <span className="truncate text-[11px] font-medium tracking-tight">
+                      {t("dashboard") || "Trang chủ"}
+                    </span>
+                  </div>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-wider uppercase bg-[var(--sidebar-accent)] text-[var(--sidebar-muted)] border border-[var(--sidebar-border)] flex-shrink-0">
+                    Home
+                  </span>
+                </Link>
+
+                <div className="w-full">
+                  <WorkspaceSelector currentWorkspaceSlug={currentWorkspaceSlug} />
+                </div>
+              </div>
             )}
 
-            {/* Project Level */}
+            {/* Project Level: Parent Workspace Link + Project Selector */}
             {currentWorkspaceSlug && currentProjectSlug && (
-              <ProjectSelector
-                currentWorkspaceSlug={currentWorkspaceSlug}
-                currentProjectSlug={currentProjectSlug}
-              />
+              <div className="w-full flex flex-col gap-2">
+                <Link
+                  href={`/${currentWorkspaceSlug}`}
+                  className="group/parent flex items-center justify-between px-2 py-1.5 rounded-lg text-xs font-medium text-[var(--sidebar-muted)] hover:text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)] transition-all duration-200"
+                  title={`Quay lại Workspace ${currentWorkspace?.name || currentWorkspaceSlug}`}
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <ChevronLeft className="w-3.5 h-3.5 flex-shrink-0 text-[var(--sidebar-muted)] group-hover/parent:text-[var(--sidebar-foreground)] transition-transform duration-200 group-hover/parent:-translate-x-0.5" />
+                    <Building2 className="w-3.5 h-3.5 flex-shrink-0 opacity-70" />
+                    <span className="truncate text-[11px] font-medium tracking-tight">
+                      {currentWorkspace?.name || currentWorkspaceSlug}
+                    </span>
+                  </div>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-wider uppercase bg-[var(--sidebar-accent)] text-[var(--sidebar-muted)] border border-[var(--sidebar-border)] flex-shrink-0">
+                    Workspace
+                  </span>
+                </Link>
+
+                <div className="w-full">
+                  <ProjectSelector
+                    currentWorkspaceSlug={currentWorkspaceSlug}
+                    currentProjectSlug={currentProjectSlug}
+                  />
+                </div>
+              </div>
             )}
           </>
         )}
       </div>
 
       <nav className="layout-sidebar-nav">
+        {/* Section Header */}
+        <div className="px-3 pb-2 pt-1 text-[10px] font-bold text-[var(--sidebar-muted)] tracking-wider uppercase flex items-center justify-between">
+          <span>
+            {currentWorkspaceSlug && currentProjectSlug
+              ? "Menu dự án"
+              : currentWorkspaceSlug
+              ? "Menu Workspace"
+              : "Điều hướng chung"}
+          </span>
+        </div>
+
         <ul className="layout-sidebar-nav-list">
           {navigationItems.map((item) => {
-            const isItemActive = isActive(pathname, item.href, item.name === "Overview");
+            const isBase =
+              item.href === `/${currentWorkspaceSlug}/${currentProjectSlug}` ||
+              item.href === `/${currentWorkspaceSlug}` ||
+              item.href === "/dashboard";
+            const isItemActive = isActive(pathname, item.href, isBase);
 
             return (
               <li key={item.name} className="layout-sidebar-nav-item">
@@ -578,7 +665,7 @@ export default function Sidebar() {
       return (
         <div className="layout-sidebar-mini">
           <div className="mb-6 w-8 h-8 flex items-center justify-center rounded-lg text-[var(--sidebar-muted)]">
-            <HiMenu size={16} />
+            <Menu size={16} />
           </div>
           <div className="flex-grow flex flex-col items-center gap-4"></div>
         </div>
@@ -591,13 +678,17 @@ export default function Sidebar() {
             onClick={() => toggleSidebar(!isSidebarCollapsed)}
             className="layout-sidebar-mini-expand-button"
           >
-            <HiMenu size={16} />
+            <Menu size={16} />
           </button>
         </Tooltip>
 
         <div className="layout-sidebar-mini-nav">
           {miniSidebarNavItems.map((item) => {
-            const isItemActive = isActive(pathname, item.href, item.name === "Overview");
+            const isBase =
+              item.href === `/${currentWorkspaceSlug}/${currentProjectSlug}` ||
+              item.href === `/${currentWorkspaceSlug}` ||
+              item.href === "/dashboard";
+            const isItemActive = isActive(pathname, item.href, isBase);
             const linkProps = item.disabled
               ? {
                   onClick: handleDisabledClick,
@@ -653,7 +744,7 @@ export default function Sidebar() {
             onClick={() => toggleSidebar(!isSidebarCollapsed)}
             className="layout-sidebar-toggle-button"
           >
-            <HiMenu size={16} />
+            <Menu size={16} />
           </button>
         </Tooltip>
       )}
