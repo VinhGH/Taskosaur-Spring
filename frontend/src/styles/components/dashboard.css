@@ -65,7 +65,25 @@
 }
 
 .dashboard-stat-card-inner {
-  @apply bg-[var(--card)] rounded-md py-3 h-20 flex flex-col justify-between border-none;
+  @apply bg-[var(--card)] rounded-xl py-3 px-3.5 min-h-[108px] h-full flex flex-col justify-between;
+}
+
+.taskosaur-stat-card {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.taskosaur-stat-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+}
+
+:root:not(.dark) .taskosaur-stat-card:hover {
+  border-color: #cbd5e1;
+}
+
+.dark .taskosaur-stat-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .dashboard-stat-content {

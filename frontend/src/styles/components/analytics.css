@@ -264,8 +264,9 @@
 
 /* Chart Container Base */
 .analytics-chart-container {
-  @apply rounded-lg shadow-none border-none space-y-4 pt-4;
+  @apply rounded-xl border shadow-sm space-y-4 pt-4 transition-all duration-300 hover:shadow-md;
   background-color: var(--card);
+  border-color: var(--border);
 }
 
 .analytics-chart-header {
