@@ -152,27 +152,31 @@ git checkout dev
 ```
 
 ### 2. Configure Environment Variables
-Copy the environment template:
+
+Tất cả biến môi trường cho toàn bộ stack (Frontend + Backend + DB) đều nằm trong **một file duy nhất** ở root:
+
 ```bash
 cp .env.example .env
 ```
 
-Review or edit key settings in `.env`:
+Các biến quan trọng cần thay đổi:
+
 ```env
-# Database Credentials
-POSTGRES_USER=taskosaur
-POSTGRES_PASSWORD=taskosaur_secure_password
-POSTGRES_DB=taskosaur
+# Bắt buộc - Security (tạo bằng: openssl rand -base64 32)
+JWT_SECRET=CHANGE_ME_run_openssl_rand_-base64_32
+JWT_REFRESH_SECRET=CHANGE_ME_run_openssl_rand_-base64_32
+ENCRYPTION_KEY=CHANGE_ME_run_openssl_rand_-hex_32
 
-# Security Keys
-JWT_SECRET=your_super_long_and_secure_jwt_secret_key_minimum_64_characters
-JWT_ACCESS_EXPIRY_MS=900000
-JWT_REFRESH_EXPIRY_MS=604800000
+# Bắt buộc - Database
+POSTGRES_PASSWORD=taskosaur
+DATABASE_URL=postgresql://taskosaur:taskosaur@localhost:5432/taskosaur
 
-# OpenRouter AI (Optional - for conversational AI task execution)
-OPENROUTER_API_KEY=your_openrouter_api_key
+# Optional - AI (dang ky tai https://openrouter.ai)
+OPENROUTER_API_KEY=sk-or-your-key-here
 OPENROUTER_MODEL=openai/gpt-4o-mini
 ```
+
+> **Luu y:** File `.env` da co trong `.gitignore` — khong bao gio commit file `.env` that len Git.
 
 ### 3. Launch the Stack
 ```bash
