@@ -32,5 +32,8 @@
   "selectProject": "Select Project",
   "noDescription": "No description",
   "noNestedWorkspaces": "No nested workspaces",
-  "dropToMakeTopLevel": "Drop here to make top-level"
+  "dropToMakeTopLevel": "Drop here to make top-level",
+  "chat": "Chat",
+  "workspaceChat": "Workspace Chat",
+  "projectChat": "Project Chat"
 }

@@ -120,6 +120,43 @@ public class WebSocketEventService {
         log.debug("Sent time:stopped for task {}", taskId);
     }
 
+    public void notifyChatMessage(String channelId, Object message) {
+        if (channelId == null) return;
+        WebSocketMessage wsMessage = buildMessage("chat:message_sent", message);
+        messagingTemplate.convertAndSend("/topic/channel/" + channelId, wsMessage);
+        log.debug("Sent chat:message_sent to /topic/channel/{}", channelId);
+    }
+
+    public void notifyMessageDeleted(String channelId, String messageId) {
+        if (channelId == null || messageId == null) return;
+        Map<String, Object> data = Map.of("messageId", messageId, "channelId", channelId);
+        WebSocketMessage wsMessage = buildMessage("chat:message_deleted", data);
+        messagingTemplate.convertAndSend("/topic/channel/" + channelId, wsMessage);
+        log.debug("Sent chat:message_deleted for message {} in channel {}", messageId, channelId);
+    }
+
+    public void notifyMemberMuted(String channelId, String userId, boolean isMuted) {
+        if (channelId == null || userId == null) return;
+        Map<String, Object> data = Map.of("channelId", channelId, "userId", userId, "isMuted", isMuted);
+        WebSocketMessage wsMessage = buildMessage("chat:member_muted", data);
+        messagingTemplate.convertAndSend("/topic/channel/" + channelId, wsMessage);
+        log.debug("Sent chat:member_muted for user {} in channel {}", userId, channelId);
+    }
+
+    public void notifyJoinRequest(String channelId, Object request) {
+        if (channelId == null) return;
+        WebSocketMessage wsMessage = buildMessage("chat:join_request", request);
+        messagingTemplate.convertAndSend("/topic/channel/" + channelId, wsMessage);
+        log.debug("Sent chat:join_request to /topic/channel/{}", channelId);
+    }
+
+    public void notifyMemberAdded(String channelId, Object data) {
+        if (channelId == null) return;
+        WebSocketMessage wsMessage = buildMessage("chat:member_added", data);
+        messagingTemplate.convertAndSend("/topic/channel/" + channelId, wsMessage);
+        log.debug("Sent chat:member_added to /topic/channel/{}", channelId);
+    }
+
     private WebSocketMessage buildMessage(String event, Object data) {
         return new WebSocketMessage(event, data, Instant.now().toString());
     }

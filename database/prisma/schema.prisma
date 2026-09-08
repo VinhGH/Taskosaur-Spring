@@ -132,6 +132,16 @@ model User {
   // AI Chat Conversations
   conversations Conversation[]
 
+  // Team Channels & Messaging
+  createdChannels      Channel[]            @relation("ChannelCreatedBy")
+  channelMembers       ChannelMember[]      @relation("ChannelMemberUser")
+  addedChannelMembers  ChannelMember[]      @relation("MemberAddedBy")
+  channelMessages      ChannelMessage[]     @relation("MessageSender")
+  channelJoinRequests  ChannelJoinRequest[] @relation("JoinRequestUser")
+  reviewedJoinRequests ChannelJoinRequest[] @relation("JoinRequestReviewedBy")
+  blockedUsers         UserBlock[]          @relation("UserBlocker")
+  blockedByUsers       UserBlock[]          @relation("UserBlocked")
+
   @@map("users")
 }
 
@@ -213,6 +223,7 @@ model Workspace {
   workspaceLabels   WorkspaceLabel[]
   trelloSync        TrelloSync?
   jiraSync          JiraSync?
+  channels          Channel[]
 
   @@unique([organizationId, slug])
   @@index([parentWorkspaceId])
@@ -272,6 +283,7 @@ model Project {
   inbox           ProjectInbox?
   trelloSync      TrelloSync?
   jiraSync        JiraSync?
+  channels        Channel[]
 
   @@unique([workspaceId, slug])
   @@map("projects")
@@ -1508,5 +1520,131 @@ model ChatMessage {
   @@index([conversationId])
   @@index([createdAt])
   @@map("chat_messages")
+}
+
+// ============= TEAM & PROJECT CHAT =============
+
+enum ChannelType {
+  PUBLIC
+  PRIVATE
+  DIRECT_MESSAGE
+  ANNOUNCEMENT
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ChannelMemberRole {
+  ADMIN
+  MEMBER
+}
+
+model Channel {
+  id                 String              @id @default(uuid()) @db.Uuid
+  workspaceId        String              @map("workspace_id") @db.Uuid
+  projectId          String?             @map("project_id") @db.Uuid
+  name               String
+  description        String?
+  type               ChannelType         @default(PUBLIC)
+  isAnnouncementOnly Boolean             @default(false) @map("is_announcement_only")
+  requiresApproval   Boolean             @default(false) @map("requires_approval")
+  inviteCode         String?             @unique @map("invite_code")
+  isArchived         Boolean             @default(false) @map("is_archived")
+  createdById        String              @map("created_by_id") @db.Uuid
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+
+  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project            Project?            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdByUser      User                @relation("ChannelCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  members            ChannelMember[]
+  messages           ChannelMessage[]
+  joinRequests       ChannelJoinRequest[]
+
+  @@index([workspaceId])
+  @@index([projectId])
+  @@map("channels")
+}
+
+model ChannelMember {
+  id         String            @id @default(uuid()) @db.Uuid
+  channelId  String            @map("channel_id") @db.Uuid
+  userId     String            @map("user_id") @db.Uuid
+  role       ChannelMemberRole @default(MEMBER)
+  isMuted    Boolean           @default(false) @map("is_muted")
+  lastReadAt DateTime          @default(now()) @map("last_read_at")
+  joinedAt   DateTime          @default(now()) @map("joined_at")
+  addedById  String?           @map("added_by_id") @db.Uuid
+
+  channel    Channel           @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user       User              @relation("ChannelMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+  addedBy    User?             @relation("MemberAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+
+  @@unique([channelId, userId])
+  @@index([userId])
+  @@map("channel_members")
+}
+
+model ChannelMessage {
+  id          String           @id @default(uuid()) @db.Uuid
+  channelId   String           @map("channel_id") @db.Uuid
+  senderId    String           @map("sender_id") @db.Uuid
+  content     String           @db.Text
+  attachments Json?
+  replyToId   String?          @map("reply_to_id") @db.Uuid
+  isEdited    Boolean          @default(false) @map("is_edited")
+  isDeleted   Boolean          @default(false) @map("is_deleted")
+  deletedById String?          @map("deleted_by_id") @db.Uuid
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  channel     Channel          @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  sender      User             @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo     ChannelMessage?  @relation("ChannelMessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies     ChannelMessage[] @relation("ChannelMessageReplies")
+
+  @@index([channelId, createdAt])
+  @@index([senderId])
+  @@map("channel_messages")
+}
+
+model ChannelJoinRequest {
+  id           String            @id @default(uuid()) @db.Uuid
+  channelId    String            @map("channel_id") @db.Uuid
+  userId       String            @map("user_id") @db.Uuid
+  status       JoinRequestStatus @default(PENDING)
+  message      String?           @db.Text
+  reviewedById String?           @map("reviewed_by_id") @db.Uuid
+  reviewedAt   DateTime?         @map("reviewed_at")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  channel      Channel           @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user         User              @relation("JoinRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy   User?             @relation("JoinRequestReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([channelId, userId, status])
+  @@index([channelId])
+  @@index([userId])
+  @@map("channel_join_requests")
+}
+
+model UserBlock {
+  id        String   @id @default(uuid()) @db.Uuid
+  blockerId String   @map("blocker_id") @db.Uuid
+  blockedId String   @map("blocked_id") @db.Uuid
+  reason    String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  blocker   User     @relation("UserBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("UserBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+  @@map("user_blocks")
 }
 

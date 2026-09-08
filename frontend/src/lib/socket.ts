@@ -105,10 +105,10 @@ class SocketService {
   }
 
   /**
-   * Joins a specific room (project, workspace, task, organization)
+   * Joins a specific room (project, workspace, organization, task, channel, user, presence)
    * Maps to Spring STOMP topic: /topic/{room}/{id}
    */
-  joinRoom(room: "project" | "workspace" | "organization" | "task" | "user" | "presence", id: string = "") {
+  joinRoom(room: "project" | "workspace" | "organization" | "task" | "channel" | "user" | "presence", id: string = "") {
     const roomKey = id ? `${room}:${id}` : room;
     this.activeRooms.set(roomKey, { room, id });
 
@@ -153,7 +153,7 @@ class SocketService {
   /**
    * Leaves a room and unsubscribes from the STOMP topic.
    */
-  leaveRoom(room: "project" | "workspace" | "organization" | "task" | "user", id?: string) {
+  leaveRoom(room: "project" | "workspace" | "organization" | "task" | "channel" | "user", id?: string) {
     if (!id) {
       // If id not specified, remove all rooms of this type
       const keysToRemove: string[] = [];

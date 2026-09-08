@@ -12,6 +12,7 @@ import { LayoutProvider, useLayout } from "@/contexts/layout-context";
 import { NotificationProvider } from "@/contexts/notification-context";
 import { TimezoneInitializer } from "@/components/common/TimezoneInitializer";
 import ChatPanel from "@/components/chat/ChatPanel";
+import FloatingChatWidget from "@/components/chat/FloatingChatWidget";
 
 interface CommonProvidersProps {
   children: ReactNode;
@@ -86,6 +87,7 @@ function AppProvidersContent({ children }: CommonProvidersProps) {
                           </div>
                         </div>
                         <ChatPanel />
+                        <FloatingChatWidget />
                       </div>
                     </div>
                   )}

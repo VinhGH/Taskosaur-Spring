@@ -19,6 +19,7 @@ import {
   Menu,
   Activity,
   Plus,
+  MessageSquare,
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/router";
@@ -63,7 +64,7 @@ const usePathnameParsing = (pathname: string, isMounted: boolean) => {
     ];
 
     // Define workspace-level routes that should not be treated as project slugs
-    const workspaceRoutes = ["projects", "members", "activities", "tasks", "analytics", "settings"];
+    const workspaceRoutes = ["projects", "members", "activities", "tasks", "analytics", "settings", "chat"];
 
     if (parts.length === 0 || globalRoutes.includes(parts[0])) {
       return { currentWorkspaceSlug: null, currentProjectSlug: null };
@@ -264,6 +265,13 @@ export default function Sidebar() {
               title: t("workspaceTasks"),
               disabled: !isAuth,
             },
+            {
+              name: t("chat") || "Trò chuyện",
+              href: `/${currentWorkspaceSlug}/chat`,
+              icon: <MessageSquare size={16} strokeWidth={1.8} />,
+              title: t("workspaceChat") || "Kênh trò chuyện",
+              disabled: !isAuth,
+            },
             // Settings only shown to authenticated users
             ...(isAuth
               ? [
@@ -351,6 +359,13 @@ export default function Sidebar() {
             href: `/${currentWorkspaceSlug}/${currentProjectSlug}/members`,
             icon: <Users size={16} strokeWidth={1.8} />,
             title: t("members"),
+            disabled: false,
+          },
+          {
+            name: t("chat") || "Trò chuyện",
+            href: `/${currentWorkspaceSlug}/${currentProjectSlug}/chat`,
+            icon: <MessageSquare size={16} strokeWidth={1.8} />,
+            title: t("projectChat") || "Trò chuyện dự án",
             disabled: false,
           },
           {

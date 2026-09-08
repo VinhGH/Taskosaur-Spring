@@ -32,5 +32,8 @@
   "selectProject": "Chọn dự án",
   "noDescription": "Chưa có mô tả",
   "noNestedWorkspaces": "Không có workspace con",
-  "dropToMakeTopLevel": "Thả vào đây để đưa lên cấp cao nhất"
+  "dropToMakeTopLevel": "Thả vào đây để đưa lên cấp cao nhất",
+  "chat": "Trò chuyện",
+  "workspaceChat": "Kênh trò chuyện",
+  "projectChat": "Trò chuyện dự án"
 }
