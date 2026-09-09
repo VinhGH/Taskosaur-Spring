@@ -12,7 +12,7 @@ CREATE INDEX IF NOT EXISTS "tasks_created_by_id_idx" ON "tasks"("created_by_id")
 CREATE INDEX IF NOT EXISTS "tasks_is_archived_idx" ON "tasks"("is_archived");
 
 -- 2. Notifications Indexes (User bell badge, unread counter, notification feed)
-CREATE INDEX IF NOT EXISTS "notifications_user_id_is_read_created_at_idx" ON "notifications"("user_id", "is_read", "created_at" DESC);
+CREATE INDEX IF NOT EXISTS "notifications_user_id_isRead_created_at_idx" ON "notifications"("user_id", "isRead", "created_at" DESC);
 CREATE INDEX IF NOT EXISTS "notifications_user_id_idx" ON "notifications"("user_id");
 
 -- 3. Activity Logs Indexes (Audit trails, entity history, workspace feed)
@@ -39,5 +39,5 @@ CREATE INDEX IF NOT EXISTS "projects_workspace_id_idx" ON "projects"("workspace_
 CREATE INDEX IF NOT EXISTS "sprints_project_id_archive_idx" ON "sprints"("project_id", "archive");
 
 -- 8. Settings (User and global key lookups)
-CREATE INDEX IF NOT EXISTS "settings_user_id_key_idx" ON "settings"("user_id", "key");
+CREATE INDEX IF NOT EXISTS "settings_userId_key_idx" ON "settings"("userId", "key");
 CREATE INDEX IF NOT EXISTS "settings_key_idx" ON "settings"("key");

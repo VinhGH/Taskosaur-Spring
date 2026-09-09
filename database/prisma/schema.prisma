@@ -1463,6 +1463,7 @@ model Settings {
 
   // Unique constraint: key must be unique per user (or globally if userId is null)
   @@unique([userId, key]) // This allows same keys for different users, and also allows global settings (userId = null)
+  @@index([userId, key])
   @@index([key])
   @@map("settings")
 }
