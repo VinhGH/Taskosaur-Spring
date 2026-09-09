@@ -14,20 +14,7 @@ import { useRouter } from "next/router";
 import ActionButton from "../common/ActionButton";
 import { formatDateForDisplay } from "@/utils/date";
 
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
-  isRead: boolean;
-  createdAt: string;
-  createdByUser?: {
-    id: string;
-    firstName?: string;
-    lastName?: string;
-  };
-  entity?: any;
-}
+import { Notification } from "@/types/notification";
 
 interface NotificationDropdownProps {
   userId?: string;
