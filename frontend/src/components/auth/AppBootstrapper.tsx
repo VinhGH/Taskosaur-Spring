@@ -219,19 +219,24 @@ export default function AppBootstrapper({ children }: AppBootstrapperProps) {
   }
 
   // Routing Logic (Same as ProtectedRoute)
-  const actualPath = typeof window !== "undefined" ? window.location.pathname : router.asPath.split("?")[0];
-  const isGenuinePublicPage = 
-    actualPath.startsWith("/public/task/") ||
-    (typeof window !== "undefined" && window.location.pathname.startsWith("/public/")) ||
-    publicRoutes.includes(actualPath) ||
-    (!isAuthenticated && publicRoutes.includes(router.pathname));
+  const isPublicRoute =
+    publicRoutes.includes(router.pathname) ||
+    router.pathname.startsWith("/public/task/") ||
+    (typeof window !== "undefined" && window.location.pathname.startsWith("/public/"));
 
-  const isProjectRoute = router.pathname.includes("/[workspaceSlug]/[projectSlug]") || (typeof window !== "undefined" && /\/[^\/]+\/[^\/]+/.test(window.location.pathname) && !window.location.pathname.startsWith("/public/") && !window.location.pathname.startsWith("/admin"));
+  const isProjectRoute =
+    router.pathname.includes("/[workspaceSlug]/[projectSlug]") ||
+    (typeof window !== "undefined" &&
+      /\/[^\/]+\/[^\/]+/.test(window.location.pathname) &&
+      !window.location.pathname.startsWith("/public/") &&
+      !window.location.pathname.startsWith("/admin"));
+
+  const actualPath = typeof window !== "undefined" ? window.location.pathname : router.asPath.split("?")[0];
   const isSettingsOrMembersRoute = actualPath.endsWith("/settings") || actualPath.endsWith("/members");
   const isPublicProjectRoute = isProjectRoute && !isSettingsOrMembersRoute;
   const is404 = router.pathname === "/404";
 
-  if (is404) {
+  if (is404 || isPublicRoute) {
     return <LayoutProvider>{children}</LayoutProvider>;
   }
 
@@ -243,14 +248,7 @@ export default function AppBootstrapper({ children }: AppBootstrapperProps) {
     );
   }
 
-  if (!isAuthenticated && isGenuinePublicPage) {
-    return <LayoutProvider>{children}</LayoutProvider>;
-  }
-
   if (isAuthenticated && hasOrganization) {
-    if (actualPath === "/terms-of-service" || actualPath === "/privacy-policy") {
-      return <LayoutProvider>{children}</LayoutProvider>;
-    }
     return <AppProviders>{children}</AppProviders>;
   }
 
@@ -262,5 +260,5 @@ export default function AppBootstrapper({ children }: AppBootstrapperProps) {
     );
   }
 
-  return <LayoutProvider>{children}</LayoutProvider>;
+  return null;
 }
