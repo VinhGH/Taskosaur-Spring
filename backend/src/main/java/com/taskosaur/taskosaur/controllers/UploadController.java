@@ -22,7 +22,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping({"/api/uploads", "/uploads"})
-@CrossOrigin(origins = "http://localhost:3001", allowCredentials = "true")
 public class UploadController {
 
     private static final String UPLOAD_BASE_DIR = "uploads";

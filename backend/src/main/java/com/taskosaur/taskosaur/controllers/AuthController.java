@@ -4,6 +4,7 @@ import com.taskosaur.taskosaur.dto.auth.*;
 import com.taskosaur.taskosaur.exceptions.UnauthorizedException;
 import com.taskosaur.taskosaur.models.User;
 import com.taskosaur.taskosaur.services.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,16 +20,19 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "http://localhost:3001", allowCredentials = "true")
 @RequiredArgsConstructor
 public class AuthController {
     private final AuthService authService;
 
-    private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
+    private void setRefreshTokenCookie(HttpServletRequest request, HttpServletResponse response, String refreshToken) {
+        boolean isSecure = (request != null && request.isSecure())
+                || (request != null && "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Proto")))
+                || (request != null && "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Scheme")));
+
         ResponseCookie cookie = ResponseCookie.from("refresh_token", refreshToken != null ? refreshToken : "")
                 .httpOnly(true)
-                .secure(false)
-                .sameSite("Lax")
+                .secure(isSecure)
+                .sameSite(isSecure ? "None" : "Lax")
                 .path("/")
                 .maxAge(refreshToken != null ? Duration.ofDays(30) : Duration.ZERO)
                 .build();
@@ -43,10 +47,11 @@ public class AuthController {
     @PostMapping("/setup")
     public ResponseEntity<AuthResponse> setupSuperAdmin(
             @Valid @RequestBody SetupAdminRequest request,
+            HttpServletRequest httpRequest,
             HttpServletResponse response
     ) {
         AuthResponse authResponse = authService.setupSuperAdmin(request);
-        setRefreshTokenCookie(response, authResponse.getRefreshToken());
+        setRefreshTokenCookie(httpRequest, response, authResponse.getRefreshToken());
         return ResponseEntity.status(HttpStatus.CREATED).body(authResponse);
     }
 
@@ -54,21 +59,23 @@ public class AuthController {
     @com.taskosaur.taskosaur.annotations.RateLimit(limit = 5, period = 60, keyPrefix = "auth_login", strategy = com.taskosaur.taskosaur.enums.RateLimitStrategy.BY_IP)
     public ResponseEntity<AuthResponse> login(
             @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest,
             HttpServletResponse response
     ) {
         AuthResponse authResponse = authService.login(request);
-        setRefreshTokenCookie(response, authResponse.getRefreshToken());
+        setRefreshTokenCookie(httpRequest, response, authResponse.getRefreshToken());
         return ResponseEntity.ok(authResponse);
     }
 
     @PostMapping("/logout")
     public ResponseEntity<Map<String, String>> logout(
             Authentication authentication,
+            HttpServletRequest httpRequest,
             HttpServletResponse response
     ) {
         String userId = authentication != null ? authentication.getName() : null;
         authService.logout(userId);
-        setRefreshTokenCookie(response, null);
+        setRefreshTokenCookie(httpRequest, response, null);
         return ResponseEntity.ok(Map.of("message", "Logout successful"));
     }
 
@@ -76,6 +83,7 @@ public class AuthController {
     public ResponseEntity<AuthResponse> refreshToken(
             @RequestBody(required = false) RefreshTokenRequest request,
             @CookieValue(name = "refresh_token", required = false) String cookieRefreshToken,
+            HttpServletRequest httpRequest,
             HttpServletResponse response
     ) {
         String token = (cookieRefreshToken != null && !cookieRefreshToken.isBlank())
@@ -87,7 +95,7 @@ public class AuthController {
         }
 
         AuthResponse authResponse = authService.refreshToken(token);
-        setRefreshTokenCookie(response, authResponse.getRefreshToken());
+        setRefreshTokenCookie(httpRequest, response, authResponse.getRefreshToken());
         return ResponseEntity.ok(authResponse);
     }
 
@@ -125,10 +133,11 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(
             @Valid @RequestBody RegisterRequest request,
+            HttpServletRequest httpRequest,
             HttpServletResponse response
     ) {
         AuthResponse authResponse = authService.registerUser(request);
-        setRefreshTokenCookie(response, authResponse.getRefreshToken());
+        setRefreshTokenCookie(httpRequest, response, authResponse.getRefreshToken());
         return ResponseEntity.status(HttpStatus.CREATED).body(authResponse);
     }
 

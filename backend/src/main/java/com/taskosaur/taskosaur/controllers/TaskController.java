@@ -15,7 +15,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/tasks")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3001", allowCredentials = "true")
 public class TaskController {
 
     private final TaskService taskService;

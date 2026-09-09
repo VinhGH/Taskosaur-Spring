@@ -12,7 +12,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/activity-logs")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3001", allowCredentials = "true")
 public class ActivityLogController {
 
     private final ActivityLogService activityLogService;

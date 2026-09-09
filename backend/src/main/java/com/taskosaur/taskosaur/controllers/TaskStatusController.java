@@ -22,7 +22,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/task-statuses")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3001", allowCredentials = "true")
 public class TaskStatusController {
 
     private final TaskStatusRepository taskStatusRepository;

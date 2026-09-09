@@ -17,7 +17,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/settings")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3001", allowCredentials = "true")
 public class SettingController {
 
     private final SettingService settingService;

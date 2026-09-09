@@ -16,7 +16,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/labels")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3001", allowCredentials = "true")
 public class LabelController {
 
     private final LabelService labelService;

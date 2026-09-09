@@ -14,7 +14,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/task-labels")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3001", allowCredentials = "true")
 public class TaskLabelController {
 
     private final TaskLabelService taskLabelService;

@@ -24,7 +24,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/public")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3001", allowCredentials = "true")
 public class PublicController {
 
     private final WorkspaceRepository workspaceRepository;

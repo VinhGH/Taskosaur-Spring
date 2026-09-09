@@ -16,7 +16,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/sprints")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3001", allowCredentials = "true")
 public class SprintController {
 
     private final SprintService sprintService;

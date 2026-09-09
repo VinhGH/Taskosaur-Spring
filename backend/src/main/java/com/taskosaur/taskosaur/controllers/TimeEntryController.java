@@ -18,7 +18,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/time-entries")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3001", allowCredentials = "true")
 public class TimeEntryController {
 
     private final TimeEntryService timeEntryService;

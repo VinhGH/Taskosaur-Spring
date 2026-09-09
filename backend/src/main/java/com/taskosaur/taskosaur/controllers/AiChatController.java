@@ -16,7 +16,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/ai-chat")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3001", allowCredentials = "true")
 public class AiChatController {
 
     private final AiChatService aiChatService;

@@ -15,7 +15,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/task-attachments")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3001", allowCredentials = "true")
 public class TaskAttachmentController {
 
     private final TaskAttachmentService taskAttachmentService;

@@ -138,23 +138,24 @@ const TokenManager = {
     return elapsed >= TOKEN_EXPIRY_MS - TOKEN_REFRESH_THRESHOLD_MS;
   },
 
-  // Refresh token is now managed by the backend as an httpOnly cookie.
-  // It is sent automatically with requests via withCredentials: true.
-  // These methods are kept for backward compatibility with callers.
   getRefreshToken: (): string | null => {
-    // Cannot read httpOnly cookie from JS — return a marker if we believe
-    // a session exists (access_token is present), so callers don't bail out early.
     try {
       if (typeof window === "undefined") return null;
-      return localStorage.getItem("access_token") ? "httponly" : null;
+      return localStorage.getItem("refresh_token") || (localStorage.getItem("access_token") ? "httponly" : null);
     } catch (error) {
       console.warn("Failed to check refresh token:", error);
       return null;
     }
   },
 
-  setRefreshToken: (_token: string): void => {
-    // No-op: refresh token is now set by the backend as an httpOnly cookie
+  setRefreshToken: (token: string): void => {
+    try {
+      if (typeof window !== "undefined" && token) {
+        localStorage.setItem("refresh_token", token);
+      }
+    } catch (error) {
+      console.error("Failed to set refresh token:", error);
+    }
   },
 
   getCurrentOrgId: (): string | null => {
@@ -181,6 +182,7 @@ const TokenManager = {
     try {
       if (typeof window !== "undefined") {
         localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
         localStorage.removeItem("token_timestamp");
         localStorage.removeItem("currentOrganizationId");
         // Remove legacy client-side cookie if it exists from before httpOnly migration
@@ -273,38 +275,45 @@ const safeRedirect = (url: string): void => {
 
 // Refresh token function
 const refreshTokens = async (): Promise<string> => {
+  const storedRefreshToken = typeof window !== "undefined" ? localStorage.getItem("refresh_token") : null;
+  const payload = storedRefreshToken && storedRefreshToken !== "httponly" ? { refreshToken: storedRefreshToken } : {};
+
   try {
-    // Refresh token is sent automatically as an httpOnly cookie via withCredentials
+    // Refresh token is sent both in body (as fallback) and automatically as an httpOnly cookie via withCredentials
     const response = await axios.post<AuthTokenResponse>(
       `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000/api"}/auth/refresh`,
-      {},
+      payload,
       {
         headers: { "Content-Type": "application/json" },
         withCredentials: true,
-        timeout: 5000,
+        timeout: 10000,
       }
     );
 
-    const { access_token } = response.data;
+    const { access_token, refresh_token: newRefreshToken } = response.data;
 
     if (!access_token) {
       throw new ApiAuthError("Invalid token response", 401);
     }
 
     TokenManager.setAccessToken(access_token);
+    if (newRefreshToken) {
+      TokenManager.setRefreshToken(newRefreshToken);
+    }
 
     return access_token;
   } catch (error) {
-    TokenManager.clearTokens();
-
+    // Only clear tokens if the server explicitly confirmed the session/token is invalid (401/403)
     if (isAxiosError(error)) {
-      if (error.response?.status === 401) {
-        throw new ApiAuthError("Session expired. Please log in again.", 401);
-      } else if (error.code === "NETWORK_ERROR") {
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        TokenManager.clearTokens();
+        throw new ApiAuthError("Session expired. Please log in again.", error.response.status);
+      } else if (error.code === "NETWORK_ERROR" || error.code === "ERR_NETWORK") {
         throw new ApiNetworkError("Network error during token refresh");
       }
     }
 
+    // Do NOT clear tokens on unknown/transient errors during refresh attempt
     throw new ApiAuthError("Failed to refresh authentication", 401);
   }
 };
@@ -545,7 +554,13 @@ api.interceptors.response.use(
           return api(originalRequest);
         } catch (refreshError) {
           processQueue(refreshError, null);
-          safeRedirect("/login");
+          if (
+            (refreshError instanceof ApiAuthError && (refreshError.status === 401 || refreshError.status === 403)) ||
+            (isAxiosError(refreshError) && (refreshError.response?.status === 401 || refreshError.response?.status === 403))
+          ) {
+            TokenManager.clearTokens();
+            safeRedirect("/login");
+          }
           return Promise.reject(
             new ApiAuthError("Authentication failed. Please log in again.", 401)
           );

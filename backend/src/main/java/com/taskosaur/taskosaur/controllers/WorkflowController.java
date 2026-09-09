@@ -16,7 +16,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/workflows")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3001", allowCredentials = "true")
 public class WorkflowController {
 
     private final WorkflowService workflowService;

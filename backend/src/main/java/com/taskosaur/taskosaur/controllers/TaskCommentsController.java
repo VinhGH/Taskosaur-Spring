@@ -15,7 +15,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/task-comments")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3001", allowCredentials = "true")
 public class TaskCommentsController {
 
     private final TaskCommentService taskCommentService;
