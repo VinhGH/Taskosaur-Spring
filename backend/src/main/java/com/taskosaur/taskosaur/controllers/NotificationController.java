@@ -125,7 +125,7 @@ public class NotificationController {
         return ResponseEntity.ok(Map.of("count", count, "unreadCount", count));
     }
 
-    @PatchMapping("/{id}/read")
+    @RequestMapping(value = "/{id}/read", method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST})
     public ResponseEntity<Void> markAsRead(
             @PathVariable String id,
             Authentication authentication
@@ -135,8 +135,14 @@ public class NotificationController {
         return ResponseEntity.ok().build();
     }
 
-    @PatchMapping({"/mark-all-read", "/read-all"})
-    public ResponseEntity<Map<String, String>> markAllAsRead(Authentication authentication) {
+    @RequestMapping(
+            value = {"/mark-all-read", "/read-all", "/mark-all-unread-read"},
+            method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST}
+    )
+    public ResponseEntity<Map<String, String>> markAllAsRead(
+            Authentication authentication,
+            @RequestParam(required = false) String organizationId
+    ) {
         String userId = getUserId(authentication);
         notificationService.markAllAsRead(userId);
         return ResponseEntity.ok(Map.of("message", "All notifications marked as read"));

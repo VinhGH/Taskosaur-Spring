@@ -151,6 +151,27 @@ export default function NotificationDropdown({
     }
   };
 
+  const handleNotificationItemClick = async (notification: Notification) => {
+    await handleMarkAsRead(notification.id);
+    setDropdownOpen(false);
+
+    const actionUrl = notification.actionUrl;
+    if (actionUrl) {
+      try {
+        const targetUrl = actionUrl.startsWith("http://") || actionUrl.startsWith("https://")
+          ? new URL(actionUrl).pathname + new URL(actionUrl).search
+          : actionUrl;
+        router.push(targetUrl);
+      } catch {
+        router.push(actionUrl);
+      }
+    } else if (notification.entityType === "task" && notification.entityId) {
+      router.push(`/tasks/${notification.entityId}`);
+    } else if (notification.entityType === "project" && notification.entityId) {
+      router.push(`/projects/${notification.entityId}`);
+    }
+  };
+
   const handleViewAllNotifications = () => {
     setDropdownOpen(false);
     setTimeout(() => {
@@ -228,7 +249,7 @@ export default function NotificationDropdown({
                   className={`header-notifications-item ${
                     markingAsRead === notification.id ? "header-notifications-item-disabled" : ""
                   }`}
-                  onClick={() => handleMarkAsRead(notification.id)}
+                  onClick={() => handleNotificationItemClick(notification)}
                 >
                   <div className="header-notifications-item-layout">
                     <div className="header-notifications-item-avatar">
