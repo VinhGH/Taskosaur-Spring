@@ -11,6 +11,9 @@ public interface AiMessageRepository extends JpaRepository<AiMessage, String> {
     // Lấy tất cả tin nhắn của 1 cuộc trò chuyện theo thứ tự thời gian
     List<AiMessage> findByConversationIdOrderByCreatedAtAsc(String conversationId);
 
-    // Xóa tất cả tin nhắn của 1 cuộc trò chuyện
-    void deleteByConversationId(String conversationId);
+    // Xóa tất cả tin nhắn của 1 cuộc trò chuyện bằng bulk DELETE (tránh concurrent StaleStateException)
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Query("DELETE FROM AiMessage m WHERE m.conversationId = :conversationId")
+    void deleteByConversationId(@org.springframework.data.repository.query.Param("conversationId") String conversationId);
 }

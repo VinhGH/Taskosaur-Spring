@@ -255,6 +255,7 @@ public class AiChatService {
         conversationRepository.delete(conversation);
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public ConversationResponseDto updateMessages(String userId, String id, UpdateMessagesDto dto) {
         AiConversation conversation = conversationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Conversation not found with id: " + id));
@@ -265,7 +266,8 @@ public class AiChatService {
 
         messageRepository.deleteByConversationId(conversation.getId());
 
-        if (dto.getMessages() != null) {
+        if (dto.getMessages() != null && !dto.getMessages().isEmpty()) {
+            List<AiMessage> toSave = new java.util.ArrayList<>();
             for (ChatMessageDto m : dto.getMessages()) {
                 MessageRole role = parseRole(m.getRole());
                 String contentToSave = embedMetadata(m.getContent(), m.getActions(), m.getSteps(), m.getLogs());
@@ -274,8 +276,9 @@ public class AiChatService {
                         .role(role)
                         .content(contentToSave)
                         .build();
-                messageRepository.save(message);
+                toSave.add(message);
             }
+            messageRepository.saveAll(toSave);
         }
 
         List<AiMessage> messages = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversation.getId());
