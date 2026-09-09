@@ -81,6 +81,7 @@ public class ProjectService {
         return uniquePrefix;
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_detail", "project_charts", "org_analytics", "workspace_tree"}, allEntries = true)
     @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.PROJECT_CREATED, entityType = "PROJECT")
     public ProjectResponse createProject(CreateProjectRequest request, String userId) {
         Workspace workspace = workspaceRepository.findById(request.getWorkspaceId())
@@ -185,26 +186,35 @@ public class ProjectService {
         if (wsIds.isEmpty()) {
             return List.of();
         }
-        return projectRepository.findAll().stream()
-                .filter(p -> wsIds.contains(p.getWorkspaceId()))
-                .filter(p -> workspaceId == null || workspaceId.isBlank() || p.getWorkspaceId().equals(workspaceId))
+
+        List<Project> projectList;
+        if (workspaceId != null && !workspaceId.isBlank()) {
+            projectList = projectRepository.findByWorkspaceId(workspaceId);
+        } else {
+            projectList = projectRepository.findByWorkspaceIdIn(wsIds);
+        }
+
+        return projectList.stream()
                 .filter(p -> search == null || search.isBlank() || (p.getName() != null && p.getName().toLowerCase().contains(search.toLowerCase())))
                 .map(this::buildProjectResponse)
                 .toList();
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "project_detail", key = "'id_' + #id")
     public ProjectResponse getProjectById(String id) {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
         return buildProjectResponse(project);
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "project_detail", key = "#workspaceId + '_' + #slug")
     public ProjectResponse getProjectBySlug(String workspaceId, String slug) {
         Project project = projectRepository.findByWorkspaceIdAndSlug(workspaceId, slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with slug: " + slug));
         return buildProjectResponse(project);
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "project_detail", key = "'slug_' + #slug")
     public ProjectResponse getProjectBySlugOnly(String slug) {
         Project project = projectRepository.findBySlug(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with slug: " + slug));
@@ -229,6 +239,7 @@ public class ProjectService {
         return result;
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_detail", "project_charts", "org_analytics", "workspace_tree"}, allEntries = true)
     @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.PROJECT_UPDATED, entityType = "PROJECT")
     public ProjectResponse updateProject(String id, UpdateProjectRequest request, String userId) {
         Project project = projectRepository.findById(id)
@@ -275,6 +286,7 @@ public class ProjectService {
         return buildProjectResponse(updated);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_detail", "project_charts", "org_analytics", "workspace_tree"}, allEntries = true)
     public ProjectResponse archiveProject(String id) {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
@@ -282,6 +294,7 @@ public class ProjectService {
         return buildProjectResponse(projectRepository.save(project));
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_detail", "project_charts", "org_analytics", "workspace_tree"}, allEntries = true)
     public ProjectResponse unarchiveProject(String id) {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
@@ -289,6 +302,7 @@ public class ProjectService {
         return buildProjectResponse(projectRepository.save(project));
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_detail", "project_charts", "org_analytics", "workspace_tree"}, allEntries = true)
     public void deleteProject(String id) {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));

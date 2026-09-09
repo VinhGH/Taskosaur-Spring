@@ -22,6 +22,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @org.springframework.cache.annotation.Cacheable(value = "user_profile", key = "#id")
     public User findById(String id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
@@ -31,6 +32,7 @@ public class UserService {
         return userRepository.findAll();
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "user_profile", key = "#id")
     public User update(String id, UpdateUserRequest req, String currentUserId) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));

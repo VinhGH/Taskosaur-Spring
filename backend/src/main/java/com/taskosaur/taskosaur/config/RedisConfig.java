@@ -61,6 +61,14 @@ public class RedisConfig implements CachingConfigurer {
         cacheConfigurations.put("project_charts", defaultConfig.entryTtl(Duration.ofMinutes(5)));
         // Cache cây Workspace / Project cấu trúc ít thay đổi: 15 phút
         cacheConfigurations.put("workspace_tree", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+        // Cache cấu hình cài đặt Settings: 30 phút
+        cacheConfigurations.put("settings", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+        // Cache chi tiết Workspace: 15 phút
+        cacheConfigurations.put("workspace_detail", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+        // Cache chi tiết Project: 10 phút
+        cacheConfigurations.put("project_detail", defaultConfig.entryTtl(Duration.ofMinutes(10)));
+        // Cache User Profile: 15 phút
+        cacheConfigurations.put("user_profile", defaultConfig.entryTtl(Duration.ofMinutes(15)));
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)

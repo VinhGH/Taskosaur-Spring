@@ -41,6 +41,7 @@ public class WorkspaceService {
         return slug.toLowerCase(Locale.ENGLISH);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"workspace_detail", "workspace_tree", "org_analytics"}, allEntries = true)
     @Transactional
     public Workspace createWorkspace(CreateWorkspaceRequest request, String userId) {
         String parentPath = "";
@@ -144,11 +145,13 @@ public class WorkspaceService {
         return workspaces;
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "workspace_detail", key = "'id_' + #id")
     public Workspace getWorkspaceById(String id) {
         return workspaceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Workspace not found with id: " + id));
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "workspace_detail", key = "#organizationId + '_' + #slug")
     public Workspace getWorkspaceBySlug(String organizationId, String slug) {
         return workspaceRepository.findByOrganizationIdAndSlug(organizationId, slug)
                 .or(() -> {
@@ -175,12 +178,14 @@ public class WorkspaceService {
         return ancestors;
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"workspace_detail", "workspace_tree", "org_analytics"}, allEntries = true)
     public Workspace archiveWorkspace(String id) {
         Workspace ws = getWorkspaceById(id);
         ws.setArchive(true);
         return workspaceRepository.save(ws);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"workspace_detail", "workspace_tree", "org_analytics"}, allEntries = true)
     public Workspace unarchiveWorkspace(String id) {
         Workspace ws = getWorkspaceById(id);
         ws.setArchive(false);
@@ -213,6 +218,7 @@ public class WorkspaceService {
         );
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"workspace_detail", "workspace_tree", "org_analytics"}, allEntries = true)
     @Transactional
     public Workspace updateWorkspace(String id, UpdateWorkspaceRequest request) {
         Workspace workspace = getWorkspaceById(id);
@@ -230,6 +236,7 @@ public class WorkspaceService {
         return workspaceRepository.save(workspace);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"workspace_detail", "workspace_tree", "org_analytics"}, allEntries = true)
     @Transactional
     public void deleteWorkspace(String id) {
         Workspace workspace = getWorkspaceById(id);

@@ -34,6 +34,11 @@ public class SettingService {
         return settings.stream().map(this::mapToResponse).toList();
     }
 
+    @org.springframework.cache.annotation.Cacheable(
+            value = "settings",
+            key = "(#userId != null && !#userId.isBlank() ? #userId : 'global') + '_' + #key",
+            unless = "#result == null"
+    )
     public String get(String key, String userId, String defaultValue) {
         if (userId != null && !userId.isBlank()) {
             Optional<Setting> userSetting = settingRepository.findByUserIdAndKey(userId, key);
@@ -46,6 +51,7 @@ public class SettingService {
         return globalSetting.map(Setting::getValue).orElse(defaultValue);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "settings", allEntries = true)
     public void set(String key, String value, String userId, String description, String category, Boolean isEncrypted) {
         Optional<Setting> existing = (userId != null && !userId.isBlank())
                 ? settingRepository.findByUserIdAndKey(userId, key)
@@ -72,6 +78,7 @@ public class SettingService {
         settingRepository.save(setting);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "settings", allEntries = true)
     public void bulkSet(List<SetSettingRequest> list, String userId) {
         if (list == null) return;
         for (SetSettingRequest req : list) {
@@ -79,6 +86,7 @@ public class SettingService {
         }
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "settings", allEntries = true)
     public void delete(String key, String userId) {
         if (userId != null && !userId.isBlank()) {
             settingRepository.deleteByUserIdAndKey(userId, key);

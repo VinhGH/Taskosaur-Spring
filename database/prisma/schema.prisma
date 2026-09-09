@@ -192,6 +192,7 @@ model OrganizationMember {
   updatedByUser  User?        @relation("OrganizationMemberUpdatedBy", fields: [updatedBy], references: [id])
 
   @@unique([userId, organizationId])
+  @@index([organizationId])
   @@map("organization_members")
 }
 
@@ -246,6 +247,7 @@ model WorkspaceMember {
   updatedByUser User?     @relation("WorkspaceMemberUpdatedBy", fields: [updatedBy], references: [id])
 
   @@unique([userId, workspaceId])
+  @@index([workspaceId])
   @@map("workspace_members")
 }
 
@@ -286,6 +288,7 @@ model Project {
   channels        Channel[]
 
   @@unique([workspaceId, slug])
+  @@index([workspaceId])
   @@map("projects")
 }
 
@@ -305,6 +308,7 @@ model ProjectMember {
   updatedByUser User?    @relation("ProjectMemberUpdatedBy", fields: [updatedBy], references: [id])
 
   @@unique([userId, projectId])
+  @@index([projectId])
   @@map("project_members")
 }
 
@@ -373,6 +377,13 @@ model Task {
 
   @@unique([projectId, taskNumber])
   @@index([emailThreadId])
+  @@index([projectId])
+  @@index([projectId, statusId])
+  @@index([projectId, createdAt(sort: Desc)])
+  @@index([sprintId])
+  @@index([slug])
+  @@index([createdBy])
+  @@index([isArchived])
   @@map("tasks")
 }
 
@@ -528,6 +539,7 @@ model Sprint {
   tasks         Task[]
 
   @@unique([projectId, slug])
+  @@index([projectId, archive])
   @@map("sprints")
 }
 
@@ -587,6 +599,7 @@ model TaskAssignee {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([taskId, userId])
+  @@index([userId])
   @@map("task_assignees")
 }
 
@@ -598,6 +611,7 @@ model TaskReporter {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([taskId, userId])
+  @@index([userId])
   @@map("task_reporters")
 }
 
@@ -643,6 +657,7 @@ model TaskComment {
   replies       TaskComment[] @relation("CommentReplies")
   task          Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
+  @@index([taskId, createdAt(sort: Asc)])
   @@map("task_comments")
 }
 
@@ -701,6 +716,8 @@ model TimeEntry {
   createdByUser User?     @relation("TimeEntryCreatedBy", fields: [createdBy], references: [id])
   updatedByUser User?     @relation("TimeEntryUpdatedBy", fields: [updatedBy], references: [id])
 
+  @@index([taskId])
+  @@index([userId, date])
   @@map("time_entries")
 }
 
@@ -747,6 +764,8 @@ model Notification {
   createdByUser User?         @relation("NotificationCreatedBy", fields: [createdBy], references: [id])
   updatedByUser User?         @relation("NotificationUpdatedBy", fields: [updatedBy], references: [id])
 
+  @@index([userId, isRead, createdAt(sort: Desc)])
+  @@index([userId])
   @@map("notifications")
 }
 
@@ -776,6 +795,9 @@ model ActivityLog {
   createdByUser  User?         @relation("ActivityLogCreatedBy", fields: [createdBy], references: [id])
   updatedByUser  User?         @relation("ActivityLogUpdatedBy", fields: [updatedBy], references: [id])
 
+  @@index([entityType, entityId])
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
   @@map("activity_logs")
 }
 
@@ -1441,6 +1463,7 @@ model Settings {
 
   // Unique constraint: key must be unique per user (or globally if userId is null)
   @@unique([userId, key]) // This allows same keys for different users, and also allows global settings (userId = null)
+  @@index([key])
   @@map("settings")
 }
 

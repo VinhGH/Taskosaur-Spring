@@ -10,6 +10,8 @@ import java.util.Optional;
 @Repository
 public interface ProjectRepository extends JpaRepository<Project, String> {
     List<Project> findByWorkspaceId(String workspaceId);
+    List<Project> findByWorkspaceIdIn(List<String> workspaceIds);
+    List<Project> findByWorkspaceIdAndArchiveFalse(String workspaceId);
     Optional<Project> findByWorkspaceIdAndSlug(String workspaceId, String slug);
     Optional<Project> findBySlug(String slug);
     boolean existsByWorkspaceIdAndSlug(String workspaceId, String slug);
