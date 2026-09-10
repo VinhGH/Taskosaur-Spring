@@ -15,6 +15,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { SEO } from "@/components/common/SEO";
 import { installToastTranslator } from "@/lib/toast-translator";
 
+import { ErrorBoundary } from "@/components/common/ErrorBoundary";
+
 function useExposeRouter() {
   const router = useRouter();
 
@@ -32,17 +34,19 @@ export default function MyApp({ Component, pageProps }: AppProps) {
   }, []);
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <SEO />
-      <AuthProvider>
-        <PresenceProvider>
-          <ChatProvider>
-            <AppBootstrapper>
-              <Component {...pageProps} />
-            </AppBootstrapper>
-          </ChatProvider>
-        </PresenceProvider>
-      </AuthProvider>
-      <Toaster expand={false} richColors closeButton />
+      <ErrorBoundary>
+        <SEO />
+        <AuthProvider>
+          <PresenceProvider>
+            <ChatProvider>
+              <AppBootstrapper>
+                <Component {...pageProps} />
+              </AppBootstrapper>
+            </ChatProvider>
+          </PresenceProvider>
+        </AuthProvider>
+        <Toaster expand={false} richColors closeButton />
+      </ErrorBoundary>
     </ThemeProvider>
   );
 }
