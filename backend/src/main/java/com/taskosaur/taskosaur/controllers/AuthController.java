@@ -44,6 +44,14 @@ public class AuthController {
         return ResponseEntity.ok(authService.isSetupRequired());
     }
 
+    @GetMapping("/oidc/config")
+    public ResponseEntity<Map<String, Object>> getOidcConfig() {
+        return ResponseEntity.ok(Map.of(
+                "enabled", false,
+                "configured", false
+        ));
+    }
+
     @PostMapping("/setup")
     public ResponseEntity<AuthResponse> setupSuperAdmin(
             @Valid @RequestBody SetupAdminRequest request,
