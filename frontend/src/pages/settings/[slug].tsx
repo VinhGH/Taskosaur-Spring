@@ -160,8 +160,12 @@ function OrganizationManagePageContent() {
       setIsLoading(true);
       setError(null);
 
-      if (!slugToUse || typeof slugToUse !== "string") {
-        setError(t("organization_details.failed_to_load"));
+      if (!slugToUse || typeof slugToUse !== "string" || slugToUse === "profile") {
+        if (slugToUse === "profile") {
+          router.replace("/settings/profile");
+        } else {
+          setError(t("organization_details.failed_to_load"));
+        }
         return;
       }
 
@@ -235,12 +239,14 @@ function OrganizationManagePageContent() {
     }
   };
   useEffect(() => {
-    console.log("useEffect triggered, slug:", slug);
     if (slug && typeof slug === "string") {
-      console.log("test call - loading data");
+      if (slug === "profile") {
+        router.replace("/settings/profile");
+        return;
+      }
       loadData();
     }
-  }, [slug]); // This will trigger when slug becomes available
+  }, [slug]);
 
   const prevSearchQuery = useRef(searchQuery);
 
