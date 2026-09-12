@@ -81,7 +81,8 @@
     "tippy.js": "^6.3.7",
     "validator": "^13.15.23",
     "xlsx": "^0.18.5",
-    "zod": "^4.0.14"
+    "zod": "^4.0.14",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
