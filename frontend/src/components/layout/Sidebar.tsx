@@ -593,10 +593,10 @@ export default function Sidebar() {
         <div className="px-3 pb-2 pt-1 text-[10px] font-bold text-[var(--sidebar-muted)] tracking-wider uppercase flex items-center justify-between">
           <span>
             {currentWorkspaceSlug && currentProjectSlug
-              ? "Menu dự án"
+              ? t("projectMenu", "Menu dự án")
               : currentWorkspaceSlug
-              ? "Menu Workspace"
-              : "Điều hướng chung"}
+              ? t("workspaceMenu", "Menu Workspace")
+              : t("generalNavigation", "Điều hướng chung")}
           </span>
         </div>
 

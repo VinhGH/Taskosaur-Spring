@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Hash, Lock, Megaphone, Plus, ShieldCheck } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface CreateChannelModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export default function CreateChannelModal({
   projectId,
   projectName,
 }: CreateChannelModalProps) {
+  const { t } = useTranslation('chat');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<ChannelType>('PUBLIC');
@@ -74,22 +76,24 @@ export default function CreateChannelModal({
             </div>
             <DialogTitle className="text-base font-semibold tracking-tight text-gray-900 dark:text-white">
               {projectName
-                ? `Tạo Kênh Dự Án (${projectName})`
+                ? t('createModal.titleProject', { projectName, defaultValue: `Tạo Kênh Dự Án (${projectName})` })
                 : projectId
-                ? 'Tạo Kênh Dự Án Mới'
-                : 'Tạo Kênh Không Gian Làm Việc Mới'}
+                ? t('createModal.titleProjectNew', 'Tạo Kênh Dự Án Mới')
+                : t('createModal.titleWorkspaceNew', 'Tạo Kênh Không Gian Làm Việc Mới')}
             </DialogTitle>
           </div>
           <DialogDescription className="text-xs text-gray-500 dark:text-gray-400">
             {projectName || projectId
-              ? `Kênh trao đổi riêng dành cho các thành viên trong dự án ${projectName ? `"${projectName}"` : 'này'}.`
-              : 'Kênh là nơi các thành viên trao đổi công việc theo từng chủ đề hoặc không gian làm việc.'}
+              ? t('createModal.descProject', { projectName: projectName ? `"${projectName}"` : '', defaultValue: `Kênh trao đổi riêng dành cho các thành viên trong dự án ${projectName ? `"${projectName}"` : 'này'}.` })
+              : t('createModal.descWorkspace', 'Kênh là nơi các thành viên trao đổi công việc theo từng chủ đề hoặc không gian làm việc.')}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-700 dark:text-gray-200">Tên kênh</label>
+            <label className="text-xs font-medium text-gray-700 dark:text-gray-200">
+              {t('createModal.channelNameLabel', 'Tên kênh')}
+            </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 font-mono text-xs">
                 #
@@ -98,18 +102,20 @@ export default function CreateChannelModal({
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="ke-hoach-quy-3"
+                placeholder={t('createModal.channelNamePlaceholder', 'ke-hoach-quy-3')}
                 className="pl-7 font-mono text-xs bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20"
               />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-700 dark:text-gray-200">Mô tả (tùy chọn)</label>
+            <label className="text-xs font-medium text-gray-700 dark:text-gray-200">
+              {t('createModal.descriptionLabel', 'Mô tả (tùy chọn)')}
+            </label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Chủ đề trao đổi chính của kênh này..."
+              placeholder={t('createModal.descriptionPlaceholder', 'Chủ đề trao đổi chính của kênh này...')}
               rows={2}
               className="text-xs bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20"
             />
@@ -117,7 +123,9 @@ export default function CreateChannelModal({
 
           {/* Channel Type Selection */}
           <div className="space-y-2">
-            <label className="text-xs font-medium text-gray-700 dark:text-gray-200">Loại kênh</label>
+            <label className="text-xs font-medium text-gray-700 dark:text-gray-200">
+              {t('createModal.channelTypeLabel', 'Loại kênh')}
+            </label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -129,12 +137,12 @@ export default function CreateChannelModal({
                 }`}
               >
                 <div className="flex items-center gap-1.5 font-medium text-xs text-gray-900 dark:text-white">
-                  <Hash size={14} className="text-indigo-600 dark:text-indigo-400" /> Công khai (Public)
+                  <Hash size={14} className="text-indigo-600 dark:text-indigo-400" /> {t('createModal.public', 'Công khai (Public)')}
                 </div>
                 <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
                   {projectId
-                    ? 'Mọi người trong dự án đều có thể xem và tham gia.'
-                    : 'Mọi người trong workspace đều có thể xem và tham gia.'}
+                    ? t('createModal.publicDescProject', 'Mọi người trong dự án đều có thể xem và tham gia.')
+                    : t('createModal.publicDescWorkspace', 'Mọi người trong workspace đều có thể xem và tham gia.')}
                 </span>
               </button>
 
@@ -148,10 +156,10 @@ export default function CreateChannelModal({
                 }`}
               >
                 <div className="flex items-center gap-1.5 font-medium text-xs text-gray-900 dark:text-white">
-                  <Lock size={14} className="text-amber-600 dark:text-amber-500" /> Riêng tư (Private)
+                  <Lock size={14} className="text-amber-600 dark:text-amber-500" /> {t('createModal.private', 'Riêng tư (Private)')}
                 </div>
                 <span className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                  Chỉ những người được mời hoặc có link mới được vào.
+                  {t('createModal.privateDesc', 'Chỉ những người được mời hoặc có link mới được vào.')}
                 </span>
               </button>
             </div>
@@ -162,10 +170,10 @@ export default function CreateChannelModal({
             <div className="space-y-0.5 pr-2">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-900 dark:text-white">
                 <Megaphone size={14} className="text-indigo-600 dark:text-indigo-400" />
-                Kênh Thông báo (Chỉ Admin nhắn)
+                {t('createModal.announcementOnly', 'Kênh Thông báo (Chỉ Admin nhắn)')}
               </div>
               <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                Thành viên chỉ đọc, không được gửi tin nhắn.
+                {t('createModal.announcementOnlyDesc', 'Thành viên chỉ đọc, không được gửi tin nhắn.')}
               </p>
             </div>
             <Switch checked={isAnnouncementOnly} onCheckedChange={setIsAnnouncementOnly} />
@@ -176,10 +184,10 @@ export default function CreateChannelModal({
             <div className="space-y-0.5 pr-2">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-900 dark:text-white">
                 <ShieldCheck size={14} className="text-emerald-600 dark:text-emerald-500" />
-                Xét duyệt khi tham gia qua Link/QR
+                {t('createModal.approvalRequired', 'Xét duyệt khi tham gia qua Link/QR')}
               </div>
               <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                Người xin vào cần được Admin duyệt trước.
+                {t('createModal.approvalRequiredDesc', 'Người xin vào cần được Admin duyệt trước.')}
               </p>
             </div>
             <Switch checked={requiresApproval} onCheckedChange={setRequiresApproval} />
@@ -193,7 +201,7 @@ export default function CreateChannelModal({
               onClick={onClose}
               className="h-9 px-4 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white dark:hover:bg-neutral-800 rounded-lg"
             >
-              Hủy
+              {t('createModal.cancel', 'Hủy')}
             </Button>
             <Button
               type="submit"
@@ -201,7 +209,7 @@ export default function CreateChannelModal({
               disabled={submitting || !name.trim()}
               className="h-9 px-4 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm font-medium"
             >
-              {submitting ? 'Đang tạo...' : 'Tạo kênh'}
+              {submitting ? t('createModal.creating', 'Đang tạo...') : t('createModal.create', 'Tạo kênh')}
             </Button>
           </div>
         </form>

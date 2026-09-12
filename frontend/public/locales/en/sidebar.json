@@ -35,5 +35,8 @@
   "dropToMakeTopLevel": "Drop here to make top-level",
   "chat": "Chat",
   "workspaceChat": "Workspace Chat",
-  "projectChat": "Project Chat"
+  "projectChat": "Project Chat",
+  "projectMenu": "Project Menu",
+  "workspaceMenu": "Workspace Menu",
+  "generalNavigation": "General Navigation"
 }

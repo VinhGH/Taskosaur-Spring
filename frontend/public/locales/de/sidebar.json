@@ -32,5 +32,11 @@
   "selectProject": "Projekt auswählen",
   "noDescription": "Keine Beschreibung",
   "noNestedWorkspaces": "Keine verschachtelten Arbeitsbereiche",
-  "dropToMakeTopLevel": "Hier ablegen, um zur Hauptebene zu machen"
+  "dropToMakeTopLevel": "Hier ablegen, um zur Hauptebene zu machen",
+  "chat": "Chat",
+  "workspaceChat": "Arbeitsbereichs-Chat",
+  "projectChat": "Projekt-Chat",
+  "projectMenu": "Projekt-Menü",
+  "workspaceMenu": "Arbeitsbereich-Menü",
+  "generalNavigation": "Allgemeine Navigation"
 }

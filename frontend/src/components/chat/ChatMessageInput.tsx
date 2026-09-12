@@ -13,6 +13,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 interface ChatMessageInputProps {
   channel: ChannelResponse | null;
@@ -27,6 +28,7 @@ export default function ChatMessageInput({
   onUploadAttachment,
   disabled = false,
 }: ChatMessageInputProps) {
+  const { t } = useTranslation('chat');
   const [content, setContent] = useState('');
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -82,14 +84,14 @@ export default function ChatMessageInput({
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         if (file.size > 25 * 1024 * 1024) {
-          toast.error(`Tệp ${file.name} vượt quá giới hạn 25MB`);
+          toast.error(t('input.fileTooLarge', { filename: file.name, defaultValue: `Tệp ${file.name} vượt quá giới hạn 25MB` }));
           continue;
         }
         const uploaded = await onUploadAttachment(file);
         setAttachments((prev) => [...prev, uploaded]);
       }
     } catch (err: any) {
-      toast.error('Lỗi khi tải lên tệp đính kèm');
+      toast.error(t('input.uploadError', 'Lỗi khi tải lên tệp đính kèm'));
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -107,7 +109,7 @@ export default function ChatMessageInput({
         <div className="mb-2.5 flex items-center gap-2 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 text-blue-700 dark:text-blue-300 text-xs font-medium">
           <Megaphone size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
           <span>
-            Chỉ Quản trị viên mới có quyền đăng tin trong kênh thông báo này.
+            {t('input.announcementRestricted', 'Chỉ Quản trị viên mới có quyền đăng tin trong kênh thông báo này.')}
           </span>
         </div>
       )}
@@ -117,7 +119,7 @@ export default function ChatMessageInput({
         <div className="mb-2.5 flex items-center gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/40 text-red-700 dark:text-red-300 text-xs font-medium">
           <VolumeX size={14} className="text-red-500 shrink-0" />
           <span>
-            Bạn đã bị Quản trị viên hạn chế gửi tin nhắn trong kênh này.
+            {t('input.mutedRestricted', 'Bạn đã bị Quản trị viên hạn chế gửi tin nhắn trong kênh này.')}
           </span>
         </div>
       )}
@@ -171,7 +173,7 @@ export default function ChatMessageInput({
           variant="ghost"
           disabled={isInputLocked || uploading}
           onClick={() => fileInputRef.current?.click()}
-          title="Đính kèm tệp / hình ảnh"
+          title={t('input.attachTooltip', 'Đính kèm tệp / hình ảnh')}
           className="h-9 w-9 p-0 text-gray-500 hover:text-gray-900 hover:bg-gray-200/60 dark:text-gray-400 dark:hover:text-white dark:hover:bg-neutral-800/60 shrink-0 rounded-lg"
         >
           {uploading ? (
@@ -190,8 +192,11 @@ export default function ChatMessageInput({
           disabled={isInputLocked}
           placeholder={
             isInputLocked
-              ? 'Bạn không có quyền gửi tin nhắn trong kênh này...'
-              : `Nhắn tin trong #${channel.name}... (Nhấn Enter để gửi, Shift+Enter xuống dòng)`
+              ? t('input.placeholderLocked', 'Bạn không có quyền gửi tin nhắn trong kênh này...')
+              : t('input.placeholder', {
+                  channelName: channel.name,
+                  defaultValue: `Nhắn tin trong #${channel.name}... (Nhấn Enter để gửi, Shift+Enter xuống dòng)`,
+                })
           }
           rows={1}
           className="min-h-[38px] max-h-[140px] resize-none border-0 bg-transparent py-2 px-1 text-xs sm:text-sm shadow-none focus-visible:ring-0 placeholder:text-gray-400 dark:placeholder:text-gray-500 text-gray-900 dark:text-white break-all [overflow-wrap:anywhere]"
@@ -202,6 +207,7 @@ export default function ChatMessageInput({
           type="button"
           size="sm"
           onClick={handleSend}
+          title={t('input.send', 'Gửi')}
           disabled={isInputLocked || sending || (!content.trim() && attachments.length === 0)}
           className="h-9 w-9 p-0 shrink-0 rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-xs disabled:opacity-40"
         >

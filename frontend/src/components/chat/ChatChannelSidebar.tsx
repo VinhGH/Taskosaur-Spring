@@ -15,6 +15,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface ChatChannelSidebarProps {
   channels: ChannelResponse[];
@@ -41,6 +42,7 @@ export default function ChatChannelSidebar({
   pendingRequestsCount = 0,
   projectId,
 }: ChatChannelSidebarProps) {
+  const { t } = useTranslation('chat');
   const [search, setSearch] = useState('');
   const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>({});
 
@@ -101,18 +103,18 @@ export default function ChatChannelSidebar({
         <div className="min-w-0 pr-1">
           <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 truncate">
             {isHubMode
-              ? (chatHub?.workspaceName || 'Trung Tâm Trò Chuyện')
-              : (projectId ? 'Kênh Dự Án' : 'Kênh Không Gian')}
+              ? (chatHub?.workspaceName || t('title.chatHub', 'Trung Tâm Trò Chuyện'))
+              : (projectId ? t('sidebar.projectChannels', 'Kênh Dự Án') : t('sidebar.workspaceChannels', 'Kênh Không Gian'))}
           </h2>
           <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">
-            {channels.length} kênh hoạt động
+            {t('sidebar.activeChannels', { count: channels.length, defaultValue: `${channels.length} kênh hoạt động` })}
           </span>
         </div>
         <Button
           size="sm"
           variant="ghost"
           onClick={() => onOpenCreateChannel()}
-          title={isHubMode ? 'Tạo kênh không gian mới' : (projectId ? 'Tạo kênh dự án mới' : 'Tạo kênh không gian mới')}
+          title={isHubMode ? t('sidebar.createWorkspaceChannel', 'Tạo kênh không gian mới') : (projectId ? t('sidebar.createProjectChannel', 'Tạo kênh dự án mới') : t('sidebar.createWorkspaceChannel', 'Tạo kênh không gian mới'))}
           className="h-6 w-6 p-0 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-neutral-800/60 shrink-0"
         >
           <Plus size={14} />
@@ -127,7 +129,7 @@ export default function ChatChannelSidebar({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm kiếm kênh..."
+            placeholder={t('sidebar.searchChannels', 'Tìm kiếm kênh...')}
             className="w-full pl-6 pr-2 py-1 text-[11px] bg-gray-50 dark:bg-[#1a1d28] rounded-md border border-gray-200 dark:border-neutral-800 focus:outline-none focus:ring-1 focus:ring-blue-500/40 focus:border-blue-500/40 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 transition-colors shadow-xs"
           />
         </div>
@@ -142,12 +144,12 @@ export default function ChatChannelSidebar({
               <div className="flex items-center justify-between px-1.5 py-0.5">
                 <span className="text-[9.5px] font-bold tracking-wider text-blue-600 dark:text-blue-400 uppercase flex items-center gap-1">
                   <Globe size={11} />
-                  Không gian làm việc
+                  {t('sidebar.workspace', 'Không gian làm việc')}
                 </span>
                 <button
                   type="button"
                   onClick={() => onOpenCreateChannel()}
-                  title="Tạo kênh không gian làm việc"
+                  title={t('sidebar.createWorkspaceChannel', 'Tạo kênh không gian làm việc')}
                   className="h-5 w-5 flex items-center justify-center rounded text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
                 >
                   <Plus size={12} />
@@ -155,7 +157,7 @@ export default function ChatChannelSidebar({
               </div>
               {hubWorkspaceChannels.length === 0 ? (
                 <div className="px-2 py-1 text-[10px] text-gray-400 dark:text-gray-500 italic">
-                  Chưa có kênh không gian
+                  {t('sidebar.noWorkspaceChannels', 'Chưa có kênh không gian')}
                 </div>
               ) : (
                 hubWorkspaceChannels.map(renderChannelItem)
@@ -167,13 +169,13 @@ export default function ChatChannelSidebar({
               <div className="px-1.5 py-0.5 text-[9.5px] font-bold tracking-wider text-purple-600 dark:text-purple-400 uppercase flex items-center justify-between">
                 <span className="flex items-center gap-1">
                   <FolderKanban size={11} />
-                  Các dự án ({hubProjectGroups.length})
+                  {t('sidebar.projects', { count: hubProjectGroups.length, defaultValue: `Các dự án (${hubProjectGroups.length})` })}
                 </span>
               </div>
 
               {hubProjectGroups.length === 0 ? (
                 <div className="px-2 py-1 text-[10px] text-gray-400 dark:text-gray-500 italic">
-                  Chưa có dự án nào
+                  {t('sidebar.noProjects', 'Chưa có dự án nào')}
                 </div>
               ) : (
                 hubProjectGroups.map((group) => {
@@ -221,7 +223,7 @@ export default function ChatChannelSidebar({
                         <button
                           type="button"
                           onClick={() => onOpenCreateChannel(group.projectId, group.projectName)}
-                          title={`Tạo kênh mới cho ${group.projectName}`}
+                          title={t('sidebar.createProjectChannelFor', { projectName: group.projectName, defaultValue: `Tạo kênh mới cho ${group.projectName}` })}
                           className="h-5 w-5 flex items-center justify-center rounded text-gray-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors shrink-0"
                         >
                           <Plus size={12} />
@@ -233,13 +235,13 @@ export default function ChatChannelSidebar({
                         <div className="pl-1 space-y-0.5">
                           {displayedChannels.length === 0 ? (
                             <div className="px-2 py-1 text-[10px] text-gray-400 dark:text-gray-500 italic flex items-center justify-between">
-                              <span>Chưa có kênh</span>
+                              <span>{t('sidebar.noChannels', 'Chưa có kênh')}</span>
                               <button
                                 type="button"
                                 onClick={() => onOpenCreateChannel(group.projectId, group.projectName)}
                                 className="text-[9.5px] text-purple-600 dark:text-purple-400 hover:underline font-medium"
                               >
-                                + Tạo kênh
+                                + {t('sidebar.createChannel', 'Tạo kênh')}
                               </button>
                             </div>
                           ) : (
@@ -259,7 +261,7 @@ export default function ChatChannelSidebar({
             {announcementChannels.length > 0 && (
               <div className="space-y-0.5">
                 <div className="px-1.5 py-0.5 text-[9.5px] font-bold tracking-wider text-blue-600 dark:text-blue-400 uppercase flex items-center gap-1">
-                  <Megaphone size={11} /> Kênh Thông Báo
+                  <Megaphone size={11} /> {t('sidebar.announcementChannels', 'Kênh Thông Báo')}
                 </div>
                 {announcementChannels.map(renderChannelItem)}
               </div>
@@ -268,11 +270,11 @@ export default function ChatChannelSidebar({
             {/* Non-Hub Mode: Regular Channels */}
             <div className="space-y-0.5">
               <div className="px-1.5 py-0.5 text-[9.5px] font-bold tracking-wider text-gray-500 dark:text-gray-400 uppercase">
-                Danh sách Kênh
+                {t('sidebar.channelsList', 'Danh sách Kênh')}
               </div>
               {regularChannels.length === 0 && announcementChannels.length === 0 ? (
                 <div className="px-2 py-4 text-center text-[11px] text-gray-400 dark:text-gray-500">
-                  Chưa có kênh nào
+                  {t('sidebar.noChannels', 'Chưa có kênh nào')}
                 </div>
               ) : (
                 regularChannels.map(renderChannelItem)
@@ -289,11 +291,11 @@ export default function ChatChannelSidebar({
             size="sm"
             variant="ghost"
             onClick={onOpenInviteModal}
-            title="Mã QR & Link mời tham gia"
+            title={t('sidebar.qrAndInvite', 'Mã QR & Link mời tham gia')}
             className="h-7 gap-1 px-1.5 text-[10.5px] text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-neutral-800/60 rounded-md"
           >
             <QrCode size={12} />
-            QR
+            {t('sidebar.qr', 'QR')}
           </Button>
 
           {isAdminOfActive && (
@@ -301,11 +303,11 @@ export default function ChatChannelSidebar({
               size="sm"
               variant="ghost"
               onClick={onOpenJoinRequestsModal}
-              title="Yêu cầu tham gia chờ duyệt"
+              title={t('sidebar.joinRequests', 'Yêu cầu tham gia chờ duyệt')}
               className="h-7 gap-1 px-1.5 text-[10.5px] text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-neutral-800/60 rounded-md relative"
             >
               <UserCheck size={12} />
-              Duyệt
+              {t('sidebar.review', 'Duyệt')}
               {pendingRequestsCount > 0 && (
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 absolute top-1 right-1 ring-2 ring-white dark:ring-background" />
               )}
@@ -316,11 +318,11 @@ export default function ChatChannelSidebar({
             size="sm"
             variant="ghost"
             onClick={onOpenSettingsModal}
-            title="Cài đặt kênh & thành viên"
+            title={t('sidebar.settings', 'Cài đặt kênh & thành viên')}
             className="h-7 gap-1 px-1.5 text-[10.5px] text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-neutral-800/60 rounded-md"
           >
             <Settings size={12} />
-            Cài đặt
+            {t('sidebar.settings', 'Cài đặt')}
           </Button>
         </div>
       )}

@@ -21,6 +21,7 @@ import {
   Link as LinkIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import AddChannelMemberModal from './AddChannelMemberModal';
 
 interface ChannelSettingsModalProps {
@@ -58,6 +59,7 @@ export default function ChannelSettingsModal({
   onAddMembers,
   currentUserId,
 }: ChannelSettingsModalProps) {
+  const { t } = useTranslation('chat');
   const [activeTab, setActiveTab] = useState<'general' | 'members'>('general');
   const [name, setName] = useState(channel?.name || '');
   const [description, setDescription] = useState(channel?.description || '');
@@ -77,7 +79,7 @@ export default function ChannelSettingsModal({
   const handleSaveGeneral = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAdmin) {
-      toast.error('Chỉ Quản trị viên mới có quyền đổi cài đặt kênh');
+      toast.error(t('settingsModal.adminOnlyError', { defaultValue: 'Chỉ Quản trị viên mới có quyền đổi cài đặt kênh' }));
       return;
     }
     setSaving(true);
@@ -103,7 +105,7 @@ export default function ChannelSettingsModal({
               <Settings size={18} />
             </div>
             <DialogTitle className="text-base font-semibold tracking-tight text-gray-900 dark:text-white">
-              Cài đặt Kênh #{channel.name}
+              {t('settingsModal.title', { channelName: channel.name, defaultValue: `Cài đặt Kênh #${channel.name}` })}
             </DialogTitle>
           </div>
 
@@ -121,7 +123,7 @@ export default function ChannelSettingsModal({
               }`}
             >
               <Settings size={13} />
-              Cài đặt chung
+              {t('settingsModal.tabGeneral', { defaultValue: 'Cài đặt chung' })}
             </Button>
             <Button
               type="button"
@@ -135,7 +137,7 @@ export default function ChannelSettingsModal({
               }`}
             >
               <Users size={13} />
-              Thành viên ({members.length})
+              {t('settingsModal.tabMembers', { count: members.length, defaultValue: `Thành viên (${members.length})` })}
             </Button>
           </div>
         </DialogHeader>
@@ -143,7 +145,9 @@ export default function ChannelSettingsModal({
         {activeTab === 'general' ? (
           <form onSubmit={handleSaveGeneral} className="p-5 space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">Tên kênh</label>
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                {t('settingsModal.channelNameLabel', { defaultValue: 'Tên kênh' })}
+              </label>
               <Input
                 disabled={!isAdmin}
                 value={name}
@@ -154,12 +158,14 @@ export default function ChannelSettingsModal({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">Mô tả kênh</label>
+              <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                {t('settingsModal.channelDescLabel', { defaultValue: 'Mô tả kênh' })}
+              </label>
               <Textarea
                 disabled={!isAdmin}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Mục đích và chủ đề trao đổi của kênh..."
+                placeholder={t('settingsModal.channelDescPlaceholder', { defaultValue: 'Mục đích và chủ đề trao đổi của kênh...' })}
                 rows={2}
                 className="text-xs bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg focus:border-indigo-500"
               />
@@ -170,10 +176,10 @@ export default function ChannelSettingsModal({
               <div className="space-y-0.5 pr-4">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-900 dark:text-white">
                   <Megaphone size={14} className="text-indigo-600 dark:text-indigo-400" />
-                  Kênh Thông báo (Chỉ Quản trị viên được nhắn tin)
+                  {t('settingsModal.announcementToggle', { defaultValue: 'Kênh Thông báo (Chỉ Quản trị viên được nhắn tin)' })}
                 </div>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                  Chỉ Admin mới có thể gửi tin nhắn và tệp. Thành viên khác chỉ có quyền đọc và tải file.
+                  {t('settingsModal.announcementToggleDesc', { defaultValue: 'Chỉ Admin mới có thể gửi tin nhắn và tệp. Thành viên khác chỉ có quyền đọc và tải file.' })}
                 </p>
               </div>
               <Switch
@@ -188,10 +194,10 @@ export default function ChannelSettingsModal({
               <div className="space-y-0.5 pr-4">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-900 dark:text-white">
                   <ShieldCheck size={14} className="text-emerald-600 dark:text-emerald-500" />
-                  Xét duyệt thành viên khi tham gia
+                  {t('settingsModal.approvalToggle', { defaultValue: 'Xét duyệt thành viên khi tham gia' })}
                 </div>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                  Bắt buộc Quản trị viên duyệt yêu cầu trước khi người dùng qua link mời/mã QR được vào nhóm.
+                  {t('settingsModal.approvalToggleDesc', { defaultValue: 'Bắt buộc Quản trị viên duyệt yêu cầu trước khi người dùng qua link mời/mã QR được vào nhóm.' })}
                 </p>
               </div>
               <Switch
@@ -203,12 +209,12 @@ export default function ChannelSettingsModal({
 
             <div className="flex justify-end gap-2 pt-2 border-t border-gray-200 dark:border-neutral-800">
               <Button type="button" variant="ghost" size="sm" onClick={onClose} className="text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:text-white rounded-lg">
-                Hủy
+                {t('settingsModal.cancel', { defaultValue: 'Hủy' })}
               </Button>
               {isAdmin && (
                 <Button type="submit" size="sm" disabled={saving} className="text-xs bg-blue-600 hover:bg-blue-700 text-white gap-1.5 rounded-lg shadow-sm">
                   <Save size={14} />
-                  {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                  {saving ? t('settingsModal.saving', { defaultValue: 'Đang lưu...' }) : t('settingsModal.saveChanges', { defaultValue: 'Lưu thay đổi' })}
                 </Button>
               )}
             </div>
@@ -219,7 +225,7 @@ export default function ChannelSettingsModal({
             <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-neutral-800 bg-gray-50/50 dark:bg-neutral-900/30">
               <div className="flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
                 <Users size={14} className="text-blue-500" />
-                <span>Danh sách thành viên ({members.length})</span>
+                <span>{t('settingsModal.membersList', { count: members.length, defaultValue: `Danh sách thành viên (${members.length})` })}</span>
               </div>
               {onAddMembers && onGetEligibleMembers && (
                 <Button
@@ -230,7 +236,7 @@ export default function ChannelSettingsModal({
                   className="h-7 gap-1.5 text-xs text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/30 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg"
                 >
                   <UserPlus size={12} />
-                  Thêm thành viên
+                  {t('settingsModal.addMember', { defaultValue: 'Thêm thành viên' })}
                 </Button>
               )}
             </div>
@@ -259,17 +265,17 @@ export default function ChannelSettingsModal({
                           </span>
                           {isSelf && (
                             <span className="text-[10px] bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400 px-1.5 py-0.2 rounded font-medium">
-                              Bạn
+                              {t('settingsModal.you', { defaultValue: 'Bạn' })}
                             </span>
                           )}
                           {isTargetAdmin && (
                             <span className="text-[10px] bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 px-1.5 py-0.2 rounded font-medium border border-amber-200 dark:border-amber-500/20">
-                              Admin
+                              {t('settingsModal.admin', { defaultValue: 'Admin' })}
                             </span>
                           )}
                           {m.isMuted && (
                             <span className="text-[10px] bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 px-1.5 py-0.2 rounded font-medium border border-rose-200 dark:border-rose-500/20 flex items-center gap-0.5">
-                              <VolumeX size={10} /> Đã bị hạn chế
+                              <VolumeX size={10} /> {t('settingsModal.muted', { defaultValue: 'Đã bị hạn chế' })}
                             </span>
                           )}
                         </div>
@@ -281,17 +287,17 @@ export default function ChannelSettingsModal({
                           {m.addedByName ? (
                             <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1 truncate">
                               <UserPlus size={10} className="shrink-0" />
-                              Được thêm bởi {m.addedByName}
+                              {t('settingsModal.addedBy', { name: m.addedByName, defaultValue: `Được thêm bởi ${m.addedByName}` })}
                             </span>
                           ) : m.userId === channel.createdById ? (
                             <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
                               <Crown size={10} className="shrink-0" />
-                              Người tạo kênh
+                              {t('settingsModal.creator', { defaultValue: 'Người tạo kênh' })}
                             </span>
                           ) : (
                             <span className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1">
                               <LinkIcon size={10} className="shrink-0" />
-                              Tham gia qua liên kết
+                              {t('settingsModal.joinedViaLink', { defaultValue: 'Tham gia qua liên kết' })}
                             </span>
                           )}
                         </div>
@@ -307,7 +313,7 @@ export default function ChannelSettingsModal({
                             size="sm"
                             variant="ghost"
                             onClick={() => onMuteMember(m.userId, !m.isMuted)}
-                            title={m.isMuted ? 'Gỡ hạn chế nhắn tin' : 'Hạn chế nhắn tin (Mute)'}
+                            title={m.isMuted ? t('settingsModal.unmute', { defaultValue: 'Gỡ hạn chế nhắn tin' }) : t('settingsModal.mute', { defaultValue: 'Hạn chế nhắn tin (Mute)' })}
                             className={`h-7 w-7 p-0 ${m.isMuted ? 'text-amber-500 hover:bg-amber-500/10' : 'text-gray-400 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white'}`}
                           >
                             {m.isMuted ? <Volume2 size={13} /> : <VolumeX size={13} />}
@@ -320,11 +326,11 @@ export default function ChannelSettingsModal({
                             size="sm"
                             variant="ghost"
                             onClick={() => {
-                              if (confirm(`Mời ${m.name} rời khỏi kênh?`)) {
+                              if (confirm(t('settingsModal.removeConfirm', { name: m.name, defaultValue: `Mời ${m.name} rời khỏi kênh?` }))) {
                                 onRemoveMember(m.userId);
                               }
                             }}
-                            title="Mời rời khỏi kênh"
+                            title={t('settingsModal.removeMember', { defaultValue: 'Mời rời khỏi kênh' })}
                             className="h-7 w-7 p-0 text-rose-500 hover:bg-rose-500/10 hover:text-rose-600"
                           >
                             <UserMinus size={13} />
@@ -336,11 +342,11 @@ export default function ChannelSettingsModal({
                           size="sm"
                           variant="ghost"
                           onClick={() => {
-                            if (confirm(`Chặn người dùng ${m.name}? Bạn sẽ không nhận tin nhắn trực tiếp từ họ.`)) {
+                            if (confirm(t('settingsModal.blockConfirm', { name: m.name, defaultValue: `Chặn người dùng ${m.name}? Bạn sẽ không nhận tin nhắn trực tiếp từ họ.` }))) {
                               onBlockUser(m.userId);
                             }
                           }}
-                          title="Chặn người dùng này"
+                          title={t('settingsModal.blockUser', { defaultValue: 'Chặn người dùng này' })}
                           className="h-7 w-7 p-0 text-gray-400 hover:text-rose-500 hover:bg-rose-500/10 dark:text-gray-400 dark:hover:text-rose-400"
                         >
                           <Ban size={13} />

@@ -25,7 +25,7 @@ i18n
       order: ['querystring', 'cookie', 'localStorage', 'navigator', 'htmlTag'],
       caches: ['localStorage', 'cookie'],
     },
-    ns: ['common', 'landing', 'projects', 'workspaces', 'workspace-home', 'tasks', 'activities', 'settings', 'sprints', 'calendar', 'analytics', 'members', 'project-members', 'project-settings', 'integrations'],
+    ns: ['common', 'landing', 'projects', 'workspaces', 'workspace-home', 'tasks', 'activities', 'settings', 'sprints', 'calendar', 'analytics', 'members', 'project-members', 'project-settings', 'integrations', 'chat', 'sidebar', 'header', 'admin', 'organizations'],
     defaultNS: 'common',
     load: 'languageOnly',
   });

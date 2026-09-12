@@ -8,8 +8,10 @@ import { projectApi } from '@/utils/api/projectApi';
 import ChatLayout from '@/components/chat/ChatLayout';
 import { MessageSquare } from 'lucide-react';
 import { Project } from '@/types';
+import { useTranslation } from 'react-i18next';
 
 export default function ProjectChatPage() {
+  const { t } = useTranslation(['chat', 'common']);
   const router = useRouter();
   const { workspaceSlug, projectSlug } = router.query;
   const { currentWorkspace, getWorkspaceBySlug } = useWorkspace();
@@ -92,7 +94,10 @@ export default function ProjectChatPage() {
     <>
       <Head>
         <title>
-          Trò chuyện - {project ? project.name : 'Dự án'} | Taskosaur
+          {t('title.chatPageTitle', {
+            name: project ? project.name : (t('common:project', 'Dự án')),
+            defaultValue: 'Trò chuyện - {{name}} | Taskosaur',
+          })}
         </title>
       </Head>
 
@@ -107,10 +112,13 @@ export default function ProjectChatPage() {
             </div>
             <div>
               <h1 className="text-base font-bold tracking-tight text-gray-900 dark:text-white">
-                Kênh Trò Chuyện Dự Án
+                {t('title.projectChat', 'Kênh Trò Chuyện Dự Án')}
               </h1>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Trao đổi, chia sẻ tài liệu và thảo luận tiến độ cho dự án {project?.name}
+                {t('title.projectChatSubtitle', {
+                  projectName: project?.name || '',
+                  defaultValue: 'Trao đổi, chia sẻ tài liệu và thảo luận tiến độ cho dự án {{projectName}}',
+                })}
               </p>
             </div>
           </div>
@@ -129,7 +137,7 @@ export default function ProjectChatPage() {
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-            Không tìm thấy thông tin dự án.
+            {t('title.projectNotFound', 'Không tìm thấy thông tin dự án.')}
           </div>
         )}
       </div>

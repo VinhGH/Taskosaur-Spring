@@ -35,5 +35,8 @@
   "dropToMakeTopLevel": "Thả vào đây để đưa lên cấp cao nhất",
   "chat": "Trò chuyện",
   "workspaceChat": "Kênh trò chuyện",
-  "projectChat": "Trò chuyện dự án"
+  "projectChat": "Trò chuyện dự án",
+  "projectMenu": "Menu dự án",
+  "workspaceMenu": "Menu không gian làm việc",
+  "generalNavigation": "Điều hướng chung"
 }

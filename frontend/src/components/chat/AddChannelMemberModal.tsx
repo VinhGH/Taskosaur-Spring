@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserPlus, Search, Check, Users, Building2, FolderKanban, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 interface AddChannelMemberModalProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export default function AddChannelMemberModal({
   onGetEligibleMembers,
   onAddMembers,
 }: AddChannelMemberModalProps) {
+  const { t } = useTranslation('chat');
   const [candidates, setCandidates] = useState<EligibleMember[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -100,10 +102,10 @@ export default function AddChannelMemberModal({
             </div>
             <div>
               <DialogTitle className="text-base font-semibold tracking-tight text-gray-900 dark:text-white">
-                Thêm thành viên vào #{channelName}
+                {t('addMemberModal.title', { channelName, defaultValue: `Thêm thành viên vào #${channelName}` })}
               </DialogTitle>
               <DialogDescription className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                Mời đồng nghiệp trong Workspace hoặc Dự án tham gia kênh trò chuyện này.
+                {t('addMemberModal.description', { defaultValue: 'Mời đồng nghiệp trong Workspace hoặc Dự án tham gia kênh trò chuyện này.' })}
               </DialogDescription>
             </div>
           </div>
@@ -117,7 +119,7 @@ export default function AddChannelMemberModal({
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Tìm theo tên hoặc email đồng nghiệp..."
+                placeholder={t('addMemberModal.searchPlaceholder', { defaultValue: 'Tìm theo tên hoặc email đồng nghiệp...' })}
                 className="pl-8 text-xs bg-gray-50 dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20"
               />
             </div>
@@ -129,7 +131,9 @@ export default function AddChannelMemberModal({
                 onClick={handleSelectAll}
                 className="text-xs text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white shrink-0 h-9"
               >
-                {selectedIds.length === filteredCandidates.length ? 'Bỏ chọn hết' : 'Chọn tất cả'}
+                {selectedIds.length === filteredCandidates.length
+                  ? t('addMemberModal.deselectAll', { defaultValue: 'Bỏ chọn hết' })
+                  : t('addMemberModal.selectAll', { defaultValue: 'Chọn tất cả' })}
               </Button>
             )}
           </div>
@@ -139,18 +143,20 @@ export default function AddChannelMemberModal({
             {loading ? (
               <div className="flex flex-col items-center justify-center py-12 gap-2 text-gray-400 dark:text-gray-500 text-xs">
                 <Loader2 size={24} className="animate-spin text-blue-500" />
-                <span>Đang tải danh sách thành viên...</span>
+                <span>{t('addMemberModal.loading', { defaultValue: 'Đang tải danh sách thành viên...' })}</span>
               </div>
             ) : filteredCandidates.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center text-gray-400 dark:text-gray-500">
                 <Users size={32} className="opacity-40 mb-2" />
                 <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                  {search ? 'Không tìm thấy ai phù hợp' : 'Không có thành viên mới để thêm'}
+                  {search
+                    ? t('addMemberModal.noResultsTitle', { defaultValue: 'Không tìm thấy ai phù hợp' })
+                    : t('addMemberModal.noCandidatesTitle', { defaultValue: 'Không có thành viên mới để thêm' })}
                 </p>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 max-w-xs">
                   {search
-                    ? 'Thử tìm kiếm với từ khóa khác'
-                    : 'Tất cả thành viên trong Workspace hoặc Dự án đã có mặt trong kênh này.'}
+                    ? t('addMemberModal.noResultsDesc', { defaultValue: 'Thử tìm kiếm với từ khóa khác' })
+                    : t('addMemberModal.noCandidatesDesc', { defaultValue: 'Tất cả thành viên trong Workspace hoặc Dự án đã có mặt trong kênh này.' })}
                 </p>
               </div>
             ) : (
@@ -199,7 +205,9 @@ export default function AddChannelMemberModal({
                             }`}
                           >
                             {isProject ? <FolderKanban size={10} /> : <Building2 size={10} />}
-                            {isProject ? 'Dự án' : 'Workspace'}
+                            {isProject
+                              ? t('addMemberModal.projectBadge', { defaultValue: 'Dự án' })
+                              : t('addMemberModal.workspaceBadge', { defaultValue: 'Workspace' })}
                           </span>
                         </div>
                         <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">
@@ -216,7 +224,7 @@ export default function AddChannelMemberModal({
           {/* Footer Bar */}
           <div className="p-3.5 border-t border-gray-200 dark:border-neutral-800 bg-gray-50/60 dark:bg-neutral-900/30 flex items-center justify-between">
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              Đã chọn: <strong className="text-gray-900 dark:text-white">{selectedIds.length}</strong> người
+              {t('addMemberModal.selectedCount', { count: selectedIds.length, defaultValue: `Đã chọn: ${selectedIds.length} người` })}
             </span>
 
             <div className="flex items-center gap-2">
@@ -227,7 +235,7 @@ export default function AddChannelMemberModal({
                 onClick={onClose}
                 className="text-xs text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white rounded-lg"
               >
-                Hủy
+                {t('addMemberModal.cancel', { defaultValue: 'Hủy' })}
               </Button>
               <Button
                 type="submit"
@@ -238,12 +246,12 @@ export default function AddChannelMemberModal({
                 {submitting ? (
                   <>
                     <Loader2 size={13} className="animate-spin" />
-                    Đang thêm...
+                    {t('addMemberModal.adding', { defaultValue: 'Đang thêm...' })}
                   </>
                 ) : (
                   <>
                     <UserPlus size={13} />
-                    Thêm vào kênh
+                    {t('addMemberModal.add', { defaultValue: 'Thêm vào kênh' })}
                   </>
                 )}
               </Button>

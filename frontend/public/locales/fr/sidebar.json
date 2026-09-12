@@ -32,5 +32,11 @@
   "selectProject": "Sélectionner un projet",
   "noDescription": "Pas de description",
   "noNestedWorkspaces": "Aucun espace de travail imbriqué",
-  "dropToMakeTopLevel": "Déposer ici pour rendre au niveau supérieur"
+  "dropToMakeTopLevel": "Déposer ici pour rendre au niveau supérieur",
+  "chat": "Discussion",
+  "workspaceChat": "Discussion de l'espace",
+  "projectChat": "Discussion du projet",
+  "projectMenu": "Menu du projet",
+  "workspaceMenu": "Menu de l'espace",
+  "generalNavigation": "Navigation générale"
 }

@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { UserCheck, Check, X, ShieldAlert, Clock } from 'lucide-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { useTranslation } from 'react-i18next';
 
 dayjs.extend(relativeTime);
 
@@ -24,6 +25,7 @@ export default function JoinRequestsModal({
   requests,
   onReview,
 }: JoinRequestsModalProps) {
+  const { t } = useTranslation('chat');
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const handleAction = async (requestId: string, approve: boolean) => {
@@ -44,11 +46,11 @@ export default function JoinRequestsModal({
               <UserCheck size={18} />
             </div>
             <DialogTitle className="text-base font-semibold tracking-tight text-gray-900 dark:text-white">
-              Yêu cầu tham gia #{channelName}
+              {t('joinRequestsModal.title', { channelName, defaultValue: `Yêu cầu tham gia #${channelName}` })}
             </DialogTitle>
           </div>
           <DialogDescription className="text-xs text-gray-500 dark:text-gray-400">
-            Danh sách các thành viên đang chờ phê duyệt để tham gia vào kênh này.
+            {t('joinRequestsModal.description', 'Danh sách các thành viên đang chờ phê duyệt để tham gia vào kênh này.')}
           </DialogDescription>
         </DialogHeader>
 
@@ -56,9 +58,11 @@ export default function JoinRequestsModal({
           {requests.length === 0 ? (
             <div className="py-10 text-center flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
               <ShieldAlert size={36} className="text-gray-300 dark:text-gray-600 mb-2" />
-              <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Không có yêu cầu chờ duyệt nào</p>
+              <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                {t('joinRequestsModal.noRequestsTitle', 'Không có yêu cầu chờ duyệt nào')}
+              </p>
               <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 max-w-xs">
-                Các yêu cầu tham gia mới sẽ xuất hiện tại đây khi người dùng quét mã QR hoặc truy cập link.
+                {t('joinRequestsModal.noRequestsDesc', 'Các yêu cầu tham gia mới sẽ xuất hiện tại đây khi người dùng quét mã QR hoặc truy cập link.')}
               </p>
             </div>
           ) : (
@@ -102,7 +106,7 @@ export default function JoinRequestsModal({
                     className="h-7 px-2 text-xs text-rose-500 hover:bg-rose-500/10 hover:text-rose-600"
                   >
                     <X size={13} className="mr-0.5" />
-                    Từ chối
+                    {t('joinRequestsModal.reject', 'Từ chối')}
                   </Button>
                   <Button
                     size="sm"
@@ -112,7 +116,7 @@ export default function JoinRequestsModal({
                     className="h-7 px-2.5 text-xs bg-indigo-600 hover:bg-indigo-500 text-white gap-1"
                   >
                     <Check size={13} />
-                    Duyệt
+                    {t('joinRequestsModal.approve', 'Duyệt')}
                   </Button>
                 </div>
               </div>
@@ -122,7 +126,7 @@ export default function JoinRequestsModal({
 
         <div className="flex justify-end pt-3 border-t border-gray-200 dark:border-neutral-800 mt-2">
           <Button variant="outline" size="sm" onClick={onClose} className="text-xs border-gray-200 dark:border-neutral-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-800">
-            Đóng
+            {t('joinRequestsModal.close', 'Đóng')}
           </Button>
         </div>
       </DialogContent>

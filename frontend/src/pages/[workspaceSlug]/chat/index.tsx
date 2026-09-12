@@ -4,8 +4,10 @@ import { useRouter } from 'next/router';
 import { useWorkspace } from '@/contexts/workspace-context';
 import ChatLayout from '@/components/chat/ChatLayout';
 import { MessageSquare } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function WorkspaceChatPage() {
+  const { t } = useTranslation(['chat', 'common']);
   const router = useRouter();
   const { workspaceSlug } = router.query;
   const { currentWorkspace, getWorkspaceBySlug, isLoading } = useWorkspace();
@@ -63,7 +65,10 @@ export default function WorkspaceChatPage() {
     <>
       <Head>
         <title>
-          Trò chuyện - {activeWorkspace ? activeWorkspace.name : 'Workspace'} | Taskosaur
+          {t('title.chatPageTitle', {
+            name: activeWorkspace ? activeWorkspace.name : (t('common:workspace', 'Workspace')),
+            defaultValue: 'Trò chuyện - {{name}} | Taskosaur',
+          })}
         </title>
       </Head>
 
@@ -78,10 +83,13 @@ export default function WorkspaceChatPage() {
             </div>
             <div>
               <h1 className="text-base font-bold tracking-tight text-gray-900 dark:text-white">
-                Kênh Trò Chuyện Không Gian Làm Việc
+                {t('title.workspaceChat', 'Kênh Trò Chuyện Không Gian Làm Việc')}
               </h1>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Trao đổi, chia sẻ tệp và cộng tác giữa các đội ngũ trong không gian {activeWorkspace?.name}
+                {t('title.workspaceChatSubtitle', {
+                  workspaceName: activeWorkspace?.name || '',
+                  defaultValue: 'Trao đổi, chia sẻ tệp và cộng tác giữa các đội ngũ trong không gian {{workspaceName}}',
+                })}
               </p>
             </div>
           </div>
@@ -97,7 +105,7 @@ export default function WorkspaceChatPage() {
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-            Không tìm thấy thông tin không gian làm việc.
+            {t('title.workspaceNotFound', 'Không tìm thấy thông tin không gian làm việc.')}
           </div>
         )}
       </div>

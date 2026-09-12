@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/dialog';
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 interface ChatMessageAreaProps {
   channel: ChannelResponse | null;
@@ -57,6 +58,7 @@ export default function ChatMessageArea({
   onOpenJoinRequestsModal,
   pendingRequestsCount = 0,
 }: ChatMessageAreaProps) {
+  const { t } = useTranslation('chat');
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const [recallingMessageId, setRecallingMessageId] = useState<string | null>(null);
   const [isRecalling, setIsRecalling] = useState(false);
@@ -147,9 +149,11 @@ export default function ChatMessageArea({
         <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-neutral-800/80 flex items-center justify-center text-gray-400 dark:text-gray-500 mb-4 shadow-xs">
           <MessageSquare size={26} className="text-gray-400 dark:text-gray-500" />
         </div>
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Chọn một kênh để bắt đầu trò chuyện</h3>
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+          {t('messageArea.selectChannelTitle', 'Chọn một kênh để bắt đầu trò chuyện')}
+        </h3>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 max-w-xs leading-relaxed">
-          Trao đổi với các thành viên trong dự án hoặc liên đội ngũ trong không gian làm việc.
+          {t('messageArea.selectChannelSubtitle', 'Trao đổi với các thành viên trong dự án hoặc liên đội ngũ trong không gian làm việc.')}
         </p>
       </div>
     );
@@ -159,7 +163,7 @@ export default function ChatMessageArea({
 
   const handleCopyText = (content: string) => {
     navigator.clipboard.writeText(content);
-    toast.success('Đã chép nội dung tin nhắn');
+    toast.success(t('messageArea.copiedMessage', 'Đã chép nội dung tin nhắn'));
   };
 
   return (
@@ -191,19 +195,18 @@ export default function ChatMessageArea({
               ) : (
                 <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/40 inline-flex items-center gap-1 shrink-0">
                   <Globe size={10} className="shrink-0" />
-                  <span className="hidden sm:inline">Không gian làm việc</span>
-                  <span className="sm:hidden">Workspace</span>
+                  <span>{t('messageArea.workspaceBadge', 'Không gian làm việc')}</span>
                 </span>
               )}
               {channel.isAnnouncementOnly && (
                 <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
-                  Thông báo
+                  {t('messageArea.announcementBadge', 'Thông báo')}
                 </span>
               )}
             </div>
             {/* Description row */}
             <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate max-w-sm sm:max-w-md leading-tight">
-              {channel.description || `${channel.memberCount} thành viên`}
+              {channel.description || t('messageArea.memberCount', { count: channel.memberCount, defaultValue: `${channel.memberCount} thành viên` })}
             </p>
           </div>
         </div>
@@ -220,7 +223,7 @@ export default function ChatMessageArea({
               size="sm"
               variant="ghost"
               onClick={onOpenAddMemberModal}
-              title="Thêm thành viên"
+              title={t('messageArea.addMember', 'Thêm thành viên')}
               className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-md"
             >
               <UserPlus size={14} />
@@ -232,7 +235,7 @@ export default function ChatMessageArea({
               size="sm"
               variant="ghost"
               onClick={onOpenInviteModal}
-              title="Mã QR & Link mời tham gia"
+              title={t('sidebar.qrAndInvite', 'Mã QR & Link mời tham gia')}
               className="h-7 w-7 p-0 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-md"
             >
               <QrCode size={14} />
@@ -244,7 +247,7 @@ export default function ChatMessageArea({
               size="sm"
               variant="ghost"
               onClick={onOpenJoinRequestsModal}
-              title="Yêu cầu tham gia chờ duyệt"
+              title={t('sidebar.joinRequests', 'Yêu cầu tham gia chờ duyệt')}
               className="h-7 w-7 p-0 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-md relative"
             >
               <UserCheck size={14} />
@@ -259,7 +262,7 @@ export default function ChatMessageArea({
               size="sm"
               variant="ghost"
               onClick={onOpenSettingsModal}
-              title="Cài đặt kênh & thành viên"
+              title={t('sidebar.settings', 'Cài đặt kênh & thành viên')}
               className="h-7 w-7 p-0 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-md"
             >
               <Settings size={14} />
@@ -289,20 +292,20 @@ export default function ChatMessageArea({
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <h4 className="text-xs font-bold text-gray-900 dark:text-white truncate">
-                  Chào mừng bạn đến với kênh #{channel.name}!
+                  {t('messageArea.welcomeTitle', { channelName: channel.name, defaultValue: `Chào mừng bạn đến với kênh #${channel.name}!` })}
                 </h4>
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px] font-medium border border-emerald-200/60 dark:border-transparent">
                   <span className="w-1 h-1 rounded-full bg-emerald-500" />
-                  {channel.memberCount} thành viên
+                  {t('messageArea.memberCount', { count: channel.memberCount, defaultValue: `${channel.memberCount} thành viên` })}
                 </span>
                 {channel.requiresApproval && (
                   <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-400 text-[10px] font-medium">
-                    <ShieldCheck size={10} /> Xét duyệt
+                    <ShieldCheck size={10} /> {t('messageArea.approvalBadge', 'Xét duyệt')}
                   </span>
                 )}
               </div>
               <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug line-clamp-1">
-                {channel.description || 'Bắt đầu cuộc trò chuyện trong kênh này. Chia sẻ ý kiến, tệp đính kèm và trao đổi công việc cùng các thành viên.'}
+                {channel.description || t('messageArea.defaultDescription', 'Bắt đầu cuộc trò chuyện trong kênh này. Chia sẻ ý kiến, tệp đính kèm và trao đổi công việc cùng các thành viên.')}
               </p>
             </div>
           </div>
@@ -311,7 +314,7 @@ export default function ChatMessageArea({
         {/* Messages List */}
         {messages.length === 0 ? (
           <div className="text-center py-10 text-gray-400 dark:text-gray-500 text-xs font-medium">
-            Chưa có tin nhắn nào trong kênh này. Hãy gửi tin nhắn đầu tiên!
+            {t('messageArea.noMessages', 'Chưa có tin nhắn nào trong kênh này. Hãy gửi tin nhắn đầu tiên!')}
           </div>
         ) : (
           messages.map((msg) => {
@@ -358,7 +361,7 @@ export default function ChatMessageArea({
                   {msg.isDeleted ? (
                     <div className="inline-flex items-center gap-1.5 text-[11px] italic text-gray-400 dark:text-gray-500 mt-1 py-0.5 px-2.5 select-none bg-gray-50/80 dark:bg-neutral-800/40 rounded-lg border border-dashed border-gray-200 dark:border-neutral-800">
                       <RotateCcw size={11} className="opacity-70 shrink-0 text-amber-500/80" />
-                      <span>Tin nhắn đã được thu hồi</span>
+                      <span>{t('messageArea.messageRecalled', 'Tin nhắn đã được thu hồi')}</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1.5 mt-0.5 max-w-full flex-wrap">
@@ -381,7 +384,7 @@ export default function ChatMessageArea({
                             size="sm"
                             variant="ghost"
                             onClick={() => handleCopyText(msg.content)}
-                            title="Sao chép tin nhắn"
+                            title={t('messageArea.copyMessage', 'Sao chép tin nhắn')}
                             className="h-6 w-6 p-0 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white rounded"
                           >
                             <Copy size={11} />
@@ -392,11 +395,11 @@ export default function ChatMessageArea({
                             size="sm"
                             variant="ghost"
                             onClick={() => setRecallingMessageId(msg.id)}
-                            title="Thu hồi tin nhắn"
+                            title={t('messageArea.recallMessage', 'Thu hồi tin nhắn')}
                             className="h-6 px-1.5 gap-1 text-[10px] font-medium text-gray-500 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded transition-colors"
                           >
                             <RotateCcw size={10} />
-                            <span>Thu hồi</span>
+                            <span>{t('messageArea.recallMessage', 'Thu hồi')}</span>
                           </Button>
                         )}
                       </div>
@@ -426,7 +429,7 @@ export default function ChatMessageArea({
                                 rel="noreferrer"
                                 download={file.filename}
                                 className="absolute bottom-2 right-2 p-1.5 rounded-lg bg-black/60 backdrop-blur-sm border border-white/20 text-white opacity-0 group-hover/img:opacity-100 transition-opacity hover:bg-black/80"
-                                title="Tải ảnh về"
+                                title={t('messageArea.downloadImage', 'Tải ảnh về')}
                               >
                                 <Download size={13} />
                               </a>
@@ -475,7 +478,7 @@ export default function ChatMessageArea({
           className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/95 dark:bg-[#1e2230]/95 backdrop-blur-md border border-gray-200/90 dark:border-neutral-700 text-xs font-semibold text-gray-700 dark:text-gray-200 shadow-lg hover:bg-gray-50 dark:hover:bg-neutral-800 transition-all cursor-pointer animate-in fade-in zoom-in-90"
         >
           <ChevronDown size={14} className="text-blue-600 dark:text-blue-400 animate-bounce" />
-          <span>Cuộn xuống</span>
+          <span>{t('messageArea.scrollToBottom', 'Cuộn xuống')}</span>
         </button>
       )}
 
@@ -490,10 +493,10 @@ export default function ChatMessageArea({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
               <RotateCcw className="w-4 h-4 text-amber-500 shrink-0" />
-              Thu hồi tin nhắn
+              {t('messageArea.recallConfirmTitle', 'Thu hồi tin nhắn')}
             </DialogTitle>
             <DialogDescription className="text-xs text-gray-500 dark:text-gray-400 pt-1">
-              Bạn có chắc chắn muốn thu hồi tin nhắn này không? Tin nhắn sẽ được thu hồi đối với tất cả thành viên trong kênh.
+              {t('messageArea.recallConfirmDesc', 'Bạn có chắc chắn muốn thu hồi tin nhắn này không? Tin nhắn sẽ được thu hồi đối với tất cả thành viên trong kênh.')}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0 mt-3">
@@ -505,7 +508,7 @@ export default function ChatMessageArea({
               onClick={() => setRecallingMessageId(null)}
               className="text-xs"
             >
-              Huỷ bỏ
+              {t('messageArea.cancel', 'Huỷ bỏ')}
             </Button>
             <Button
               type="button"
@@ -519,7 +522,7 @@ export default function ChatMessageArea({
               ) : (
                 <RotateCcw className="w-3.5 h-3.5" />
               )}
-              Thu hồi tin nhắn
+              {t('messageArea.confirmRecall', 'Thu hồi tin nhắn')}
             </Button>
           </DialogFooter>
         </DialogContent>
