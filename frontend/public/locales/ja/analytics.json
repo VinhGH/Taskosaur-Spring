@@ -1,0 +1,84 @@
+{
+  "project_analytics_title": "プロジェクト分析",
+  "project_analytics_description": "プロジェクトのパフォーマンスとチームの生産性に関するインサイト",
+  "kpi_metrics": "KPI指標",
+  "chart_widgets": "グラフウィジェット",
+  "dashboard_settings": "ダッシュボード設定",
+  "customize_widgets": "ダッシュボードウィジェットをカスタマイズ",
+  "no_widgets_title": "表示するウィジェットがありません",
+  "no_widgets_description": "現在すべてのウィジェットが非表示になっています。「カスタマイズ」ボタンから表示したいウィジェットを選択してください。",
+  "show_all_widgets": "すべてのウィジェットを表示",
+  "no_data_available": "このプロジェクトで利用可能な分析データはありません。",
+  "load_data": "データを読み込む",
+  "no_settings_available": "利用可能な設定はありません",
+  "unknown": "不明",
+  "na": "該当なし",
+  "charts": {
+    "task_status_flow": {
+      "title": "タスクステータスフロー",
+      "description": "ステータスごとの現在のタスク分布"
+    },
+    "task_type_distribution": {
+      "title": "タスク種別分布",
+      "description": "このプロジェクト内のタスク種別内訳",
+      "types": {
+        "story": "ストーリー",
+        "task": "タスク",
+        "bug": "バグ",
+        "epic": "エピック",
+        "feature": "機能"
+      }
+    },
+    "task_priority_distribution": {
+      "title": "タスク優先度分布",
+      "description": "プロジェクトタスクの優先度別内訳",
+      "count": "件数",
+      "priorities": {
+        "lowest": "最低",
+        "low": "低",
+        "medium": "中",
+        "high": "高",
+        "highest": "最高"
+      }
+    },
+    "sprint_velocity_trend": {
+      "title": "スプリントベロシティの推移",
+      "description": "スプリントごとに完了したストーリーポイント",
+      "story_points": "ストーリーポイント",
+      "average_velocity": "平均ベロシティ",
+      "no_sprints": "このプロジェクトで完了したスプリントが見つかりません"
+    }
+  },
+  "kpi": {
+    "total_tasks": {
+      "title": "総タスク数",
+      "label": "タスク",
+      "description": "プロジェクト内の全タスク"
+    },
+    "completed_tasks": {
+      "title": "完了したタスク",
+      "label": "完了タスク",
+      "description": "正常に完了"
+    },
+    "active_sprints": {
+      "title": "進行中のスプリント",
+      "label": "進行中スプリント",
+      "description": "現在実行中"
+    },
+    "bug_resolution": {
+      "title": "バグ解決率",
+      "label": "バグ解決",
+      "description": "{{resolved}}/{{total}} 件のバグを修正"
+    },
+    "task_completion": {
+      "title": "タスク完了率",
+      "label": "タスク完了",
+      "description": "全体の進捗状況"
+    },
+    "open_bugs": {
+      "title": "未解決バグ",
+      "label": "未解決バグ",
+      "description": "対応が必要"
+    }
+  }
+}

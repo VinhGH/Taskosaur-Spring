@@ -1,0 +1,160 @@
+{
+  "analytics_title": "ワークスペース分析",
+  "analytics_description": "ワークスペースのパフォーマンスと指標に関するインサイト",
+  "dashboard_settings": "ダッシュボード設定",
+  "customize_widgets": "ダッシュボードウィジェットをカスタマイズ",
+  "no_widgets_title": "表示するウィジェットがありません",
+  "no_widgets_description": "現在すべてのウィジェットが非表示になっています。「カスタマイズ」ボタンから表示したいウィジェットを選択してください。",
+  "show_all_widgets": "すべてのウィジェットを表示",
+  "no_data": "この組織で利用可能な分析データはありません。",
+  "load_data": "データを読み込む",
+  "error_loading": "組織分析データの読み込みエラー:",
+  "widgets": {
+    "kpi_metrics": "KPI指標",
+    "project_status": "プロジェクトステータス分布",
+    "task_priority": "タスク優先度内訳",
+    "task_type": "タスク種別分布",
+    "sprint_status": "スプリント状況概要",
+    "monthly_completion": "月別タスク完了数",
+    "team_utilization": "チームロール分布",
+    "quality_metrics": "バグ解決品質",
+    "workspace_projects": "ワークスペース別プロジェクト数",
+    "member_workload": "メンバー別作業負荷分布",
+    "resource_allocation": "リソース配分"
+  },
+  "roles": {
+    "admin": "管理者",
+    "manager": "マネージャー",
+    "member": "メンバー",
+    "viewer": "閲覧者",
+    "guest": "ゲスト",
+    "contributor": "貢献者"
+  },
+  "project_status": {
+    "planning": "計画中",
+    "active": "進行中",
+    "on_hold": "保留中",
+    "completed": "完了",
+    "cancelled": "中止"
+  },
+  "task_types": {
+    "story": "ストーリー",
+    "task": "タスク",
+    "bug": "バグ",
+    "epic": "エピック",
+    "feature": "機能"
+  },
+  "priority": {
+    "lowest": "最低",
+    "low": "低",
+    "medium": "中",
+    "high": "高",
+    "highest": "最高"
+  },
+  "workload": {
+    "label": "作業負荷",
+    "low": "低",
+    "medium": "中",
+    "high": "高",
+    "assigned": "担当タスク",
+    "reported": "報告タスク"
+  },
+  "quality": {
+    "resolved": "解決済み",
+    "remaining": "未解決",
+    "low_performance": "低パフォーマンス",
+    "medium_performance": "中パフォーマンス",
+    "high_performance": "高パフォーマンス",
+    "resolution_rate": "解決率"
+  },
+  "project_count": {
+    "low": "5プロジェクト以下",
+    "medium": "6〜10プロジェクト",
+    "high": "10プロジェクト超"
+  },
+  "charts": {
+    "project_status_description": "すべてのプロジェクトの現在のステータス内訳",
+    "project_status_description_with_count": "組織全体の総プロジェクト数: {{count}}件",
+    "task_priority_description": "全プロジェクトにわたる優先度別タスクの概要",
+    "task_type_description": "種別ごとのタスク分布",
+    "task_type_description_with_count": "組織全体の総タスク数: {{count}}件",
+    "sprint_status_description": "全プロジェクトのスプリントの現在の進行状況",
+    "kpi_metrics_description": "ワークスペースの重要業績評価指標 (KPI)",
+    "monthly_completion_description": "月ごとのタスク完了件数",
+    "team_utilization_description_all": "組織メンバーのロール内訳",
+    "team_utilization_description_workspace": "選択したワークスペースのロール内訳",
+    "all_workspaces": "すべてのワークスペース",
+    "member_workload_description": "メンバーごとの進行中タスクと報告タスク",
+    "workspace_projects_description": "ワークスペース間のプロジェクト分布",
+    "resource_allocation_description_all": "ロール別のチームメンバー分布",
+    "resource_allocation_description_project": "選択したプロジェクトのロール分布",
+    "all_projects": "すべてのプロジェクト",
+    "count": "件数",
+    "quality_metrics_description_with_count": "{{total}}件中{{resolved}}件のバグを解決 ({{rate}}%)"
+  },
+  "kpi": {
+    "total_projects": "総プロジェクト数",
+    "active_projects": "進行中プロジェクト",
+    "completion_rate": "完了率",
+    "total_tasks": "総タスク数",
+    "overdue_tasks": "期限超過タスク",
+    "task_health": "タスク健全度",
+    "excellent": "非常に優秀",
+    "good": "良好",
+    "needs_focus": "要注意",
+    "perfect": "完璧",
+    "critical": "危険",
+    "monitor": "監視が必要"
+  },
+  "header": {
+    "ready_to_tackle": "目標に向けて取り組む準備はできましたか？",
+    "todays_agenda": "本日の予定",
+    "new_task": "新規タスク"
+  },
+  "analytics": {
+    "failed_to_fetch_today_task_data": "本日のタスクデータの取得に失敗しました",
+    "error_loading_organization_analytics": "組織分析データの読み込みエラー:",
+    "today_agenda_tooltip": "本日の予定",
+    "dashboard_settings_tooltip": "ダッシュボード設定",
+    "dashboard_title": "ダッシュボード",
+    "dashboard_description": "組織のパフォーマンスと健全性に関する包括的なインサイト",
+    "no_analytics_data": "この組織で利用可能な分析データはありません。",
+    "load_data_button": "データを読み込む",
+    "no_widgets_title": "表示するウィジェットがありません",
+    "no_widgets_description": "現在すべてのウィジェットが非表示になっています。「カスタマイズ」ボタンから表示したいウィジェットを選択してください。",
+    "show_all_widgets_button": "すべてのウィジェットを表示",
+    "failed_to_load_widget_data": "{{widgetTitle}} のデータ読み込みに失敗しました",
+    "retry_button": "再試行",
+    "kpi_cards": {
+      "workspaces": "総ワークスペース数",
+      "projects": "総プロジェクト数",
+      "members": "チームメンバー数",
+      "task_completion": "タスク完了率",
+      "bug_resolution": "バグ解決率",
+      "overdue_tasks": "期限超過タスク",
+      "active_sprints": "進行中のスプリント",
+      "productivity": "総合生産性",
+      "descriptions": {
+        "active_status": "{{count}}件アクティブ",
+        "organization_members": "組織メンバー",
+        "tasks_count": "{{completed}} / {{total}} タスク",
+        "resolved_count": "{{resolved}} / {{total}} 件解決",
+        "require_attention": "対応が必要",
+        "currently_running": "現在進行中",
+        "task_completion_rate": "タスク完了率"
+      }
+    }
+  },
+  "agenda": {
+    "overdue": "期限超過",
+    "today": "今日",
+    "tomorrow": "明日",
+    "due": "期日",
+    "no_due_date": "期日なし",
+    "all_clear": "本日のタスクはすべて完了しています！",
+    "no_tasks_scheduled": "予定されているタスクはありません。すべて順調です！",
+    "great_job": "素晴らしい計画性です！",
+    "open_task": "タスクを開く: {{title}}",
+    "click_to_view": "クリックしてタスク詳細を表示"
+  }
+}

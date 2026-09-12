@@ -1,0 +1,37 @@
+{
+  "save": "保存",
+  "cancel": "キャンセル",
+  "back": "戻る",
+  "delete": "削除",
+  "continue": "続ける",
+  "confirm": "確認",
+  "error": "エラー",
+  "success": "成功",
+  "minutes": "{{count}}分",
+  "minutes_plural": "{{count}}分",
+  "priorities": {
+    "lowest": "最低",
+    "low": "低",
+    "medium": "中",
+    "high": "高",
+    "highest": "最高"
+  },
+  "invite": {
+    "invalidTitle": "招待が無効です",
+    "invalidMessage": "招待リンクが無効であるか、有効期限が切れています",
+    "whyHappened": "原因について",
+    "reasonExpired": "招待リンクの有効期限が切れている可能性があります",
+    "reasonEmail": "別のメールアドレス宛に送信された可能性があります",
+    "reasonUsed": "この招待は既に使用されたか、取り消されました",
+    "logout": "ログアウトしてアカウントを切り替える",
+    "login": "ログインに戻る",
+    "home": "ホームに戻る"
+  },
+  "pagination": {
+    "showing": "表示中",
+    "to": "〜",
+    "of": "/",
+    "page": "ページ",
+    "items": "件"
+  }
+}

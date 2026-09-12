@@ -37,6 +37,7 @@ export function LanguageToggle() {
     { code: "fr", name: "Français" },
     { code: "pt", name: "Português" },
     { code: "de", name: "Deutsch" },
+    { code: "ja", name: "日本語" },
   ];
 
   const currentLang = i18n.language?.split("-")[0] || "en";

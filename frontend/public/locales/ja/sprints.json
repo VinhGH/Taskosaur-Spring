@@ -1,0 +1,141 @@
+{
+  "title": "スプリント管理",
+  "description": "反復期間（イテレーション）ごとに作業を整理し、進捗を効果的に追跡します。",
+  "createSprint": "スプリントを作成",
+  "noSprints": {
+    "title": "スプリントがまだありません",
+    "description": "最初のスプリントを作成して、計画的なイテレーション開発を始めましょう。"
+  },
+  "deleteSprint": {
+    "title": "スプリントを削除",
+    "message": "スプリント「{{name}}」を削除してもよろしいですか？この操作は元に戻せません。",
+    "confirm": "削除",
+    "deleting": "削除中...",
+    "cancel": "キャンセル"
+  },
+  "errors": {
+    "workspaceNotFound": "ワークスペースが見つかりません",
+    "projectNotFound": "プロジェクトが見つかりません",
+    "loadingProjectError": "プロジェクトデータの読み込みエラー",
+    "loadingPageError": "ページデータの読み込みエラー",
+    "fetchingProjectError": "プロジェクトデータの取得エラー",
+    "fetchTasksFailed": "タスクの取得に失敗しました"
+  },
+  "sprintTasks": {
+    "title": "スプリントタスク",
+    "description": "このスプリント内のすべてのタスクを管理・追跡します（合計 {{total}} 件）",
+    "searchPlaceholder": "タスクを検索..."
+  },
+  "card": {
+    "noDates": "日付未設定",
+    "days": "{{count}} 日間",
+    "completeSprint": "スプリントを完了",
+    "editSprint": "スプリントを編集",
+    "deleteSprint": "スプリントを削除"
+  },
+  "form": {
+    "editTitle": "スプリントを編集",
+    "createTitle": "新規スプリントを作成",
+    "editDescription": "スプリントの詳細と期間を更新します",
+    "createDescription": "反復的な作業管理のための新しいスプリントを作成します",
+    "nameLabel": "スプリント名",
+    "namePlaceholder": "スプリント名を入力",
+    "goalLabel": "スプリントゴール",
+    "goalPlaceholder": "このスプリントの主な目標と成果物を入力...",
+    "goalHint": "チームがスプリントの焦点と目標を共有できるように記載します。",
+    "statusLabel": "ステータス",
+    "statusPlaceholder": "ステータスを選択",
+    "startDateLabel": "開始日",
+    "endDateLabel": "終了日",
+    "cancel": "キャンセル",
+    "update": "更新",
+    "create": "作成",
+    "updating": "更新中...",
+    "creating": "スプリントを作成中...",
+    "statuses": {
+      "planning": "計画中",
+      "active": "進行中",
+      "completed": "完了",
+      "cancelled": "中止"
+    },
+    "validation": {
+      "nameRequired": "スプリント名は必須です",
+      "startDateRequired": "開始日は必須です",
+      "endDateRequired": "終了日は必須です",
+      "endDateAfterStart": "終了日は開始日以降の日付を指定してください"
+    },
+    "saveFailed": "スプリントの保存に失敗しました"
+  },
+  "board": {
+    "loading": "読み込み中...",
+    "invalidDate": "無効な日付",
+    "noSprintSelected": "スプリントが選択されていません",
+    "selectSprintToView": "ボードを表示するスプリントを選択してください",
+    "noSprintSelectedSubtitle": "進捗を確認するには、上のドロップダウンからスプリントを選択してください。",
+    "tasks": "タスク",
+    "points": "ポイント",
+    "startSprint": "スプリントを開始",
+    "completeSprint": "スプリントを完了",
+    "tasksCompleted": "完了タスク",
+    "storyPoints": "ストーリーポイント",
+    "completionRate": "完了率",
+    "statuses": {
+      "sprintBacklog": "スプリントバックログ",
+      "inProgress": "進行中",
+      "testing": "テスト中",
+      "done": "完了"
+    }
+  },
+  "selector": {
+    "noActiveSprint": "進行中のスプリントはありません",
+    "noSprintsAvailable": "利用可能なスプリントはありません",
+    "createFirstSprint": "最初のスプリントを作成"
+  },
+  "progress": {
+    "title": "スプリント進捗",
+    "timeline": "スプリントタイムライン",
+    "daysRemaining": "残り {{count}} 日",
+    "sprintEnded": "スプリント終了",
+    "complete": "完了",
+    "timeSpent": "消費時間",
+    "estimated": "見積もり",
+    "tasksComplete": "完了タスク",
+    "inProgress": "進行中",
+    "velocity": "ベロシティ",
+    "storyPointsPerDay": "1日あたりのストーリーポイント",
+    "capacity": "キャパシティ",
+    "burndown": "スプリントバーンダウン",
+    "burndownPlaceholder": "バーンダウンチャートはここに表示されます",
+    "quickActions": "クイックアクション",
+    "viewReport": "スプリントレポートを表示",
+    "exportData": "データをエクスポート"
+  },
+  "planning": {
+    "title": "スプリント計画",
+    "selectSprint": "スプリントを選択",
+    "selectSprintToPlan": "計画を開始するには、上のドロップダウンからスプリントを選択してください。",
+    "saveChanges": "変更を保存",
+    "startSprint": "スプリントを開始",
+    "goal": "スプリントゴール",
+    "noGoal": "ゴール未設定",
+    "duration": "期間",
+    "noDates": "日付未設定",
+    "capacity": "キャパシティ",
+    "hours": "時間",
+    "productBacklog": "プロダクトバックログ",
+    "tasks": "タスク",
+    "sp": "SP",
+    "noTasksInBacklog": "バックログにタスクはありません",
+    "sprintBacklog": "スプリントバックログ",
+    "dragTasksHere": "ここにタスクをドラッグしてスプリントに追加",
+    "clickToMove": "タスクをクリックしてバックログとスプリント間を移動できます",
+    "summary": "スプリントサマリー",
+    "estimatedTime": "見積もり時間"
+  },
+  "tasksPanel": {
+    "title": "スプリントタスク",
+    "tasks": "タスク",
+    "errorNoOrg": "組織が選択されていません。先に組織を選択してください。",
+    "fetchFailed": "タスクの取得に失敗しました"
+  }
+}

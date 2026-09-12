@@ -1,0 +1,204 @@
+{
+  "administration": "管理",
+  "navigation": {
+    "overview": "概要",
+    "users": "ユーザー",
+    "organizations": "組織",
+    "configuration": "システム設定"
+  },
+  "dashboard": {
+    "welcome_back": "お帰りなさい、{{name}} さん",
+    "platform_overview": "プラットフォームの概要です。{{orgCount}} 組織で {{userCount}} 人のアクティブユーザーが利用しています。",
+    "stats": {
+      "total_users": "総ユーザー数",
+      "active_users": "アクティブユーザー",
+      "organizations": "組織数",
+      "workspaces": "ワークスペース数",
+      "projects": "プロジェクト数",
+      "tasks": "タスク数",
+      "new_this_week": "今週 +{{count}}"
+    },
+    "system_status": {
+      "title": "システムステータス",
+      "manage": "管理",
+      "registration": "新規登録",
+      "email_smtp": "メール / SMTP",
+      "sso": "シングルサインオン (SSO)",
+      "enabled": "有効",
+      "disabled": "無効",
+      "configured": "設定済み",
+      "not_configured": "未設定"
+    }
+  },
+  "users": {
+    "title": "ユーザー管理",
+    "description": "プラットフォームのユーザーとロールを管理します",
+    "search_placeholder": "名前、メール、ユーザー名で検索...",
+    "table": {
+      "user": "ユーザー",
+      "role": "ロール",
+      "status": "ステータス",
+      "organizations": "所属組織",
+      "created": "作成日",
+      "actions": "操作"
+    },
+    "roles": {
+      "super_admin": "特権管理者",
+      "user": "一般ユーザー"
+    },
+    "status": {
+      "active": "有効",
+      "inactive": "無効",
+      "suspended": "停止中"
+    },
+    "actions": {
+      "edit": "編集",
+      "suspend": "アカウント停止",
+      "activate": "アカウント有効化",
+      "delete": "削除",
+      "view_details": "詳細を表示",
+      "promote_super_admin": "特権管理者に昇格",
+      "remove_super_admin": "特権管理者を解除",
+      "deactivate": "無効化",
+      "reset_password": "パスワードリセット",
+      "reset_password_link_copied": "{{name}} さんのパスワードリセットリンクをクリップボードにコピーしました",
+      "delete_confirmation": "ユーザー「{{name}}」を削除してもよろしいですか？この操作は元に戻せません。",
+      "user_removed": "ユーザー「{{name}}」を削除しました"
+    },
+    "total_count": "合計: {{count}} 人のユーザー",
+    "no_users": "システムに登録されているユーザーはまだいません",
+    "details": {
+      "profile_info": "プロフィール情報",
+      "actions": "操作",
+      "danger_zone": "危険ゾーン",
+      "memberships": "所属組織",
+      "last_login": "最終ログイン",
+      "never": "未ログイン",
+      "email_verified": "メール認証済み",
+      "source": "登録元",
+      "timezone": "タイムゾーン",
+      "language": "言語",
+      "yes": "はい",
+      "no": "いいえ",
+      "membership_count": "{{count}} 組織に所属",
+      "membership_count_plural": "{{count}} 組織に所属",
+      "no_memberships": "所属している組織はありません"
+    }
+  },
+  "organizations": {
+    "title": "組織管理",
+    "description": "プラットフォーム内の組織とその制限を管理します",
+    "create_new": "新規組織を作成",
+    "search_placeholder": "名前またはスラッグで検索...",
+    "table": {
+      "organization": "組織",
+      "slug": "スラッグ",
+      "owner": "オーナー",
+      "users": "ユーザー数",
+      "workspaces": "ワークスペース数",
+      "created": "作成日",
+      "actions": "操作"
+    },
+    "total_count": "合計: {{count}} 組織",
+    "no_orgs": "システムに登録されている組織はまだありません",
+    "details": {
+      "information": "組織情報",
+      "danger_zone": "危険ゾーン",
+      "members": "メンバー",
+      "workspaces": "ワークスペース",
+      "projects": "プロジェクト",
+      "tasks": "タスク"
+    },
+    "actions": {
+      "transfer_ownership": "オーナー権限を譲渡",
+      "transfer_confirmation": "この組織のオーナー権限を譲渡してもよろしいですか？この操作は元に戻せません。",
+      "select_new_owner": "新しいオーナーを選択",
+      "transfer": "譲渡する"
+    }
+  },
+  "config": {
+    "title": "システム構成設定",
+    "description": "プラットフォーム全体のグローバルシステム設定と構成",
+    "save_changes": "変更を保存",
+    "saving": "保存中...",
+    "sections": {
+      "general": "一般設定",
+      "registration": "新規登録設定",
+      "registration_desc": "アカウント作成およびリソース作成の権限を制御します",
+      "security": "セキュリティ",
+      "smtp": "SMTPメール設定"
+    },
+    "labels": {
+      "site_name": "サイト名",
+      "registration_enabled": "新規登録を許可",
+      "registration_enabled_desc": "無効にすると、管理者が招待したユーザーのみアカウントを作成できます",
+      "default_org": "デフォルト組織",
+      "default_org_desc": "新規ユーザーが自動的に参加する組織。空欄にするとサインアップ時に組織の作成が必要になります。",
+      "default_org_active_desc": "新規ユーザーは自動的に {{name}} に参加します",
+      "default_org_none_desc": "新規ユーザーはサインアップ時に独自の組織を作成する必要があります",
+      "allow_org_creation": "組織の作成を許可",
+      "allow_org_creation_desc": "無効にすると、特権管理者のみが新しい組織を作成できます。一般ユーザーはデフォルト組織に割り当てられます。",
+      "allow_workspace_creation": "ワークスペースの作成を許可",
+      "allow_workspace_creation_desc": "無効にすると、組織オーナーとマネージャーのみがワークスペースを作成できます。",
+      "allow_project_creation": "プロジェクトの作成を許可",
+      "allow_project_creation_desc": "無効にすると、ワークスペースマネージャー以上のみがプロジェクトを作成できます。",
+      "resource_creation_perms": "リソース作成権限",
+      "sso_enabled": "SSOを有効化",
+      "sso_enabled_desc": "外部IDプロバイダーを使用したログインを許可します",
+      "sso_desc": "外部認証用のOpenID Connect (OIDC) を設定します",
+      "sso_provider_name": "プロバイダー表示名",
+      "sso_provider_name_desc": "ログインボタンに表示される名称（例: 'Authentikでログイン'）",
+      "sso_issuer_url": "発行元URL (Issuer URL)",
+      "sso_issuer_url_desc": "OIDCディスカバリーURL（例: https://auth.example.com/application/o/taskosaur/）",
+      "sso_client_id": "クライアントID",
+      "sso_client_id_desc": "IDプロバイダーから発行されたOAuth2クライアントID",
+      "sso_client_secret": "クライアントシークレット",
+      "sso_client_secret_desc": "OAuth2クライアントシークレット",
+      "sso_auto_register": "SSO経由のアカウント自動作成",
+      "sso_auto_register_desc": "有効にすると、公開登録が無効でもSSO経由で新規ユーザーが自動作成されます",
+      "smtp_host": "SMTPホスト",
+      "smtp_host_desc": "例: smtp.gmail.com, smtp.sendgrid.net",
+      "smtp_port": "SMTPポート",
+      "smtp_port_desc": "一般的なポート: 587 (TLS), 465 (SSL), 25 (暗号化なし)",
+      "smtp_user": "SMTPユーザー名",
+      "smtp_user_desc": "通常はメールアドレス",
+      "smtp_pass": "SMTPパスワード",
+      "smtp_pass_desc": "アプリパスワードまたはSMTP認証情報",
+      "smtp_from": "送信元メールアドレス (From)",
+      "smtp_from_desc": "送信通知メールの差出人アドレス",
+      "smtp_desc": "通知およびパスワードリセット用の送信メール設定",
+      "redirect_uri": "リダイレクトURI",
+      "redirect_uri_desc": "IDプロバイダーの設定で、このURLをリダイレクト/コールバックURIとして追加してください。",
+      "auto_generated": "自動生成",
+      "copy": "コピー",
+      "copied_to_clipboard": "クリップボードにコピーしました",
+      "test_connection": "接続テスト",
+      "test_connection_desc": "SMTPサーバーに接続可能で認証情報が正しいかを検証します",
+      "testing": "テスト中...",
+      "smtp_verified": "SMTP接続を確認しました",
+      "smtp_test_failed": "SMTP接続テストに失敗しました",
+      "set_via_env": ".envファイルで設定済み",
+      "readonly_env_desc": "この値は環境変数によって設定されているため、ここからは変更できません。"
+    },
+    "warnings": {
+      "no_org_creation_or_default": "組織作成が無効で、デフォルト組織も設定されていません",
+      "no_org_creation_or_default_desc": "サインアップ後に新規ユーザーが先に進めなくなります。デフォルト組織を設定するか、組織作成を有効にしてください。"
+    },
+    "save_success": "「{{section}}」の設定を正常に保存しました",
+    "save_error": "設定の保存に失敗しました"
+  },
+  "common": {
+    "loading": "読み込み中...",
+    "error_loading": "データの読み込みに失敗しました",
+    "no_results": "結果が見つかりません",
+    "success": "成功",
+    "filters": "フィルター",
+    "try_adjusting": "検索条件やフィルターを変更してみてください",
+    "none": "なし",
+    "confirmation": {
+      "title": "よろしいですか？",
+      "confirm": "確認",
+      "cancel": "キャンセル"
+    }
+  }
+}

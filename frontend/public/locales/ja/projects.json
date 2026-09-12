@@ -1,0 +1,141 @@
+{
+  "title": "プロジェクト一覧",
+  "description": "この組織内のプロジェクトを管理・整理します。",
+  "search_placeholder": "プロジェクトを検索...",
+  "advanced_filters": "詳細フィルター",
+  "filter_placeholder": "プロジェクトを絞り込み...",
+  "create_project": "プロジェクトを作成",
+  "no_projects_found": "プロジェクトが見つかりません",
+  "no_projects_match": "現在の検索条件およびフィルターに一致するプロジェクトはありません。条件を変更してみてください。",
+  "clear_filters": "フィルターをクリア",
+  "empty_state_title": "プロジェクトが見つかりません",
+  "empty_state_description": "最初のプロジェクトを作成して、タスクの整理やチームとのコラボレーションを開始しましょう。",
+  "tasks_count": "タスク数",
+  "start_date": "開始日",
+  "load_more": "さらに読み込む",
+  "loading": "読み込み中...",
+  "showing_projects_one": "{{count}} 件のプロジェクトを表示中",
+  "showing_projects_other": "{{count}} 件のプロジェクトを表示中",
+  "matching": "（「{{query}}」に一致）",
+  "with_filters_one": "（{{count}} 個のフィルター適用中）",
+  "with_filters_other": "（{{count}} 個のフィルター適用中）",
+  "status": {
+    "active": "進行中",
+    "planning": "計画中",
+    "on_hold": "保留中",
+    "completed": "完了"
+  },
+  "priority": {
+    "title": "優先度"
+  },
+  "messages": {
+    "created_success": "プロジェクトを正常に作成しました！",
+    "refresh_failed": "プロジェクトを作成しましたが、リストの更新に失敗しました",
+    "load_failed": "プロジェクトの読み込みに失敗しました",
+    "auth_required": "認証が必要です。再度ログインしてください。"
+  },
+  "modal": {
+    "createTitle": "新規プロジェクトを作成",
+    "createDescription": "タスクを整理し、チームとコラボレーションします",
+    "tryAgain": "再試行",
+    "projectName": "プロジェクト名",
+    "enterProjectName": "プロジェクト名を入力",
+    "url": "URL:",
+    "urlWorkspace": "workspace",
+    "urlProject": "project-name",
+    "workflow": "ワークフロー",
+    "searchWorkflows": "ワークフローを検索...",
+    "noWorkflowsFound": "ワークフローが見つかりません。",
+    "typeToSearchWorkflows": "入力してワークフローを検索",
+    "selectWorkflow": "ワークフローを選択",
+    "workflowHint": "プロジェクトのプロセスに適したワークフローを選択してください。",
+    "visibility": "公開範囲",
+    "selectVisibility": "公開範囲を選択",
+    "noVisibilityOptions": "公開範囲の選択肢が見つかりません。",
+    "visibilityHint": "このプロジェクトにアクセスできるユーザーを制御します。",
+    "workspace": "ワークスペース",
+    "loadingWorkspaces": "ワークスペースを読み込み中...",
+    "selectWorkspace": "ワークスペースを選択",
+    "searchWorkspaces": "ワークスペースを検索...",
+    "noWorkspacesFound": "ワークスペースが見つかりません。",
+    "typeToSearchWorkspaces": "入力してワークスペースを検索",
+    "workspaceHint": "プロジェクトはこのワークスペース内に作成されます。",
+    "description": "説明",
+    "descriptionPlaceholder": "このプロジェクトの目的や概要を入力...",
+    "descriptionHint": "チームがプロジェクトの目標と範囲を理解できるように記載します。",
+    "projectColors": "プロジェクトカラー",
+    "selectCategory": "カテゴリーを選択",
+    "noCategoriesFound": "カテゴリーが見つかりません。",
+    "categoryHint": "プロジェクトの整理や識別のためのカテゴリーを選択します。",
+    "cancel": "キャンセル",
+    "create": "プロジェクトを作成",
+    "creating": "プロジェクトを作成中...",
+    "success": "プロジェクト「{{name}}」を正常に作成しました！",
+    "errorLoadWorkspaces": "ワークスペースの読み込みに失敗しました",
+    "errorCreate": "プロジェクトの作成に失敗しました",
+    "visibilityOptions": {
+      "PRIVATE": {
+        "label": "プライベート",
+        "description": "招待されたメンバーのみアクセス可能"
+      },
+      "INTERNAL": {
+        "label": "組織内公開",
+        "description": "ワークスペースのメンバーは閲覧可能、プロジェクトメンバーは編集可能"
+      },
+      "PUBLIC": {
+        "label": "パブリック",
+        "description": "誰でも閲覧可能、プロジェクトメンバーは編集可能"
+      }
+    }
+  },
+  "categories": {
+    "operational": {
+      "label": "運用",
+      "description": "日常業務と保守運用"
+    },
+    "technical": {
+      "label": "技術・開発",
+      "description": "開発および技術プロジェクト"
+    },
+    "strategic": {
+      "label": "戦略",
+      "description": "長期計画および戦略的イニシアチブ"
+    },
+    "hiring": {
+      "label": "採用",
+      "description": "人材採用およびチームビルディング"
+    },
+    "financial": {
+      "label": "財務",
+      "description": "予算および財務計画"
+    },
+    "neutral": {
+      "label": "一般",
+      "description": "一般的なプロジェクトまたは未分類"
+    },
+    "innovation": {
+      "label": "イノベーション",
+      "description": "新規事業および創造的イニシアチブ"
+    },
+    "community": {
+      "label": "コミュニティ",
+      "description": "コミュニティ活動およびエンゲージメント"
+    },
+    "sustainability": {
+      "label": "サステナビリティ",
+      "description": "持続可能性および環境関連プロジェクト"
+    },
+    "marketing": {
+      "label": "マーケティング",
+      "description": "マーケティングおよびプロモーション"
+    },
+    "research": {
+      "label": "研究・リサーチ",
+      "description": "調査・分析プロジェクト"
+    },
+    "growth": {
+      "label": "グロース",
+      "description": "事業拡大および成長イニシアチブ"
+    }
+  }
+}

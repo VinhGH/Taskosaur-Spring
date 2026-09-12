@@ -1,0 +1,30 @@
+{
+  "title": "アクティビティフィード",
+  "description": "すべてのアクティビティを一元管理・追跡します。",
+  "workspace_description": "ワークスペース「{{workspaceName}}」の最近のアクティビティと更新情報",
+  "filters": {
+    "all": "すべてのアクティビティ",
+    "tasks": "タスク",
+    "projects": "プロジェクト",
+    "workspaces": "ワークスペース",
+    "users": "ユーザー",
+    "comments": "コメント",
+    "status_changes": "ステータス変更",
+    "assignments": "担当者の変更",
+    "filter_by_type": "種別で絞り込み",
+    "clear_filter": "フィルターを解除"
+  },
+  "pagination": {
+    "page_info": "{{currentPage}} / {{totalPages}} ページ",
+    "previous": "前へ",
+    "next": "次へ"
+  },
+  "recent_activity": "最近のアクティビティ",
+  "workspace_activity": "ワークスペースアクティビティ",
+  "failed_to_load": "アクティビティの読み込みに失敗しました",
+  "failed_to_refresh": "アクティビティの更新に失敗しました",
+  "failed_to_load_workspace": "ワークスペースアクティビティの読み込みに失敗しました",
+  "no_activity": "アクティビティはまだありません",
+  "no_filter_results": "{{filter}}が見つかりません",
+  "workspace_not_found": "ワークスペースが見つかりません"
+}

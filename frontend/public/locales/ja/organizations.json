@@ -1,0 +1,28 @@
+{
+  "modal": {
+    "createTitle": "新規組織を作成",
+    "createDescription": "新しい組織に関する情報を入力してください",
+    "name": "組織名",
+    "namePlaceholder": "組織名を入力",
+    "slug": "組織スラッグ",
+    "slugPlaceholder": "organization-slug",
+    "slugHint": "組織のURLに使用されます。半角英小文字、数字、ハイフンのみ使用できます。",
+    "description": "説明",
+    "descriptionPlaceholder": "組織の概要を入力...",
+    "website": "ウェブサイト",
+    "websitePlaceholder": "https://example.com",
+    "cancel": "キャンセル",
+    "create": "組織を作成",
+    "update": "組織を更新",
+    "creating": "作成中...",
+    "saving": "保存中...",
+    "success": "組織を正常に作成しました！",
+    "errorDefault": "組織の作成に失敗しました",
+    "errorSave": "組織の保存に失敗しました。もう一度お試しください。",
+    "errorTitle": "組織の作成エラー",
+    "errorNameRequired": "組織名は必須です",
+    "errorSlugRequired": "組織スラッグは必須です",
+    "errorSlugInvalid": "スラッグには半角英小文字、数字、ハイフンのみ使用できます",
+    "errorWebsiteInvalid": "有効なURLを入力してください"
+  }
+}

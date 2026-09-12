@@ -1,0 +1,42 @@
+{
+  "title": "{{name}} カレンダー",
+  "description": "プロジェクト「{{name}}」のタスクをカレンダー形式で表示・管理します。",
+  "createTask": "タスクを作成",
+  "noTasks": {
+    "title": "タスクが見つかりません",
+    "description": "カレンダーに表示するために、{{name}}の最初のタスクを作成してください"
+  },
+  "errors": {
+    "invalidSlug": "無効なワークスペースまたはプロジェクトのスラッグです",
+    "workspaceNotFound": "ワークスペースが見つかりません",
+    "projectNotFound": "プロジェクトが見つかりません",
+    "failedLoadData": "データの読み込みに失敗しました",
+    "projectOrWorkspaceNotFound": "プロジェクトまたはワークスペースが見つかりません"
+  },
+  "view": {
+    "noTasksScheduled": "予定されているタスクはありません",
+    "noTasksScheduledDescription": "期日が設定されたタスクがカレンダーに表示されます。スケジュールを可視化するために期日を設定したタスクを作成してください。",
+    "days": {
+      "sun": "日",
+      "mon": "月",
+      "tue": "火",
+      "wed": "水",
+      "thu": "木",
+      "fri": "金",
+      "sat": "土"
+    },
+    "untitledTask": "無題のタスク",
+    "more": "件以上",
+    "time": "時間",
+    "weekOf": "{{date}}の週",
+    "daysWithTasks": "今月タスクのある日数: {{count}}日",
+    "tasksThisWeek": "今週のタスク: {{count}}件",
+    "month": "月",
+    "week": "週",
+    "today": "今日",
+    "noTasksThisDay": "この日の予定タスクはありません",
+    "noStatus": "ステータスなし",
+    "overdue": "期限超過",
+    "assignee": "担当者"
+  }
+}
