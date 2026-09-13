@@ -138,5 +138,41 @@
     "removeConfirm": "{{name}} をチャンネルから退出させますか？",
     "blockUser": "ユーザーをブロック",
     "blockConfirm": "ユーザー {{name}} をブロックしますか？そのユーザーからのダイレクトメッセージを受信しなくなります。"
+  },
+  "aiAssistant": {
+    "title": "AI アシスタント",
+    "viewHistory": "チャット履歴を表示",
+    "newChat": "新しいチャット",
+    "clearContext": "チャットコンテキストをクリア",
+    "context": "コンテキスト",
+    "clearChat": "クリア",
+    "close": "AI アシスタントを閉じる (Esc)",
+    "contextClearedMessage": "コンテキストがクリアされました。現在グローバルモードです。次のアクションのためにワークスペースまたはプロジェクトを指定してください。",
+    "welcomeTitle": "こんにちは！Taskosaur AI アシスタントです",
+    "welcomeSubtitle": "タスク、プロジェクト、ワークスペースの管理をお手伝いします",
+    "tryCommands": "次のコマンドを試してみてください：",
+    "commands": {
+      "createTask": "[タスク名] というタスクを作成",
+      "showHighPriority": "優先度の高いタスクを表示",
+      "markDone": "[タスク] を完了にする",
+      "createWorkspace": "[名前] というワークスペースを作成",
+      "listProjects": "自分のプロジェクトを一覧表示",
+      "navigateWorkspace": "[名前] ワークスペースへ移動"
+    },
+    "quickPrompts": {
+      "sampleTask": "サンプルタスクを作成",
+      "listTasks": "タスク一覧",
+      "setupProject": "プロジェクト期間を設定",
+      "assignMember": "メンバーにタスクを割り当て",
+      "changeToDone": "ステータスを完了に変更"
+    },
+    "inputPlaceholder": "AI アシスタントにメッセージを送信...",
+    "loginToUse": "AI アシスタントを使用するにはログインしてください...",
+    "listening": "音声を認識中...",
+    "historyTitle": "チャット履歴",
+    "noHistory": "チャット履歴はまだありません",
+    "pressEscToCancel": "Esc でキャンセル",
+    "stopListening": "音声入力を停止",
+    "startVoice": "音声入力を開始"
   }
 }

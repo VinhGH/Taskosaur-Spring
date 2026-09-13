@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { BrowserAgent } from "@/lib/browser-automation/browser-agent";
 import api from "@/lib/api";
 import { useChatVoice } from "@/hooks/useChatVoice";
+import { useTranslation } from "react-i18next";
 import {
   ThoughtStep,
   Message,
@@ -26,6 +27,7 @@ import { ChatInputBar } from "./ChatInputBar";
 export type { ThoughtStep };
 
 export default function ChatPanel() {
+  const { t } = useTranslation("chat");
   const { isChatOpen, toggleChat } = useChatContext();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -606,21 +608,49 @@ export default function ChatPanel() {
             } catch (e) {}
           }
           return true;
+        } else {
+          // If conversation has no messages, clear message state!
+          setMessages([]);
+          return true;
         }
       }
     } catch (error) {
       console.warn("Failed to load messages from conversation history:", error);
     }
+    setMessages([]);
     return false;
   }, []);
 
   const handleNewChat = async () => {
+    setMessages([]);
+    setLiveSteps([]);
+    setLiveLogs([]);
+    setElapsedSeconds(0);
+    clearLiveThinkingTimers();
+    setError(null);
+    setIsContextManuallyCleared(false);
+    browserAgentRef.current?.reset();
+    await mcpServer.clearHistory();
+
     const newId = await mcpServer.startNewConversation();
+    if (newId && typeof window !== "undefined") {
+      try {
+        localStorage.removeItem(`taskosaur_chat_rich_messages_${newId}`);
+      } catch (e) {}
+    }
     setCurrentConversationId(newId);
     setIsHistoryOpen(false);
+    await refreshConversations();
   };
 
   const handleSelectConversation = async (id: string) => {
+    setMessages([]);
+    setLiveSteps([]);
+    setLiveLogs([]);
+    setElapsedSeconds(0);
+    clearLiveThinkingTimers();
+    setError(null);
+    browserAgentRef.current?.reset();
     await mcpServer.switchConversation(id);
     setCurrentConversationId(id);
     setIsHistoryOpen(false);
@@ -690,14 +720,27 @@ export default function ChatPanel() {
     let active = true;
     const syncHistory = async () => {
       const currentConv = mcpServer.getCurrentConversation();
-      if (currentConv && currentConv.id) {
-        try {
-          localStorage.setItem(
-            `taskosaur_chat_rich_messages_${currentConv.id}`,
-            JSON.stringify(messages)
-          );
-        } catch (e) {}
+      if (!currentConv || !currentConv.id || currentConv.id !== currentConversationId) return;
+
+      if (messages.length === 0) {
+        if (currentConv.messages && currentConv.messages.length > 0) {
+          currentConv.messages = [];
+          try {
+            localStorage.removeItem(`taskosaur_chat_rich_messages_${currentConv.id}`);
+          } catch (e) {}
+          await mcpServer.saveHistory([]);
+          if (!active) return;
+          await refreshConversations();
+        }
+        return;
       }
+
+      try {
+        localStorage.setItem(
+          `taskosaur_chat_rich_messages_${currentConv.id}`,
+          JSON.stringify(messages)
+        );
+      } catch (e) {}
 
       const chatHistory: ChatMessage[] = messages
         .filter((m) => !m.isStreaming && m.role !== "system" && m.content && m.content.trim() !== "")
@@ -709,25 +752,23 @@ export default function ChatPanel() {
           logs: m.logs,
         }));
 
-      if (currentConv && currentConv.id) {
-        const currentMessagesCleaned = (currentConv.messages || [])
-          .filter((m) => m.role !== "system")
-          .map((m) => ({
-            role: m.role,
-            content: m.content,
-            actions: m.actions,
-            steps: m.steps,
-            logs: m.logs,
-          }));
+      const currentMessagesCleaned = (currentConv.messages || [])
+        .filter((m) => m.role !== "system")
+        .map((m) => ({
+          role: m.role,
+          content: m.content,
+          actions: m.actions,
+          steps: m.steps,
+          logs: m.logs,
+        }));
 
-        const currentHistoryJson = JSON.stringify(currentMessagesCleaned);
-        const newHistoryJson = JSON.stringify(chatHistory);
+      const currentHistoryJson = JSON.stringify(currentMessagesCleaned);
+      const newHistoryJson = JSON.stringify(chatHistory);
 
-        if (currentHistoryJson !== newHistoryJson) {
-          await mcpServer.saveHistory(chatHistory);
-          if (!active) return;
-          await refreshConversations();
-        }
+      if (currentHistoryJson !== newHistoryJson) {
+        await mcpServer.saveHistory(chatHistory);
+        if (!active) return;
+        await refreshConversations();
       }
     };
 
@@ -735,7 +776,7 @@ export default function ChatPanel() {
     return () => {
       active = false;
     };
-  }, [messages, refreshConversations]);
+  }, [messages, currentConversationId, refreshConversations]);
 
   if (
     currentOrganizationId !== null &&
@@ -856,8 +897,10 @@ export default function ChatPanel() {
       setMessages([
         {
           role: "system",
-          content:
-            "Context cleared. You are now in global mode - specify workspace and project for your next actions.",
+          content: t(
+            "aiAssistant.contextClearedMessage",
+            "Context cleared. You are now in global mode - specify workspace and project for your next actions."
+          ),
           timestamp: new Date(),
         },
       ]);
@@ -913,6 +956,7 @@ export default function ChatPanel() {
             setIsHistoryOpen(true);
             await refreshConversations();
           }}
+          onNewChat={handleNewChat}
           onClearContext={clearContext}
           onClearChat={clearChat}
           onCloseChat={toggleChat}

@@ -1,5 +1,6 @@
 import React from "react";
 import { HiMicrophone, HiStop, HiPaperAirplane } from "react-icons/hi2";
+import { useTranslation } from "react-i18next";
 
 interface ChatInputBarProps {
   inputValue: string;
@@ -35,6 +36,8 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(
     user,
     textareaRef,
   }) => {
+    const { t } = useTranslation("chat");
+
     return (
       <div className="flex-shrink-0 border-t border-gray-200/80 dark:border-[var(--border)] bg-white/90 dark:bg-[var(--card)]/90 backdrop-blur p-4">
         {/* Interim transcript display (shown while listening) */}
@@ -59,11 +62,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(
         {isListening && (
           <div className="mb-1 px-1">
             <span className="text-xs text-gray-400 dark:text-gray-500">
-              Press{" "}
-              <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-[10px] font-mono">
-                Esc
-              </kbd>{" "}
-              to cancel
+              {t("aiAssistant.pressEscToCancel", "Nhấn Esc để hủy")}
             </span>
           </div>
         )}
@@ -78,7 +77,11 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(
                 ? "bg-red-500 hover:bg-red-600 text-white animate-pulse"
                 : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 border border-gray-200/60 dark:border-gray-700/60"
             }`}
-            title={isListening ? "Stop listening" : "Start voice input"}
+            title={
+              isListening
+                ? t("aiAssistant.stopListening", "Stop listening")
+                : t("aiAssistant.startVoice", "Start voice input")
+            }
           >
             <HiMicrophone className="w-4 h-4" />
           </button>
@@ -90,10 +93,10 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(
             onKeyDown={onKeyDown}
             placeholder={
               !user
-                ? "Please log in to use AI assistant..."
+                ? t("aiAssistant.loginToUse", "Please log in to use AI assistant...")
                 : isListening
-                ? "Listening..."
-                : "Message AI Assistant..."
+                ? t("aiAssistant.listening", "Listening...")
+                : t("aiAssistant.inputPlaceholder", "Message AI Assistant...")
             }
             disabled={isLoading || isBrowserAgentRunning || !user || isListening}
             rows={1}

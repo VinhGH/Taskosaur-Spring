@@ -1,5 +1,6 @@
 import React from "react";
 import { HiXMark, HiPlus, HiChatBubbleLeft, HiPencil, HiTrash } from "react-icons/hi2";
+import { useTranslation } from "react-i18next";
 import { Conversation } from "@/lib/mcp-server";
 
 interface ChatHistoryDrawerProps {
@@ -34,6 +35,8 @@ export const ChatHistoryDrawer: React.FC<ChatHistoryDrawerProps> = React.memo(
     onCancelRename,
     onChangeEditTitle,
   }) => {
+    const { t } = useTranslation("chat");
+
     return (
       <>
         {/* Sidebar Overlay */}
@@ -52,7 +55,7 @@ export const ChatHistoryDrawer: React.FC<ChatHistoryDrawerProps> = React.memo(
         >
           {/* Sidebar Header */}
           <div className="p-4 border-b border-[var(--border)] flex items-center justify-between flex-shrink-0">
-            <h3 className="font-semibold text-primary">Chat History</h3>
+            <h3 className="font-semibold text-primary">{t("aiAssistant.historyTitle", "Chat History")}</h3>
             <button
               onClick={onClose}
               className="p-1 rounded-md hover:bg-[var(--accent)] transition-colors duration-200"
@@ -68,13 +71,18 @@ export const ChatHistoryDrawer: React.FC<ChatHistoryDrawerProps> = React.memo(
               className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 text-sm font-medium shadow-sm hover:shadow"
             >
               <HiPlus className="w-4 h-4" />
-              New Chat
+              {t("aiAssistant.newChat", "New Chat")}
             </button>
           </div>
 
           {/* Chat List */}
           <div className="flex-1 overflow-y-auto p-2 space-y-1 chatgpt-scrollbar">
-            {conversations.map((conv) => (
+            {conversations.length === 0 ? (
+              <div className="text-center py-8 text-xs text-[var(--muted-foreground)]">
+                {t("aiAssistant.noHistory", "No chat history yet")}
+              </div>
+            ) : (
+              conversations.map((conv) => (
               <div
                 key={conv.id}
                 className={`group flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-all duration-200 ${
@@ -130,7 +138,8 @@ export const ChatHistoryDrawer: React.FC<ChatHistoryDrawerProps> = React.memo(
                   </div>
                 )}
               </div>
-            ))}
+            ))
+          )}
           </div>
         </div>
       </>

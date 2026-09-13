@@ -157,8 +157,43 @@
     "unmute": "Gỡ hạn chế nhắn tin",
     "mute": "Hạn chế nhắn tin (Mute)",
     "removeMember": "Mời rời khỏi kênh",
-    "removeConfirm": "Mời {{name}} rời khỏi kênh?",
     "blockUser": "Chặn người dùng này",
     "blockConfirm": "Chặn người dùng {{name}}? Bạn sẽ không nhận tin nhắn trực tiếp từ họ."
+  },
+  "aiAssistant": {
+    "title": "Trợ lý AI",
+    "viewHistory": "Xem lịch sử đoạn chat",
+    "newChat": "Đoạn chat mới",
+    "clearContext": "Xóa ngữ cảnh trò chuyện",
+    "context": "Ngữ cảnh",
+    "clearChat": "Xóa tin nhắn",
+    "close": "Đóng Trợ lý AI (Esc)",
+    "contextClearedMessage": "Đã xóa ngữ cảnh trò chuyện. Bạn đang ở chế độ toàn cục - hãy chỉ định không gian làm việc hoặc dự án cho các thao tác tiếp theo.",
+    "welcomeTitle": "Xin chào! Tôi là Trợ lý AI Taskosaur",
+    "welcomeSubtitle": "Tôi có thể giúp bạn quản lý công việc, dự án và không gian làm việc",
+    "tryCommands": "Hãy thử các câu lệnh sau:",
+    "commands": {
+      "createTask": "Tạo task tên [tên task]",
+      "showHighPriority": "Hiển thị các task ưu tiên cao",
+      "markDone": "Đổi trạng thái [task] sang DONE",
+      "createWorkspace": "Tạo không gian làm việc [tên]",
+      "listProjects": "Liệt kê các dự án của tôi",
+      "navigateWorkspace": "Đi đến không gian làm việc [tên]"
+    },
+    "quickPrompts": {
+      "sampleTask": "Tạo task mẫu",
+      "listTasks": "Liệt kê task",
+      "setupProject": "Setup ngày dự án",
+      "assignMember": "Giao task thành viên",
+      "changeToDone": "Đổi sang DONE"
+    },
+    "inputPlaceholder": "Nhập tin nhắn cho Trợ lý AI...",
+    "loginToUse": "Vui lòng đăng nhập để sử dụng Trợ lý AI...",
+    "listening": "Đang lắng nghe...",
+    "historyTitle": "Lịch sử đoạn chat",
+    "noHistory": "Chưa có đoạn chat nào",
+    "pressEscToCancel": "Nhấn Esc để hủy",
+    "stopListening": "Dừng nghe",
+    "startVoice": "Nhập bằng giọng nói"
   }
 }

@@ -160,5 +160,41 @@
     "removeConfirm": "Remove {{name}} from the channel?",
     "blockUser": "Block user",
     "blockConfirm": "Block user {{name}}? You will no longer receive direct messages from them."
+  },
+  "aiAssistant": {
+    "title": "AI Assistant",
+    "viewHistory": "View Chat History",
+    "newChat": "New Chat",
+    "clearContext": "Clear Current Chat Context",
+    "context": "Context",
+    "clearChat": "Clear",
+    "close": "Close AI Assistant (Esc)",
+    "contextClearedMessage": "Context cleared. You are now in global mode - specify workspace and project for your next actions.",
+    "welcomeTitle": "Hi! I'm your Taskosaur AI Assistant",
+    "welcomeSubtitle": "I can help you manage tasks, projects, and workspaces",
+    "tryCommands": "Try these commands:",
+    "commands": {
+      "createTask": "Create a task called [name]",
+      "showHighPriority": "Show high priority tasks",
+      "markDone": "Mark [task] as done",
+      "createWorkspace": "Create a workspace called [name]",
+      "listProjects": "List my projects",
+      "navigateWorkspace": "Navigate to [workspace] workspace"
+    },
+    "quickPrompts": {
+      "sampleTask": "Create sample task",
+      "listTasks": "List tasks",
+      "setupProject": "Setup project dates",
+      "assignMember": "Assign task to member",
+      "changeToDone": "Change to DONE"
+    },
+    "inputPlaceholder": "Message AI Assistant...",
+    "loginToUse": "Please log in to use AI assistant...",
+    "listening": "Listening...",
+    "historyTitle": "Chat History",
+    "noHistory": "No chat history yet",
+    "pressEscToCancel": "Press Esc to cancel",
+    "stopListening": "Stop listening",
+    "startVoice": "Start voice input"
   }
 }
