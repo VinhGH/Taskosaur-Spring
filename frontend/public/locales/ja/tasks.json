@@ -260,7 +260,29 @@
     "add": "サブタスクを追加",
     "cancel": "キャンセル",
     "deleteTitle": "サブタスクを削除",
-    "deleteConfirmation": "このサブタスクを削除してもよろしいですか？この操作は元に戻せません。"
+    "deleteConfirmation": "このサブタスクを削除してもよろしいですか？この操作は元に戻せません。",
+    "aiBreakdown": {
+      "button": "AI 分解",
+      "modalTitle": "AI タスク分解",
+      "modalSubtitle": "AI を使用して、このタスクを実行可能なサブタスクに自動分解します。",
+      "countLabel": "サブタスクの数",
+      "guidanceLabel": "追加の指示（任意）",
+      "guidancePlaceholder": "例: API設計、エラーハンドリング、単体テストに重点を置く...",
+      "generateButton": "AI でサブタスクを生成",
+      "generating": "サブタスクを生成中...",
+      "generatingTip": "AI がタスク要件を分析し、受入基準付きのサブタスクを作成しています...",
+      "missingKeyTitle": "AI API キーの設定が必要です (BYOK)",
+      "missingKeyDescription": "Taskosaur は BYOK (Bring-Your-Own-Key) 方式を採用しています。AI 機能を使用するには、設定で OpenRouter 等の API キーを設定してください。",
+      "openSettings": "AI 設定を開く",
+      "selectAll": "すべて選択",
+      "deselectAll": "すべて解除",
+      "selectedCount": "{{total}} 件中 {{selected}} 件のサブタスクを選択中",
+      "createButton": "{{count}} 件のサブタスクを作成",
+      "creating": "サブタスクを作成中...",
+      "regenerate": "再生成",
+      "createSuccess": "{{count}} 件のサブタスクを作成しました！",
+      "createError": "サブタスクの作成に失敗しました。もう一度お試しください。"
+    }
   },
   "comments": {
     "title": "コメント",

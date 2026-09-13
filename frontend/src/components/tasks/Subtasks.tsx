@@ -14,6 +14,11 @@ import {
   HiCalendar,
   HiChevronLeft,
   HiChevronRight,
+  HiSparkles,
+  HiCheck,
+  HiArrowPath,
+  HiCog6Tooth,
+  HiKey,
 } from "react-icons/hi2";
 import Tooltip from "../common/ToolTip";
 import { useAuth } from "@/contexts/auth-context";
@@ -22,6 +27,10 @@ import { formatDateForDisplay } from "@/utils/date";
 import { Label, Select } from "../ui";
 import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { PRIORITY_OPTIONS, TASK_TYPE_OPTIONS } from "@/utils/data/taskData";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import AISettingsModal from "../settings/AISettings";
+import api from "@/lib/api";
+import { toast } from "sonner";
 import validator from "validator";
 
 interface User {
@@ -33,9 +42,19 @@ interface User {
   role: string;
 }
 
+export interface GeneratedSubtask {
+  title: string;
+  description: string;
+  priority: "LOWEST" | "LOW" | "MEDIUM" | "HIGH" | "HIGHEST";
+  estimatedPoints?: number;
+  selected?: boolean;
+}
+
 interface SubtasksProps {
   taskId: string;
   projectId: string;
+  parentTitle?: string;
+  parentDescription?: string;
   onSubtaskAdded?: (subtask: Task) => void;
   onSubtaskUpdated?: (subtaskId: string, updates: any) => void;
   onSubtaskDeleted?: (subtaskId: string) => void;
@@ -131,6 +150,8 @@ const Pagination = ({
 export default function Subtasks({
   taskId,
   projectId,
+  parentTitle,
+  parentDescription,
   onSubtaskUpdated,
   onSubtaskDeleted,
   showConfirmModal,
@@ -165,9 +186,144 @@ export default function Subtasks({
   const [subtaskPriority, setSubtaskPriority] = useState("MEDIUM");
   const [subtaskType, setSubtaskType] = useState("SUBTASK");
 
+  // AI Breakdown state
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isAiSettingsOpen, setIsAiSettingsOpen] = useState(false);
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [isAiCreating, setIsAiCreating] = useState(false);
+  const [aiUserPrompt, setAiUserPrompt] = useState("");
+  const [aiSubtaskCount, setAiSubtaskCount] = useState<number>(4);
+  const [generatedSubtasks, setGeneratedSubtasks] = useState<GeneratedSubtask[]>([]);
+  const [aiError, setAiError] = useState<string | null>(null);
+
   const router = useRouter();
   const { workspaceSlug, projectSlug } = router.query;
   const isAuth = isAuthenticated();
+
+  const handleOpenAiModal = () => {
+    setIsAiModalOpen(true);
+    setAiError(null);
+  };
+
+  const handleGenerateAiSubtasks = async () => {
+    setIsAiGenerating(true);
+    setAiError(null);
+    try {
+      const response = await api.post("/ai-chat/breakdown-task", {
+        taskId,
+        projectId,
+        title: parentTitle,
+        description: parentDescription,
+        userPrompt: aiUserPrompt.trim() || undefined,
+        count: aiSubtaskCount,
+      });
+
+      if (response.data.success && Array.isArray(response.data.subtasks)) {
+        setGeneratedSubtasks(
+          response.data.subtasks.map((st: any) => ({
+            title: st.title || "",
+            description: st.description || "",
+            priority: st.priority || "MEDIUM",
+            estimatedPoints: st.estimatedPoints,
+            selected: true,
+          }))
+        );
+      } else {
+        const err = response.data.error || "Failed to generate subtasks";
+        setAiError(err);
+      }
+    } catch (err: any) {
+      console.error("AI breakdown error:", err);
+      const errMsg = err?.response?.data?.error || err?.response?.data?.message || err?.message || "Failed to connect to AI service";
+      setAiError(errMsg);
+    } finally {
+      setIsAiGenerating(false);
+    }
+  };
+
+  const handleToggleSelectSubtask = (index: number) => {
+    setGeneratedSubtasks((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, selected: !item.selected } : item))
+    );
+  };
+
+  const handleSubtaskTitleChange = (index: number, newTitle: string) => {
+    setGeneratedSubtasks((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, title: newTitle } : item))
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    const allSelected = generatedSubtasks.length > 0 && generatedSubtasks.every((s) => s.selected);
+    setGeneratedSubtasks((prev) =>
+      prev.map((item) => ({ ...item, selected: !allSelected }))
+    );
+  };
+
+  const handleAcceptAndCreateSubtasks = async () => {
+    const selectedItems = generatedSubtasks.filter((s) => s.selected && s.title.trim());
+    if (selectedItems.length === 0) return;
+
+    setIsAiCreating(true);
+    let createdCount = 0;
+
+    try {
+      const defaultStatus =
+        (parentStatusId
+          ? taskStatuses.find((s) => s.id === parentStatusId)
+          : null) ||
+        taskStatuses.find((s) => s.category === "TODO") ||
+        taskStatuses[0];
+
+      if (!defaultStatus) {
+        toast.error("No task status found");
+        return;
+      }
+
+      for (const item of selectedItems) {
+        const subtaskData: any = {
+          title: item.title.trim(),
+          description: item.description || `Subtask for parent task`,
+          priority: item.priority || "MEDIUM",
+          type: "SUBTASK" as const,
+          startDate: new Date().toISOString(),
+          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          projectId,
+          assigneeIds: currentUser ? [currentUser.id] : [],
+          statusId: defaultStatus.id,
+          parentTaskId: taskId,
+        };
+
+        if (item.estimatedPoints) {
+          subtaskData.storyPoints = item.estimatedPoints;
+        }
+
+        if (parentSprintId) {
+          subtaskData.sprintId = parentSprintId;
+        }
+
+        await createSubtask(subtaskData);
+        createdCount++;
+      }
+
+      toast.success(t("subtasks.aiBreakdown.createSuccess", { count: createdCount }));
+      setIsAiModalOpen(false);
+      setGeneratedSubtasks([]);
+      setAiUserPrompt("");
+
+      // Refresh subtasks list
+      await getSubtasksByParent(taskId, isAuth, workspaceSlug as string, projectSlug as string, {
+        page: 1,
+        limit: pageSize,
+      });
+      setCurrentPage(1);
+    } catch (error) {
+      console.error("Error creating AI subtasks:", error);
+      toast.error(t("subtasks.aiBreakdown.createError"));
+    } finally {
+      setIsAiCreating(false);
+    }
+  };
 
   // Get current user from localStorage
   useEffect(() => {
@@ -468,11 +624,26 @@ export default function Subtasks({
       )}
 
       <div className="space-y-4">
-        <SectionHeader
-          icon={HiListBullet}
-          title={`${t("subtasks.title")} (${completedCount}/${subtaskPagination?.total || Array.isArray(subtTask) ? subtTask.length : 0
+        <div className="flex items-center justify-between">
+          <SectionHeader
+            icon={HiListBullet}
+            title={`${t("subtasks.title")} (${completedCount}/${
+              subtaskPagination?.total || (Array.isArray(subtTask) ? subtTask.length : 0)
             })`}
-        />
+          />
+          {hasAccess && isAuth && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleOpenAiModal}
+              className="flex items-center gap-1.5 text-xs font-medium border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 hover:border-purple-500/50 mb-4 transition-all shadow-sm"
+            >
+              <HiSparkles className="w-3.5 h-3.5 text-purple-500" />
+              <span>{t("subtasks.aiBreakdown.button")}</span>
+            </Button>
+          )}
+        </div>
 
         {/* Subtasks List */}
         {Array.isArray(subtTask) && subtTask.length > 0 && (
@@ -785,20 +956,316 @@ export default function Subtasks({
             </div>
           </form>
         ) : hasAccess && isAuth ? (
-          <div className="flex justify-end">
+          <div className="flex justify-end items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleOpenAiModal}
+              disabled={isLoading}
+              className="flex items-center gap-1.5 text-xs font-medium border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 hover:border-purple-500/50 h-9 px-3"
+            >
+              <HiSparkles className="w-3.5 h-3.5 text-purple-500" />
+              <span>{t("subtasks.aiBreakdown.button")}</span>
+            </Button>
             <ActionButton
               onClick={() => setIsAddingSubtask(true)}
               variant="outline"
               disabled={isLoading}
               showPlusIcon
               primary
-              className="min-w-[193.56px]"
+              className="min-w-[160px]"
             >
               {t("subtasks.add")}
             </ActionButton>
           </div>
         ) : null}
       </div>
+
+      {/* AI Settings Modal if user clicks to configure API Key */}
+      <AISettingsModal
+        isOpen={isAiSettingsOpen}
+        onClose={() => {
+          setIsAiSettingsOpen(false);
+          setAiError(null);
+        }}
+      />
+
+      {/* AI Task Breakdown Modal */}
+      <Dialog open={isAiModalOpen} onOpenChange={setIsAiModalOpen}>
+        <DialogContent className="sm:max-w-[650px] max-h-[85vh] flex flex-col p-6 overflow-hidden">
+          <DialogHeader className="pb-3 border-b border-[var(--border)]">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                <HiSparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-semibold text-[var(--foreground)]">
+                  {t("subtasks.aiBreakdown.modalTitle")}
+                </DialogTitle>
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  {t("subtasks.aiBreakdown.modalSubtitle")}
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+            {/* Parent Task Context Preview */}
+            <div className="p-3 bg-[var(--muted)]/40 rounded-lg border border-[var(--border)] space-y-1">
+              <div className="text-[11px] font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">
+                Parent Task
+              </div>
+              <div className="text-sm font-medium text-[var(--foreground)]">
+                {parentTitle || taskId}
+              </div>
+              {parentDescription && (
+                <div className="text-xs text-[var(--muted-foreground)] line-clamp-2 mt-1">
+                  {parentDescription}
+                </div>
+              )}
+            </div>
+
+            {/* Error / Missing Key Banner */}
+            {aiError === "AI_API_KEY_MISSING" ? (
+              <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 space-y-3">
+                <div className="flex items-center gap-2 font-semibold text-sm">
+                  <HiKey className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  {t("subtasks.aiBreakdown.missingKeyTitle")}
+                </div>
+                <p className="text-xs leading-relaxed text-amber-700 dark:text-amber-300/90">
+                  {t("subtasks.aiBreakdown.missingKeyDescription")}
+                </p>
+                <div className="pt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsAiSettingsOpen(true)}
+                    className="h-8 text-xs font-medium border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
+                  >
+                    <HiCog6Tooth className="w-3.5 h-3.5 mr-1.5" />
+                    {t("subtasks.aiBreakdown.openSettings")}
+                  </Button>
+                </div>
+              </div>
+            ) : aiError ? (
+              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs">
+                {aiError}
+              </div>
+            ) : null}
+
+            {/* Configuration Controls (Count & Optional Guidance) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">
+                  {t("subtasks.aiBreakdown.countLabel")}
+                </Label>
+                <Select
+                  value={aiSubtaskCount.toString()}
+                  onValueChange={(val) => setAiSubtaskCount(parseInt(val, 10))}
+                  disabled={isAiGenerating || isAiCreating}
+                >
+                  <SelectTrigger className="h-8 text-xs bg-[var(--background)] border-[var(--border)]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[var(--card)]">
+                    <SelectItem value="3">3 Subtasks</SelectItem>
+                    <SelectItem value="4">4 Subtasks</SelectItem>
+                    <SelectItem value="5">5 Subtasks</SelectItem>
+                    <SelectItem value="6">6 Subtasks</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="sm:col-span-2 space-y-1.5">
+                <Label className="text-xs font-medium">
+                  {t("subtasks.aiBreakdown.guidanceLabel")}
+                </Label>
+                <Input
+                  value={aiUserPrompt}
+                  onChange={(e) => setAiUserPrompt(e.target.value)}
+                  placeholder={t("subtasks.aiBreakdown.guidancePlaceholder")}
+                  className="h-8 text-xs bg-[var(--background)] border-[var(--border)]"
+                  disabled={isAiGenerating || isAiCreating}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !isAiGenerating) {
+                      handleGenerateAiSubtasks();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Generate Trigger Button (if no generated subtasks yet) */}
+            {generatedSubtasks.length === 0 && (
+              <div className="pt-2">
+                <Button
+                  onClick={handleGenerateAiSubtasks}
+                  disabled={isAiGenerating || isAiCreating}
+                  className="w-full h-9 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium gap-2 shadow-sm transition-all"
+                >
+                  {isAiGenerating ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>{t("subtasks.aiBreakdown.generating")}</span>
+                    </>
+                  ) : (
+                    <>
+                      <HiSparkles className="w-4 h-4" />
+                      <span>{t("subtasks.aiBreakdown.generateButton")}</span>
+                    </>
+                  )}
+                </Button>
+                {isAiGenerating && (
+                  <p className="text-[11px] text-center text-[var(--muted-foreground)] mt-2 italic">
+                    {t("subtasks.aiBreakdown.generatingTip")}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Generated Subtasks Review List */}
+            {generatedSubtasks.length > 0 && (
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)]">
+                  <span>
+                    {t("subtasks.aiBreakdown.selectedCount", {
+                      selected: generatedSubtasks.filter((s) => s.selected).length,
+                      total: generatedSubtasks.length,
+                    })}
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleToggleSelectAll}
+                      className="text-xs text-purple-600 dark:text-purple-400 hover:underline cursor-pointer"
+                    >
+                      {generatedSubtasks.every((s) => s.selected)
+                        ? t("subtasks.aiBreakdown.deselectAll")
+                        : t("subtasks.aiBreakdown.selectAll")}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                  {generatedSubtasks.map((sub, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => handleToggleSelectSubtask(idx)}
+                      className={`p-3 rounded-lg border transition-all cursor-pointer ${
+                        sub.selected
+                          ? "border-purple-500/50 bg-purple-500/5 dark:bg-purple-500/10"
+                          : "border-[var(--border)] bg-[var(--card)] opacity-60 hover:opacity-100"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={sub.selected}
+                          onChange={() => handleToggleSelectSubtask(idx)}
+                          className="mt-1 h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <Input
+                            value={sub.title}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => handleSubtaskTitleChange(idx, e.target.value)}
+                            className="h-7 text-xs font-medium bg-transparent border-transparent hover:border-[var(--border)] focus:border-[var(--primary)] px-1 -mx-1"
+                          />
+                          {sub.description && (
+                            <p className="text-[11px] text-[var(--muted-foreground)] line-clamp-2 leading-relaxed">
+                              {sub.description}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2 pt-1">
+                            <DynamicBadge
+                              label={sub.priority}
+                              bgColor={getPriorityColor(sub.priority)}
+                              size="sm"
+                              className="px-1.5 py-0.2 text-[9px] h-4 min-h-0"
+                            />
+                            {sub.estimatedPoints && (
+                              <span className="text-[10px] text-[var(--muted-foreground)] px-1.5 py-0.5 rounded bg-[var(--muted)]">
+                                {sub.estimatedPoints} pts
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer Actions */}
+          <div className="pt-3 border-t border-[var(--border)] flex items-center justify-between">
+            {generatedSubtasks.length > 0 ? (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGenerateAiSubtasks}
+                  disabled={isAiGenerating || isAiCreating}
+                  className="h-8 text-xs gap-1.5"
+                >
+                  <HiArrowPath className={`w-3.5 h-3.5 ${isAiGenerating ? "animate-spin" : ""}`} />
+                  <span>{t("subtasks.aiBreakdown.regenerate")}</span>
+                </Button>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsAiModalOpen(false)}
+                    disabled={isAiCreating}
+                    className="h-8 text-xs"
+                  >
+                    {t("subtasks.cancel")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleAcceptAndCreateSubtasks}
+                    disabled={
+                      isAiCreating ||
+                      generatedSubtasks.filter((s) => s.selected && s.title.trim()).length === 0
+                    }
+                    className="h-8 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium gap-1.5"
+                  >
+                    {isAiCreating ? (
+                      <>
+                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>{t("subtasks.aiBreakdown.creating")}</span>
+                      </>
+                    ) : (
+                      <>
+                        <HiCheck className="w-3.5 h-3.5" />
+                        <span>
+                          {t("subtasks.aiBreakdown.createButton", {
+                            count: generatedSubtasks.filter((s) => s.selected && s.title.trim()).length,
+                          })}
+                        </span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="flex justify-end w-full">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsAiModalOpen(false)}
+                  className="h-8 text-xs"
+                >
+                  {t("subtasks.cancel")}
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

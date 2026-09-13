@@ -56,6 +56,7 @@ public class AiChatService {
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final TaskStatusRepository taskStatusRepository;
+    private final SettingService settingService;
 
 
     @Value("${ai.openrouter.api-key:}")
@@ -88,6 +89,16 @@ public class AiChatService {
         return System.getenv("OPENROUTER_API_KEY");
     }
 
+    private String getEffectiveApiKey(String userId) {
+        if (userId != null && !userId.isBlank() && !"anonymous".equals(userId)) {
+            String userKey = settingService.get("ai_api_key", userId, null);
+            if (userKey != null && !userKey.isBlank() && !userKey.contains("your-key-here")) {
+                return userKey.trim();
+            }
+        }
+        return getEffectiveApiKey();
+    }
+
     private String getEffectiveApiUrl() {
         if (configuredApiUrl != null && !configuredApiUrl.isBlank()) {
             return configuredApiUrl;
@@ -96,12 +107,32 @@ public class AiChatService {
         return envUrl != null && !envUrl.isBlank() ? envUrl : "https://openrouter.ai/api/v1";
     }
 
+    private String getEffectiveApiUrl(String userId) {
+        if (userId != null && !userId.isBlank() && !"anonymous".equals(userId)) {
+            String userUrl = settingService.get("ai_api_url", userId, null);
+            if (userUrl != null && !userUrl.isBlank()) {
+                return userUrl.trim();
+            }
+        }
+        return getEffectiveApiUrl();
+    }
+
     private String getEffectiveModel() {
         if (configuredModel != null && !configuredModel.isBlank()) {
             return configuredModel;
         }
         String envModel = dotenv.get("OPENROUTER_MODEL");
         return envModel != null && !envModel.isBlank() ? envModel : "openai/gpt-4o-mini";
+    }
+
+    private String getEffectiveModel(String userId) {
+        if (userId != null && !userId.isBlank() && !"anonymous".equals(userId)) {
+            String userModel = settingService.get("ai_model", userId, null);
+            if (userModel != null && !userModel.isBlank()) {
+                return userModel.trim();
+            }
+        }
+        return getEffectiveModel();
     }
 
     private ChatMessageDto mapToChatMessageDto(AiMessage m) {
@@ -313,7 +344,9 @@ public class AiChatService {
         Project authorizedProject = resolveAndAuthorizeProject(request.getProjectId(), request.getWorkspaceId(), userId);
 
         try {
-            String apiKey = getEffectiveApiKey();
+            String apiKey = getEffectiveApiKey(userId);
+            String apiUrl = getEffectiveApiUrl(userId);
+            String model = getEffectiveModel(userId);
 
             // Find or create conversation by sessionId
             String sessionId = request.getSessionId() != null && !request.getSessionId().isBlank()
@@ -389,11 +422,11 @@ public class AiChatService {
                         userId,
                         executedActions,
                         apiKey,
-                        getEffectiveApiUrl(),
-                        getEffectiveModel(),
+                        apiUrl,
+                        model,
                         configuredMaxTokens
                 );
-                executionLogs.add(String.format("[LLM] Nhận phản hồi thành công từ model %s", getEffectiveModel()));
+                executionLogs.add(String.format("[LLM] Nhận phản hồi thành công từ model %s", model));
             } else {
                 executionLogs.add("[Engine] Chạy chế độ phân tích ý định chuyên biệt (Deterministic Engine)");
                 ChatResponseDto fallback = handleFallbackIntent(cleanUserText, authorizedProject, userId);
@@ -489,11 +522,11 @@ public class AiChatService {
 
     public GenerateDescriptionResponseDto generateDescription(GenerateDescriptionDto dto, String userId) {
         try {
-            String apiKey = getEffectiveApiKey();
+            String apiKey = getEffectiveApiKey(userId);
             if (apiKey == null || apiKey.isBlank()) {
                 return GenerateDescriptionResponseDto.builder()
                         .success(false)
-                        .error("AI API Key not configured")
+                        .error("AI_API_KEY_MISSING")
                         .build();
             }
 
@@ -508,7 +541,7 @@ public class AiChatService {
                     ChatMessageDto.builder().role("user").content(prompt).build()
             );
 
-            String description = callLlmDirect(messages, apiKey, getEffectiveApiUrl(), getEffectiveModel(), 1000);
+            String description = callLlmDirect(messages, apiKey, getEffectiveApiUrl(userId), getEffectiveModel(userId), 1000);
 
             return GenerateDescriptionResponseDto.builder()
                     .description(description)
@@ -521,6 +554,139 @@ public class AiChatService {
                     .error(e.getMessage())
                     .build();
         }
+    }
+
+    public BreakdownTaskResponseDto breakdownTask(BreakdownTaskDto dto, String userId) {
+        try {
+            String apiKey = getEffectiveApiKey(userId);
+            if (apiKey == null || apiKey.isBlank()) {
+                return BreakdownTaskResponseDto.builder()
+                        .success(false)
+                        .error("AI_API_KEY_MISSING")
+                        .build();
+            }
+
+            String taskTitle = dto.getTitle();
+            String taskDesc = dto.getDescription();
+
+            if ((taskTitle == null || taskTitle.isBlank()) && dto.getTaskId() != null && !dto.getTaskId().isBlank()) {
+                Optional<Task> taskOpt = taskRepository.findById(dto.getTaskId());
+                if (taskOpt.isPresent()) {
+                    Task t = taskOpt.get();
+                    taskTitle = t.getTitle();
+                    if (taskDesc == null || taskDesc.isBlank()) {
+                        taskDesc = t.getDescription();
+                    }
+                }
+            }
+
+            if (taskTitle == null || taskTitle.isBlank()) {
+                return BreakdownTaskResponseDto.builder()
+                        .success(false)
+                        .error("Task title is required to generate subtasks")
+                        .build();
+            }
+
+            int count = (dto.getCount() != null && dto.getCount() >= 2 && dto.getCount() <= 10)
+                    ? dto.getCount()
+                    : 4;
+
+            StringBuilder promptBuilder = new StringBuilder();
+            promptBuilder.append(String.format("Please break down the following parent task into exactly %d actionable subtasks:\n", count));
+            promptBuilder.append(String.format("Parent Task Title: %s\n", taskTitle));
+            if (taskDesc != null && !taskDesc.isBlank()) {
+                promptBuilder.append(String.format("Parent Task Description:\n%s\n", taskDesc));
+            }
+            if (dto.getUserPrompt() != null && !dto.getUserPrompt().isBlank()) {
+                promptBuilder.append(String.format("User Additional Guidance: %s\n", dto.getUserPrompt()));
+            }
+
+            String systemPrompt = """
+                You are an expert Agile Lead Engineer and Technical Project Manager.
+                Your job is to break down a parent task into clear, actionable subtasks with meaningful titles and concise descriptions.
+
+                CRITICAL INSTRUCTIONS:
+                1. Return ONLY a valid JSON array of objects.
+                2. Do NOT wrap in markdown fences or include any text before or after the JSON.
+                3. Allowed values for "priority": "LOWEST", "LOW", "MEDIUM", "HIGH", "HIGHEST".
+                4. "estimatedPoints" should be an integer (e.g. 1, 2, 3, 5, 8).
+                
+                JSON Schema:
+                [
+                  {
+                    "title": "Short, clear title describing the concrete subtask action",
+                    "description": "Brief description of the work and acceptance criteria",
+                    "priority": "MEDIUM",
+                    "estimatedPoints": 2
+                  }
+                ]
+                """;
+
+            List<ChatMessageDto> messages = List.of(
+                    ChatMessageDto.builder().role("system").content(systemPrompt).build(),
+                    ChatMessageDto.builder().role("user").content(promptBuilder.toString()).build()
+            );
+
+            String rawResponse = callLlmDirect(
+                    messages,
+                    apiKey,
+                    getEffectiveApiUrl(userId),
+                    getEffectiveModel(userId),
+                    2000
+            );
+
+            String cleanJson = extractJsonArray(rawResponse);
+
+            List<GeneratedSubtaskDto> subtasks = objectMapper.readValue(
+                    cleanJson,
+                    new TypeReference<List<GeneratedSubtaskDto>>() {}
+            );
+
+            for (GeneratedSubtaskDto sub : subtasks) {
+                if (sub.getPriority() == null || sub.getPriority().isBlank()) {
+                    sub.setPriority("MEDIUM");
+                } else {
+                    String p = sub.getPriority().trim().toUpperCase();
+                    if ("URGENT".equals(p)) p = "HIGHEST";
+                    if (!List.of("LOWEST", "LOW", "MEDIUM", "HIGH", "HIGHEST").contains(p)) {
+                        p = "MEDIUM";
+                    }
+                    sub.setPriority(p);
+                }
+            }
+
+            return BreakdownTaskResponseDto.builder()
+                    .success(true)
+                    .subtasks(subtasks)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Failed to breakdown task with AI", e);
+            return BreakdownTaskResponseDto.builder()
+                    .success(false)
+                    .error(e.getMessage() != null ? e.getMessage() : "Error occurred during AI breakdown")
+                    .build();
+        }
+    }
+
+    private String extractJsonArray(String raw) {
+        if (raw == null) return "[]";
+        String trimmed = raw.trim();
+        if (trimmed.startsWith("```json")) {
+            trimmed = trimmed.substring(7);
+        } else if (trimmed.startsWith("```")) {
+            trimmed = trimmed.substring(3);
+        }
+        if (trimmed.endsWith("```")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 3);
+        }
+        trimmed = trimmed.trim();
+        int firstBracket = trimmed.indexOf('[');
+        int lastBracket = trimmed.lastIndexOf(']');
+        if (firstBracket != -1 && lastBracket != -1 && lastBracket > firstBracket) {
+            return trimmed.substring(firstBracket, lastBracket + 1);
+        }
+        return trimmed;
     }
 
     // =========================================================================

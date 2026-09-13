@@ -261,7 +261,29 @@
     "add": "Add Subtask",
     "cancel": "Cancel",
     "deleteTitle": "Delete Subtask",
-    "deleteConfirmation": "Are you sure you want to delete this subtask? This action cannot be undone."
+    "deleteConfirmation": "Are you sure you want to delete this subtask? This action cannot be undone.",
+    "aiBreakdown": {
+      "button": "AI Breakdown",
+      "modalTitle": "AI Task Breakdown",
+      "modalSubtitle": "Decompose this task into structured, actionable subtasks using AI.",
+      "countLabel": "Number of subtasks",
+      "guidanceLabel": "Additional Guidance (optional)",
+      "guidancePlaceholder": "e.g. Focus on API architecture, edge cases, and unit tests...",
+      "generateButton": "Generate Subtasks",
+      "generating": "Generating subtasks...",
+      "generatingTip": "AI is analyzing requirements and creating actionable checklist items...",
+      "missingKeyTitle": "AI API Key Required (BYOK)",
+      "missingKeyDescription": "Taskosaur uses a Bring-Your-Own-Key model. Please configure your OpenRouter or LLM API key in Settings to use AI features.",
+      "openSettings": "Open AI Settings",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All",
+      "selectedCount": "{{selected}} of {{total}} subtasks selected",
+      "createButton": "Create {{count}} Subtasks",
+      "creating": "Creating subtasks...",
+      "regenerate": "Regenerate",
+      "createSuccess": "Successfully created {{count}} subtasks!",
+      "createError": "Failed to create some subtasks. Please try again."
+    }
   },
   "comments": {
     "title": "Comments",

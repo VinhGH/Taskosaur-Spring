@@ -261,7 +261,29 @@
     "add": "Thêm công việc con",
     "cancel": "Hủy",
     "deleteTitle": "Xóa công việc con",
-    "deleteConfirmation": "Bạn có chắc chắn muốn xóa công việc con này không? Thao tác này không thể hoàn tác."
+    "deleteConfirmation": "Bạn có chắc chắn muốn xóa công việc con này không? Thao tác này không thể hoàn tác.",
+    "aiBreakdown": {
+      "button": "AI Phân rã",
+      "modalTitle": "Phân rã Task bằng AI",
+      "modalSubtitle": "Tự động phân rã công việc này thành các subtask rõ ràng, khả thi bằng AI.",
+      "countLabel": "Số lượng subtask",
+      "guidanceLabel": "Hướng dẫn bổ sung (tùy chọn)",
+      "guidancePlaceholder": "Ví dụ: Tập trung vào thiết kế API, xử lý lỗi và viết unit test...",
+      "generateButton": "Tạo Subtask với AI",
+      "generating": "Đang phân tích & tạo subtask...",
+      "generatingTip": "AI đang phân tích yêu cầu công việc để tạo các tiêu chí nghiệm thu...",
+      "missingKeyTitle": "Cần cấu hình API Key (BYOK)",
+      "missingKeyDescription": "Taskosaur hoạt động theo mô hình Bring-Your-Own-Key. Vui lòng cấu hình API Key (OpenRouter, DeepSeek, OpenAI...) trong Cài đặt để sử dụng.",
+      "openSettings": "Mở Cài đặt AI",
+      "selectAll": "Chọn tất cả",
+      "deselectAll": "Bỏ chọn tất cả",
+      "selectedCount": "Đã chọn {{selected}} / {{total}} subtask",
+      "createButton": "Tạo {{count}} Subtask",
+      "creating": "Đang tạo subtask...",
+      "regenerate": "Tạo lại",
+      "createSuccess": "Đã tạo thành công {{count}} subtask!",
+      "createError": "Có lỗi khi tạo subtask. Vui lòng thử lại."
+    }
   },
   "comments": {
     "title": "Bình luận",

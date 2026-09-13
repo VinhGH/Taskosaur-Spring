@@ -1160,6 +1160,8 @@ export default function TaskDetailClient({
                 <Subtasks
                   taskId={taskId}
                   projectId={task.projectId || task.project?.id}
+                  parentTitle={task.title}
+                  parentDescription={task.description}
                   onSubtaskAdded={() => { }}
                   onSubtaskUpdated={() => { }}
                   onSubtaskDeleted={() => { }}

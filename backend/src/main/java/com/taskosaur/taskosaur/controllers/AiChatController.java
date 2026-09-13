@@ -104,6 +104,16 @@ public class AiChatController {
         return ResponseEntity.ok(aiChatService.generateDescription(dto, userId));
     }
 
+    @PostMapping("/breakdown-task")
+    @com.taskosaur.taskosaur.annotations.RateLimit(limit = 10, period = 60, keyPrefix = "ai_breakdown", strategy = com.taskosaur.taskosaur.enums.RateLimitStrategy.BY_USER)
+    public ResponseEntity<BreakdownTaskResponseDto> breakdownTask(
+            Authentication authentication,
+            @Valid @RequestBody BreakdownTaskDto dto
+    ) {
+        String userId = authentication != null ? authentication.getName() : "anonymous";
+        return ResponseEntity.ok(aiChatService.breakdownTask(dto, userId));
+    }
+
     @DeleteMapping("/context/{sessionId}")
     public ResponseEntity<Map<String, Boolean>> clearContext(
             Authentication authentication,
