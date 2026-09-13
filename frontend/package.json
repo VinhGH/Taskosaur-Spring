@@ -8,8 +8,8 @@
   "license": "SEE LICENSE IN https://github.com/Taskosaur/Taskosaur/blob/main/LICENSE.md",
   "scripts": {
     "dev": "node server.js",
-    "build": "next build",
-    "build:dist": "cross-env BUILD_DIST=true next build",
+    "build": "next build --webpack",
+    "build:dist": "cross-env BUILD_DIST=true next build --webpack",
     "start": "cross-env NODE_ENV=production node server.mjs",
     "lint": "eslint",
     "clean": "shx rm -rf node_modules .next out",
