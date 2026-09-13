@@ -60,6 +60,7 @@ public class TaskService {
         String statusId = resolveInitialStatusId(request.getStatusId(), project.getWorkflowId());
         int nextTaskNumber = taskRepository.findMaxTaskNumberByProjectId(project.getId()) + 1;
         String slug = buildTaskSlug(project.getTaskPrefix(), nextTaskNumber);
+        String resolvedParentTaskId = resolveParentTaskId(request.getParentTaskId());
 
         Task task = Task.builder()
                 .title(request.getTitle().trim())
@@ -74,7 +75,7 @@ public class TaskService {
                 .projectId(project.getId())
                 .statusId(statusId)
                 .sprintId(request.getSprintId())
-                .parentTaskId(request.getParentTaskId())
+                .parentTaskId(resolvedParentTaskId)
                 .createdBy(userId)
                 .build();
 
@@ -227,7 +228,7 @@ public class TaskService {
             task.setSprintId(request.getSprintId().isBlank() ? null : request.getSprintId());
         }
         if (request.getParentTaskId() != null) {
-            task.setParentTaskId(request.getParentTaskId().isBlank() ? null : request.getParentTaskId());
+            task.setParentTaskId(resolveParentTaskId(request.getParentTaskId()));
         }
         if (request.getStatusId() != null && !request.getStatusId().isBlank()) {
             updateStatusField(task, request.getStatusId());
@@ -604,9 +605,23 @@ public class TaskService {
         }
     }
 
+    private String resolveParentTaskId(String parentTaskIdOrSlug) {
+        if (parentTaskIdOrSlug == null || parentTaskIdOrSlug.isBlank() || "all".equalsIgnoreCase(parentTaskIdOrSlug)) {
+            return null;
+        }
+        String trimmed = parentTaskIdOrSlug.trim();
+        if (UUID_PATTERN.matcher(trimmed).matches()) {
+            return trimmed;
+        }
+        return taskRepository.findBySlug(trimmed)
+                .map(Task::getId)
+                .orElse(trimmed);
+    }
+
     private void filterByParentTask(List<Task> tasks, String parentTaskId) {
         if (parentTaskId != null && !parentTaskId.isBlank() && !"all".equalsIgnoreCase(parentTaskId)) {
-            tasks.removeIf(t -> !Objects.equals(t.getParentTaskId(), parentTaskId));
+            String resolvedParentId = resolveParentTaskId(parentTaskId);
+            tasks.removeIf(t -> !Objects.equals(t.getParentTaskId(), resolvedParentId));
         }
     }
 

@@ -27,7 +27,7 @@ import { formatDateForDisplay } from "@/utils/date";
 import { Label, Select } from "../ui";
 import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { PRIORITY_OPTIONS, TASK_TYPE_OPTIONS } from "@/utils/data/taskData";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import AISettingsModal from "../settings/AISettings";
 import api from "@/lib/api";
 import { toast } from "sonner";
@@ -1002,9 +1002,9 @@ export default function Subtasks({
                 <DialogTitle className="text-lg font-semibold text-[var(--foreground)]">
                   {t("subtasks.aiBreakdown.modalTitle")}
                 </DialogTitle>
-                <p className="text-xs text-[var(--muted-foreground)]">
+                <DialogDescription className="text-xs text-[var(--muted-foreground)]">
                   {t("subtasks.aiBreakdown.modalSubtitle")}
-                </p>
+                </DialogDescription>
               </div>
             </div>
           </DialogHeader>

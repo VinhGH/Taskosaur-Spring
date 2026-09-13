@@ -1158,7 +1158,7 @@ export default function TaskDetailClient({
             {!task.parentTaskId && (
               <div className="">
                 <Subtasks
-                  taskId={taskId}
+                  taskId={task.id || taskId}
                   projectId={task.projectId || task.project?.id}
                   parentTitle={task.title}
                   parentDescription={task.description}
