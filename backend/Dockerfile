@@ -16,6 +16,7 @@ RUN ./mvnw dependency:go-offline -B || true
 
 # Copy source code and package jar
 COPY src ./src
+ENV MAVEN_OPTS="-Xms128m -Xmx512m"
 RUN ./mvnw clean package -DskipTests -B
 
 # =============================================================================
