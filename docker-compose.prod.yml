@@ -21,6 +21,7 @@ services:
 
   # 2. Database Migrations (Tự động khởi tạo schema tables)
   db-migrate:
+    image: ghcr.io/vinhgh/db-migrate:${IMAGE_TAG:-dev}
     build:
       context: .
       dockerfile: docker/db-migrate.Dockerfile
@@ -36,6 +37,7 @@ services:
 
   # 3. Backend Java Spring Boot
   backend:
+    image: ghcr.io/vinhgh/backend:${IMAGE_TAG:-dev}
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -97,6 +99,7 @@ services:
 
   # 5. Frontend Next.js + Nginx Reverse Proxy
   frontend:
+    image: ghcr.io/vinhgh/frontend:${IMAGE_TAG:-dev}
     build:
       context: .
       dockerfile: frontend/Dockerfile

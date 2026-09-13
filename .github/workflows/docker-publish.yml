@@ -61,7 +61,7 @@ jobs:
           elif [ "${{ github.ref_name }}" = "main" ]; then
             TAG="latest"
           else
-            TAG="${SHORT_SHA}"
+            TAG="${{ github.ref_name }}"
           fi
 
           echo "primary_tag=${TAG}" >> $GITHUB_OUTPUT
