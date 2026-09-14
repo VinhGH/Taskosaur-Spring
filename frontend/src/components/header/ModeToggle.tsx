@@ -1,10 +1,18 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
-import { Button } from "@/components/ui/button";
+import { Classic } from "@/components/ui/classic";
 import Tooltip from "../common/ToolTip";
 
-import { CgDarkMode } from "react-icons/cg";
 export function ModeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const isDark = resolvedTheme === "dark";
   const isBrowser = typeof window !== "undefined";
   let hideThemeLabel = false;
@@ -19,18 +27,16 @@ export function ModeToggle() {
 
   return (
     <Tooltip content="Toggle theme" position="bottom" color="primary">
-      <Button
+      <Classic
+        toggled={mounted ? isDark : undefined}
         onClick={handleToggle}
-        variant="ghost"
-        size="icon"
         aria-label="Toggle theme"
-        className="header-mode-toggle"
+        className="header-mode-toggle inline-flex items-center justify-center text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-[16px] outline-none max-[530px]:w-auto max-[530px]:px-2 max-[530px]:gap-2"
       >
-        <CgDarkMode className="header-mode-toggle-icon" />
         {!hideThemeLabel && (
           <span className="hidden max-[530px]:inline-block text-sm font-medium">Theme</span>
         )}
-      </Button>
+      </Classic>
     </Tooltip>
   );
 }

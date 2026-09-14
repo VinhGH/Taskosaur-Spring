@@ -438,7 +438,13 @@ const SearchManager = () => {
   return (
     <>
       <Tooltip content="Search" position="bottom" color="primary">
-        <Button onClick={openSearch} className="header-mode-toggle shadow-none">
+        <Button
+          onClick={openSearch}
+          variant="ghost"
+          size="icon"
+          aria-label="Search"
+          className="header-mode-toggle"
+        >
           <HiMagnifyingGlass className="header-mode-toggle-icon" />
           <span className="hidden max-[530px]:inline-block text-sm font-medium">Search</span>
         </Button>

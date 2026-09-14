@@ -1,5 +1,6 @@
 // Main UI Components
 export { Button } from "./button";
+export { Classic } from "./classic";
 export { IconButton } from "./IconButton";
 export {
   Card,
