@@ -1,4 +1,4 @@
-# Taskosaur (Enterprise Java Spring Boot Edition)
+# Taskosaur by VinhGH (Enterprise Java Spring Boot Edition)
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/Taskosaur/Taskosaur/main/frontend/public/taskosaur-logo.svg" alt="Taskosaur Logo" width="128">
