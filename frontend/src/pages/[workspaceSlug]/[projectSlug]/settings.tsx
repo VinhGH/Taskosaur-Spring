@@ -18,6 +18,7 @@ import EmailIntegrationSettings from "@/components/inbox/EmailIntegrationSetting
 import EmailRulesManager from "@/components/inbox/EmailRulesManager";
 import TrelloSyncPanel from "@/components/integrations/TrelloSyncPanel";
 import JiraSyncPanel from "@/components/integrations/JiraSyncPanel";
+import GithubSyncPanel from "@/components/integrations/GithubSyncPanel";
 import AutomationRulesManager from "@/components/automations/AutomationRulesManager";
 import { projectApi } from "@/utils/api/projectApi";
 import { taskStatusApi } from "@/utils/api/taskStatusApi";
@@ -25,7 +26,7 @@ import { Select } from "@/components/ui";
 import { SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Cog } from "lucide-react";
 import { IoWarning } from "react-icons/io5";
-import { FaTrello } from "react-icons/fa";
+import { FaTrello, FaGithub } from "react-icons/fa";
 import { SiJira } from "react-icons/si";
 import { HiBolt } from "react-icons/hi2";
 
@@ -437,6 +438,7 @@ function ProjectSettingsContent() {
     { id: "rules", name: t("tabs.rules", "Rules"), icon: IoWarning },
     { id: "trello", name: t("tabs.trello", "Trello Sync"), icon: FaTrello },
     { id: "jira", name: t("tabs.jira", "Jira Sync"), icon: SiJira },
+    { id: "github", name: t("tabs.github", "GitHub Sync"), icon: FaGithub },
   ];
 
   return (
@@ -682,6 +684,10 @@ function ProjectSettingsContent() {
 
             {activeTab === "jira" && project && (
               <JiraSyncPanel projectId={project.id} />
+            )}
+
+            {activeTab === "github" && project && (
+              <GithubSyncPanel projectId={project.id} projectStatuses={statuses} />
             )}
           </div>
         </div>

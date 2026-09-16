@@ -155,5 +155,23 @@
     "interval_hint": "Nhập thời gian theo phút (tối thiểu 5 phút)",
     "interval_error_min": "Khoảng thời gian đồng bộ phải tối thiểu 5 phút",
     "interval_error_max": "Khoảng thời gian đồng bộ không được vượt quá 1440 phút (24 giờ)"
+  },
+  "github": {
+    "title": "Đồng bộ GitHub",
+    "subtitle": "Tự động nhập Issue từ GitHub thành công việc",
+    "connect_btn": "Kết nối GitHub",
+    "landing_note": "Bạn cần Personal Access Token (classic) với quyền repo từ GitHub.",
+    "features": {
+      "import_issues": "Nhập Issue từ GitHub thành công việc Taskosaur",
+      "map_statuses": "Ánh xạ trạng thái Open/Closed của Issue với trạng thái dự án của bạn",
+      "auto_sync": "Tự động đồng bộ theo khoảng thời gian (5–60 phút)",
+      "closed_issues": "Issue đã đóng trên GitHub sẽ được tự động cập nhật trạng thái tại đây",
+      "repo_support": "Hỗ trợ cả repository Công khai (Public) và Riêng tư (Private)"
+    },
+    "wizard": {
+      "credentials": "Thông tin xác thực",
+      "repository": "Chọn Repository",
+      "mapping": "Ánh xạ trạng thái"
+    }
   }
 }

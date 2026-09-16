@@ -12,7 +12,8 @@
     "email": "メール設定",
     "rules": "ルール",
     "trello": "Trello同期",
-    "jira": "Jira同期"
+    "jira": "Jira同期",
+    "github": "GitHub同期"
   },
   "general": {
     "title": "基本情報",

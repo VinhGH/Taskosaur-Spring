@@ -12,7 +12,8 @@
     "email": "Thiết lập Email",
     "rules": "Quy tắc tự động",
     "trello": "Đồng bộ Trello",
-    "jira": "Đồng bộ Jira"
+    "jira": "Đồng bộ Jira",
+    "github": "Đồng bộ GitHub"
   },
   "general": {
     "title": "Thông tin chung",

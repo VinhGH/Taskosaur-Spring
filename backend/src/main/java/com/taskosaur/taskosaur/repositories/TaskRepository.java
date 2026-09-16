@@ -32,4 +32,8 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     long countBySprintId(String sprintId);
 
     List<Task> findBySprintId(String sprintId);
+
+    Optional<Task> findByGithubIssueId(String githubIssueId);
+
+    Optional<Task> findByProjectIdAndGithubIssueNumber(String projectId, Integer githubIssueNumber);
 }

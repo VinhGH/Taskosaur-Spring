@@ -12,7 +12,8 @@
         "email": "Email Setup",
         "rules": "Rules",
         "trello": "Trello Sync",
-        "jira": "Jira Sync"
+        "jira": "Jira Sync",
+        "github": "GitHub Sync"
     },
     "general": {
         "title": "General Information",

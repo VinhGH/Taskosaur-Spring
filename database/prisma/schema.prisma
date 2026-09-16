@@ -129,6 +129,10 @@ model User {
   createdJiraSyncs JiraSync[] @relation("JiraSyncCreatedBy")
   updatedJiraSyncs JiraSync[] @relation("JiraSyncUpdatedBy")
 
+  // GitHub Sync Relations
+  createdGithubSyncs GithubSync[] @relation("GithubSyncCreatedBy")
+  updatedGithubSyncs GithubSync[] @relation("GithubSyncUpdatedBy")
+
   // AI Chat Conversations
   conversations Conversation[]
 
@@ -224,6 +228,7 @@ model Workspace {
   workspaceLabels   WorkspaceLabel[]
   trelloSync        TrelloSync?
   jiraSync          JiraSync?
+  githubSync        GithubSync?
   channels          Channel[]
 
   @@unique([organizationId, slug])
@@ -285,6 +290,7 @@ model Project {
   inbox           ProjectInbox?
   trelloSync      TrelloSync?
   jiraSync        JiraSync?
+  githubSync      GithubSync?
   channels        Channel[]
 
   @@unique([workspaceId, slug])
@@ -347,6 +353,11 @@ model Task {
 
   // Jira Integration
   jiraIssueId String? @unique @map("jira_issue_id")
+
+  // GitHub Integration
+  githubIssueId     String? @unique @map("github_issue_id")
+  githubIssueNumber Int?    @map("github_issue_number")
+  githubIssueUrl    String? @map("github_issue_url")
 
   // Recurrence fields
   isRecurring     Boolean @default(false) @map("is_recurring")
@@ -1445,6 +1456,46 @@ model JiraSync {
 
   @@index([workspaceId])
   @@map("jira_syncs")
+}
+
+// ============= GITHUB SYNC =============
+model GithubSync {
+  id          String  @id @default(uuid()) @db.Uuid
+  projectId   String? @unique @map("project_id") @db.Uuid
+  workspaceId String? @unique @map("workspace_id") @db.Uuid
+
+  // GitHub connection
+  githubRepoOwner String  @map("github_repo_owner")
+  githubRepoName  String  @map("github_repo_name")
+  githubRepoId    String? @map("github_repo_id")
+  githubToken     String  @map("github_token")
+
+  // Sync configuration
+  syncEnabled   Boolean @default(true) @map("sync_enabled")
+  syncInterval  Int     @default(15) @map("sync_interval") // minutes
+  syncDirection String  @default("ONE_WAY_IMPORT") @map("sync_direction")
+
+  // Status tracking
+  lastSyncAt     DateTime?   @map("last_sync_at")
+  lastSyncStatus SyncStatus? @map("last_sync_status")
+  lastSyncError  String?     @map("last_sync_error") @db.Text
+  issuesImported Int         @default(0) @map("issues_imported")
+
+  // Status & Label mappings: { "open": taskosaurStatusId, "closed": taskosaurStatusId }
+  statusMappings Json? @map("status_mappings")
+
+  createdBy String?  @map("created_by_id") @db.Uuid
+  updatedBy String?  @map("updated_by_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project       Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workspace     Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdByUser User?      @relation("GithubSyncCreatedBy", fields: [createdBy], references: [id])
+  updatedByUser User?      @relation("GithubSyncUpdatedBy", fields: [updatedBy], references: [id])
+
+  @@index([workspaceId])
+  @@map("github_syncs")
 }
 
 model Settings {

@@ -83,6 +83,15 @@ public class Task {
     @Column(name = "recurring_task_id")
     private String recurringTaskId;
 
+    @Column(name = "github_issue_id", unique = true)
+    private String githubIssueId;
+
+    @Column(name = "github_issue_number")
+    private Integer githubIssueNumber;
+
+    @Column(name = "github_issue_url")
+    private String githubIssueUrl;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

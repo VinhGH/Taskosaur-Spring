@@ -1,6 +1,6 @@
 {
   "name": "@taskosaur/frontend",
-  "version": "0.1.0",
+  "version": "1.2.0",
   "description": "Taskosaur Frontend - Next.js Application",
   "author": "Taskosaur Team",
   "type": "module",

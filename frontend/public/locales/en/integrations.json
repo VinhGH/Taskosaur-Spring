@@ -155,5 +155,23 @@
     "interval_hint": "Enter time in minutes (minimum 5 minutes)",
     "interval_error_min": "Sync interval must be at least 5 minutes",
     "interval_error_max": "Sync interval cannot exceed 1440 minutes (24 hours)"
+  },
+  "github": {
+    "title": "GitHub Sync",
+    "subtitle": "Import GitHub Issues as tasks automatically",
+    "connect_btn": "Connect GitHub",
+    "landing_note": "You need a Personal Access Token (classic) with repo scope from GitHub.",
+    "features": {
+      "import_issues": "Import GitHub Issues as Taskosaur tasks automatically",
+      "map_statuses": "Map Open/Closed issue statuses to your project statuses",
+      "auto_sync": "Auto-sync on a configurable interval (5–60 min)",
+      "closed_issues": "Closed GitHub issues are automatically updated here",
+      "repo_support": "Support for both Public and Private repositories"
+    },
+    "wizard": {
+      "credentials": "Credentials",
+      "repository": "Choose Repository",
+      "mapping": "Map Statuses"
+    }
   }
 }

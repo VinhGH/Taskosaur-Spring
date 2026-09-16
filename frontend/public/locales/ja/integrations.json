@@ -155,5 +155,23 @@
     "interval_hint": "分単位で時間を入力してください（最小5分）",
     "interval_error_min": "同期間隔は5分以上である必要があります",
     "interval_error_max": "同期間隔は1440分（24時間）を超えることはできません"
+  },
+  "github": {
+    "title": "GitHub同期",
+    "subtitle": "GitHub Issueをタスクとして自動インポート",
+    "connect_btn": "GitHubを接続",
+    "landing_note": "GitHubのPersonal Access Token (classic、repo権限) が必要です。",
+    "features": {
+      "import_issues": "GitHub IssueをTaskosaurタスクとして自動インポート",
+      "map_statuses": "IssueのOpen/Closedステータスをプロジェクトのステータスにマッピング",
+      "auto_sync": "設定可能な間隔（5〜60分）で自動同期",
+      "closed_issues": "クローズされたIssueは自動的にステータスが更新されます",
+      "repo_support": "パブリックリポジトリおよびプライベートリポジトリの両方に対応"
+    },
+    "wizard": {
+      "credentials": "認証情報",
+      "repository": "リポジトリを選択",
+      "mapping": "ステータスマッピング"
+    }
   }
 }

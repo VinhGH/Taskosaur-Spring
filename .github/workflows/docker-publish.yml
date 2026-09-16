@@ -64,9 +64,16 @@ jobs:
             TAG="${{ github.ref_name }}"
           fi
 
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            APP_VERSION="v${TAG}"
+          else
+            APP_VERSION="v${VERSION}"
+          fi
+
           echo "primary_tag=${TAG}" >> $GITHUB_OUTPUT
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "app_version=${APP_VERSION}" >> $GITHUB_OUTPUT
           echo "lower_owner=${LOWER_OWNER}" >> $GITHUB_OUTPUT
           echo "lower_org=${LOWER_ORG}" >> $GITHUB_OUTPUT
           
@@ -130,6 +137,8 @@ jobs:
           file: ./frontend/Dockerfile
           platforms: ${{ env.PLATFORMS }}
           push: ${{ steps.meta.outputs.should_push == 'true' }}
+          build-args: |
+            NEXT_PUBLIC_APP_VERSION=${{ steps.meta.outputs.app_version }}
           tags: |
             ghcr.io/${{ steps.meta.outputs.lower_owner }}/frontend:${{ steps.meta.outputs.primary_tag }}
             ghcr.io/${{ steps.meta.outputs.lower_owner }}/frontend:${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.short_sha }}
@@ -165,6 +174,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Primary Tag**: \`${{ steps.meta.outputs.primary_tag }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Version**: \`${{ steps.meta.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **App Version**: \`${{ steps.meta.outputs.app_version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit**: \`${{ steps.meta.outputs.short_sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Platforms**: \`${{ env.PLATFORMS }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Pushed**: \`${{ steps.meta.outputs.should_push }}\`" >> $GITHUB_STEP_SUMMARY
