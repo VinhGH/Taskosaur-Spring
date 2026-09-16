@@ -34,7 +34,7 @@ RUN useradd -m -u 1001 taskosaur && chown -R taskosaur:taskosaur /app
 USER taskosaur
 
 # Copy jar from builder
-COPY --from=builder --chown=taskosaur:taskosaur /app/target/taskosaur-0.0.1-SNAPSHOT.jar ./app.jar
+COPY --from=builder --chown=taskosaur:taskosaur /app/target/taskosaur.jar ./app.jar
 
 # Create uploads directory
 RUN mkdir -p ./uploads
