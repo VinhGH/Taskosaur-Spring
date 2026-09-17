@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
   Menu,
@@ -13,6 +15,9 @@ import {
   ShieldCheck,
   Zap,
   CheckCircle2,
+  Globe,
+  Mail,
+  ArrowRight,
 } from "lucide-react";
 
 // =============================================================================
@@ -27,7 +32,7 @@ const BAR_HEIGHTS = [
 ];
 
 // =============================================================================
-// Animate Helper Component
+// Animate Helper Component (Apogee forwards keyframes)
 // =============================================================================
 
 interface AnimateProps {
@@ -82,10 +87,378 @@ function TaskosaurLogo({ className = "w-[28px] h-[28px] sm:w-[32px] sm:h-[32px]"
 }
 
 // =============================================================================
-// Sprint Velocity & AI Stat Card (RevenueCard pattern)
+// Language Switcher Component (Glass Pill)
 // =============================================================================
 
-function VelocityCard() {
+const SUPPORTED_LANGUAGES = [
+  { code: "vi", label: "Tiếng Việt", flag: "🇻🇳" },
+  { code: "en", label: "English", flag: "🇺🇸" },
+  { code: "ja", label: "日本語", flag: "🇯🇵" },
+];
+
+function LanguageSwitcher({ className = "" }: { className?: string }) {
+  const { i18n } = useTranslation();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const currentLang = i18n.language?.split("-")[0] || "vi";
+
+  const handleSelect = (code: string) => {
+    i18n.changeLanguage(code);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("i18nextLng", code);
+    }
+    setDropdownOpen(false);
+  };
+
+  const currentObj = SUPPORTED_LANGUAGES.find((l) => l.code === currentLang) || SUPPORTED_LANGUAGES[0];
+
+  return (
+    <div className={`relative ${className}`}>
+      <button
+        onClick={() => setDropdownOpen(!dropdownOpen)}
+        className="h-[40px] px-3.5 rounded-[11px] bg-[rgba(10,7,7,0.35)] backdrop-blur-[17px] border border-white/10 hover:border-white/20 text-white text-[13px] font-[450] flex items-center gap-2 transition-all"
+        aria-label="Select Language"
+      >
+        <Globe className="w-3.5 h-3.5 text-[#00d2ff]" />
+        <span>{currentObj.flag}</span>
+        <span className="uppercase tracking-wider font-semibold text-[11px]">{currentObj.code}</span>
+        <ChevronDown className="w-3 h-3 text-white/60" />
+      </button>
+
+      <AnimatePresence>
+        {dropdownOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -6, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+            className="absolute right-0 mt-2 w-36 rounded-[14px] bg-[rgba(17,16,15,0.9)] backdrop-blur-[24px] border border-white/15 p-1.5 z-50 shadow-2xl space-y-1"
+          >
+            {SUPPORTED_LANGUAGES.map((lang) => (
+              <button
+                key={lang.code}
+                onClick={() => handleSelect(lang.code)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-[10px] text-xs font-[450] transition-colors ${
+                  currentLang === lang.code
+                    ? "bg-white/15 text-white font-medium"
+                    : "text-white/70 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span>{lang.flag}</span>
+                  <span>{lang.label}</span>
+                </div>
+                {currentLang === lang.code && <Check className="w-3.5 h-3.5 text-[#00d2ff]" />}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// =============================================================================
+// Bilingual Dictionary for Landing Page
+// =============================================================================
+
+const TEXTS = {
+  vi: {
+    nav: {
+      features: "Tính năng",
+      aiExecution: "AI Execution",
+      workflow: "Quy trình",
+      githubSync: "Đồng bộ GitHub",
+      contact: "Liên hệ",
+      login: "Đăng nhập",
+      getStarted: "Trải nghiệm ngay",
+    },
+    hero: {
+      title: "Bứt phá năng suất dự án lên tầm cao mới",
+      subhead: "Trợ lý AI đàm thoại tự động lập kế hoạch Sprint, chia nhỏ tác vụ và đồng bộ GitHub theo thời gian thực.",
+      ctaPrimary: "Khởi động miễn phí",
+      ctaSecondary: "Liên hệ đội ngũ",
+    },
+    stat: {
+      title: "Tốc độ Sprint & AI Tối ưu",
+      vsPrevious: "so với Sprint trước (10.7K pts)",
+    },
+    features: {
+      eyebrow: "Nền tảng Quản trị Hiện đại",
+      title: "Bộ công cụ toàn diện cho các nhóm kỹ thuật bứt phá",
+      feat1Title: "Autonomous AI Task Execution",
+      feat1Desc: "Trợ lý đàm thoại tự động hiểu ngữ cảnh codebase, lập kế hoạch Sprint, chia nhỏ nhiệm vụ kỹ thuật và chỉ định người phụ trách chính xác theo ngôn ngữ tự nhiên.",
+      feat2Title: "Cộng tác STOMP Thời Gian Thực",
+      feat2Desc: "Bảng điều khiển Kanban sử dụng kết nối WebSocket STOMP với Spring Boot, phát sóng trạng thái thẻ tức thì giữa mọi thành viên mà không cần tải lại trang.",
+      feat3Title: "Đồng Bộ GitHub Issue 2 Chiều",
+      feat3Desc: "Tích hợp wizard đồng bộ chuyên sâu, tự động kéo và chuyển đổi GitHub Issues thành thẻ công việc kèm theo nhãn, phân bổ thời gian và liên kết commit.",
+    },
+    workflow: {
+      eyebrow: "Quy trình Tinh gọn",
+      title: "Vận hành dự án chỉ với 3 bước đơn giản",
+      desc: "Loại bỏ mọi thao tác thủ công rườm rà. Taskosaur giúp đội ngũ của bạn đồng bộ mục tiêu từ ý tưởng cho đến sản phẩm thực tế.",
+      step1Title: "Khởi tạo Workspace & Kết nối GitHub",
+      step1Desc: "Tạo dự án nhanh chóng, kết nối kho lưu trữ GitHub bằng Personal Access Token để kéo issues vào Kanban.",
+      step2Title: "Lập kế hoạch Sprint bằng Trợ lý AI",
+      step2Desc: "Đàm thoại tự nhiên với AI để ước tính Story Points, tạo subtasks kiến trúc và lên lịch phát hành.",
+      step3Title: "Điều phối Kanban & Bứt phá Tiến độ",
+      step3Desc: "Theo dõi trạng thái kéo thả theo thời gian thực qua STOMP và tận hưởng tiến độ được cập nhật liên tục.",
+    },
+    architecture: {
+      eyebrow: "Kiến trúc Bền bỉ & Bảo mật",
+      title: "Được xây dựng cho tốc độ tối đa và quyền riêng tư tuyệt đối",
+      desc: "Taskosaur kết hợp sức mạnh của Java 25 Spring Boot và Next.js 16, đảm bảo độ trễ siêu thấp và khả năng mở rộng không giới hạn cho hệ thống doanh nghiệp.",
+      points: [
+        "Mô hình BYOK (Bring Your Own Key): Khoá API của bạn không bao giờ rời khỏi hệ thống",
+        "Dễ dàng tự triển khai qua Docker Compose chỉ với một câu lệnh",
+        "Hệ cơ sở dữ liệu PostgreSQL 16 và bộ nhớ đệm Redis 7 siêu tốc",
+        "Hỗ trợ đa ngôn ngữ đầy đủ: Tiếng Việt, Tiếng Anh và Tiếng Nhật",
+      ],
+      boxTitle: "Bảo mật & Quyền riêng tư",
+      boxDesc: "Mã nguồn và dữ liệu công việc của tổ chức được lưu trữ an toàn trong vùng chứa cơ sở dữ liệu độc lập. Không bên thứ ba nào có thể đọc hoặc sử dụng dữ liệu của bạn để huấn luyện mô hình.",
+    },
+    contact: {
+      eyebrow: "Liên hệ & Tư vấn Giải pháp",
+      title: "Sẵn sàng đồng hành cùng dự án của bạn",
+      desc: "Bạn cần tư vấn triển khai hạ tầng On-premise, tích hợp AI cho quy trình công ty hoặc thảo luận về giải pháp riêng? Hãy để lại thông tin, đội ngũ Taskosaur sẽ phản hồi qua taskosaurvn@gmail.com trong 24 giờ làm việc.",
+      emailLabel: "Email hỗ trợ chính thức",
+      openSourceLabel: "Kho mã nguồn mở",
+      nameLabel: "Họ và tên",
+      emailInputLabel: "Email làm việc",
+      companyLabel: "Tổ chức / Tên công ty",
+      messageLabel: "Nội dung yêu cầu",
+      submitBtn: "Gửi yêu cầu tư vấn",
+      successTitle: "Đã gửi thông tin thành công!",
+      successDesc: "Cảm ơn bạn đã quan tâm đến Taskosaur. Chúng tôi sẽ phản hồi sớm nhất qua hòm thư taskosaurvn@gmail.com.",
+      guarantee: "Cam kết phản hồi nhanh chóng qua taskosaurvn@gmail.com • Hỗ trợ triển khai kỹ thuật 1:1",
+    },
+    footer: {
+      terms: "Điều khoản dịch vụ",
+      privacy: "Chính sách bảo mật",
+      rights: "© 2026 Taskosaur Platform. All rights reserved.",
+    },
+  },
+  en: {
+    nav: {
+      features: "Features",
+      aiExecution: "AI Execution",
+      workflow: "Workflow",
+      githubSync: "GitHub Sync",
+      contact: "Contact",
+      login: "Login",
+      getStarted: "Get Started",
+    },
+    hero: {
+      title: "Elevate your project velocity to new heights",
+      subhead: "Autonomous conversational AI agent that plans sprints, breaks down tasks, and syncs GitHub in real time.",
+      ctaPrimary: "Get started free",
+      ctaSecondary: "Talk with the team",
+    },
+    stat: {
+      title: "Sprint Velocity & AI",
+      vsPrevious: "vs. previous sprint (10.7K pts)",
+    },
+    features: {
+      eyebrow: "Modern Project Platform",
+      title: "Comprehensive toolkit for fast-moving engineering teams",
+      feat1Title: "Autonomous AI Task Execution",
+      feat1Desc: "Conversational agent that understands architectural context, plans sprints, decomposes tasks, and assigns assignees via natural language.",
+      feat2Title: "Real-Time STOMP Collaboration",
+      feat2Desc: "Interactive Kanban board powered by WebSocket STOMP and Spring Boot, broadcasting updates instantly across all team members.",
+      feat3Title: "Bidirectional GitHub Issue Sync",
+      feat3Desc: "Comprehensive sync wizard that imports issues into Kanban, tracks pull requests, commits, and bidirectional status mappings.",
+    },
+    workflow: {
+      eyebrow: "Streamlined Workflow",
+      title: "Operate projects in just 3 simple steps",
+      desc: "Eliminate repetitive manual tasks. Taskosaur aligns your team from initial brainstorm to shipped product.",
+      step1Title: "Create Workspace & Connect GitHub",
+      step1Desc: "Spin up workspaces quickly and link GitHub repositories via Personal Access Token to ingest issues into Kanban.",
+      step2Title: "Sprint Planning with AI Co-pilot",
+      step2Desc: "Converse naturally with AI to estimate Story Points, generate architectural subtasks, and schedule milestones.",
+      step3Title: "Coordinate Kanban & Accelerate Velocity",
+      step3Desc: "Track drag-and-drop workflows in real-time over STOMP and enjoy uninterrupted developer momentum.",
+    },
+    architecture: {
+      eyebrow: "Resilient Architecture & Security",
+      title: "Built for peak throughput and absolute privacy",
+      desc: "Taskosaur combines Java 25 Spring Boot and Next.js 16 for ultra-low latency and enterprise-grade scalability.",
+      points: [
+        "BYOK (Bring Your Own Key) architecture: Your AI keys never leave your secure domain",
+        "Deploy in seconds with a single Docker Compose command",
+        "PostgreSQL 16 persistence and Redis 7 ultra-fast caching layer",
+        "Comprehensive multi-language localization: English, Vietnamese, and Japanese",
+      ],
+      boxTitle: "Security & Confidentiality",
+      boxDesc: "Your codebase context and proprietary tasks are securely isolated in dedicated containers. No third party ever trains on your data.",
+    },
+    contact: {
+      eyebrow: "Contact & Consultation",
+      title: "Ready to accelerate your team's velocity",
+      desc: "Need guidance on on-premise deployments, custom AI integration, or enterprise support? Reach out and our engineering team will respond via taskosaurvn@gmail.com within 24 hours.",
+      emailLabel: "Official Support Email",
+      openSourceLabel: "Open-Source Repository",
+      nameLabel: "Full Name",
+      emailInputLabel: "Work Email",
+      companyLabel: "Organization / Company",
+      messageLabel: "Message / Inquiries",
+      submitBtn: "Send Inquiry",
+      successTitle: "Inquiry Sent Successfully!",
+      successDesc: "Thank you for reaching out to Taskosaur. We will get back to you promptly via taskosaurvn@gmail.com.",
+      guarantee: "Prompt response via taskosaurvn@gmail.com • 1-on-1 technical onboarding support",
+    },
+    footer: {
+      terms: "Terms of Service",
+      privacy: "Privacy Policy",
+      rights: "© 2026 Taskosaur Platform. All rights reserved.",
+    },
+  },
+  ja: {
+    nav: {
+      features: "機能",
+      aiExecution: "AI実行",
+      workflow: "ワークフロー",
+      githubSync: "GitHub同期",
+      contact: "お問い合わせ",
+      login: "ログイン",
+      getStarted: "無料で始める",
+    },
+    hero: {
+      title: "プロジェクトの生産性を新たな高みへ",
+      subhead: "スプリント計画、タスク自動分解、GitHub同期をリアルタイムで実行する自律型AIアシスタント。",
+      ctaPrimary: "今すぐ無料体験",
+      ctaSecondary: "チームに相談する",
+    },
+    stat: {
+      title: "スプリントベロシティ & AI",
+      vsPrevious: "前スプリント比 (10.7K pts)",
+    },
+    features: {
+      eyebrow: "次世代アジャイル基盤",
+      title: "高速に進化する開発チームのための包括的ツールキット",
+      feat1Title: "自律型AIタスク実行",
+      feat1Desc: "自然言語の対話でコードベースの文脈を理解し、スプリント計画やタスクの細分化、担当者の割り当てを自動化。",
+      feat2Title: "STOMPによるリアルタイム協調",
+      feat2Desc: "Spring Boot WebSocket STOMPによるカンバンボードで、ページのリロードなしにメンバー間で即座に同期。",
+      feat3Title: "GitHub Issue双方向同期",
+      feat3Desc: "高度な連携ウィザードでGitHub Issueを自動取得し、ラベルや進捗、コミットを双方向で同期。",
+    },
+    workflow: {
+      eyebrow: "合理化されたワークフロー",
+      title: "わずか3ステップでプロジェクトを始動",
+      desc: "面倒な手作業を排除。Taskosaurが構想からリリースまでチームの目標をシームレスに同期します。",
+      step1Title: "ワークスペース作成とGitHub連携",
+      step1Desc: "GitHubリポジトリを連携してIssueをカンバンボードに自動インポート。",
+      step2Title: "AIアシスタントによるスプリント計画",
+      step2Desc: "自然言語で対話しながらストーリーポイントの見積もりやタスク分解を実施。",
+      step3Title: "カンバン運用とベロシティ加速",
+      step3Desc: "STOMP経由のリアルタイムなドラッグ＆ドロップでスムーズに進捗を管理。",
+    },
+    architecture: {
+      eyebrow: "高信頼アーキテクチャ & セキュリティ",
+      title: "最高速度と厳格なプライバシーを両立",
+      desc: "Java 25 Spring BootとNext.js 16を融合し、超低レイテンシと堅牢なスケーラビリティを実現。",
+      points: [
+        "BYOKモデル：お客様のAPIキーが外部に漏洩することはありません",
+        "Docker Composeによるワンコマンド即時セルフホスト対応",
+        "PostgreSQL 16と高速インメモリRedis 7を標準採用",
+        "日本語、英語、ベトナム語に完全対応",
+      ],
+      boxTitle: "セキュリティ & 機密保持",
+      boxDesc: "お客様のタスクデータは独立した環境で保護され、AIモデルの学習に使用されることは一切ありません。",
+    },
+    contact: {
+      eyebrow: "お問い合わせ & ご相談",
+      title: "プロジェクトの成功を全力で支援します",
+      desc: "オンプレミス導入、自社ワークフローへのAI統合など、何でもお気軽にご相談ください。24時間以内にtaskosaurvn@gmail.comよりご連絡いたします。",
+      emailLabel: "公式サポートメール",
+      openSourceLabel: "オープンソースリポジトリ",
+      nameLabel: "お名前",
+      emailInputLabel: "職場メールアドレス",
+      companyLabel: "会社名 / 組織名",
+      messageLabel: "お問い合わせ内容",
+      submitBtn: "お問い合わせを送信",
+      successTitle: "送信が完了しました！",
+      successDesc: "Taskosaurへのお問い合わせありがとうございます。taskosaurvn@gmail.comより折り返しご連絡いたします。",
+      guarantee: "taskosaurvn@gmail.comより迅速にご返信 • 1対1の技術導入サポート",
+    },
+    footer: {
+      terms: "利用規約",
+      privacy: "プライバシーポリシー",
+      rights: "© 2026 Taskosaur Platform. All rights reserved.",
+    },
+  },
+};
+
+// =============================================================================
+// Flower Blooming Animation Variants ("bung toả như hoa ra")
+// =============================================================================
+
+const flowerBloomContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.15,
+      delayChildren: 0.1,
+    },
+  },
+};
+
+const bloomPetalLeft = {
+  hidden: { opacity: 0, scale: 0.7, x: 28, y: 45, rotate: -5 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    x: 0,
+    y: 0,
+    rotate: 0,
+    transition: {
+      type: "spring",
+      stiffness: 80,
+      damping: 14,
+      mass: 0.9,
+    },
+  },
+};
+
+const bloomPetalCenter = {
+  hidden: { opacity: 0, scale: 0.65, y: 55, filter: "blur(4px)" },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: {
+      type: "spring",
+      stiffness: 85,
+      damping: 13,
+      mass: 0.8,
+    },
+  },
+};
+
+const bloomPetalRight = {
+  hidden: { opacity: 0, scale: 0.7, x: -28, y: 45, rotate: 5 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    x: 0,
+    y: 0,
+    rotate: 0,
+    transition: {
+      type: "spring",
+      stiffness: 80,
+      damping: 14,
+      mass: 0.9,
+    },
+  },
+};
+
+// =============================================================================
+// Sprint Velocity & AI Stat Card (Apogee Card)
+// =============================================================================
+
+function VelocityCard({ texts }: { texts: typeof TEXTS["vi"] }) {
   const maxHeight = Math.max(...BAR_HEIGHTS);
 
   return (
@@ -97,7 +470,7 @@ function VelocityCard() {
       <div className="w-full rounded-[24px] sm:rounded-[33px] bg-[rgba(17,16,15,0.35)] backdrop-blur-[20px] p-5 sm:p-8 pb-5 sm:pb-6 border border-white/10 shadow-2xl">
         {/* 1. Label */}
         <p className="text-white text-[16px] sm:text-[20px] font-[450] leading-[20px] mb-3 sm:mb-4 flex items-center justify-between">
-          <span>Sprint Velocity & AI</span>
+          <span>{texts.stat.title}</span>
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
         </p>
 
@@ -117,7 +490,7 @@ function VelocityCard() {
             +32.4%
           </span>
           <span className="text-white/80 text-[12px] sm:text-[14px] font-[450] leading-[14px] opacity-70">
-            so với Sprint trước (10.7K pts)
+            {texts.stat.vsPrevious}
           </span>
         </div>
 
@@ -177,7 +550,7 @@ function VelocityCard() {
 // Navigation Header + Mobile Menu
 // =============================================================================
 
-function Nav() {
+function Nav({ texts }: { texts: typeof TEXTS["vi"] }) {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -192,11 +565,11 @@ function Nav() {
   }, [isOpen]);
 
   const navLinks = [
-    { label: "Tính năng", href: "#features" },
-    { label: "AI Execution", href: "#ai-execution" },
-    { label: "Quy trình", href: "#workflow" },
-    { label: "Đồng bộ GitHub", href: "#github-sync" },
-    { label: "Liên hệ", href: "#contact" },
+    { label: texts.nav.features, href: "#features" },
+    { label: texts.nav.aiExecution, href: "#ai-execution" },
+    { label: texts.nav.workflow, href: "#workflow" },
+    { label: texts.nav.githubSync, href: "#github-sync" },
+    { label: texts.nav.contact, href: "#contact" },
   ];
 
   return (
@@ -214,61 +587,44 @@ function Nav() {
 
         {/* (ii) Center Nav Pill (Desktop >= 1024px) */}
         <Animate delay={100} direction="down" className="hidden lg:block">
-          <div className="h-[52px] px-6 flex items-center gap-[30px] bg-[rgba(10,7,7,0.35)] rounded-[11px] backdrop-blur-[17px] border border-white/[0.08]">
-            <a
-              href="#features"
-              className="flex items-center gap-[5px] text-white/80 text-[14px] font-[450] leading-[14px] hover:text-white transition-colors"
-            >
-              <span>Tính năng</span>
-              <ChevronDown className="w-[10px] h-[10px] opacity-80" />
-            </a>
-            <a
-              href="#ai-execution"
-              className="text-white/80 text-[14px] font-[450] leading-[14px] hover:text-white transition-colors"
-            >
-              AI Execution
-            </a>
-            <a
-              href="#workflow"
-              className="text-white/80 text-[14px] font-[450] leading-[14px] hover:text-white transition-colors"
-            >
-              Quy trình
-            </a>
-            <a
-              href="#github-sync"
-              className="text-white/80 text-[14px] font-[450] leading-[14px] hover:text-white transition-colors"
-            >
-              Đồng bộ GitHub
-            </a>
-            <a
-              href="#contact"
-              className="text-white/80 text-[14px] font-[450] leading-[14px] hover:text-white transition-colors"
-            >
-              Liên hệ
-            </a>
+          <div className="h-[52px] px-6 flex items-center gap-[28px] bg-[rgba(10,7,7,0.35)] rounded-[11px] backdrop-blur-[17px] border border-white/[0.08]">
+            {navLinks.map((item) => (
+              <a
+                key={item.label}
+                href={item.href}
+                className="text-white/80 text-[14px] font-[450] leading-[14px] hover:text-white transition-colors"
+              >
+                {item.label}
+              </a>
+            ))}
           </div>
         </Animate>
 
-        {/* (iii) Right Auth Pill (Desktop >= 1024px) */}
-        <Animate delay={200} direction="down" className="hidden lg:block">
+        {/* (iii) Right Actions Pill & Language Switcher (Desktop >= 1024px) */}
+        <Animate delay={200} direction="down" className="hidden lg:flex items-center gap-3">
+          {/* Language Switcher */}
+          <LanguageSwitcher />
+
+          {/* Auth Pill */}
           <div className="h-[52px] p-[3px] bg-[rgba(0,0,0,0.35)] rounded-[13px] backdrop-blur-[17px] flex items-center gap-[5px] border border-white/[0.08]">
             <Link
               href="/login"
               className="h-[46px] px-6 rounded-[11px] text-white text-[14px] font-[450] leading-[14px] hover:bg-white/5 transition-colors flex items-center justify-center"
             >
-              Đăng nhập
+              {texts.nav.login}
             </Link>
             <Link
               href="/register"
               className="h-[46px] px-6 bg-[#E9E9E9] rounded-[11px] text-[#0A0707] text-[14px] font-[450] leading-[14px] hover:bg-white transition-colors flex items-center justify-center font-medium"
             >
-              Trải nghiệm ngay
+              {texts.nav.getStarted}
             </Link>
           </div>
         </Animate>
 
-        {/* (iv) Mobile Hamburger Button (< 1024px) */}
-        <Animate delay={100} direction="down" className="lg:hidden">
+        {/* (iv) Mobile Right Bar (< 1024px) */}
+        <Animate delay={100} direction="down" className="lg:hidden flex items-center gap-2">
+          <LanguageSwitcher />
           <button
             className="w-[44px] h-[44px] flex items-center justify-center rounded-[11px] bg-[rgba(10,7,7,0.35)] backdrop-blur-[17px] border border-white/10 transition-colors hover:bg-white/10"
             onClick={() => setIsOpen(!isOpen)}
@@ -306,7 +662,7 @@ function Nav() {
 
         {/* Panel */}
         <div
-          className={`absolute top-[76px] sm:top-[86px] left-4 right-4 sm:left-6 sm:right-6 bg-[rgba(17,16,15,0.75)] backdrop-blur-[30px] rounded-[20px] border border-white/[0.08] p-6 sm:p-8 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] origin-top ${
+          className={`absolute top-[76px] sm:top-[86px] left-4 right-4 sm:left-6 sm:right-6 bg-[rgba(17,16,15,0.85)] backdrop-blur-[30px] rounded-[20px] border border-white/[0.08] p-6 sm:p-8 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] origin-top ${
             isOpen
               ? "opacity-100 translate-y-0 scale-100"
               : "opacity-0 -translate-y-4 scale-[0.97]"
@@ -324,9 +680,6 @@ function Nav() {
                 }`}
               >
                 <span>{item.label}</span>
-                {item.label === "Tính năng" && (
-                  <ChevronDown className="w-4 h-4 opacity-50" />
-                )}
               </a>
             ))}
           </div>
@@ -340,16 +693,16 @@ function Nav() {
             <Link
               href="/register"
               onClick={() => setIsOpen(false)}
-              className="w-full h-[50px] bg-[#E9E9E9] rounded-[12px] text-[#0A0707] text-[15px] font-[450] flex items-center justify-center transition-colors hover:bg-white"
+              className="w-full h-[50px] bg-[#E9E9E9] rounded-[12px] text-[#0A0707] text-[15px] font-[450] flex items-center justify-center transition-colors hover:bg-white font-medium"
             >
-              Trải nghiệm ngay
+              {texts.nav.getStarted}
             </Link>
             <Link
               href="/login"
               onClick={() => setIsOpen(false)}
               className="w-full h-[50px] rounded-[12px] border border-white/30 text-white text-[15px] font-[450] flex items-center justify-center transition-colors hover:bg-white/5"
             >
-              Đăng nhập
+              {texts.nav.login}
             </Link>
           </div>
         </div>
@@ -359,47 +712,64 @@ function Nav() {
 }
 
 // =============================================================================
-// Core Feature Cards Section
+// Core Feature Cards Section (With Flower Blooming Animation)
 // =============================================================================
 
-function FeatureSection() {
+function FeatureSection({ texts }: { texts: typeof TEXTS["vi"] }) {
+  const features = [
+    {
+      icon: Sparkles,
+      title: texts.features.feat1Title,
+      desc: texts.features.feat1Desc,
+      variant: bloomPetalLeft,
+    },
+    {
+      icon: Zap,
+      title: texts.features.feat2Title,
+      desc: texts.features.feat2Desc,
+      variant: bloomPetalCenter,
+    },
+    {
+      icon: Github,
+      title: texts.features.feat3Title,
+      desc: texts.features.feat3Desc,
+      variant: bloomPetalRight,
+    },
+  ];
+
   return (
     <section id="features" className="relative z-10 w-full max-w-[1800px] mx-auto px-5 sm:px-8 md:px-[82px] py-16 sm:py-24 border-t border-white/10">
+      {/* Blooming Background Aura */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-radial from-[#00d2ff]/10 via-transparent to-transparent pointer-events-none blur-3xl" />
+
       <div className="max-w-[620px] mb-12 sm:mb-16">
         <span className="text-[12px] uppercase tracking-widest text-[#00d2ff] font-semibold block mb-3">
-          Nền tảng Quản trị Hiện đại
+          {texts.features.eyebrow}
         </span>
         <h2 className="text-white text-[32px] sm:text-[44px] md:text-[50px] font-normal leading-[1.05] tracking-tight">
-          Bộ công cụ toàn diện cho các nhóm kỹ thuật bứt phá
+          {texts.features.title}
         </h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-        {[
-          {
-            icon: Sparkles,
-            title: "Autonomous AI Task Execution",
-            desc: "Trợ lý đàm thoại tự động hiểu ngữ cảnh codebase, lập kế hoạch Sprint, chia nhỏ nhiệm vụ kỹ thuật và chỉ định người phụ trách chính xác theo ngôn ngữ tự nhiên.",
-          },
-          {
-            icon: Zap,
-            title: "Cộng tác STOMP Thời Gian Thực",
-            desc: "Bảng điều khiển Kanban sử dụng kết nối WebSocket STOMP với Spring Boot, phát sóng trạng thái thẻ tức thì giữa mọi thành viên mà không cần tải lại trang.",
-          },
-          {
-            icon: Github,
-            title: "Đồng Bộ GitHub Issue 2 Chiều",
-            desc: "Tích hợp wizard đồng bộ chuyên sâu, tự động kéo và chuyển đổi GitHub Issues thành thẻ công việc kèm theo nhãn, phân bổ thời gian và liên kết commit.",
-          },
-        ].map((feat, idx) => {
+      {/* 🌸 Flower Blooming Cards Grid */}
+      <motion.div
+        variants={flowerBloomContainer}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-60px" }}
+        className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8"
+      >
+        {features.map((feat, idx) => {
           const Icon = feat.icon;
           return (
-            <div
+            <motion.div
               key={idx}
-              className="rounded-[24px] sm:rounded-[28px] bg-[rgba(17,16,15,0.45)] backdrop-blur-[20px] p-6 sm:p-8 border border-white/10 flex flex-col justify-between hover:border-white/20 transition-colors group"
+              variants={feat.variant}
+              whileHover={{ scale: 1.025, y: -6, transition: { duration: 0.25 } }}
+              className="rounded-[24px] sm:rounded-[28px] bg-[rgba(17,16,15,0.45)] backdrop-blur-[20px] p-6 sm:p-8 border border-white/10 flex flex-col justify-between hover:border-white/25 transition-all shadow-xl hover:shadow-[0_15px_35px_rgba(0,210,255,0.12)] group"
             >
               <div>
-                <div className="w-12 h-12 rounded-[14px] bg-white/10 border border-white/15 flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
+                <div className="w-12 h-12 rounded-[14px] bg-white/10 border border-white/15 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                   <Icon className="w-6 h-6 text-[#00d2ff]" />
                 </div>
                 <h3 className="text-white text-[20px] sm:text-[22px] font-[450] leading-[1.2] mb-3">
@@ -409,56 +779,70 @@ function FeatureSection() {
                   {feat.desc}
                 </p>
               </div>
-            </div>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
     </section>
   );
 }
 
 // =============================================================================
-// AI Execution & Workflow Section
+// AI Execution & Workflow Section (With Blooming Stagger)
 // =============================================================================
 
-function WorkflowSection() {
+function WorkflowSection({ texts }: { texts: typeof TEXTS["vi"] }) {
+  const steps = [
+    {
+      step: "01",
+      title: texts.workflow.step1Title,
+      desc: texts.workflow.step1Desc,
+      variant: bloomPetalLeft,
+    },
+    {
+      step: "02",
+      title: texts.workflow.step2Title,
+      desc: texts.workflow.step2Desc,
+      variant: bloomPetalCenter,
+    },
+    {
+      step: "03",
+      title: texts.workflow.step3Title,
+      desc: texts.workflow.step3Desc,
+      variant: bloomPetalRight,
+    },
+  ];
+
   return (
     <section id="workflow" className="relative z-10 w-full max-w-[1800px] mx-auto px-5 sm:px-8 md:px-[82px] py-16 sm:py-24 border-t border-white/10">
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12 sm:mb-16">
         <div className="max-w-[620px]">
           <span className="text-[12px] uppercase tracking-widest text-[#00d2ff] font-semibold block mb-3">
-            Quy trình Tinh gọn
+            {texts.workflow.eyebrow}
           </span>
           <h2 className="text-white text-[32px] sm:text-[44px] md:text-[50px] font-normal leading-[1.05] tracking-tight">
-            Vận hành dự án chỉ với 3 bước đơn giản
+            {texts.workflow.title}
           </h2>
         </div>
         <p className="text-white/60 text-[15px] sm:text-[16px] max-w-[420px] font-[450] leading-relaxed">
-          Loại bỏ mọi thao tác thủ công rườm rà. Taskosaur giúp đội ngũ của bạn đồng bộ mục tiêu từ ý tưởng cho đến sản phẩm thực tế.
+          {texts.workflow.desc}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-        {[
-          {
-            step: "01",
-            title: "Khởi tạo Workspace & Kết nối GitHub",
-            desc: "Tạo dự án nhanh chóng, kết nối kho lưu trữ GitHub bằng Personal Access Token để kéo issues vào Kanban.",
-          },
-          {
-            step: "02",
-            title: "Lập kế hoạch Sprint bằng Trợ lý AI",
-            desc: "Đàm thoại tự nhiên với AI để ước tính Story Points, tạo subtasks kiến trúc và lên lịch phát hành.",
-          },
-          {
-            step: "03",
-            title: "Điều phối Kanban & Bứt phá Tiến độ",
-            desc: "Theo dõi trạng thái kéo thả theo thời gian thực qua STOMP và tận hưởng tiến độ được cập nhật liên tục.",
-          },
-        ].map((item, idx) => (
-          <div
+      {/* 🌸 Flower Blooming Steps Grid */}
+      <motion.div
+        variants={flowerBloomContainer}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-60px" }}
+        className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8"
+      >
+        {steps.map((item, idx) => (
+          <motion.div
             key={idx}
-            className="rounded-[24px] bg-[rgba(17,16,15,0.4)] backdrop-blur-[20px] p-6 sm:p-8 border border-white/10 relative"
+            variants={item.variant}
+            whileHover={{ scale: 1.025, y: -6, transition: { duration: 0.25 } }}
+            className="rounded-[24px] bg-[rgba(17,16,15,0.4)] backdrop-blur-[20px] p-6 sm:p-8 border border-white/10 relative hover:border-white/20 transition-all shadow-xl"
           >
             <span className="text-white/20 font-mono text-[32px] sm:text-[40px] font-bold block mb-4">
               {item.step}
@@ -469,9 +853,9 @@ function WorkflowSection() {
             <p className="text-white/70 text-[14px] font-[450] leading-[1.6]">
               {item.desc}
             </p>
-          </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     </section>
   );
 }
@@ -480,28 +864,23 @@ function WorkflowSection() {
 // Architecture & Security Section
 // =============================================================================
 
-function ArchitectureSection() {
+function ArchitectureSection({ texts }: { texts: typeof TEXTS["vi"] }) {
   return (
     <section id="ai-execution" className="relative z-10 w-full max-w-[1800px] mx-auto px-5 sm:px-8 md:px-[82px] py-16 sm:py-24 border-t border-white/10">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
         <div>
           <span className="text-[12px] uppercase tracking-widest text-[#00d2ff] font-semibold block mb-3">
-            Kiến trúc Bền bỉ & Bảo mật
+            {texts.architecture.eyebrow}
           </span>
           <h2 className="text-white text-[32px] sm:text-[44px] md:text-[50px] font-normal leading-[1.05] tracking-tight mb-6">
-            Được xây dựng cho tốc độ tối đa và quyền riêng tư tuyệt đối
+            {texts.architecture.title}
           </h2>
           <p className="text-white/70 text-[16px] sm:text-[18px] font-[450] leading-relaxed mb-8">
-            Taskosaur kết hợp sức mạnh của Java 25 Spring Boot và Next.js 16, đảm bảo độ trễ siêu thấp và khả năng mở rộng không giới hạn cho hệ thống doanh nghiệp.
+            {texts.architecture.desc}
           </p>
 
           <div className="space-y-4">
-            {[
-              "Mô hình BYOK (Bring Your Own Key): Khoá API của bạn không bao giờ rời khỏi hệ thống",
-              "Dễ dàng tự triển khai qua Docker Compose chỉ với một câu lệnh",
-              "Hệ cơ sở dữ liệu PostgreSQL 16 và bộ nhớ đệm Redis 7 siêu tốc",
-              "Hỗ trợ đa ngôn ngữ đầy đủ: Tiếng Việt, Tiếng Anh và Tiếng Nhật",
-            ].map((text, idx) => (
+            {texts.architecture.points.map((text, idx) => (
               <div key={idx} className="flex items-start gap-3">
                 <CheckCircle2 className="w-5 h-5 text-[#00d2ff] shrink-0 mt-0.5" />
                 <span className="text-white/80 text-[14px] sm:text-[15px] font-[450]">
@@ -512,11 +891,18 @@ function ArchitectureSection() {
           </div>
         </div>
 
-        <div className="rounded-[28px] sm:rounded-[36px] bg-[rgba(17,16,15,0.45)] backdrop-blur-[20px] p-6 sm:p-10 border border-white/10 space-y-6">
+        {/* Blooming Architecture Card */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8, rotate: 2 }}
+          whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ type: "spring", stiffness: 80, damping: 14 }}
+          className="rounded-[28px] sm:rounded-[36px] bg-[rgba(17,16,15,0.45)] backdrop-blur-[20px] p-6 sm:p-10 border border-white/10 space-y-6 shadow-2xl"
+        >
           <div className="flex items-center justify-between pb-4 border-b border-white/10">
             <div className="flex items-center gap-3">
               <ShieldCheck className="w-6 h-6 text-emerald-400" />
-              <span className="text-white font-[450] text-[16px]">Bảo mật & Quyền riêng tư</span>
+              <span className="text-white font-[450] text-[16px]">{texts.architecture.boxTitle}</span>
             </div>
             <span className="text-[12px] text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
               Active
@@ -524,9 +910,7 @@ function ArchitectureSection() {
           </div>
 
           <div className="space-y-4 text-white/70 text-[14px] font-[450] leading-relaxed">
-            <p>
-              Mã nguồn và dữ liệu công việc của tổ chức được lưu trữ an toàn trong vùng chứa cơ sở dữ liệu độc lập. Không bên thứ ba nào có thể đọc hoặc sử dụng dữ liệu của bạn để huấn luyện mô hình.
-            </p>
+            <p>{texts.architecture.boxDesc}</p>
             <div className="p-4 rounded-[16px] bg-black/40 border border-white/10 font-mono text-[12px] text-[#A4F4FD] space-y-1">
               <div>$ docker compose -f docker-compose.prod.yml up -d</div>
               <div className="text-emerald-400">✓ Taskosaur Spring Boot 25 API: Online (Port 3000)</div>
@@ -534,17 +918,17 @@ function ArchitectureSection() {
               <div className="text-emerald-400">✓ PostgreSQL 16 & Redis 7: Connected</div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   );
 }
 
 // =============================================================================
-// Contact & Consultation Section (Requested by user)
+// Contact & Consultation Section (With taskosaurvn@gmail.com)
 // =============================================================================
 
-function ContactSection() {
+function ContactSection({ texts }: { texts: typeof TEXTS["vi"] }) {
   const [submitted, setSubmitted] = useState(false);
   const [formState, setFormState] = useState({
     name: "",
@@ -561,41 +945,46 @@ function ContactSection() {
   return (
     <section id="contact" className="relative z-10 w-full max-w-[1800px] mx-auto px-5 sm:px-8 md:px-[82px] py-16 sm:py-24 border-t border-white/10">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14">
-        {/* Left Column: Direct Info */}
+        {/* Left Column: Direct Info with taskosaurvn@gmail.com */}
         <div className="lg:col-span-5 flex flex-col justify-between">
           <div>
             <span className="text-[12px] uppercase tracking-widest text-[#00d2ff] font-semibold block mb-3">
-              Liên hệ & Tư vấn Giải pháp
+              {texts.contact.eyebrow}
             </span>
             <h2 className="text-white text-[32px] sm:text-[44px] font-normal leading-[1.05] tracking-tight mb-6">
-              Sẵn sàng đồng hành cùng dự án của bạn
+              {texts.contact.title}
             </h2>
             <p className="text-white/70 text-[15px] sm:text-[16px] font-[450] leading-relaxed mb-8">
-              Bạn cần tư vấn triển khai hạ tầng On-premise, tích hợp AI cho quy trình công ty hoặc thảo luận về giải pháp riêng? Hãy để lại thông tin, đội ngũ Taskosaur sẽ phản hồi trong 24 giờ làm việc.
+              {texts.contact.desc}
             </p>
 
-            <div className="space-y-4 text-[14px] text-white/80 font-[450]">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center">
-                  <MessageSquare className="w-4 h-4 text-[#00d2ff]" />
+            <div className="space-y-5 text-[14px] text-white/80 font-[450]">
+              <a
+                href="mailto:taskosaurvn@gmail.com"
+                className="flex items-center gap-3 group hover:text-[#00d2ff] transition-colors"
+              >
+                <div className="w-10 h-10 rounded-full bg-white/10 group-hover:bg-[#00d2ff]/20 flex items-center justify-center transition-colors">
+                  <Mail className="w-4 h-4 text-[#00d2ff]" />
                 </div>
                 <div>
-                  <div className="text-white/40 text-[11px] uppercase tracking-wider">Email hỗ trợ</div>
-                  <div className="text-white">support@taskosaur.com</div>
+                  <div className="text-white/40 text-[11px] uppercase tracking-wider">{texts.contact.emailLabel}</div>
+                  <div className="text-white group-hover:text-[#00d2ff] transition-colors font-medium">
+                    taskosaurvn@gmail.com
+                  </div>
                 </div>
-              </div>
+              </a>
 
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
                   <Github className="w-4 h-4 text-[#00d2ff]" />
                 </div>
                 <div>
-                  <div className="text-white/40 text-[11px] uppercase tracking-wider">Mã nguồn mở</div>
+                  <div className="text-white/40 text-[11px] uppercase tracking-wider">{texts.contact.openSourceLabel}</div>
                   <a
                     href="https://github.com/VinhGH/Taskosaur-Spring"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-white hover:underline"
+                    className="text-white hover:text-[#00d2ff] transition-colors hover:underline"
                   >
                     github.com/VinhGH/Taskosaur-Spring
                   </a>
@@ -605,23 +994,29 @@ function ContactSection() {
           </div>
 
           <div className="mt-8 pt-6 border-t border-white/10 text-white/50 text-[13px]">
-            Cam kết phản hồi nhanh chóng • Hỗ trợ triển khai kỹ thuật 1:1
+            {texts.contact.guarantee}
           </div>
         </div>
 
-        {/* Right Column: Glassmorphic Contact Form */}
-        <div className="lg:col-span-7">
-          <div className="rounded-[24px] sm:rounded-[32px] bg-[rgba(17,16,15,0.45)] backdrop-blur-[20px] p-6 sm:p-10 border border-white/10">
+        {/* Right Column: Blooming Contact Form Card */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.75, y: 40 }}
+          whileInView={{ opacity: 1, scale: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ type: "spring", stiffness: 85, damping: 14 }}
+          className="lg:col-span-7"
+        >
+          <div className="rounded-[24px] sm:rounded-[32px] bg-[rgba(17,16,15,0.45)] backdrop-blur-[20px] p-6 sm:p-10 border border-white/10 shadow-2xl">
             {submitted ? (
               <div className="py-12 text-center space-y-4">
                 <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400">
                   <Check className="w-8 h-8" />
                 </div>
                 <h3 className="text-white text-[24px] font-[450]">
-                  Đã gửi thông tin thành công!
+                  {texts.contact.successTitle}
                 </h3>
-                <p className="text-white/70 text-[15px] max-w-[380px] mx-auto">
-                  Cảm ơn bạn đã quan tâm đến Taskosaur. Chúng tôi sẽ liên hệ với bạn trong thời gian sớm nhất.
+                <p className="text-white/70 text-[15px] max-w-[420px] mx-auto leading-relaxed">
+                  {texts.contact.successDesc}
                 </p>
               </div>
             ) : (
@@ -629,7 +1024,7 @@ function ContactSection() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-white/70 text-[13px] font-[450] mb-2">
-                      Họ và tên
+                      {texts.contact.nameLabel}
                     </label>
                     <input
                       type="text"
@@ -645,7 +1040,7 @@ function ContactSection() {
 
                   <div>
                     <label className="block text-white/70 text-[13px] font-[450] mb-2">
-                      Email làm việc
+                      {texts.contact.emailInputLabel}
                     </label>
                     <input
                       type="email"
@@ -662,7 +1057,7 @@ function ContactSection() {
 
                 <div>
                   <label className="block text-white/70 text-[13px] font-[450] mb-2">
-                    Tổ chức / Tên công ty
+                    {texts.contact.companyLabel}
                   </label>
                   <input
                     type="text"
@@ -677,7 +1072,7 @@ function ContactSection() {
 
                 <div>
                   <label className="block text-white/70 text-[13px] font-[450] mb-2">
-                    Nội dung yêu cầu
+                    {texts.contact.messageLabel}
                   </label>
                   <textarea
                     rows={4}
@@ -693,15 +1088,15 @@ function ContactSection() {
 
                 <button
                   type="submit"
-                  className="w-full sm:w-auto h-[50px] px-8 bg-[#E9E9E9] rounded-[12px] text-[#0A0707] text-[15px] font-[450] hover:bg-white transition-colors flex items-center justify-center gap-2 font-medium"
+                  className="w-full sm:w-auto h-[50px] px-8 bg-[#E9E9E9] rounded-[12px] text-[#0A0707] text-[15px] font-[450] hover:bg-white transition-colors flex items-center justify-center gap-2 font-medium shadow-lg active:scale-95"
                 >
-                  <span>Gửi yêu cầu tư vấn</span>
+                  <span>{texts.contact.submitBtn}</span>
                   <Send className="w-4 h-4" />
                 </button>
               </form>
             )}
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   );
@@ -711,7 +1106,7 @@ function ContactSection() {
 // Clean Footer (NO VERSION NUMBER)
 // =============================================================================
 
-function Footer() {
+function Footer({ texts }: { texts: typeof TEXTS["vi"] }) {
   return (
     <footer className="relative z-10 w-full max-w-[1800px] mx-auto px-5 sm:px-8 md:px-[82px] py-10 sm:py-14 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-6 text-[13px] text-white/60">
       <div className="flex items-center gap-3">
@@ -721,19 +1116,19 @@ function Footer() {
 
       <div className="flex items-center gap-6 sm:gap-8 flex-wrap justify-center">
         <a href="#features" className="hover:text-white transition-colors">
-          Tính năng
+          {texts.nav.features}
         </a>
         <a href="#workflow" className="hover:text-white transition-colors">
-          Quy trình
+          {texts.nav.workflow}
         </a>
         <a href="#contact" className="hover:text-white transition-colors">
-          Liên hệ
+          {texts.nav.contact}
         </a>
         <Link href="/terms-of-service" className="hover:text-white transition-colors">
-          Điều khoản dịch vụ
+          {texts.footer.terms}
         </Link>
         <Link href="/privacy-policy" className="hover:text-white transition-colors">
-          Chính sách bảo mật
+          {texts.footer.privacy}
         </Link>
         <a
           href="https://github.com/VinhGH/Taskosaur-Spring"
@@ -745,7 +1140,7 @@ function Footer() {
         </a>
       </div>
 
-      <div>© 2026 Taskosaur Platform. All rights reserved.</div>
+      <div>{texts.footer.rights}</div>
     </footer>
   );
 }
@@ -755,6 +1150,10 @@ function Footer() {
 // =============================================================================
 
 export function TaskosaurApogeeLanding() {
+  const { i18n } = useTranslation();
+  const currentLang = (i18n.language?.split("-")[0] || "vi") as "vi" | "en" | "ja";
+  const texts = TEXTS[currentLang] || TEXTS.vi;
+
   return (
     <div className="relative w-full min-h-screen overflow-x-hidden bg-[#080A19] font-sans text-white selection:bg-white/20">
       {/* Background Video */}
@@ -773,8 +1172,8 @@ export function TaskosaurApogeeLanding() {
 
       {/* Main Content Layout */}
       <div className="relative z-10 min-h-screen flex flex-col">
-        {/* 1. Header Navigation */}
-        <Nav />
+        {/* 1. Header Navigation with Language Switcher */}
+        <Nav texts={texts} />
 
         {/* 2. Hero Section */}
         <div className="flex-1 flex items-center py-8 sm:py-16">
@@ -784,14 +1183,14 @@ export function TaskosaurApogeeLanding() {
               {/* 1. Headline */}
               <Animate delay={300} direction="up">
                 <h1 className="text-white text-[36px] sm:text-[52px] md:text-[64px] lg:text-[72px] font-normal leading-[0.95] mb-5 sm:mb-8 tracking-tight">
-                  Bứt phá năng suất dự án lên tầm cao mới
+                  {texts.hero.title}
                 </h1>
               </Animate>
 
               {/* 2. Subhead */}
               <Animate delay={500} direction="up">
                 <p className="text-white/80 text-[16px] sm:text-[18px] md:text-[20px] font-[450] leading-[1.3] max-w-[420px] mb-7 sm:mb-10">
-                  Trợ lý AI đàm thoại tự động lập kế hoạch Sprint, chia nhỏ tác vụ và đồng bộ GitHub theo thời gian thực.
+                  {texts.hero.subhead}
                 </p>
               </Animate>
 
@@ -802,38 +1201,38 @@ export function TaskosaurApogeeLanding() {
                     href="/register"
                     className="h-[46px] sm:h-[51px] px-5 sm:px-[27px] bg-[#E9E9E9] rounded-[12px] text-[#0A0707] text-[14px] sm:text-[15.5px] font-[450] leading-[15.5px] transition-opacity hover:opacity-90 inline-flex items-center justify-center font-medium shadow-lg"
                   >
-                    Khởi động miễn phí
+                    {texts.hero.ctaPrimary}
                   </Link>
 
                   <a
                     href="#contact"
                     className="h-[46px] sm:h-[51px] px-5 sm:px-[27px] rounded-[12px] border border-white text-white text-[14px] sm:text-[15.5px] font-[450] leading-[15.5px] transition-opacity hover:opacity-80 inline-flex items-center justify-center font-medium"
                   >
-                    Liên hệ đội ngũ
+                    {texts.hero.ctaSecondary}
                   </a>
                 </div>
               </Animate>
             </div>
 
             {/* Velocity Stat Card (Right Column) */}
-            <VelocityCard />
+            <VelocityCard texts={texts} />
           </div>
         </div>
 
-        {/* 3. Core Features Showcase */}
-        <FeatureSection />
+        {/* 3. Core Features Showcase (With Flower Blooming Animation) */}
+        <FeatureSection texts={texts} />
 
-        {/* 4. Workflow Section */}
-        <WorkflowSection />
+        {/* 4. Workflow Section (With Flower Blooming Animation) */}
+        <WorkflowSection texts={texts} />
 
         {/* 5. Technical Architecture & Security */}
-        <ArchitectureSection />
+        <ArchitectureSection texts={texts} />
 
-        {/* 6. Contact & Consultation Section */}
-        <ContactSection />
+        {/* 6. Contact & Consultation Section (With taskosaurvn@gmail.com) */}
+        <ContactSection texts={texts} />
 
         {/* 7. Clean Footer (No Version) */}
-        <Footer />
+        <Footer texts={texts} />
       </div>
     </div>
   );
