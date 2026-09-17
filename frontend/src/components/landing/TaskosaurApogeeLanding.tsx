@@ -398,14 +398,21 @@ const flowerBloomContainer = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.15,
-      delayChildren: 0.1,
+      staggerChildren: 0.14,
+      delayChildren: 0.05,
     },
   },
 };
 
 const bloomPetalLeft = {
-  hidden: { opacity: 0, scale: 0.7, x: 28, y: 45, rotate: -5 },
+  hidden: {
+    opacity: 0,
+    scale: 0.72,
+    x: 32,
+    y: 45,
+    rotate: -6,
+    transition: { duration: 0.35, ease: "easeOut" },
+  },
   visible: {
     opacity: 1,
     scale: 1,
@@ -414,15 +421,21 @@ const bloomPetalLeft = {
     rotate: 0,
     transition: {
       type: "spring",
-      stiffness: 80,
+      stiffness: 75,
       damping: 14,
-      mass: 0.9,
+      mass: 0.85,
     },
   },
 };
 
 const bloomPetalCenter = {
-  hidden: { opacity: 0, scale: 0.65, y: 55, filter: "blur(4px)" },
+  hidden: {
+    opacity: 0,
+    scale: 0.65,
+    y: 55,
+    filter: "blur(6px)",
+    transition: { duration: 0.35, ease: "easeOut" },
+  },
   visible: {
     opacity: 1,
     scale: 1,
@@ -430,7 +443,7 @@ const bloomPetalCenter = {
     filter: "blur(0px)",
     transition: {
       type: "spring",
-      stiffness: 85,
+      stiffness: 80,
       damping: 13,
       mass: 0.8,
     },
@@ -438,7 +451,14 @@ const bloomPetalCenter = {
 };
 
 const bloomPetalRight = {
-  hidden: { opacity: 0, scale: 0.7, x: -28, y: 45, rotate: 5 },
+  hidden: {
+    opacity: 0,
+    scale: 0.72,
+    x: -32,
+    y: 45,
+    rotate: 6,
+    transition: { duration: 0.35, ease: "easeOut" },
+  },
   visible: {
     opacity: 1,
     scale: 1,
@@ -447,9 +467,31 @@ const bloomPetalRight = {
     rotate: 0,
     transition: {
       type: "spring",
-      stiffness: 80,
+      stiffness: 75,
       damping: 14,
-      mass: 0.9,
+      mass: 0.85,
+    },
+  },
+};
+
+const bloomSingleCard = {
+  hidden: {
+    opacity: 0,
+    scale: 0.75,
+    y: 45,
+    filter: "blur(4px)",
+    transition: { duration: 0.35, ease: "easeOut" },
+  },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: {
+      type: "spring",
+      stiffness: 75,
+      damping: 14,
+      mass: 0.85,
     },
   },
 };
@@ -756,7 +798,7 @@ function FeatureSection({ texts }: { texts: typeof TEXTS["vi"] }) {
         variants={flowerBloomContainer}
         initial="hidden"
         whileInView="visible"
-        viewport={{ once: true, margin: "-60px" }}
+        viewport={{ once: false, amount: 0.15, margin: "-30px" }}
         className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8"
       >
         {features.map((feat, idx) => {
@@ -834,7 +876,7 @@ function WorkflowSection({ texts }: { texts: typeof TEXTS["vi"] }) {
         variants={flowerBloomContainer}
         initial="hidden"
         whileInView="visible"
-        viewport={{ once: true, margin: "-60px" }}
+        viewport={{ once: false, amount: 0.15, margin: "-30px" }}
         className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8"
       >
         {steps.map((item, idx) => (
@@ -893,10 +935,10 @@ function ArchitectureSection({ texts }: { texts: typeof TEXTS["vi"] }) {
 
         {/* Blooming Architecture Card */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.8, rotate: 2 }}
-          whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
-          viewport={{ once: true, margin: "-60px" }}
-          transition={{ type: "spring", stiffness: 80, damping: 14 }}
+          variants={bloomSingleCard}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.15, margin: "-30px" }}
           className="rounded-[28px] sm:rounded-[36px] bg-[rgba(17,16,15,0.45)] backdrop-blur-[20px] p-6 sm:p-10 border border-white/10 space-y-6 shadow-2xl"
         >
           <div className="flex items-center justify-between pb-4 border-b border-white/10">
@@ -1000,10 +1042,10 @@ function ContactSection({ texts }: { texts: typeof TEXTS["vi"] }) {
 
         {/* Right Column: Blooming Contact Form Card */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.75, y: 40 }}
-          whileInView={{ opacity: 1, scale: 1, y: 0 }}
-          viewport={{ once: true, margin: "-60px" }}
-          transition={{ type: "spring", stiffness: 85, damping: 14 }}
+          variants={bloomSingleCard}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.15, margin: "-30px" }}
           className="lg:col-span-7"
         >
           <div className="rounded-[24px] sm:rounded-[32px] bg-[rgba(17,16,15,0.45)] backdrop-blur-[20px] p-6 sm:p-10 border border-white/10 shadow-2xl">
