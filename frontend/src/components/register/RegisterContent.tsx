@@ -1,8 +1,11 @@
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
 import Image from "next/image";
+import { useTranslation } from "react-i18next";
+
 export function RegisterContent() {
   const { resolvedTheme } = useTheme();
+  const { t } = useTranslation("auth");
 
   return (
     <div className="signup-hero-container">
@@ -15,7 +18,7 @@ export function RegisterContent() {
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="signup-brand-header"
         >
-          <div className="">
+          <div>
             <div className="flex items-center">
               <Image
                 src="/taskosaur-logo.svg"
@@ -29,14 +32,18 @@ export function RegisterContent() {
           </div>
 
           <h2 className="signup-hero-heading">
-            Start your journey to
+            {t("hero.register_heading_1", "Start your journey to")}
             <br />
-            <span className="signup-hero-heading-gradient">effortless productivity</span>
+            <span className="signup-hero-heading-gradient">
+              {t("hero.register_heading_2", "effortless productivity")}
+            </span>
           </h2>
 
           <p className="signup-hero-description">
-            Create your free account today and discover why thousands of teams choose Taskosaur to
-            streamline their workflow and achieve more.
+            {t(
+              "hero.register_description",
+              "Create your free account today and discover why thousands of teams choose Taskosaur to streamline their workflow and achieve more."
+            )}
           </p>
         </motion.div>
       </div>

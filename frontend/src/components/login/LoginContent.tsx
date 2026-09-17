@@ -1,9 +1,12 @@
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
 import Image from "next/image";
+import { useTranslation } from "react-i18next";
 
 export function LoginContent() {
   const { resolvedTheme } = useTheme();
+  const { t } = useTranslation("auth");
+
   return (
     <div className="login-hero-container">
       {/* Main Content */}
@@ -15,7 +18,7 @@ export function LoginContent() {
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="login-brand-header"
         >
-          <div className="">
+          <div>
             <div className="flex items-center">
               <Image
                 src="/taskosaur-logo.svg"
@@ -29,14 +32,18 @@ export function LoginContent() {
           </div>
 
           <h2 className="login-hero-heading">
-            Transform your
+            {t("hero.login_heading_1", "Transform your")}
             <br />
-            <span className="login-hero-heading-gradient">team's workflow</span>
+            <span className="login-hero-heading-gradient">
+              {t("hero.login_heading_2", "team's workflow")}
+            </span>
           </h2>
 
           <p className="login-hero-description">
-            Experience the future of project management with AI-powered tools that adapt to your
-            team's unique workflow and boost productivity.
+            {t(
+              "hero.login_description",
+              "Experience the future of project management with AI-powered tools that adapt to your team's unique workflow and boost productivity."
+            )}
           </p>
         </motion.div>
       </div>

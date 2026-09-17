@@ -5,6 +5,8 @@ import { LoginContent } from "@/components/login/LoginContent";
 import { LoginForm } from "@/components/login/LoginForm";
 import { SEO } from "@/components/common/SEO";
 
+import { AuthLanguageToggle } from "@/components/auth/AuthLanguageToggle";
+
 export default function LoginPage() {
   const { checkOrganizationAndRedirect } = useAuth();
 
@@ -21,7 +23,8 @@ export default function LoginPage() {
             <div className="login-content-panel hidden md:block">
               <LoginContent />
             </div>
-            <div className="login-form-mode-toggle">
+            <div className="login-form-mode-toggle flex items-center gap-2">
+              <AuthLanguageToggle />
               <ModeToggle />
             </div>
             <div className="login-form-panel">

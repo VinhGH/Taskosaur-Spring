@@ -4,14 +4,16 @@ import Link from "next/link";
 import api, { TokenManager } from "@/lib/api";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Eye, EyeOff, Loader2, Mail, Lock, ArrowRight, Sparkle, Shield } from "lucide-react";
+import { Eye, EyeOff, Loader2, Mail, Lock, ArrowRight, Shield } from "lucide-react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
+
 interface FormData {
   email: string;
   password: string;
@@ -19,6 +21,7 @@ interface FormData {
 }
 
 export function LoginForm() {
+  const { t } = useTranslation("auth");
   const { login, checkOrganizationAndRedirect } = useAuth();
   const router = useRouter();
   const { resolvedTheme } = useTheme();
@@ -79,7 +82,7 @@ export function LoginForm() {
             const redirectPath = await checkOrganizationAndRedirect();
             window.location.href = redirectPath;
           } else {
-            setError("Failed to process SSO login");
+            setError(t("login.auth_failed", "Failed to process SSO login"));
           }
         })
         .catch(() => setError("SSO authentication failed. Please try again."));
@@ -90,7 +93,7 @@ export function LoginForm() {
       window.history.replaceState({}, document.title, "/login");
       setError(params.get("message") || "SSO authentication failed. Please try again.");
     }
-  }, []);
+  }, [checkOrganizationAndRedirect, t]);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -124,7 +127,7 @@ export function LoginForm() {
       await login({ email: formData.email, password: formData.password });
       router.push("/dashboard");
     } catch (err) {
-      setError("Invalid email or password. Please try again.");
+      setError(t("login.invalid_credentials", "Invalid email or password. Please try again."));
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -139,9 +142,8 @@ export function LoginForm() {
       className="login-form-container"
     >
       {/* Header */}
-      <div className="signup-form-header  flex justify-center items-center flex-col">
+      <div className="signup-form-header flex justify-center items-center flex-col">
         {/* Mobile Logo */}
-
         <div className="signup-mobile-logo">
           <div className="signup-mobile-logo-icon">
             <Image
@@ -160,14 +162,16 @@ export function LoginForm() {
           <h1 className="login-form-title">
             {/* Show as flex row on max-md, block on md+ */}
             <div className="md:hidden">
-              Welcome back to
-              <span className="flex items-center justify-center ">Taskosaur </span>
+              {t("login.welcome_back_to", "Welcome back to")}{" "}
+              <span className="inline-flex items-center justify-center font-bold">Taskosaur</span>
             </div>
 
             {/* Block for md+ */}
-            <span className="hidden md:block">Welcome back</span>
+            <span className="hidden md:block">{t("login.title", "Welcome back")}</span>
           </h1>
-          <p className="login-form-subtitle">Login to continue your productive journey</p>
+          <p className="login-form-subtitle">
+            {t("login.subtitle", "Login to continue your productive journey")}
+          </p>
         </div>
       </div>
 
@@ -179,7 +183,7 @@ export function LoginForm() {
         >
           <Alert variant="destructive" className="login-error-alert">
             <AlertDescription className="font-medium">
-              <span className="login-error-title">Authentication Failed</span>
+              <span className="login-error-title">{t("login.auth_failed", "Authentication Failed")}</span>
               <span className="login-error-message">{error}</span>
             </AlertDescription>
           </Alert>
@@ -197,7 +201,7 @@ export function LoginForm() {
         >
           <Label htmlFor="email" className="login-field-label">
             <Mail className="login-field-icon" />
-            <span>Email Address</span>
+            <span>{t("login.email_label", "Email Address")}</span>
           </Label>
           <Input
             id="email"
@@ -207,7 +211,7 @@ export function LoginForm() {
             required
             value={formData.email}
             onChange={handleChange}
-            placeholder="Enter your email address"
+            placeholder={t("login.email_placeholder", "Enter your email address")}
             className="login-input"
           />
         </motion.div>
@@ -221,7 +225,7 @@ export function LoginForm() {
         >
           <Label htmlFor="password" className="login-field-label">
             <Lock className="login-field-icon" />
-            <span>Password</span>
+            <span>{t("login.password_label", "Password")}</span>
           </Label>
           <div className="login-password-container">
             <Input
@@ -232,7 +236,7 @@ export function LoginForm() {
               required
               value={formData.password}
               onChange={handleChange}
-              placeholder="Enter your password"
+              placeholder={t("login.password_placeholder", "Enter your password")}
               className="login-password-input"
             />
             <Button
@@ -269,11 +273,11 @@ export function LoginForm() {
               className="login-remember-me-checkbox"
             />
             <Label htmlFor="rememberMe" className="login-remember-me-label">
-              Remember me
+              {t("login.remember_me", "Remember me")}
             </Label>
           </div>
           <Link href="/forgot-password" className="login-forgot-password-link">
-            Forgot password?
+            {t("login.forgot_password", "Forgot password?")}
           </Link>
         </motion.div>
 
@@ -287,11 +291,11 @@ export function LoginForm() {
             {isLoading ? (
               <>
                 <Loader2 className="login-loading-spinner" />
-                Logging you in...
+                {t("login.submitting", "Logging you in...")}
               </>
             ) : (
               <>
-                Log In
+                {t("login.submit", "Log In")}
                 <ArrowRight className="login-button-arrow" />
               </>
             )}
@@ -299,7 +303,7 @@ export function LoginForm() {
         </motion.div>
       </form>
 
-      {/* SSO Login Button */}
+      {/* SSO Login Button (if configured) */}
       {ssoConfig?.enabled && (
         <>
           <motion.div
@@ -309,7 +313,7 @@ export function LoginForm() {
             className="login-divider-container"
           >
             <div className="login-divider-text-container">
-              <span className="login-divider-text">Or continue with</span>
+              <span className="login-divider-text">{t("login.or_continue_with", "Or continue with")}</span>
             </div>
           </motion.div>
           <motion.div
@@ -351,7 +355,7 @@ export function LoginForm() {
               <div className="login-divider-border" />
             </div>
             <div className="login-divider-text-container">
-              <span className="login-divider-text">New to Taskosaur?</span>
+              <span className="login-divider-text">{t("login.new_to_taskosaur", "New to Taskosaur?")}</span>
             </div>
           </motion.div>
 
@@ -362,7 +366,7 @@ export function LoginForm() {
           >
             <Link href="/register">
               <Button variant="outline" className="login-signup-button">
-                Create New Account
+                {t("login.create_account", "Create New Account")}
                 <ArrowRight className="login-button-arrow" />
               </Button>
             </Link>
@@ -378,13 +382,13 @@ export function LoginForm() {
         className="login-footer"
       >
         <p className="login-footer-text">
-          By signing in, you agree to our{" "}
+          {t("login.terms_notice", "By signing in, you agree to our")}{" "}
           <Link href="/terms-of-service" className="login-footer-link">
-            Terms of Service
+            {t("login.terms_of_service", "Terms of Service")}
           </Link>{" "}
-          and{" "}
+          {t("login.and", "and")}{" "}
           <Link href="/privacy-policy" className="login-footer-link">
-            Privacy Policy
+            {t("login.privacy_policy", "Privacy Policy")}
           </Link>
         </p>
       </motion.div>

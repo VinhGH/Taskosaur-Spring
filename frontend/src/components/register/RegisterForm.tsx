@@ -3,6 +3,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,14 +14,12 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  UserPlus,
   Loader2,
   Mail,
   Lock,
   User,
   CheckCircle2,
   ArrowRight,
-  Shield,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 
@@ -34,6 +33,7 @@ interface FormData {
 }
 
 export function RegisterForm() {
+  const { t } = useTranslation("auth");
   const router = useRouter();
   const { resolvedTheme } = useTheme();
 
@@ -65,17 +65,11 @@ export function RegisterForm() {
     [error]
   );
 
-  // Password validation helpers
-  const isPasswordLongEnough = true;                    // formData.password.length >= 8;
-  const hasUpperCase = true;                            // /[A-Z]/.test(formData.password);
-  const hasLowerCase = true;                            // /[a-z]/.test(formData.password);
-  const hasNumber = true;                                   // /\d/.test(formData.password);
+  const isPasswordLongEnough = formData.password.length >= 8;
   const passwordsMatch =
     formData.password === formData.confirmPassword && formData.confirmPassword.length > 0;
-  const isPasswordValid = true;
-  // isPasswordLongEnough && hasUpperCase && hasLowerCase && hasNumber;
+  const isPasswordValid = isPasswordLongEnough;
 
-  // All required fields check
   const allFieldsFilled = [
     formData.firstName,
     formData.lastName,
@@ -90,19 +84,19 @@ export function RegisterForm() {
     setError("");
 
     if (!isPasswordValid) {
-      setError("Password must meet all requirements");
+      setError(t("register.password_requirements", "Password must be at least 8 characters"));
       setIsLoading(false);
       return;
     }
 
     if (!passwordsMatch) {
-      setError("Passwords do not match");
+      setError(t("register.passwords_do_not_match", "Passwords do not match"));
       setIsLoading(false);
       return;
     }
 
     if (!formData.acceptTerms) {
-      setError("You must accept the terms and conditions");
+      setError(t("register.accept_terms_error", "You must accept the terms and conditions"));
       setIsLoading(false);
       return;
     }
@@ -120,7 +114,6 @@ export function RegisterForm() {
       const response = await register(userData);
 
       if (response.access_token) {
-        // Check if user has an organization and redirect accordingly
         const redirectPath = await checkOrganizationAndRedirect();
         router.push(redirectPath);
       } else {
@@ -130,8 +123,6 @@ export function RegisterForm() {
       const message = err.message || "An error occurred during registration. Please try again.";
       setError(message);
 
-      // If registration was disabled and the invitation token didn't help,
-      // clear the stale token so the user isn't stuck in a loop
       if (invitationToken && message.toLowerCase().includes("registration is currently disabled")) {
         localStorage.removeItem("pendingInvitation");
       }
@@ -164,8 +155,8 @@ export function RegisterForm() {
           </div>
         </div>
 
-        <h1 className="signup-form-title">Create Account</h1>
-        <p className="signup-form-subtitle">Join thousands of teams using Taskosaur</p>
+        <h1 className="signup-form-title">{t("register.title", "Create Account")}</h1>
+        <p className="signup-form-subtitle">{t("register.subtitle", "Join thousands of teams using Taskosaur")}</p>
       </div>
 
       {/* Error Alert */}
@@ -178,7 +169,7 @@ export function RegisterForm() {
           <Alert variant="destructive" className="signup-error-alert">
             <AlertCircle className="signup-error-icon" />
             <AlertDescription className="font-medium">
-              <span className="signup-error-title">Registration Failed</span>
+              <span className="signup-error-title">{t("login.auth_failed", "Registration Failed")}</span>
               <span className="signup-error-message">{error}</span>
             </AlertDescription>
           </Alert>
@@ -197,7 +188,7 @@ export function RegisterForm() {
           <div className="signup-field-container">
             <Label htmlFor="firstName" className="signup-field-label">
               <User className="signup-field-icon" />
-              <span>First Name</span>
+              <span>{t("register.first_name", "First Name")}</span>
             </Label>
             <Input
               id="firstName"
@@ -207,13 +198,13 @@ export function RegisterForm() {
               required
               value={formData.firstName}
               onChange={handleChange}
-              placeholder="John"
+              placeholder={t("register.first_name_placeholder", "John")}
               className="signup-input"
             />
           </div>
           <div className="signup-field-container">
             <Label htmlFor="lastName" className="signup-field-label-simple">
-              Last Name
+              {t("register.last_name", "Last Name")}
             </Label>
             <Input
               id="lastName"
@@ -223,7 +214,7 @@ export function RegisterForm() {
               required
               value={formData.lastName}
               onChange={handleChange}
-              placeholder="Doe"
+              placeholder={t("register.last_name_placeholder", "Doe")}
               className="signup-input"
             />
           </div>
@@ -238,7 +229,7 @@ export function RegisterForm() {
         >
           <Label htmlFor="email" className="signup-field-label">
             <Mail className="signup-field-icon" />
-            <span>Email Address</span>
+            <span>{t("register.email_label", "Email Address")}</span>
           </Label>
           <Input
             id="email"
@@ -248,7 +239,7 @@ export function RegisterForm() {
             required
             value={formData.email}
             onChange={handleChange}
-            placeholder="john.doe@company.com"
+            placeholder={t("register.email_placeholder", "john.doe@company.com")}
             className="signup-input"
           />
         </motion.div>
@@ -262,7 +253,7 @@ export function RegisterForm() {
         >
           <Label htmlFor="password" className="signup-field-label">
             <Lock className="signup-field-icon" />
-            <span>Password</span>
+            <span>{t("register.password_label", "Password")}</span>
           </Label>
           <div className="signup-password-container">
             <Input
@@ -273,7 +264,7 @@ export function RegisterForm() {
               required
               value={formData.password}
               onChange={handleChange}
-              placeholder="Create a strong password"
+              placeholder={t("register.password_placeholder", "Create a strong password")}
               className={`signup-password-input ${
                 formData.password && !isPasswordValid ? "border-red-500 ring-1 ring-red-500" : ""
               }`}
@@ -289,78 +280,6 @@ export function RegisterForm() {
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
           </div>
-
-          {/* Password Requirements
-          {formData.password && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              className="signup-password-requirements"
-            >
-              <p className="signup-requirements-header">
-                <Shield className="signup-field-icon" />
-                <span>Password Requirements:</span>
-              </p>
-              <div className="signup-requirements-grid">
-                <div
-                  className={`signup-requirement-item ${
-                    isPasswordLongEnough ? "signup-requirement-valid" : "signup-requirement-invalid"
-                  }`}
-                >
-                  <CheckCircle2
-                    className={
-                      isPasswordLongEnough
-                        ? "signup-requirement-icon-valid"
-                        : "signup-requirement-icon-invalid"
-                    }
-                  />
-                  <span>8+ characters</span>
-                </div>
-                <div
-                  className={`signup-requirement-item ${
-                    hasUpperCase ? "signup-requirement-valid" : "signup-requirement-invalid"
-                  }`}
-                >
-                  <CheckCircle2
-                    className={
-                      hasUpperCase
-                        ? "signup-requirement-icon-valid"
-                        : "signup-requirement-icon-invalid"
-                    }
-                  />
-                  <span>Uppercase letter</span>
-                </div>
-                <div
-                  className={`signup-requirement-item ${
-                    hasLowerCase ? "signup-requirement-valid" : "signup-requirement-invalid"
-                  }`}
-                >
-                  <CheckCircle2
-                    className={
-                      hasLowerCase
-                        ? "signup-requirement-icon-valid"
-                        : "signup-requirement-icon-invalid"
-                    }
-                  />
-                  <span>Lowercase letter</span>
-                </div>
-                <div
-                  className={`signup-requirement-item ${
-                    hasNumber ? "signup-requirement-valid" : "signup-requirement-invalid"
-                  }`}
-                >
-                  <CheckCircle2
-                    className={
-                      hasNumber
-                        ? "signup-requirement-icon-valid"
-                        : "signup-requirement-icon-invalid"
-                    }
-                  />
-                  <span>Number</span>
-                </div>
-              </div>
-            </motion.div>
-          )} */}
         </motion.div>
 
         {/* Confirm Password Field */}
@@ -372,7 +291,7 @@ export function RegisterForm() {
         >
           <Label htmlFor="confirmPassword" className="signup-field-label">
             <Lock className="signup-field-icon" />
-            <span>Confirm Password</span>
+            <span>{t("register.confirm_password_label", "Confirm Password")}</span>
           </Label>
           <div className="signup-password-container">
             <Input
@@ -383,7 +302,7 @@ export function RegisterForm() {
               required
               value={formData.confirmPassword}
               onChange={handleChange}
-              placeholder="Confirm your password"
+              placeholder={t("register.confirm_password_placeholder", "Confirm your password")}
               className={`signup-password-input ${
                 formData.confirmPassword && !passwordsMatch
                   ? "border-red-500 ring-1 ring-red-500"
@@ -416,7 +335,7 @@ export function RegisterForm() {
                     : "signup-password-match-icon-invalid"
                 }
               />
-              <span>{passwordsMatch ? "Passwords match" : "Passwords do not match"}</span>
+              <span>{passwordsMatch ? t("register.passwords_match", "Passwords match") : t("register.passwords_do_not_match", "Passwords do not match")}</span>
             </motion.div>
           )}
         </motion.div>
@@ -442,13 +361,13 @@ export function RegisterForm() {
             className="signup-terms-checkbox"
           />
           <Label htmlFor="acceptTerms" className="signup-terms-label">
-            I agree to the{" "}
+            {t("register.accept_terms", "I agree to the")}{" "}
             <Link href="/terms-of-service" className="signup-terms-link">
-              Terms of Service
+              {t("login.terms_of_service", "Terms of Service")}
             </Link>{" "}
-            and{" "}
+            {t("login.and", "and")}{" "}
             <Link href="/privacy-policy" className="signup-terms-link">
-              Privacy Policy
+              {t("login.privacy_policy", "Privacy Policy")}
             </Link>
           </Label>
         </motion.div>
@@ -473,11 +392,11 @@ export function RegisterForm() {
             {isLoading ? (
               <>
                 <Loader2 className="signup-loading-spinner" />
-                Creating account...
+                {t("register.submitting", "Creating account...")}
               </>
             ) : (
               <>
-                Create Account
+                {t("register.submit", "Create Account")}
                 <ArrowRight className="signup-button-arrow" />
               </>
             )}
@@ -497,7 +416,7 @@ export function RegisterForm() {
             <div className="signup-divider-border" />
           </div>
           <div className="signup-divider-text-container">
-            <span className="signup-divider-text">Already have an account?</span>
+            <span className="signup-divider-text">{t("register.already_have_account", "Already have an account?")}</span>
           </div>
         </div>
       </motion.div>
@@ -510,7 +429,7 @@ export function RegisterForm() {
       >
         <Link href="/login">
           <Button variant="outline" className="signup-signin-button">
-            Log In to Existing Account
+            {t("register.login_link", "Log In to Existing Account")}
             <ArrowRight className="signup-button-arrow" />
           </Button>
         </Link>
@@ -524,13 +443,13 @@ export function RegisterForm() {
         className="signup-footer"
       >
         <p className="signup-footer-text">
-          By creating an account, you agree to our{" "}
+          {t("login.terms_notice", "By creating an account, you agree to our")}{" "}
           <Link href="/terms-of-service" className="signup-footer-link">
-            Terms of Service
+            {t("login.terms_of_service", "Terms of Service")}
           </Link>{" "}
-          and{" "}
+          {t("login.and", "and")}{" "}
           <Link href="/privacy-policy" className="signup-footer-link">
-            Privacy Policy
+            {t("login.privacy_policy", "Privacy Policy")}
           </Link>
         </p>
       </motion.div>

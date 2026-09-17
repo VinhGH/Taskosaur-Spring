@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { useAuth } from "@/contexts/auth-context";
 import AuthRedirect from "@/components/auth/AuthRedirect";
 import { ModeToggle } from "@/components/header/ModeToggle";
+import { AuthLanguageToggle } from "@/components/auth/AuthLanguageToggle";
 import { RegisterContent } from "@/components/register/RegisterContent";
 import { RegisterForm } from "@/components/register/RegisterForm";
 import api from "@/lib/api";
@@ -64,7 +65,8 @@ export default function SignUpPage() {
         <div className="signup-content-panel">
           <RegisterContent />
         </div>
-        <div className="login-form-mode-toggle">
+        <div className="login-form-mode-toggle flex items-center gap-2">
+          <AuthLanguageToggle />
           <ModeToggle />
         </div>
         {/* Right Form Section - Exactly 50% */}
