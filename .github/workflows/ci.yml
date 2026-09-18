@@ -233,6 +233,7 @@ jobs:
           name: taskosaur-backend-coverage
           path: backend/target/site/jacoco/
           retention-days: 14
+          if-no-files-found: ignore
 
       - name: Package Backend Application (JAR)
         run: |
