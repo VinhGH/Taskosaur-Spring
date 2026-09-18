@@ -130,6 +130,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
 
+      - name: Type Check Frontend (TypeScript)
+        run: npm run type-check:frontend
+
       - name: Lint Frontend (ESLint)
         run: npm run lint:frontend
 
@@ -203,14 +206,7 @@ jobs:
         with:
           java-version: '25'
           distribution: 'temurin'
-
-      - name: Cache Maven Packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('backend/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
+          cache: 'maven'
 
       - name: Make Maven Wrapper Executable
         run: chmod +x backend/mvnw
@@ -229,6 +225,14 @@ jobs:
         run: |
           cd backend
           ./mvnw test -B
+
+      - name: Upload JaCoCo Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: taskosaur-backend-coverage
+          path: backend/target/site/jacoco/
+          retention-days: 14
 
       - name: Package Backend Application (JAR)
         run: |
@@ -274,6 +278,15 @@ jobs:
           tags: taskosaur-backend:test
           cache-from: type=gha
 
+      - name: Dry-Run Build Frontend Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./frontend/Dockerfile
+          push: false
+          tags: taskosaur-frontend:test
+          cache-from: type=gha
+
       - name: Dry-Run Build DB Migrate Docker Image
         uses: docker/build-push-action@v5
         with:
@@ -292,7 +305,7 @@ jobs:
     needs: [changes, database-check, frontend-ci, backend-ci, docker-verify]
     if: always()
     steps:
-      - name: Evaluate All CI Jobs Status
+      - name: Evaluate All CI Jobs Status & Write Summary
         run: |
           FAILED=0
           
@@ -310,9 +323,23 @@ jobs:
           check_job "backend-ci" "${{ needs.backend-ci.result }}"
           check_job "docker-verify" "${{ needs.docker-verify.result }}"
 
+          echo "## 🛡️ Taskosaur CI Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Result | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :--- | :--- |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🗄️ Database Schema | \`${{ needs.database-check.result }}\` | $([ "${{ needs.database-check.result }}" = "success" ] && echo "✅ Passed" || echo "⏭️ Skipped/Pending") |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🖥️ Frontend (TypeCheck, Lint, Build) | \`${{ needs.frontend-ci.result }}\` | $([ "${{ needs.frontend-ci.result }}" = "success" ] && echo "✅ Passed" || echo "⏭️ Skipped/Pending") |" >> $GITHUB_STEP_SUMMARY
+          echo "| ☕ Backend (Java 25, Test, JaCoCo, Package) | \`${{ needs.backend-ci.result }}\` | $([ "${{ needs.backend-ci.result }}" = "success" ] && echo "✅ Passed" || echo "⏭️ Skipped/Pending") |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🐳 Docker Compose & Images Verify | \`${{ needs.docker-verify.result }}\` | $([ "${{ needs.docker-verify.result }}" = "success" ] && echo "✅ Passed" || echo "⏭️ Skipped/Pending") |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
           if [ $FAILED -ne 0 ]; then
+            echo "### ❌ Status: FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "One or more required CI jobs did not succeed. Please inspect the failed logs above." >> $GITHUB_STEP_SUMMARY
             echo "❌ Pipeline failed: One or more required CI jobs did not succeed."
             exit 1
           else
+            echo "### ✅ Status: PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "All jobs succeeded or were skipped safely." >> $GITHUB_STEP_SUMMARY
             echo "✅ Pipeline passed: All jobs succeeded or were skipped safely."
           fi

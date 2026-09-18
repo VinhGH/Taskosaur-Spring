@@ -12,6 +12,7 @@
     "build:dist": "cross-env BUILD_DIST=true next build --webpack",
     "start": "cross-env NODE_ENV=production node server.mjs",
     "lint": "eslint",
+    "type-check": "tsc --noEmit",
     "clean": "shx rm -rf node_modules .next out",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",

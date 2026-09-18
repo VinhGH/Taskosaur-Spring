@@ -20,6 +20,7 @@ interface ConfirmationModalProps {
   confirmText?: string;
   cancelText?: string;
   type?: "danger" | "warning" | "info";
+  isLoading?: boolean;
 }
 
 export default function ConfirmationModal({
@@ -31,6 +32,7 @@ export default function ConfirmationModal({
   confirmText = "Confirm",
   cancelText = "Cancel",
   type = "info",
+  isLoading = false,
 }: ConfirmationModalProps) {
   const getIcon = () => {
     switch (type) {
@@ -44,7 +46,7 @@ export default function ConfirmationModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && !isLoading && onClose()}>
       <DialogContent className="sm:max-w-md border-[var(--border)]">
         <DialogHeader>
           <div className="flex items-center gap-2">
@@ -58,6 +60,7 @@ export default function ConfirmationModal({
           <Button 
             variant="outline" 
             onClick={onClose}
+            disabled={isLoading}
             className="px-6 h-10 rounded-lg font-medium border-[var(--border)] hover:bg-[var(--muted)] text-[var(--foreground)]"
           >
             {cancelText || "Cancel"}
@@ -65,6 +68,7 @@ export default function ConfirmationModal({
           <ActionButton
             variant={type === "danger" ? "destructive" : "default"}
             onClick={onConfirm}
+            disabled={isLoading}
             className={cn(
               "px-6 h-10 rounded-lg font-medium shadow-sm transition-all hover:shadow-md active:scale-95",
               type !== "danger" && "bg-[var(--primary)] text-[var(--primary-foreground)] hover:bg-[var(--primary)]/90"

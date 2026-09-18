@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import {
   ChevronDown,
@@ -393,7 +393,7 @@ const TEXTS = {
 // Flower Blooming Animation Variants ("bung toả như hoa ra")
 // =============================================================================
 
-const flowerBloomContainer = {
+const flowerBloomContainer: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
@@ -404,7 +404,7 @@ const flowerBloomContainer = {
   },
 };
 
-const bloomPetalLeft = {
+const bloomPetalLeft: Variants = {
   hidden: {
     opacity: 0,
     scale: 0.72,
@@ -428,7 +428,7 @@ const bloomPetalLeft = {
   },
 };
 
-const bloomPetalCenter = {
+const bloomPetalCenter: Variants = {
   hidden: {
     opacity: 0,
     scale: 0.65,
@@ -450,7 +450,7 @@ const bloomPetalCenter = {
   },
 };
 
-const bloomPetalRight = {
+const bloomPetalRight: Variants = {
   hidden: {
     opacity: 0,
     scale: 0.72,
@@ -474,7 +474,7 @@ const bloomPetalRight = {
   },
 };
 
-const bloomSingleCard = {
+const bloomSingleCard: Variants = {
   hidden: {
     opacity: 0,
     scale: 0.75,

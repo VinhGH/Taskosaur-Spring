@@ -1,20 +1,46 @@
-name: Security & Vulnerability Audit
+name: Security & Vulnerability Auditing
 
 on:
   schedule:
-    - cron: '0 0 * * 1' # Weekly on Monday 00:00 UTC
+    - cron: '0 2 * * 1' # Weekly on Monday at 02:00 UTC
   push:
     branches: [ "main", "dev" ]
   pull_request:
     branches: [ "main", "dev" ]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
+  security-events: write
 
 jobs:
-  npm-audit:
-    name: NPM Dependency Audit
+  # ===========================================================================
+  # 1. Secret Scanning (Gitleaks)
+  # ===========================================================================
+  gitleaks-scan:
+    name: Secret & Credential Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks Secret Detector
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }} # Optional for public repos
+
+  # ===========================================================================
+  # 2. Dependency Vulnerability Audit (NPM + Trivy FS for Maven/Java)
+  # ===========================================================================
+  dependency-audit:
+    name: Dependency Vulnerability Audit
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -29,7 +55,45 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run NPM Audit
+      - name: Audit NPM Production Dependencies
+        id: npm_audit
+        continue-on-error: true
         run: |
-          echo "Auditing production dependencies for security vulnerabilities..."
-          npm audit --omit=dev || true
+          echo "### 📦 NPM Production Audit" >> $GITHUB_STEP_SUMMARY
+          AUDIT_OUTPUT=$(npm audit --omit=dev --audit-level=high 2>&1 || true)
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "$AUDIT_OUTPUT" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Run Aquasecurity Trivy Vulnerability Scanner (Filesystem)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+
+  # ===========================================================================
+  # 3. Security Gatekeeper Summary
+  # ===========================================================================
+  security-summary:
+    name: Security Evaluation Summary
+    runs-on: ubuntu-latest
+    needs: [gitleaks-scan, dependency-audit]
+    if: always()
+    steps:
+      - name: Write Security Step Summary
+        run: |
+          echo "## 🛡️ Security Audit Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔑 Gitleaks Secret Scanning | \`${{ needs.gitleaks-scan.result }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📦 NPM & Maven Dependency Audit | \`${{ needs.dependency-audit.result }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.gitleaks-scan.result }}" = "failure" ]; then
+            echo "❌ **Critical**: Secret scanning detected exposed credentials in commit history!" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

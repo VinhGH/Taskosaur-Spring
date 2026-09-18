@@ -25,6 +25,8 @@
         "test:backend": "node scripts/mvnw.js test",
         "lint": "npm run lint:frontend",
         "lint:frontend": "npm run lint --workspace=frontend",
+        "type-check": "npm run type-check --workspace=frontend",
+        "type-check:frontend": "npm run type-check --workspace=frontend",
         "db:migrate": "dotenv -- npm run prisma:migrate:dev --workspace=database",
         "db:migrate:deploy": "dotenv -- npm run prisma:migrate:deploy --workspace=database",
         "db:reset": "dotenv -- npm run prisma:reset --workspace=database",
