@@ -1,15 +1,16 @@
-// components/charts/organization/team-utilization-chart.tsx
-import { useState, useEffect } from "react";
+// components/charts/dashboard/team-utilization-chart.tsx
+import React, { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Cell,
+  LabelList,
 } from "recharts";
-import { ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
 import { ChartWrapper } from "../chart-wrapper";
 import {
   Select,
@@ -21,12 +22,15 @@ import {
 import { useWorkspace } from "@/contexts/workspace-context";
 import { useOrganization } from "@/contexts/organization-context";
 import { ChartType } from "@/types";
+import { ShieldCheck } from "lucide-react";
 
-const chartConfig = {
-  ADMIN: { label: "roles.admin", color: "#DC2626" },
-  MANAGER: { label: "roles.manager", color: "#EA580C" },
-  MEMBER: { label: "roles.member", color: "#3B82F6" },
-  VIEWER: { label: "roles.viewer", color: "#10B981" },
+const ROLE_ORDER = ["ADMIN", "MANAGER", "MEMBER", "VIEWER"] as const;
+
+const ROLE_META: Record<string, { labelKey: string; color: string }> = {
+  ADMIN: { labelKey: "roles.admin", color: "#EF4444" },
+  MANAGER: { labelKey: "roles.manager", color: "#F59E0B" },
+  MEMBER: { labelKey: "roles.member", color: "#3B82F6" },
+  VIEWER: { labelKey: "roles.viewer", color: "#10B981" },
 };
 
 interface TeamUtilizationChartProps {
@@ -38,7 +42,7 @@ export function TeamUtilizationChart({ data: initialData }: TeamUtilizationChart
   const { workspaces, getWorkspacesByOrganization } = useWorkspace();
   const { fetchSingleChartData, currentOrganization } = useOrganization();
   const [selectedWorkspace, setSelectedWorkspace] = useState<string>("all");
-  const [chartData, setChartData] = useState<any[]>([]);
+  const [rawData, setRawData] = useState<any[]>(initialData || []);
 
   useEffect(() => {
     if (currentOrganization?.id) {
@@ -47,13 +51,18 @@ export function TeamUtilizationChart({ data: initialData }: TeamUtilizationChart
   }, [currentOrganization?.id]);
 
   useEffect(() => {
-    const mappedData = (initialData || []).map((item) => ({
-      role: t(chartConfig[item?.role as keyof typeof chartConfig]?.label) || item?.role || "Member",
-      count: item?._count?.role ?? (item as any)?.count ?? 0,
-      fill: chartConfig[item?.role as keyof typeof chartConfig]?.color || "#8B5CF6",
-    }));
-    setChartData(mappedData || []);
-  }, [initialData, t]);
+    setRawData(initialData || []);
+  }, [initialData]);
+
+  const chartConfig = useMemo<ChartConfig>(() => {
+    return Object.entries(ROLE_META).reduce((acc, [key, val]) => {
+      acc[key] = {
+        label: t(val.labelKey),
+        color: val.color,
+      };
+      return acc;
+    }, {} as ChartConfig);
+  }, [t]);
 
   const handleWorkspaceChange = async (workspaceId: string) => {
     setSelectedWorkspace(workspaceId);
@@ -67,14 +76,44 @@ export function TeamUtilizationChart({ data: initialData }: TeamUtilizationChart
     );
 
     if (newData && !newData.error && Array.isArray(newData)) {
-      const mappedData = newData.map((item: any) => ({
-        role: t(chartConfig[item?.role as keyof typeof chartConfig]?.label) || item?.role || "Member",
-        count: item?._count?.role ?? item?.count ?? 0,
-        fill: chartConfig[item?.role as keyof typeof chartConfig]?.color || "#8B5CF6",
-      }));
-      setChartData(mappedData);
+      setRawData(newData);
     }
   };
+
+  const totalMembers = useMemo(() => {
+    return (rawData || []).reduce((sum, item) => {
+      const count = item?._count?.role ?? item?.count ?? 0;
+      return sum + count;
+    }, 0);
+  }, [rawData]);
+
+  const chartData = useMemo(() => {
+    const roleCountMap = new Map<string, number>();
+    (rawData || []).forEach((item: any) => {
+      const roleKey = (item?.role || "").toUpperCase();
+      const count = item?._count?.role ?? item?.count ?? 0;
+      roleCountMap.set(roleKey, (roleCountMap.get(roleKey) || 0) + count);
+    });
+
+    return ROLE_ORDER.map((roleKey) => {
+      const meta = ROLE_META[roleKey];
+      const count = roleCountMap.get(roleKey) || 0;
+      const percentage = totalMembers > 0 ? Math.round((count / totalMembers) * 100) : 0;
+      const label = t(meta.labelKey) || roleKey;
+      return {
+        key: roleKey,
+        roleName: label,
+        count,
+        percentage,
+        labelWithPercent: count > 0 ? `${count} (${percentage}%)` : "0 (0%)",
+        fill: meta.color,
+      };
+    });
+  }, [rawData, totalMembers, t]);
+
+  const activeRolesCount = useMemo(() => {
+    return chartData.filter((d) => d.count > 0).length;
+  }, [chartData]);
 
   return (
     <ChartWrapper
@@ -85,10 +124,10 @@ export function TeamUtilizationChart({ data: initialData }: TeamUtilizationChart
           : t("charts.team_utilization_description_workspace")
       }
       config={chartConfig}
-      className="border-[var(--border)]"
+      icon={<ShieldCheck className="h-4 w-4" />}
       extraHeader={
         <Select value={selectedWorkspace} onValueChange={handleWorkspaceChange}>
-          <SelectTrigger className="w-[150px] h-8 text-xs">
+          <SelectTrigger className="w-[145px] h-8 text-xs bg-background/50 border-border/70">
             <SelectValue placeholder={t("charts.all_workspaces")} />
           </SelectTrigger>
           <SelectContent>
@@ -101,22 +140,60 @@ export function TeamUtilizationChart({ data: initialData }: TeamUtilizationChart
           </SelectContent>
         </Select>
       }
+      footer={
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <span>{t("analytics.kpi_cards.members")}:</span>
+            <strong className="text-foreground font-mono">{totalMembers}</strong>
+            <span className="text-[11px]">({activeRolesCount} vai trò có nhân sự)</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            <span>Phân quyền rõ ràng</span>
+          </div>
+        </div>
+      }
     >
-      <ResponsiveContainer width="100%" height={300}>
-        <RadarChart data={chartData}>
-          <PolarGrid />
-          <PolarAngleAxis dataKey="role" />
-          <PolarRadiusAxis />
-          <ChartTooltip content={<ChartTooltipContent className="border-0 bg-[var(--accent)]" />} />
-          <Radar
-            name="Count"
-            dataKey="count"
-            stroke="#8884d8"
-            fill="#8884d8"
-            fillOpacity={0.6}
+      <BarChart
+        accessibilityLayer
+        data={chartData}
+        layout="vertical"
+        margin={{ top: 12, right: 55, left: 10, bottom: 5 }}
+        barCategoryGap="25%"
+      >
+        <CartesianGrid horizontal={false} strokeDasharray="3 3" className="stroke-muted/30" />
+        <YAxis
+          dataKey="roleName"
+          type="category"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          width={100}
+          tick={{ fontSize: 12, fill: "var(--foreground)" }}
+        />
+        <XAxis type="number" hide />
+        <ChartTooltip
+          cursor={{ fill: "var(--muted)", opacity: 0.15 }}
+          content={
+            <ChartTooltipContent
+              hideLabel
+              className="bg-popover text-popover-foreground border-border shadow-md"
+            />
+          }
+        />
+        <Bar dataKey="count" radius={[0, 6, 6, 0]} maxBarSize={28}>
+          <LabelList
+            dataKey="labelWithPercent"
+            position="right"
+            offset={8}
+            className="fill-foreground font-mono font-semibold text-xs"
           />
-        </RadarChart>
-      </ResponsiveContainer>
+          {chartData.map((entry) => (
+            <Cell key={`cell-${entry.key}`} fill={entry.fill} />
+          ))}
+        </Bar>
+      </BarChart>
     </ChartWrapper>
   );
 }
+
