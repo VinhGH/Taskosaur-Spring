@@ -1,9 +1,11 @@
 // components/charts/project/task-status-chart.tsx
-import { PieChart, Pie, ResponsiveContainer, Cell, Legend } from "recharts";
-import { ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import React, { useMemo } from "react";
+import { PieChart, Pie, Cell, Label } from "recharts";
+import { ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
 import { ChartWrapper } from "../chart-wrapper";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
+import { CheckCircle2 } from "lucide-react";
 
 interface StatusInfo {
   id: string;
@@ -28,21 +30,36 @@ export function TaskStatusChart({ data }: TaskStatusChartProps) {
   const router = useRouter();
   const { workspaceSlug, projectSlug } = router.query;
 
-  // Sort data by status position for better visualization
   const safeData = Array.isArray(data) ? data : [];
-  const sortedData = [...safeData].sort(
-    (a, b) => (a.status?.position || 0) - (b.status?.position || 0)
+  const sortedData = useMemo(() => {
+    return [...safeData].sort(
+      (a, b) => (a.status?.position || 0) - (b.status?.position || 0)
+    );
+  }, [safeData]);
+
+  const chartData = useMemo(() => {
+    return sortedData.map((item) => {
+      const status = item.status;
+      return {
+        id: item.statusId,
+        name: status?.name || t("unknown", "Không xác định"),
+        value: item.count || 0,
+        color: status?.color || "#8B5CF6",
+      };
+    });
+  }, [sortedData, t]);
+
+  const totalTasks = useMemo(
+    () => chartData.reduce((sum, item) => sum + (item.value || 0), 0),
+    [chartData]
   );
 
-  const chartData = sortedData?.map((item) => {
-    const status = item.status;
-    return {
-      name: status?.name || t("unknown"),
-      value: item.count,
-      color: status?.color || "#8B5CF6",
-      id: item.statusId,
-    };
-  });
+  const displayData = useMemo(() => {
+    if (totalTasks === 0) {
+      return [{ id: "EMPTY", name: t("no_data_available", "Chưa có công việc"), value: 1, color: "var(--muted)" }];
+    }
+    return chartData.filter((item) => item.value > 0);
+  }, [chartData, totalTasks, t]);
 
   const handleClick = (entry: any) => {
     if (
@@ -52,7 +69,8 @@ export function TaskStatusChart({ data }: TaskStatusChartProps) {
       projectSlug &&
       typeof projectSlug === "string" &&
       /^[a-zA-Z0-9-]+$/.test(projectSlug) &&
-      entry?.id
+      entry?.id &&
+      entry.id !== "EMPTY"
     ) {
       router.push({
         pathname: "/[workspaceSlug]/[projectSlug]/tasks",
@@ -61,9 +79,8 @@ export function TaskStatusChart({ data }: TaskStatusChartProps) {
     }
   };
 
-  // Build dynamic config from status data for legend
-  const chartConfig = sortedData?.reduce(
-    (config, item) => {
+  const chartConfig = useMemo<ChartConfig>(() => {
+    return sortedData.reduce((config, item) => {
       if (item.status) {
         config[item.status.id] = {
           label: item.status.name,
@@ -71,68 +88,108 @@ export function TaskStatusChart({ data }: TaskStatusChartProps) {
         };
       }
       return config;
-    },
-    {} as Record<string, { label: string; color: string }>
-  );
-
-  // Custom label renderer
-  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
-    const RADIAN = Math.PI / 180;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-    return (
-      <text
-        x={x}
-        y={y}
-        fill="var(--accent-foreground, #fff)"
-        textAnchor={x > cx ? "start" : "end"}
-        dominantBaseline="central"
-        fontSize={12}
-        fontWeight="bold"
-      >
-        {`${(percent * 100).toFixed(0)}%`}
-      </text>
-    );
-  };
+    }, {} as ChartConfig);
+  }, [sortedData]);
 
   return (
     <ChartWrapper
-      title={t("charts.task_status_flow.title")}
-      description={t("charts.task_status_flow.description")}
+      title={t("charts.task_status_flow.title", "Luồng trạng thái công việc")}
+      description={t("charts.task_status_flow.description", "Phân bổ công việc hiện tại theo trạng thái")}
       config={chartConfig}
-      className="border-[var(--border)]"
+      icon={<CheckCircle2 className="h-4 w-4" />}
+      footer={
+        totalTasks > 0 ? (
+          <div className="flex flex-wrap items-center justify-center gap-1.5 text-xs">
+            {chartData
+              .filter((item) => item.value > 0)
+              .map((item) => {
+                const percentage =
+                  totalTasks > 0 ? Math.round((item.value / totalTasks) * 100) : 0;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleClick(item)}
+                    className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/40 border border-border/50 transition-colors hover:bg-muted/70 cursor-pointer"
+                  >
+                    <span
+                      className="h-2 w-2 rounded-full shrink-0"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="text-muted-foreground text-[11px]">{item.name}:</span>
+                    <span className="font-semibold text-foreground font-mono text-[11px]">{item.value}</span>
+                    <span className="text-[10px] text-muted-foreground font-medium">
+                      ({percentage}%)
+                    </span>
+                  </button>
+                );
+              })}
+          </div>
+        ) : null
+      }
     >
-      <ResponsiveContainer width="100%" height={300}>
-        <PieChart>
-          <Pie
-            data={chartData}
-            cx="50%"
-            cy="50%"
-            labelLine={false}
-            label={renderCustomizedLabel}
-            innerRadius={60}
-            outerRadius={100}
-            paddingAngle={2}
-            dataKey="value"
-            onClick={handleClick}
-            className="cursor-pointer outline-none"
-          >
-            {chartData?.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
-            ))}
-          </Pie>
-          <ChartTooltip content={<ChartTooltipContent className="bg-[var(--accent)] border-0" />} />
-          <Legend
-            verticalAlign="bottom"
-            height={36}
-            iconType="circle"
-            iconSize={10}
-            formatter={(value) => <span className="text-muted-foreground text-xs">{value}</span>}
+      <PieChart>
+        <ChartTooltip
+          cursor={false}
+          content={
+            totalTasks > 0 ? (
+              <ChartTooltipContent hideLabel className="bg-popover text-popover-foreground border-border shadow-md" />
+            ) : () => null
+          }
+        />
+        <Pie
+          data={displayData}
+          cx="50%"
+          cy="50%"
+          innerRadius={50}
+          outerRadius={72}
+          paddingAngle={totalTasks > 0 ? 3 : 0}
+          dataKey="value"
+          nameKey="name"
+          strokeWidth={2}
+          stroke="var(--background)"
+        >
+          {displayData.map((entry, index) => (
+            <Cell
+              key={`cell-${index}`}
+              fill={entry.color}
+              onClick={() => handleClick(entry)}
+              className="cursor-pointer outline-hidden"
+            />
+          ))}
+          <Label
+            content={({ viewBox }) => {
+              if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                return (
+                  <text
+                    x={viewBox.cx}
+                    y={viewBox.cy}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                  >
+                    <tspan
+                      x={viewBox.cx}
+                      y={(viewBox.cy || 0) - 2}
+                      className="fill-foreground text-2xl font-extrabold font-mono tracking-tight"
+                    >
+                      {totalTasks.toLocaleString()}
+                    </tspan>
+                    <tspan
+                      x={viewBox.cx}
+                      y={(viewBox.cy || 0) + 18}
+                      className="fill-muted-foreground text-[11px] font-medium"
+                    >
+                      {t("kpi.total_tasks.label", "Công việc")}
+                    </tspan>
+                  </text>
+                );
+              }
+              return null;
+            }}
           />
-        </PieChart>
-      </ResponsiveContainer>
+        </Pie>
+      </PieChart>
     </ChartWrapper>
   );
 }
+

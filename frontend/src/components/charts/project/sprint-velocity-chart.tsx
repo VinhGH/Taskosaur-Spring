@@ -1,140 +1,157 @@
+// components/charts/project/sprint-velocity-chart.tsx
+import React, { useMemo } from "react";
 import { formatDateForDisplay } from "@/utils/date";
 import {
   LineChart,
   Line,
   XAxis,
   YAxis,
-  ResponsiveContainer,
-  Tooltip,
   CartesianGrid,
-  Legend,
 } from "recharts";
+import { ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
 import { ChartWrapper } from "../chart-wrapper";
 import { SprintVelocity } from "@/types/projects";
 import { useTranslation } from "react-i18next";
+import { TrendingUp } from "lucide-react";
 
-const chartConfig = {
+const chartConfig: ChartConfig = {
   velocity: { label: "Story Points", color: "#3B82F6" },
-  average: { label: "Average Velocity", color: "#94A3B8" },
+  average: { label: "Vận tốc TB", color: "#94A3B8" },
 };
 
 interface SprintVelocityChartProps {
   data: SprintVelocity[];
 }
 
-// Customized axis tick component
-const CustomizedAxisTick = ({ x, y, payload }: any) => {
-  return (
-    <g transform={`translate(${x},${y})`}>
-      <text x={0} y={0} dy={16} textAnchor="end" fill="#666" transform="rotate(-35)" fontSize={12}>
-        {payload.value}
-      </text>
-    </g>
-  );
-};
-
 export function SprintVelocityChart({ data }: SprintVelocityChartProps) {
   const { t } = useTranslation(["analytics"]);
 
-  const translatedConfig = {
-    velocity: { label: t("charts.sprint_velocity_trend.story_points"), color: chartConfig.velocity.color },
-    average: { label: t("charts.sprint_velocity_trend.average_velocity"), color: chartConfig.average.color },
-  };
+  const translatedConfig = useMemo<ChartConfig>(() => ({
+    velocity: {
+      label: t("charts.sprint_velocity_trend.story_points", "Story Points"),
+      color: "#3B82F6",
+    },
+    average: {
+      label: t("charts.sprint_velocity_trend.average_velocity", "Vận tốc TB"),
+      color: "#94A3B8",
+    },
+  }), [t]);
 
-  // Custom tooltip component
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-[var(--accent)] border-0 p-3 rounded-lg shadow-md">
-          <p className="font-semibold text-gray-800">{label}</p>
-          <p className="text-sm text-blue-600">
-            {`${translatedConfig.velocity.label}: ${payload[0].value}`}
-          </p>
-          {payload[1] && (
-            <p className="text-sm text-gray-500">
-              {`${translatedConfig.average.label}: ${payload[1].value}`}
-            </p>
-          )}
-        </div>
-      );
-    }
-    return null;
-  };
+  const rawData = data || [];
+  const chartData = useMemo(() => {
+    return rawData.map((sprint) => ({
+      sprint: sprint.name || "Sprint",
+      velocity: sprint.velocity || 0,
+      date: sprint.startDate ? formatDateForDisplay(sprint.startDate) : t("na"),
+    }));
+  }, [rawData, t]);
 
-  const chartData = data?.map((sprint) => ({
-    sprint: sprint.name,
-    velocity: sprint.velocity || 0,
-    date: sprint.startDate ? formatDateForDisplay(sprint.startDate) : t("na"),
-  }));
-
-  // Calculate average velocity
-  const averageVelocity =
-    chartData?.length > 0
-      ? chartData.reduce((sum, item) => sum + item.velocity, 0) / chartData.length
+  const averageVelocity = useMemo(() => {
+    return chartData.length > 0
+      ? Math.round(chartData.reduce((sum, item) => sum + item.velocity, 0) / chartData.length)
       : 0;
+  }, [chartData]);
 
-  // Add average to each data point for the line
-  const chartDataWithAverage = chartData?.map((item) => ({
-    ...item,
-    average: Math.round(averageVelocity),
-  }));
+  const chartDataWithAverage = useMemo(() => {
+    return chartData.map((item) => ({
+      ...item,
+      average: averageVelocity,
+    }));
+  }, [chartData, averageVelocity]);
 
   return (
     <ChartWrapper
-      title={t("charts.sprint_velocity_trend.title")}
-      description={t("charts.sprint_velocity_trend.description")}
+      title={t("charts.sprint_velocity_trend.title", "Xu hướng vận tốc Sprint")}
+      description={t("charts.sprint_velocity_trend.description", "Story points hoàn thành theo từng sprint")}
       config={translatedConfig}
-      className="border-[var(--border)]"
+      icon={<TrendingUp className="h-4 w-4" />}
+      footer={
+        chartData.length > 0 ? (
+          <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+            <div className="flex items-center gap-3">
+              <span>{translatedConfig.average.label}: <strong className="text-foreground font-mono">{averageVelocity} pts</strong></span>
+              <span>Tổng sprint: <strong className="text-foreground font-mono">{chartData.length}</strong></span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-[#3B82F6]" />
+                <span className="text-[11px]">{translatedConfig.velocity.label}</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-0.5 w-3 bg-[#94A3B8]" />
+                <span className="text-[11px]">{translatedConfig.average.label}</span>
+              </span>
+            </div>
+          </div>
+        ) : null
+      }
     >
-      {chartDataWithAverage && chartDataWithAverage.length > 0 ? (
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={chartDataWithAverage} margin={{ top: 5, right: 30, left: 20, bottom: 35 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="sprint" tick={<CustomizedAxisTick />} interval={0} height={60} />
-            <YAxis
-              label={{
-                value: t("charts.sprint_velocity_trend.story_points"),
-                angle: -90,
-                position: "insideLeft",
-                offset: -10,
-                style: { textAnchor: "middle" },
-              }}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend
-              verticalAlign="top"
-              height={36}
-              formatter={(value) => (
-                <span className="text-sm text-gray-700">
-                  {translatedConfig[value as keyof typeof translatedConfig]?.label || value}
-                </span>
-              )}
-            />
-            <Line
-              type="monotone"
-              dataKey="velocity"
-              name="velocity"
-              stroke={translatedConfig.velocity.color}
-              strokeWidth={3}
-              dot={{ fill: translatedConfig.velocity.color, strokeWidth: 2, r: 5 }}
-              activeDot={{ r: 7, fill: translatedConfig.velocity.color }}
-            />
-            <Line
-              type="monotone"
-              dataKey="average"
-              name="average"
-              stroke={translatedConfig.average.color}
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              dot={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+      {chartDataWithAverage.length > 0 ? (
+        <LineChart
+          accessibilityLayer
+          data={chartDataWithAverage}
+          margin={{ top: 15, right: 15, left: -15, bottom: 0 }}
+        >
+          <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-muted/30" />
+          <XAxis
+            dataKey="sprint"
+            tickLine={false}
+            axisLine={false}
+            tickMargin={8}
+            fontSize={11}
+            tickFormatter={(val: string) => (val.length > 12 ? `${val.substring(0, 10)}…` : val)}
+            tick={{ fill: "var(--foreground)" }}
+          />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            tickMargin={6}
+            fontSize={11}
+            width={30}
+            tick={{ fill: "var(--muted-foreground)" }}
+            allowDecimals={false}
+          />
+          <ChartTooltip
+            cursor={{ stroke: "var(--muted)", strokeWidth: 1 }}
+            content={
+              <ChartTooltipContent
+                className="bg-popover text-popover-foreground border-border shadow-md"
+              />
+            }
+          />
+          <Line
+            type="monotone"
+            dataKey="velocity"
+            stroke="var(--color-velocity)"
+            strokeWidth={2.5}
+            dot={{
+              fill: "var(--color-velocity)",
+              strokeWidth: 2,
+              r: 3.5,
+              stroke: "var(--background)",
+            }}
+            activeDot={{
+              r: 5.5,
+              fill: "var(--color-velocity)",
+              stroke: "var(--background)",
+              strokeWidth: 2,
+            }}
+          />
+          <Line
+            type="monotone"
+            dataKey="average"
+            stroke="var(--color-average)"
+            strokeWidth={1.5}
+            strokeDasharray="4 4"
+            dot={false}
+          />
+        </LineChart>
       ) : (
-        <div className="flex items-center justify-center h-[300px] text-muted-foreground italic">
-          {t("charts.sprint_velocity_trend.no_sprints")}
+        <div className="flex items-center justify-center h-full min-h-[195px] text-muted-foreground text-xs italic">
+          {t("charts.sprint_velocity_trend.no_sprints", "Chưa có sprint nào hoàn thành trong dự án này")}
         </div>
       )}
     </ChartWrapper>
   );
 }
+

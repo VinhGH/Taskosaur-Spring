@@ -108,8 +108,8 @@ export function ProjectPortfolioChart({ data }: ProjectPortfolioChartProps) {
           nameKey="name"
           cx="50%"
           cy="50%"
-          innerRadius={65}
-          outerRadius={92}
+          innerRadius={50}
+          outerRadius={72}
           paddingAngle={totalProjects > 0 ? 3 : 0}
           strokeWidth={2}
           stroke="var(--background)"
@@ -129,15 +129,15 @@ export function ProjectPortfolioChart({ data }: ProjectPortfolioChartProps) {
                   >
                     <tspan
                       x={viewBox.cx}
-                      y={(viewBox.cy || 0) - 4}
-                      className="fill-foreground text-3xl font-extrabold font-mono tracking-tight"
+                      y={(viewBox.cy || 0) - 2}
+                      className="fill-foreground text-2xl font-extrabold font-mono tracking-tight"
                     >
                       {totalProjects.toLocaleString()}
                     </tspan>
                     <tspan
                       x={viewBox.cx}
-                      y={(viewBox.cy || 0) + 20}
-                      className="fill-muted-foreground text-xs font-medium"
+                      y={(viewBox.cy || 0) + 18}
+                      className="fill-muted-foreground text-[11px] font-medium"
                     >
                       {t("kpi.total_projects") || "Dự án"}
                     </tspan>

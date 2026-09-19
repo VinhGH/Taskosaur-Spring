@@ -103,7 +103,7 @@ export function MemberWorkloadChart({ data }: MemberWorkloadChartProps) {
       }
     >
       {chartData.length === 0 ? (
-        <div className="flex h-full min-h-[220px] items-center justify-center text-xs text-muted-foreground">
+        <div className="flex h-full min-h-[190px] items-center justify-center text-xs text-muted-foreground">
           {t("analytics.no_analytics_data") || "Chưa có dữ liệu công việc thành viên"}
         </div>
       ) : (
@@ -111,8 +111,8 @@ export function MemberWorkloadChart({ data }: MemberWorkloadChartProps) {
           accessibilityLayer
           data={chartData}
           layout="vertical"
-          margin={{ top: 10, right: 30, left: 10, bottom: 5 }}
-          barCategoryGap="20%"
+          margin={{ top: 5, right: 30, left: 5, bottom: 0 }}
+          barCategoryGap="18%"
         >
           <CartesianGrid horizontal={false} strokeDasharray="3 3" className="stroke-muted/30" />
           <YAxis
@@ -120,9 +120,9 @@ export function MemberWorkloadChart({ data }: MemberWorkloadChartProps) {
             type="category"
             tickLine={false}
             axisLine={false}
-            tickMargin={8}
-            width={85}
-            tick={{ fontSize: 12, fill: "var(--foreground)" }}
+            tickMargin={6}
+            width={80}
+            tick={{ fontSize: 11, fill: "var(--foreground)" }}
           />
           <XAxis type="number" hide />
           <ChartTooltip

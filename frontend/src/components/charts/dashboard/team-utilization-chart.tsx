@@ -158,8 +158,8 @@ export function TeamUtilizationChart({ data: initialData }: TeamUtilizationChart
         accessibilityLayer
         data={chartData}
         layout="vertical"
-        margin={{ top: 12, right: 55, left: 10, bottom: 5 }}
-        barCategoryGap="25%"
+        margin={{ top: 6, right: 50, left: 5, bottom: 0 }}
+        barCategoryGap="20%"
       >
         <CartesianGrid horizontal={false} strokeDasharray="3 3" className="stroke-muted/30" />
         <YAxis
@@ -167,9 +167,9 @@ export function TeamUtilizationChart({ data: initialData }: TeamUtilizationChart
           type="category"
           tickLine={false}
           axisLine={false}
-          tickMargin={8}
-          width={100}
-          tick={{ fontSize: 12, fill: "var(--foreground)" }}
+          tickMargin={6}
+          width={90}
+          tick={{ fontSize: 11, fill: "var(--foreground)" }}
         />
         <XAxis type="number" hide />
         <ChartTooltip

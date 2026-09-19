@@ -1,11 +1,13 @@
 // components/charts/workspace/project-status-chart.tsx
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
-import { ChartTooltipContent } from "@/components/ui/chart";
+import React, { useMemo } from "react";
+import { PieChart, Pie, Cell, Label } from "recharts";
+import { ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
 import { ChartWrapper } from "../chart-wrapper";
 import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
+import { FolderKanban } from "lucide-react";
 
-const chartConfig = {
+const chartConfig: ChartConfig = {
   PLANNING: { label: "Planning", color: "#8B5CF6" },
   ACTIVE: { label: "Active", color: "#10B981" },
   ON_HOLD: { label: "On Hold", color: "#F59E0B" },
@@ -22,19 +24,40 @@ export function ProjectStatusChart({ data }: ProjectStatusChartProps) {
   const router = useRouter();
   const { workspaceSlug } = router.query;
 
-  const chartData = (data || []).map((item) => ({
-    name: t(`projects:status.${(item?.status || "").toLowerCase()}`, chartConfig[item?.status as keyof typeof chartConfig]?.label || item?.status || "Unknown"),
-    value: item?._count?.status ?? (item as any)?.count ?? 0,
-    color: chartConfig[item?.status as keyof typeof chartConfig]?.color || "#8B5CF6",
-    id: item?.status || "PLANNING",
-  }));
+  const rawData = data || [];
+  const chartData = useMemo(() => {
+    return rawData.map((item) => {
+      const statusKey = item?.status || "PLANNING";
+      const config = chartConfig[statusKey] || { label: statusKey, color: "#8B5CF6" };
+      const count = item?._count?.status ?? (item as any)?.count ?? 0;
+      return {
+        id: statusKey,
+        name: t(`projects:status.${statusKey.toLowerCase()}`, config.label as string || statusKey),
+        value: count,
+        color: config.color || "#8B5CF6",
+      };
+    });
+  }, [rawData, t]);
+
+  const totalProjects = useMemo(
+    () => chartData.reduce((sum, item) => sum + (item.value || 0), 0),
+    [chartData]
+  );
+
+  const displayData = useMemo(() => {
+    if (totalProjects === 0) {
+      return [{ id: "EMPTY", name: t("no_data") || "Chưa có dự án", value: 1, color: "var(--muted)" }];
+    }
+    return chartData.filter((item) => item.value > 0);
+  }, [chartData, totalProjects, t]);
 
   const handleClick = (entry: any) => {
     if (
       workspaceSlug &&
       typeof workspaceSlug === "string" &&
       /^[a-zA-Z0-9-]+$/.test(workspaceSlug) &&
-      entry?.id
+      entry?.id &&
+      entry.id !== "EMPTY"
     ) {
       router.push({
         pathname: "/[workspaceSlug]/projects",
@@ -43,68 +66,105 @@ export function ProjectStatusChart({ data }: ProjectStatusChartProps) {
     }
   };
 
-  // Custom label renderer
-  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
-    const RADIAN = Math.PI / 180;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-    return (
-      <text
-        x={x}
-        y={y}
-        fill="white"
-        textAnchor="middle"
-        dominantBaseline="central"
-        fontSize={12}
-        fontWeight="bold"
-      >
-        {`${(percent * 100).toFixed(0)}%`}
-      </text>
-    );
-  };
-
   return (
     <ChartWrapper
       title={t("widgets.project_status")}
       description={t("charts.project_status_description", "Current status breakdown of all projects")}
       config={chartConfig}
-      className="border-[var(--border)]"
+      icon={<FolderKanban className="h-4 w-4" />}
+      footer={
+        totalProjects > 0 ? (
+          <div className="flex flex-wrap items-center justify-center gap-1.5 text-xs">
+            {chartData
+              .filter((item) => item.value > 0)
+              .map((item) => {
+                const percentage =
+                  totalProjects > 0 ? Math.round((item.value / totalProjects) * 100) : 0;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleClick(item)}
+                    className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/40 border border-border/50 transition-colors hover:bg-muted/70 cursor-pointer"
+                  >
+                    <span
+                      className="h-2 w-2 rounded-full shrink-0"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="text-muted-foreground text-[11px]">{item.name}:</span>
+                    <span className="font-semibold text-foreground font-mono text-[11px]">{item.value}</span>
+                    <span className="text-[10px] text-muted-foreground font-medium">
+                      ({percentage}%)
+                    </span>
+                  </button>
+                );
+              })}
+          </div>
+        ) : null
+      }
     >
-      <ResponsiveContainer width="100%" height={300}>
-        <PieChart>
-          <Pie
-            data={chartData}
-            cx="50%"
-            cy="50%"
-            labelLine={false}
-            label={renderCustomizedLabel}
-            outerRadius={100}
-            innerRadius={60}
-            paddingAngle={2}
-            dataKey="value"
-            onClick={handleClick}
-            className="cursor-pointer outline-none"
-          >
-            {chartData?.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
-            ))}
-          </Pie>
-          <Tooltip content={<ChartTooltipContent className="bg-[var(--accent)] border-0" />} />
-          <Legend
-            verticalAlign="bottom"
-            height={36}
-            iconType="circle"
-            iconSize={10}
-            formatter={(value, entry: any) => (
-              <span key={entry} className="text-muted-foreground text-xs">
-                {value}
-              </span>
-            )}
+      <PieChart>
+        <ChartTooltip
+          cursor={false}
+          content={
+            totalProjects > 0 ? (
+              <ChartTooltipContent hideLabel className="bg-popover text-popover-foreground border-border shadow-md" />
+            ) : () => null
+          }
+        />
+        <Pie
+          data={displayData}
+          cx="50%"
+          cy="50%"
+          innerRadius={50}
+          outerRadius={72}
+          paddingAngle={totalProjects > 0 ? 3 : 0}
+          dataKey="value"
+          nameKey="name"
+          strokeWidth={2}
+          stroke="var(--background)"
+        >
+          {displayData.map((entry, index) => (
+            <Cell
+              key={`cell-${index}`}
+              fill={entry.color}
+              onClick={() => handleClick(entry)}
+              className="cursor-pointer outline-hidden"
+            />
+          ))}
+          <Label
+            content={({ viewBox }) => {
+              if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                return (
+                  <text
+                    x={viewBox.cx}
+                    y={viewBox.cy}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                  >
+                    <tspan
+                      x={viewBox.cx}
+                      y={(viewBox.cy || 0) - 2}
+                      className="fill-foreground text-2xl font-extrabold font-mono tracking-tight"
+                    >
+                      {totalProjects.toLocaleString()}
+                    </tspan>
+                    <tspan
+                      x={viewBox.cx}
+                      y={(viewBox.cy || 0) + 18}
+                      className="fill-muted-foreground text-[11px] font-medium"
+                    >
+                      {t("kpi.total_projects") || "Dự án"}
+                    </tspan>
+                  </text>
+                );
+              }
+              return null;
+            }}
           />
-        </PieChart>
-      </ResponsiveContainer>
+        </Pie>
+      </PieChart>
     </ChartWrapper>
   );
 }
+

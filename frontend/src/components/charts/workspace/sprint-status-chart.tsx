@@ -1,18 +1,20 @@
 // components/charts/workspace/sprint-status-chart.tsx
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell } from "recharts";
+import React, { useMemo } from "react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell, LabelList } from "recharts";
 import {
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
+  ChartConfig,
 } from "@/components/ui/chart";
 import { ChartWrapper } from "../chart-wrapper";
+import { useTranslation } from "react-i18next";
+import { Zap } from "lucide-react";
 
-const chartConfig = {
-  PLANNING: { label: "Planning", color: "#94A3B8" },
-  ACTIVE: { label: "Active", color: "#10B981" },
-  COMPLETED: { label: "Completed", color: "#3B82F6" },
-  CANCELLED: { label: "Cancelled", color: "#EF4444" },
+const SPRINT_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  PLANNING: { label: "Lập kế hoạch", color: "#94A3B8" },
+  ACTIVE: { label: "Đang chạy", color: "#10B981" },
+  COMPLETED: { label: "Hoàn thành", color: "#3B82F6" },
+  CANCELLED: { label: "Đã hủy", color: "#EF4444" },
 };
 
 interface SprintStatusChartProps {
@@ -20,49 +22,126 @@ interface SprintStatusChartProps {
 }
 
 export function SprintStatusChart({ data }: SprintStatusChartProps) {
-  const chartData = (data || []).map((item) => ({
-    name: chartConfig[item?.status as keyof typeof chartConfig]?.label || item?.status || "Active",
-    value: item?._count?.status ?? (item as any)?.count ?? 0,
-    color: chartConfig[item?.status as keyof typeof chartConfig]?.color || "#8B5CF6",
-  }));
+  const { t } = useTranslation(["workspace-home"]);
 
-  // Sort data by status for better visualization
+  const chartConfig = useMemo<ChartConfig>(() => {
+    return Object.entries(SPRINT_STATUS_CONFIG).reduce((acc, [key, val]) => {
+      acc[key] = {
+        label: t(`sprint_status.${key.toLowerCase()}`, val.label),
+        color: val.color,
+      };
+      return acc;
+    }, {} as ChartConfig);
+  }, [t]);
+
+  const rawData = data || [];
   const statusOrder = ["PLANNING", "ACTIVE", "COMPLETED", "CANCELLED"];
-  const sortedChartData =
-    chartData &&
-    [...chartData].sort((a, b) => {
-      return statusOrder.indexOf(a.name.toUpperCase()) - statusOrder.indexOf(b.name.toUpperCase());
+
+  const chartData = useMemo(() => {
+    const countMap = new Map<string, number>();
+    rawData.forEach((item) => {
+      const sKey = (item?.status || "").toUpperCase();
+      const count = item?._count?.status ?? (item as any)?.count ?? 0;
+      countMap.set(sKey, count);
     });
+
+    return statusOrder.map((key) => {
+      const config = SPRINT_STATUS_CONFIG[key];
+      const count = countMap.get(key) || 0;
+      return {
+        key,
+        name: t(`sprint_status.${key.toLowerCase()}`, config.label),
+        value: count,
+        color: config.color,
+      };
+    });
+  }, [rawData, t]);
+
+  const totalSprints = useMemo(
+    () => chartData.reduce((sum, item) => sum + (item.value || 0), 0),
+    [chartData]
+  );
+
+  const activeSprintCount = useMemo(
+    () => chartData.find((d) => d.key === "ACTIVE")?.value || 0,
+    [chartData]
+  );
 
   return (
     <ChartWrapper
-      title="Sprint Status Overview"
-      description="Current sprint status across projects"
+      title={t("widgets.sprint_status", "Tổng quan trạng thái Sprint")}
+      description={t("charts.sprint_status_description", "Trạng thái hiện tại của tất cả sprint")}
       config={chartConfig}
-      className="border-[var(--border)]"
+      icon={<Zap className="h-4 w-4" />}
+      footer={
+        totalSprints > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <span>Tổng Sprint:</span>
+              <strong className="text-foreground font-mono">{totalSprints}</strong>
+            </div>
+            {activeSprintCount > 0 ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                {activeSprintCount} sprint đang chạy
+              </span>
+            ) : (
+              <span className="text-[11px] text-muted-foreground font-medium">
+                Chưa có sprint đang chạy
+              </span>
+            )}
+          </div>
+        ) : null
+      }
     >
-      <ResponsiveContainer width="100%" height={350}>
-        <BarChart
-          data={sortedChartData}
-          margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-          barSize={40}
-        >
-          <XAxis dataKey="name" tickLine={true} axisLine={true} tick={{ fontSize: 12 }} />
-          <YAxis tickLine={true} axisLine={true} tick={{ fontSize: 12 }} allowDecimals={false} />
-          <ChartTooltip
-            content={
-              <ChartTooltipContent hideLabel={true} className="bg-[var(--accent)] border-0" />
-            }
-            cursor={{ fill: "rgba(0, 0, 0, 0.00)" }}
+      <BarChart
+        accessibilityLayer
+        data={chartData}
+        margin={{ top: 22, right: 12, left: -15, bottom: 0 }}
+        barCategoryGap="15%"
+      >
+        <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-muted/30" />
+        <XAxis
+          dataKey="name"
+          axisLine={false}
+          tickLine={false}
+          tickMargin={8}
+          fontSize={11}
+          fontWeight={500}
+          tick={{ fill: "var(--foreground)" }}
+        />
+        <YAxis
+          axisLine={false}
+          tickLine={false}
+          tickMargin={6}
+          fontSize={11}
+          width={30}
+          tick={{ fill: "var(--muted-foreground)" }}
+          allowDecimals={false}
+        />
+        <ChartTooltip
+          cursor={{ fill: "var(--muted)", opacity: 0.15 }}
+          content={
+            <ChartTooltipContent
+              hideLabel
+              className="bg-popover text-popover-foreground border-border shadow-md"
+            />
+          }
+        />
+        <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={42}>
+          <LabelList
+            dataKey="value"
+            position="top"
+            offset={6}
+            className="fill-foreground font-mono font-bold text-xs"
+            formatter={(val: any) => (Number(val) > 0 ? val : "")}
           />
-          <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-            {sortedChartData?.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
-            ))}
-          </Bar>
-          <ChartLegend content={<ChartLegendContent />} />
-        </BarChart>
-      </ResponsiveContainer>
+          {chartData.map((entry) => (
+            <Cell key={`cell-${entry.key}`} fill={entry.color} />
+          ))}
+        </Bar>
+      </BarChart>
     </ChartWrapper>
   );
 }
+

@@ -96,7 +96,7 @@ export function TaskDistributionChart({ data }: TaskDistributionChartProps) {
       <BarChart
         accessibilityLayer
         data={chartData}
-        margin={{ top: 25, right: 16, left: -10, bottom: 5 }}
+        margin={{ top: 20, right: 12, left: -15, bottom: 0 }}
         barCategoryGap="15%"
       >
         <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-muted/30" />
@@ -104,17 +104,17 @@ export function TaskDistributionChart({ data }: TaskDistributionChartProps) {
           dataKey="priority"
           axisLine={false}
           tickLine={false}
-          tickMargin={10}
-          fontSize={12}
+          tickMargin={8}
+          fontSize={11}
           fontWeight={500}
           tick={{ fill: "var(--foreground)" }}
         />
         <YAxis
           axisLine={false}
           tickLine={false}
-          tickMargin={8}
+          tickMargin={6}
           fontSize={11}
-          width={35}
+          width={30}
           tick={{ fill: "var(--muted-foreground)" }}
           allowDecimals={false}
         />
@@ -127,7 +127,7 @@ export function TaskDistributionChart({ data }: TaskDistributionChartProps) {
             />
           }
         />
-        <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={48}>
+        <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={40}>
           <LabelList
             dataKey="count"
             position="top"
