@@ -19,6 +19,19 @@ const chartConfig: ChartConfig = {
   average: { label: "Vận tốc TB", color: "#94A3B8" },
 };
 
+function formatSprintLabel(name: string, total: number): string {
+  if (!name) return "";
+  const match = name.match(/^(?:Sprint|Iteration|S)\s*#?(\d+)/i);
+  if (match) {
+    return total > 6 ? `S${match[1]}` : `Sprint ${match[1]}`;
+  }
+  const prefix = name.split(/[-:|]/)[0].trim();
+  if (total > 6) {
+    return prefix.length > 5 ? `${prefix.substring(0, 4)}…` : prefix;
+  }
+  return prefix.length > 10 ? `${prefix.substring(0, 8)}…` : prefix;
+}
+
 interface SprintVelocityChartProps {
   data: SprintVelocity[];
 }
@@ -90,7 +103,7 @@ export function SprintVelocityChart({ data }: SprintVelocityChartProps) {
         <LineChart
           accessibilityLayer
           data={chartDataWithAverage}
-          margin={{ top: 15, right: 15, left: -15, bottom: 0 }}
+          margin={{ top: 15, right: 18, left: 2, bottom: 0 }}
         >
           <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-muted/30" />
           <XAxis
@@ -99,7 +112,9 @@ export function SprintVelocityChart({ data }: SprintVelocityChartProps) {
             axisLine={false}
             tickMargin={8}
             fontSize={11}
-            tickFormatter={(val: string) => (val.length > 12 ? `${val.substring(0, 10)}…` : val)}
+            interval={0}
+            padding={{ left: 20, right: 20 }}
+            tickFormatter={(val: string) => formatSprintLabel(val, chartData.length)}
             tick={{ fill: "var(--foreground)" }}
           />
           <YAxis
@@ -107,7 +122,7 @@ export function SprintVelocityChart({ data }: SprintVelocityChartProps) {
             axisLine={false}
             tickMargin={6}
             fontSize={11}
-            width={30}
+            width={34}
             tick={{ fill: "var(--muted-foreground)" }}
             allowDecimals={false}
           />
@@ -116,6 +131,19 @@ export function SprintVelocityChart({ data }: SprintVelocityChartProps) {
             content={
               <ChartTooltipContent
                 className="bg-popover text-popover-foreground border-border shadow-md"
+                labelFormatter={(label, payload) => {
+                  const itemData = payload?.[0]?.payload;
+                  return (
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-semibold text-foreground">{label}</span>
+                      {itemData?.date && itemData.date !== t("na") && (
+                        <span className="text-[10px] text-muted-foreground font-normal">
+                          {itemData.date}
+                        </span>
+                      )}
+                    </div>
+                  );
+                }}
               />
             }
           />
@@ -127,11 +155,11 @@ export function SprintVelocityChart({ data }: SprintVelocityChartProps) {
             dot={{
               fill: "var(--color-velocity)",
               strokeWidth: 2,
-              r: 3.5,
+              r: chartData.length > 8 ? 2.5 : 3.5,
               stroke: "var(--background)",
             }}
             activeDot={{
-              r: 5.5,
+              r: chartData.length > 8 ? 4.5 : 5.5,
               fill: "var(--color-velocity)",
               stroke: "var(--background)",
               strokeWidth: 2,

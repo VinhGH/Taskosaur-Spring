@@ -89,7 +89,7 @@ export function TaskTypeChart({ data }: TaskTypeChartProps) {
       <BarChart
         accessibilityLayer
         data={chartData}
-        margin={{ top: 22, right: 12, left: -15, bottom: 0 }}
+        margin={{ top: 22, right: 12, left: 2, bottom: 0 }}
         barCategoryGap="18%"
       >
         <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-muted/30" />
@@ -107,7 +107,7 @@ export function TaskTypeChart({ data }: TaskTypeChartProps) {
           tickLine={false}
           tickMargin={6}
           fontSize={11}
-          width={30}
+          width={32}
           tick={{ fill: "var(--muted-foreground)" }}
           allowDecimals={false}
         />

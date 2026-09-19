@@ -56,7 +56,7 @@ export function MonthlyTaskCompletionChart({ data }: MonthlyTaskCompletionChartP
       <LineChart
         accessibilityLayer
         data={chartData}
-        margin={{ top: 15, right: 15, left: -15, bottom: 0 }}
+        margin={{ top: 15, right: 18, left: 2, bottom: 0 }}
       >
         <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-muted/30" />
         <XAxis
@@ -65,6 +65,7 @@ export function MonthlyTaskCompletionChart({ data }: MonthlyTaskCompletionChartP
           axisLine={false}
           tickMargin={8}
           fontSize={11}
+          padding={{ left: 16, right: 16 }}
           tick={{ fill: "var(--foreground)" }}
         />
         <YAxis
@@ -72,7 +73,7 @@ export function MonthlyTaskCompletionChart({ data }: MonthlyTaskCompletionChartP
           axisLine={false}
           tickMargin={6}
           fontSize={11}
-          width={30}
+          width={32}
           tick={{ fill: "var(--muted-foreground)" }}
           allowDecimals={false}
         />
