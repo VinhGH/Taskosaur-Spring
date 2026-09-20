@@ -40,6 +40,9 @@ export function SprintMetricsChart({ data }: SprintMetricsChartProps) {
           stroke="#3B82F6"
           fill="url(#colorCount)"
           fillOpacity={0.6}
+          isAnimationActive={true}
+          animationDuration={900}
+          animationEasing="ease-out"
         />
         <defs>
           <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">

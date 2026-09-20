@@ -42,14 +42,19 @@ export function WorkspaceProjectChart({ data }: WorkspaceProjectChartProps) {
       config={chartConfig}
       className="border-[var(--border)]"
     >
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={chartData}>
-          <XAxis dataKey="workspace" angle={-45} textAnchor="end" height={100} />
-          <YAxis />
-          <ChartTooltip content={<ChartTooltipContent className="border-0 bg-[var(--accent)]" />} />
-          <Bar dataKey="projects" radius={[4, 4, 0, 0]} fill="fill" />
-        </BarChart>
-      </ResponsiveContainer>
+      <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+        <XAxis dataKey="workspace" angle={-30} textAnchor="end" height={40} fontSize={11} />
+        <YAxis fontSize={11} width={30} allowDecimals={false} />
+        <ChartTooltip content={<ChartTooltipContent className="border-0 bg-[var(--accent)]" />} />
+        <Bar
+          dataKey="projects"
+          radius={[4, 4, 0, 0]}
+          fill="fill"
+          isAnimationActive={true}
+          animationDuration={900}
+          animationEasing="ease-out"
+        />
+      </BarChart>
     </ChartWrapper>
   );
 }

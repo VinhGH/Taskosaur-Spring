@@ -143,31 +143,37 @@ export function ResourceAllocationChart({ data: initialData }: ResourceAllocatio
         </Select>
       }
     >
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis
-            dataKey="role"
-            tickFormatter={(value) =>
-              t(chartConfig[value as keyof typeof chartConfig]?.label) || value
-            }
-          />
-          <YAxis />
-          <Tooltip content={<CustomTooltip t={t} />} />
-          <Legend
-            formatter={(value) => (
-              <span className="text-sm text-gray-700">
-                {t(chartConfig[value as keyof typeof chartConfig]?.label) || value}
-              </span>
-            )}
-          />
-          <Bar dataKey="count" radius={[4, 4, 0, 0]} name="role">
-            {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.fill} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <BarChart data={chartData} margin={{ top: 15, right: 20, left: 0, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" className="stroke-muted/30" />
+        <XAxis
+          dataKey="role"
+          fontSize={11}
+          tickFormatter={(value) =>
+            t(chartConfig[value as keyof typeof chartConfig]?.label) || value
+          }
+        />
+        <YAxis fontSize={11} width={30} allowDecimals={false} />
+        <Tooltip content={<CustomTooltip t={t} />} />
+        <Legend
+          formatter={(value) => (
+            <span className="text-xs text-muted-foreground">
+              {t(chartConfig[value as keyof typeof chartConfig]?.label) || value}
+            </span>
+          )}
+        />
+        <Bar
+          dataKey="count"
+          radius={[4, 4, 0, 0]}
+          name="role"
+          isAnimationActive={true}
+          animationDuration={900}
+          animationEasing="ease-out"
+        >
+          {chartData.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={entry.fill} />
+          ))}
+        </Bar>
+      </BarChart>
     </ChartWrapper>
   );
 }

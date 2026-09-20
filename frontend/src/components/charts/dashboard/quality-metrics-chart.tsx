@@ -67,6 +67,9 @@ export function QualityMetricsChart({ data }: QualityMetricsChartProps) {
             innerRadius={60}
             outerRadius={90}
             dataKey="value"
+            isAnimationActive={true}
+            animationDuration={900}
+            animationEasing="ease-out"
           >
             {gaugeData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.fill} />

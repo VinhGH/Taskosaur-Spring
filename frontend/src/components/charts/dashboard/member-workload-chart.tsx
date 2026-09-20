@@ -140,6 +140,9 @@ export function MemberWorkloadChart({ data }: MemberWorkloadChartProps) {
             fill="var(--color-activeTasks)"
             radius={[0, 4, 4, 0]}
             name={t("workload.assigned")}
+            isAnimationActive={true}
+            animationDuration={900}
+            animationEasing="ease-out"
           >
             <LabelList
               dataKey="activeTasks"
@@ -154,6 +157,9 @@ export function MemberWorkloadChart({ data }: MemberWorkloadChartProps) {
             fill="var(--color-reportedTasks)"
             radius={[0, 4, 4, 0]}
             name={t("workload.reported")}
+            isAnimationActive={true}
+            animationDuration={900}
+            animationEasing="ease-out"
           >
             <LabelList
               dataKey="reportedTasks"

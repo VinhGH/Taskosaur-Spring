@@ -91,6 +91,9 @@ export function MonthlyTaskCompletionChart({ data }: MonthlyTaskCompletionChartP
           dataKey="completion"
           stroke="var(--color-completion)"
           strokeWidth={2.5}
+          isAnimationActive={true}
+          animationDuration={900}
+          animationEasing="ease-out"
           dot={{
             fill: "var(--color-completion)",
             strokeWidth: 2,

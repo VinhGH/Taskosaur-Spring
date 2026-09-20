@@ -38,36 +38,37 @@ export function TaskTypeChart({ data }: TaskTypeChartProps) {
       config={chartConfig}
       className="border-[var(--border)]"
     >
-      <ResponsiveContainer width="100%" height={300}>
-        <PieChart>
-          <Pie
-            data={chartData}
-            cx="50%"
-            cy="50%"
-            innerRadius={60}
-            outerRadius={80}
-            paddingAngle={2}
-            dataKey="value"
-            label={({ name, value }) => `${name}: ${value}`}
-            labelLine={false}
-          >
-            {chartData?.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.fill} stroke="#fff" strokeWidth={2} />
-            ))}
-          </Pie>
-          <ChartTooltip
-            content={<ChartTooltipContent className="border-0 bg-[var(--accent)]" />}
-            wrapperStyle={{ outline: "none" }}
-          />
-          <ChartLegend
-            content={<ChartLegendContent />}
-            wrapperStyle={{
-              paddingTop: "16px",
-              fontSize: "14px",
-            }}
-          />
-        </PieChart>
-      </ResponsiveContainer>
+      <PieChart>
+        <Pie
+          data={chartData}
+          cx="50%"
+          cy="50%"
+          innerRadius={50}
+          outerRadius={70}
+          paddingAngle={2}
+          dataKey="value"
+          isAnimationActive={true}
+          animationDuration={900}
+          animationEasing="ease-out"
+          label={({ name, value }) => `${name}: ${value}`}
+          labelLine={false}
+        >
+          {chartData?.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={entry.fill} stroke="#fff" strokeWidth={2} />
+          ))}
+        </Pie>
+        <ChartTooltip
+          content={<ChartTooltipContent className="border-0 bg-[var(--accent)]" />}
+          wrapperStyle={{ outline: "none" }}
+        />
+        <ChartLegend
+          content={<ChartLegendContent />}
+          wrapperStyle={{
+            paddingTop: "8px",
+            fontSize: "12px",
+          }}
+        />
+      </PieChart>
     </ChartWrapper>
   );
 }

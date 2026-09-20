@@ -117,6 +117,9 @@ export function TaskPriorityChart({ data }: TaskPriorityChartProps) {
           nameKey="name"
           strokeWidth={2}
           stroke="var(--background)"
+          isAnimationActive={true}
+          animationDuration={900}
+          animationEasing="ease-out"
         >
           {displayData.map((entry, index) => (
             <Cell key={`cell-${index}`} fill={entry.color} />

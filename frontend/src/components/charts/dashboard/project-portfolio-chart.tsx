@@ -113,6 +113,9 @@ export function ProjectPortfolioChart({ data }: ProjectPortfolioChartProps) {
           paddingAngle={totalProjects > 0 ? 3 : 0}
           strokeWidth={2}
           stroke="var(--background)"
+          isAnimationActive={true}
+          animationDuration={900}
+          animationEasing="ease-out"
         >
           {displayData.map((entry, index) => (
             <Cell key={`cell-${index}`} fill={entry.fill} />

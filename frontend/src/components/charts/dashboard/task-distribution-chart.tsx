@@ -127,7 +127,14 @@ export function TaskDistributionChart({ data }: TaskDistributionChartProps) {
             />
           }
         />
-        <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={40}>
+        <Bar
+          dataKey="count"
+          radius={[6, 6, 0, 0]}
+          maxBarSize={40}
+          isAnimationActive={true}
+          animationDuration={900}
+          animationEasing="ease-out"
+        >
           <LabelList
             dataKey="count"
             position="top"

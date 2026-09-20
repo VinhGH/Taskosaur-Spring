@@ -140,6 +140,9 @@ export function TaskTypeChart({ data, workspaceId }: TaskTypeChartProps) {
           nameKey="name"
           strokeWidth={2}
           stroke="var(--background)"
+          isAnimationActive={true}
+          animationDuration={900}
+          animationEasing="ease-out"
         >
           {displayData.map((entry, index) => (
             <Cell

@@ -152,6 +152,9 @@ export function SprintVelocityChart({ data }: SprintVelocityChartProps) {
             dataKey="velocity"
             stroke="var(--color-velocity)"
             strokeWidth={2.5}
+            isAnimationActive={true}
+            animationDuration={900}
+            animationEasing="ease-out"
             dot={{
               fill: "var(--color-velocity)",
               strokeWidth: 2,
@@ -172,6 +175,9 @@ export function SprintVelocityChart({ data }: SprintVelocityChartProps) {
             strokeWidth={1.5}
             strokeDasharray="4 4"
             dot={false}
+            isAnimationActive={true}
+            animationDuration={900}
+            animationEasing="ease-out"
           />
         </LineChart>
       ) : (

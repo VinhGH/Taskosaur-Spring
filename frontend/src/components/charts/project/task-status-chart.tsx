@@ -148,6 +148,9 @@ export function TaskStatusChart({ data }: TaskStatusChartProps) {
           nameKey="name"
           strokeWidth={2}
           stroke="var(--background)"
+          isAnimationActive={true}
+          animationDuration={900}
+          animationEasing="ease-out"
         >
           {displayData.map((entry, index) => (
             <Cell

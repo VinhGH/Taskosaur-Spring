@@ -181,7 +181,14 @@ export function TeamUtilizationChart({ data: initialData }: TeamUtilizationChart
             />
           }
         />
-        <Bar dataKey="count" radius={[0, 6, 6, 0]} maxBarSize={28}>
+        <Bar
+          dataKey="count"
+          radius={[0, 6, 6, 0]}
+          maxBarSize={28}
+          isAnimationActive={true}
+          animationDuration={900}
+          animationEasing="ease-out"
+        >
           <LabelList
             dataKey="labelWithPercent"
             position="right"

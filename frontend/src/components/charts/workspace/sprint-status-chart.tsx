@@ -128,7 +128,14 @@ export function SprintStatusChart({ data }: SprintStatusChartProps) {
             />
           }
         />
-        <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={42}>
+        <Bar
+          dataKey="value"
+          radius={[6, 6, 0, 0]}
+          maxBarSize={42}
+          isAnimationActive={true}
+          animationDuration={900}
+          animationEasing="ease-out"
+        >
           <LabelList
             dataKey="value"
             position="top"
