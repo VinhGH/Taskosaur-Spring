@@ -110,6 +110,7 @@ public class WorkflowService {
         return taskStatusRepository.findByWorkflowIdOrderByPositionAsc(workflowId);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_charts", "org_analytics"}, allEntries = true)
     public Workflow createWorkflow(com.taskosaur.taskosaur.dto.workflow.CreateWorkflowRequest request, String userId) {
         Workflow workflow = Workflow.builder()
                 .name(request.getName().trim())
@@ -159,6 +160,7 @@ public class WorkflowService {
         taskStatusRepository.saveAll(defaultStatuses);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_charts", "org_analytics"}, allEntries = true)
     public Workflow updateWorkflow(String id, com.taskosaur.taskosaur.dto.workflow.UpdateWorkflowRequest request, String userId) {
         Workflow workflow = getWorkflowById(id);
         if (request.getName() != null && !request.getName().isBlank()) {
@@ -174,12 +176,14 @@ public class WorkflowService {
         return workflowRepository.save(workflow);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_charts", "org_analytics"}, allEntries = true)
     public void deleteWorkflow(String id) {
         Workflow workflow = getWorkflowById(id);
         taskStatusRepository.deleteAll(taskStatusRepository.findByWorkflowIdOrderByPositionAsc(id));
         workflowRepository.delete(workflow);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_charts", "org_analytics"}, allEntries = true)
     public Workflow setDefaultWorkflow(String id, String organizationId, String userId) {
         if (organizationId != null && !organizationId.isBlank()) {
             List<Workflow> orgWorkflows = workflowRepository.findByOrganizationId(organizationId);
@@ -194,6 +198,7 @@ public class WorkflowService {
         return workflowRepository.save(workflow);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_charts", "org_analytics"}, allEntries = true)
     public Workflow activateWorkflow(String id, String userId) {
         Workflow workflow = getWorkflowById(id);
         workflow.setUpdatedBy(userId);

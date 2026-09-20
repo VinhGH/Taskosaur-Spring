@@ -73,6 +73,7 @@ public class TaskStatusController {
      * Tạo mới cột trạng thái
      */
     @PostMapping
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_charts", "org_analytics"}, allEntries = true)
     public ResponseEntity<TaskStatus> createStatus(@Valid @RequestBody CreateTaskStatusRequest request) {
         String workflowId = request.getWorkflowId();
         if ((workflowId == null || workflowId.isBlank()) && request.getProjectId() != null) {
@@ -103,9 +104,10 @@ public class TaskStatusController {
      * Tạo cột trạng thái gắn liền với 1 project
      */
     @PostMapping("/from-project")
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_charts", "org_analytics"}, allEntries = true)
     public ResponseEntity<TaskStatus> createStatusFromProject(@Valid @RequestBody CreateTaskStatusFromProjectRequest request) {
         Project project = projectRepository.findById(request.getProjectId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + request.getProjectId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + request.getProjectId()));
 
         int nextPosition = request.getPosition() != null ? request.getPosition() :
                 taskStatusRepository.findByWorkflowIdOrderByPositionAsc(project.getWorkflowId()).size();
@@ -126,6 +128,7 @@ public class TaskStatusController {
      * Cập nhật thông tin cột trạng thái
      */
     @PatchMapping("/{id}")
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_charts", "org_analytics"}, allEntries = true)
     public ResponseEntity<TaskStatus> updateStatus(
             @PathVariable String id,
             @RequestBody UpdateTaskStatusRequest request
@@ -154,6 +157,7 @@ public class TaskStatusController {
      * Cập nhật thứ tự sắp xếp các cột trạng thái
      */
     @PatchMapping("/positions")
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_charts", "org_analytics"}, allEntries = true)
     public ResponseEntity<List<TaskStatus>> updatePositions(@RequestBody UpdatePositionsRequest request) {
         if (request != null && request.getStatusUpdates() != null) {
             for (UpdatePositionsRequest.PositionUpdateItem item : request.getStatusUpdates()) {
@@ -173,6 +177,7 @@ public class TaskStatusController {
      * Xóa cột trạng thái
      */
     @DeleteMapping("/{id}")
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_charts", "org_analytics"}, allEntries = true)
     public ResponseEntity<Map<String, Object>> deleteStatus(@PathVariable String id) {
         TaskStatus status = taskStatusRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task status not found with id: " + id));

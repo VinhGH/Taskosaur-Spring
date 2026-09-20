@@ -25,7 +25,7 @@ public class ProjectChartsService {
 
     @org.springframework.cache.annotation.Cacheable(
             value = "project_charts",
-            key = "#slug + '_' + (#types != null ? #types.toString() : 'all')"
+            key = "#slug + '_' + (#types != null && !#types.isEmpty() ? #types.toString() : 'all')"
     )
     public Map<String, Object> getProjectCharts(String slug, List<String> types) {
         Project project = projectRepository.findBySlug(slug)
@@ -38,24 +38,37 @@ public class ProjectChartsService {
                 : taskStatusRepository.findAll();
 
         Map<String, Object> result = new HashMap<>();
+        boolean needAll = types == null || types.isEmpty() || types.contains("all");
 
         // 1. KPI Metrics
-        result.put("kpi-metrics", calculateKpiMetrics(tasks, sprints));
+        if (needAll || types.contains("kpi-metrics")) {
+            result.put("kpi-metrics", calculateKpiMetrics(tasks, sprints));
+        }
 
         // 2. Task Status Flow
-        result.put("task-status", calculateTaskStatusFlow(tasks, allStatuses));
+        if (needAll || types.contains("task-status")) {
+            result.put("task-status", calculateTaskStatusFlow(tasks, allStatuses));
+        }
 
         // 3. Task Type Distribution
-        result.put("task-type", calculateTaskTypeDistribution(tasks));
+        if (needAll || types.contains("task-type")) {
+            result.put("task-type", calculateTaskTypeDistribution(tasks));
+        }
 
         // 4. Task Priority Distribution
-        result.put("task-priority", calculateTaskPriorityDistribution(tasks));
+        if (needAll || types.contains("task-priority")) {
+            result.put("task-priority", calculateTaskPriorityDistribution(tasks));
+        }
 
         // 5. Sprint Velocity Trend
-        result.put("sprint-velocity", calculateSprintVelocity(tasks, sprints));
+        if (needAll || types.contains("sprint-velocity")) {
+            result.put("sprint-velocity", calculateSprintVelocity(tasks, sprints));
+        }
 
         // 6. Sprint Burndown
-        result.put("burndown", calculateBurndown(tasks, sprints));
+        if (needAll || types.contains("burndown")) {
+            result.put("burndown", calculateBurndown(tasks, sprints));
+        }
 
         return result;
     }
@@ -152,26 +165,30 @@ public class ProjectChartsService {
                 .filter(t -> t.getSprintId() != null)
                 .collect(Collectors.groupingBy(Task::getSprintId));
 
-        return sprints.stream().map(s -> {
-            List<Task> sprintTasks = tasksBySprint.getOrDefault(s.getId(), List.of());
-            long velocity = sprintTasks.stream()
-                    .filter(t -> t.getCompletedAt() != null)
-                    .mapToLong(t -> t.getStoryPoints() != null ? t.getStoryPoints() : 1)
-                    .sum();
+        return sprints.stream()
+                .sorted(Comparator.comparing(Sprint::getStartDate, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(Sprint::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
+                .map(s -> {
+                    List<Task> sprintTasks = tasksBySprint.getOrDefault(s.getId(), List.of());
+                    long velocity = sprintTasks.stream()
+                            .filter(t -> t.getCompletedAt() != null)
+                            .mapToLong(t -> t.getStoryPoints() != null ? t.getStoryPoints() : 1)
+                            .sum();
 
-            Map<String, Object> item = new HashMap<>();
-            item.put("id", s.getId());
-            item.put("name", s.getName());
-            item.put("startDate", s.getStartDate());
-            item.put("endDate", s.getEndDate());
-            item.put("velocity", velocity);
-            return item;
-        }).toList();
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("id", s.getId());
+                    item.put("name", s.getName());
+                    item.put("startDate", s.getStartDate());
+                    item.put("endDate", s.getEndDate());
+                    item.put("velocity", velocity);
+                    return item;
+                }).toList();
     }
 
     private List<Map<String, Object>> calculateBurndown(List<Task> tasks, List<Sprint> sprints) {
         return tasks.stream()
                 .filter(t -> t.getSprintId() != null)
+                .sorted(Comparator.comparing(Task::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
                 .map(t -> {
                     Map<String, Object> item = new HashMap<>();
                     item.put("completedAt", t.getCompletedAt());

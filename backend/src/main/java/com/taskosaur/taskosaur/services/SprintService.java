@@ -79,6 +79,7 @@ public class SprintService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_charts", "org_analytics"}, allEntries = true)
     @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.SPRINT_CREATED, entityType = "SPRINT")
     public SprintResponse createSprint(CreateSprintRequest request, String userId) {
         Project project = null;
@@ -161,6 +162,7 @@ public class SprintService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_charts", "org_analytics"}, allEntries = true)
     public SprintResponse update(String id, UpdateSprintRequest request, String userId) {
         Sprint sprint = sprintRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint not found with id: " + id));
@@ -191,6 +193,7 @@ public class SprintService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_charts", "org_analytics"}, allEntries = true)
     @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.SPRINT_STARTED, entityType = "SPRINT")
     public SprintResponse startSprint(String id, String userId) {
         Sprint sprint = sprintRepository.findById(id)
@@ -211,6 +214,7 @@ public class SprintService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_charts", "org_analytics"}, allEntries = true)
     @com.taskosaur.taskosaur.annotations.Auditable(action = com.taskosaur.taskosaur.enums.ActivityType.SPRINT_COMPLETED, entityType = "SPRINT")
     public SprintResponse completeSprint(String id, String userId) {
         Sprint sprint = sprintRepository.findById(id)
@@ -223,6 +227,7 @@ public class SprintService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_charts", "org_analytics"}, allEntries = true)
     public void remove(String id, String userId) {
         Sprint sprint = sprintRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint not found with id: " + id));
@@ -230,6 +235,7 @@ public class SprintService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = {"project_charts", "org_analytics"}, allEntries = true)
     public void archiveSprint(String id, String userId) {
         Sprint sprint = sprintRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Sprint not found with id: " + id));

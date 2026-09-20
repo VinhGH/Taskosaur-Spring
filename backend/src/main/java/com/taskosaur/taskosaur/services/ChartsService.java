@@ -59,8 +59,7 @@ public class ChartsService {
 
         List<String> workspaceIds = workspaces.stream().map(Workspace::getId).toList();
 
-        List<Project> projects = projectRepository.findAll().stream()
-                .filter(p -> workspaceIds.contains(p.getWorkspaceId()))
+        List<Project> projects = workspaceIds.isEmpty() ? List.of() : projectRepository.findByWorkspaceIdIn(workspaceIds).stream()
                 .filter(p -> !Boolean.TRUE.equals(p.getArchive()))
                 .filter(p -> filterProjectId == null || filterProjectId.isBlank() || p.getId().equals(filterProjectId))
                 .toList();
@@ -68,16 +67,11 @@ public class ChartsService {
         List<String> projectIds = projects.stream().map(Project::getId).toList();
 
         // 2. Fetch tasks & members
-        List<Task> tasks = taskRepository.findAll().stream()
-                .filter(t -> projectIds.contains(t.getProjectId()))
-                .toList();
+        List<Task> tasks = projectIds.isEmpty() ? List.of() : taskRepository.findByProjectIdIn(projectIds);
 
         List<OrganizationMember> members = organizationMemberRepository.findByOrganizationId(orgId);
 
-        List<Sprint> sprints = sprintRepository.findAll().stream()
-                .filter(s -> projectIds.contains(s.getProjectId()))
-                .filter(s -> !Boolean.TRUE.equals(s.getArchive()))
-                .toList();
+        List<Sprint> sprints = projectIds.isEmpty() ? List.of() : sprintRepository.findByProjectIdInAndArchiveFalse(projectIds);
 
         LocalDateTime now = LocalDateTime.now();
 
