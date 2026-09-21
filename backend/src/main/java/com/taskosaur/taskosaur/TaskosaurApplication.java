@@ -23,6 +23,12 @@ public class TaskosaurApplication {
 		SpringApplication.run(TaskosaurApplication.class, args);
 	}
 
+	@jakarta.annotation.PostConstruct
+	public void init() {
+		java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"));
+		System.setProperty("user.timezone", "UTC");
+	}
+
 	private static void loadDotenv() {
 		List<String> candidatePaths = List.of(
 				".",

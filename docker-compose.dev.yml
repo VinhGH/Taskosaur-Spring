@@ -3,14 +3,14 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_USER: taskosaur
-      POSTGRES_PASSWORD: taskosaur
-      POSTGRES_DB: taskosaur
+      POSTGRES_USER: ${POSTGRES_USER:-taskosaur}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-taskosaur}
+      POSTGRES_DB: ${POSTGRES_DB:-taskosaur}
     command: postgres -c timezone=UTC
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U taskosaur" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-taskosaur}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -19,7 +19,7 @@ services:
     ports:
       - "5435:5432"
 
-  # Redis for Bull Queue
+  # Redis In-Memory Cache & Rate Limiter
   redis:
     image: redis:7
     volumes:
@@ -34,7 +34,7 @@ services:
     ports:
       - "${REDIS_PORT:-6379}:6379"
 
-  # Application (Backend + Frontend)
+  # Application (Java 25 Spring Boot Backend + Next.js Frontend)
   app:
     build:
       context: .
@@ -43,19 +43,27 @@ services:
     env_file:
       - .env
     environment:
-      # Override for Docker (uses service names instead of localhost)
-      DATABASE_URL: postgresql://taskosaur:taskosaur@postgres:5432/taskosaur
+      # Database connection for Prisma (migrations) and Spring Boot (JPA / JDBC)
+      DATABASE_URL: postgresql://${POSTGRES_USER:-taskosaur}:${POSTGRES_PASSWORD:-taskosaur}@postgres:5432/${POSTGRES_DB:-taskosaur}
+      SPRING_DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-taskosaur}?stringtype=unspecified&options=-c%20timezone%3DUTC
+      POSTGRES_USER: ${POSTGRES_USER:-taskosaur}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-taskosaur}
+      POSTGRES_DB: ${POSTGRES_DB:-taskosaur}
       REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SERVER_PORT: 3000
+      FRONTEND_URL: http://localhost:3001
+      CORS_ORIGIN: http://localhost:3001,http://127.0.0.1:3001
       # Frontend environment variable for API connection
       NEXT_PUBLIC_API_BASE_URL: http://localhost:3000/api
     ports:
-      - "3000:3000" # Backend
-      - "3001:3001" # Frontend
+      - "3000:3000" # Backend (Spring Boot)
+      - "3001:3001" # Frontend (Next.js)
     volumes:
       - .:/app
       - /app/node_modules
-      - /app/backend/node_modules
       - /app/frontend/node_modules
+      - /app/backend/target
       - app_uploads:/app/uploads
     depends_on:
       postgres:

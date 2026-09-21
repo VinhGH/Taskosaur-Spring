@@ -74,6 +74,10 @@ public class JwtService {
         return extractAllClaims(token).get("email", String.class);
     }
 
+    public String extractRole(String token) {
+        return extractAllClaims(token).get("role", String.class);
+    }
+
     public boolean isTokenValid(String token) {
         try {
             Date expiration = extractAllClaims(token).getExpiration();

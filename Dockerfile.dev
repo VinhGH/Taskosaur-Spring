@@ -1,29 +1,39 @@
-# Use Node.js 22 on Debian slim for faster development
-FROM node:22.21.0-slim
+# Multi-runtime development image: Eclipse Temurin Java 25 + Node.js 22 LTS on Ubuntu Noble
+FROM eclipse-temurin:25-jdk-noble
 
-# Update npm to latest version
-RUN npm install -g npm@latest
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Install dependencies for Prisma and other tools
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    openssl \
     ca-certificates \
     curl \
+    gnupg \
+    openssl \
     netcat-openbsd \
     postgresql-client \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 22 LTS via NodeSource
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && npm install -g npm@latest \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Set working directory
 WORKDIR /app
 
-# Copy application code first (needed for postinstall script)
+# Copy application code
 COPY . .
 
-# Install dependencies
+# Ensure maven wrapper is executable
+RUN chmod +x backend/mvnw || true
+
+# Install npm dependencies
 RUN npm install
 
-# Copy and set permissions for entrypoint script
+# Copy entrypoint script and ensure execution permissions
 COPY docker/entrypoint-dev.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
@@ -31,7 +41,7 @@ RUN chmod +x /entrypoint.sh
 RUN npm run db:generate || true
 
 # Expose ports
-# 3000 - Backend (NestJS)
+# 3000 - Backend (Java 25 Spring Boot)
 # 3001 - Frontend (Next.js)
 EXPOSE 3000 3001
 
