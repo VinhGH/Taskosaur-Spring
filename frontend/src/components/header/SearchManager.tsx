@@ -1,455 +1,698 @@
-import React, { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
-import { HiMagnifyingGlass, HiXMark } from "react-icons/hi2";
-import { Button } from "../ui";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useRouter } from "next/router";
+import { useTheme } from "next-themes";
+import { useTranslation } from "react-i18next";
+import {
+  Search,
+  PlusCircle,
+  FolderPlus,
+  Sparkles,
+  Sun,
+  Moon,
+  Languages,
+  LayoutDashboard,
+  Building2,
+  FolderKanban,
+  CheckSquare,
+  Activity,
+  Settings,
+  User,
+  Shield,
+  Loader2,
+  Layers,
+  ArrowRight,
+  TrendingUp,
+} from "lucide-react";
+import {
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandShortcut,
+  CommandSeparator,
+} from "@/components/ui/command";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import Tooltip from "../common/ToolTip";
 import { useOrganization } from "@/contexts/organization-context";
+import { useWorkspaceContext } from "@/contexts/workspace-context";
+import { useChatContext } from "@/contexts/chat-context";
+import { useAuth } from "@/contexts/auth-context";
 import { TokenManager } from "@/lib/api";
-import { useRouter } from "next/router";
+import { cn } from "@/lib/utils";
 
+interface SearchManagerProps {
+  onOpenNewTask?: () => void;
+  onOpenNewProject?: () => void;
+  className?: string;
+}
 
-const SearchManager = () => {
+export const SearchManager: React.FC<SearchManagerProps> = ({
+  onOpenNewTask,
+  onOpenNewProject,
+  className,
+}) => {
   const router = useRouter();
+  const { resolvedTheme, setTheme } = useTheme();
+  const { t, i18n } = useTranslation(["common", "header"]);
+  const { universalSearch } = useOrganization();
+  const { currentWorkspace } = useWorkspaceContext();
+  const { toggleChat } = useChatContext() || {};
+  const { getCurrentUser, updateUser } = useAuth();
+
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [results, setResults] = useState([]);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [page, setPage] = useState(1);
-  const [totalResults, setTotalResults] = useState(0);
+  const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const inputRef = useRef(null);
-  const resultsRef = useRef(null);
+  const [isMac, setIsMac] = useState(false);
 
-  // Context variables
-  const { universalSearch } = useOrganization();
   const currentOrganizationId = TokenManager.getCurrentOrgId();
-  const PAGE_SIZE = 10;
+  const currentUser = getCurrentUser();
+  const isAdmin = currentUser?.role === "SUPER_ADMIN" || currentUser?.role === "OWNER";
+  const activeWorkspaceSlug = currentWorkspace?.slug || (router.query.workspaceSlug as string) || "";
+
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const paginatedResults = results;
-  const totalPages = Math.ceil(totalResults / PAGE_SIZE);
+  // OS Detection for Ctrl vs ⌘
+  useEffect(() => {
+    if (typeof navigator !== "undefined") {
+      setIsMac(/(Mac|iPhone|iPod|iPad)/i.test(navigator.platform || navigator.userAgent));
+    }
+  }, []);
 
-  // Fetch results with deferred search term and page
+  // Global Ctrl + K / Cmd + K shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Debounced Universal Search
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (abortRef.current) abortRef.current.abort();
+
     const trimmed = searchTerm.trim();
-    if (trimmed === "" || !currentOrganizationId) {
-        setResults([]);
-        setSelectedIndex(0);
-        setError(null);
-        setTotalResults(0);
-        setLoading(false);
-      return;
-    }
-    if (trimmed.length < 2) {
+    if (trimmed.length < 2 || !currentOrganizationId) {
       setResults([]);
-      setSelectedIndex(0);
-      setError("Query must be at least 2 characters long");
-      setTotalResults(0);
       setLoading(false);
       return;
     }
 
+    setLoading(true);
     debounceRef.current = setTimeout(async () => {
       const controller = new AbortController();
       abortRef.current = controller;
-
-      setLoading(true);
-      setError(null);
-
       try {
-        const response = await universalSearch(trimmed, currentOrganizationId, page, PAGE_SIZE);
+        const response = await universalSearch(trimmed, currentOrganizationId, 1, 20);
         if (!controller.signal.aborted) {
           setResults(response?.results || []);
-          setTotalResults(response?.total || (response?.results?.length ?? 0));
-          setSelectedIndex(0);
         }
-      } catch (err) {
+      } catch {
         if (!controller.signal.aborted) {
-          setError(err instanceof Error ? err.message : "Search failed");
           setResults([]);
-          setTotalResults(0);
         }
       } finally {
         if (!controller.signal.aborted) {
           setLoading(false);
         }
       }
-    }, 300);
+    }, 250);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [searchTerm, currentOrganizationId, universalSearch, page]);
+  }, [searchTerm, currentOrganizationId, universalSearch]);
 
-  // Reset page when searchTerm changes
-  useEffect(() => {
-    setPage(1);
-  }, [searchTerm]);
-
-  // Handle opening the search
   const openSearch = () => {
-    setIsOpen(true);
     setSearchTerm("");
     setResults([]);
-    setSelectedIndex(0);
-    setPage(1);
-    setError(null);
-
-    const mainContent = document.getElementById("main-app") || document.body;
-    mainContent.style.filter = "blur(8px)";
-    mainContent.style.transition = "filter 0.3s ease-out";
+    setLoading(false);
+    setIsOpen(true);
   };
 
-  // Handle closing the search
   const closeSearch = () => {
     setIsOpen(false);
     setSearchTerm("");
     setResults([]);
-    setSelectedIndex(0);
-    setPage(1);
-    setError(null);
-
-    // Remove blur effect
-    const mainContent = document.getElementById("main-app") || document.body;
-    mainContent.style.filter = "none";
+    setLoading(false);
   };
 
-  const getWorkspaceSlug = (workspaceName) => {
-    return workspaceName.toLowerCase().replace(/\s+/g, "-");
+  const getWorkspaceSlug = (workspaceName: string) => {
+    return (workspaceName || "workspace").toLowerCase().replace(/\s+/g, "-");
   };
 
-  const handleResultSelect = (result) => {
-    let navigationUrl = result.url;
+  const handleResultSelect = (result: any) => {
+    closeSearch();
+    let targetUrl = result.url;
 
-    // Map different result types to correct frontend routes
     switch (result.type) {
       case "task":
-        if (result.context.workspace && result.context.project) {
-          const workspaceSlug = getWorkspaceSlug(result.context.workspace.name);
-          const projectSlug = result.context.project.slug;
-          navigationUrl = `/${workspaceSlug}/${projectSlug}/tasks/${result.slug}`;
+        if (result.context?.workspace && result.context?.project) {
+          const wsSlug = getWorkspaceSlug(result.context.workspace.name);
+          const prjSlug = result.context.project.slug;
+          targetUrl = `/${wsSlug}/${prjSlug}/tasks/${result.slug}`;
         } else {
-          navigationUrl = `/tasks/${result.slug}`;
+          targetUrl = `/tasks/${result.slug}`;
         }
-        router.push(navigationUrl);
-        closeSearch();
         break;
       case "project":
-        if (result.context.workspace) {
-          const workspaceSlug = getWorkspaceSlug(result.context.workspace.name);
-          const projectSlug = result.context.project.slug;
-          navigationUrl = `/${workspaceSlug}/${projectSlug}`;
+        if (result.context?.workspace) {
+          const wsSlug = getWorkspaceSlug(result.context.workspace.name);
+          const prjSlug = result.context.project.slug;
+          targetUrl = `/${wsSlug}/${prjSlug}`;
+        } else {
+          targetUrl = `/projects`;
         }
-        router.push(navigationUrl);
-        closeSearch();
         break;
       case "workspace":
-        const workspaceSlug = getWorkspaceSlug(result.title);
-        navigationUrl = `/${workspaceSlug}`;
-        router.push(navigationUrl);
-        closeSearch();
+        const wsSlug = getWorkspaceSlug(result.title);
+        targetUrl = `/${wsSlug}`;
         break;
       case "sprint":
-        if (result.context.workspace && result.context.project) {
-          const workspaceSlug = getWorkspaceSlug(result.context.workspace.name);
-          const projectSlug = result.context.project.slug;
-          navigationUrl = `/${workspaceSlug}/${projectSlug}/sprints/${result.metadata?.slug || result.slug || result.id}`;
+        if (result.context?.workspace && result.context?.project) {
+          const wsSlug = getWorkspaceSlug(result.context.workspace.name);
+          const prjSlug = result.context.project.slug;
+          const sprintSlug = result.metadata?.slug || result.slug || result.id;
+          targetUrl = `/${wsSlug}/${prjSlug}/sprints/${sprintSlug}`;
         }
-        router.push(navigationUrl);
-        closeSearch();
         break;
       case "user":
-        closeSearch();
+        targetUrl = `/settings/profile`;
         break;
       default:
-        router.push(navigationUrl);
-        closeSearch();
+        break;
+    }
+
+    if (targetUrl) {
+      router.push(targetUrl);
     }
   };
 
-  // Handle keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (!isOpen) return;
-
-      switch (e.key) {
-        case "Escape":
-          closeSearch();
-          break;
-        case "ArrowDown":
-          e.preventDefault();
-          setSelectedIndex((prev) => Math.min(prev + 1, paginatedResults.length - 1));
-          break;
-        case "ArrowUp":
-          e.preventDefault();
-          setSelectedIndex((prev) => Math.max(prev - 1, 0));
-          break;
-        case "Enter":
-          e.preventDefault();
-          if (paginatedResults[selectedIndex]) {
-            handleResultSelect(paginatedResults[selectedIndex]);
-          }
-          break;
-        default:
-          break;
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener("keydown", handleKeyDown);
-      // Focus input when opened
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 150);
-    }
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen, paginatedResults, selectedIndex]);
-
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
+  const handleCreateTask = () => {
+    closeSearch();
+    if (onOpenNewTask) {
+      onOpenNewTask();
     } else {
-      document.body.style.overflow = "unset";
-    }
-
-    return () => {
-      document.body.style.overflow = "unset";
-      const mainContent = document.getElementById("main-app") || document.body;
-      mainContent.style.filter = "none";
-    };
-  }, [isOpen]);
-
-  // Scroll selected item into view
-  useEffect(() => {
-    if (resultsRef.current && paginatedResults.length > 0) {
-      const selectedElement = resultsRef.current.children[selectedIndex];
-      if (selectedElement) {
-        selectedElement.scrollIntoView({ block: "nearest" });
-      }
-    }
-  }, [selectedIndex]);
-
-  // Global shortcut handler
-  useEffect(() => {
-    const handleGlobalShortcut = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        if (!isOpen) openSearch();
-      }
-    };
-    window.addEventListener("keydown", handleGlobalShortcut);
-    return () => window.removeEventListener("keydown", handleGlobalShortcut);
-  }, [isOpen]);
-
-  // Get icon for result type
-  const getResultIcon = (type) => {
-    switch (type) {
-      case "workspace":
-        return "🏢";
-      case "project":
-        return "📁";
-      case "task":
-        return "✅";
-      case "user":
-        return "👤";
-      case "sprint":
-        return "🏃";
-      case "comment":
-        return "💬";
-      case "label":
-        return "🏷️";
-      default:
-        return "🔍";
+      window.dispatchEvent(new CustomEvent("taskosaur:open-new-task"));
     }
   };
 
+  const handleCreateProject = () => {
+    closeSearch();
+    if (onOpenNewProject) {
+      onOpenNewProject();
+    } else {
+      window.dispatchEvent(new CustomEvent("taskosaur:open-new-project"));
+    }
+  };
 
-  const searchOverlay = (
-    <div
-      className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
-      style={{ zIndex: 9999 }}
-      onClick={closeSearch}
-    >
-      {/* Search Container */}
-      <div
-        className="w-full min-h-[50vh] max-w-2xl bg-[var(--card)]/95 backdrop-blur-xl rounded-xl shadow-2xl border border-[var(--border)]/50 animate-in slide-in-from-top-4 duration-500 flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Search Input Section */}
-        <div className="flex items-center px-4 py-3 border-b border-[var(--border)]/30 text-xs">
-          <HiMagnifyingGlass className="header-mode-toggle-icon text-[var(--muted-foreground)] mr-2 flex-shrink-0" />
-          <input
-            ref={inputRef}
-            type="text"
-            placeholder="Search anything..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 bg-transparent text-sm text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none"
-          />
-          {/* Loading spinner when searching */}
-          {loading && (
-            <div className="ml-2 animate-spin h-4 w-4 border-2 border-[var(--primary)] border-t-transparent rounded-full" />
-          )}
-          {/* Clear button when searchTerm is not empty and not loading */}
-          {searchTerm && (
-            <button
-              onClick={() => {
-                setSearchTerm("");
-                setResults([]);
-                setSelectedIndex(0);
-                setPage(1);
-                setError(null);
-              }}
-              className="ml-2 p-1 rounded-lg hover:bg-[var(--accent)]/50 transition-colors duration-200 text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-              aria-label="Clear search"
-            >
-              <HiXMark className="w-4 h-4" />
-            </button>
-          )}
-        </div>
+  const handleOpenAI = () => {
+    closeSearch();
+    if (toggleChat) {
+      toggleChat();
+    }
+  };
 
-        {/* Results Section */}
-        <div className="max-h-80 min-h-[200px] overflow-y-auto flex-1 flex flex-col">
-          {loading && results.length === 0 && (
-            <div className="flex flex-col items-center justify-center flex-1 px-4 py-8 text-center text-[var(--muted-foreground)]">
-              <div className="text-4xl mb-2 opacity-50">⏳</div>
-              <div className="text-sm font-medium mb-1">Searching...</div>
-            </div>
-          )}
-          {/* Error state */}
-          {error && !loading && (
-            <div className="flex flex-col items-center justify-center flex-1 px-4 py-8 text-center text-[var(--muted-foreground)]">
-              <div className="text-4xl mb-2 opacity-80 text-red-500">❌</div>
-              <div className="text-base font-medium mb-1">{error}</div>
-            </div>
-          )}
-          {/* No results state */}
-          {searchTerm && !loading && !error && results.length === 0 && (
-            <div className="flex flex-col items-center justify-center flex-1 px-4 py-8 text-center text-[var(--muted-foreground)]">
-              <div className="text-4xl mb-2 opacity-50">🔍</div>
-              <div className="text-sm font-medium mb-1">No results found</div>
-              <div className="text-xs">Try a different search term</div>
-            </div>
-          )}
-          {/* Results list */}
-          {!error && paginatedResults.length > 0 && (
-            <div ref={resultsRef} className="py-1 w-full flex flex-col justify-start items-stretch">
-              {paginatedResults.map((result, index) => (
-                <div
-                  key={result.id || index}
-                  className={`flex items-center px-4 py-1 cursor-pointer transition-all duration-150 border-l-4 ${
-                    index === selectedIndex
-                      ? "bg-[var(--accent)] border-[var(--primary)] text-[var(--accent-foreground)]"
-                      : "border-transparent hover:bg-[var(--accent)]/30 text-[var(--foreground)]"
-                  }`}
-                  onClick={() => handleResultSelect(result)}
-                  style={{ minHeight: "32px" }}
-                >
-                  <span className="text-base mr-2 flex-shrink-0 cursor-pointer">
-                    {getResultIcon(result.type)}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate text-[14px] cursor-pointer">
-                      {result.title}
-                    </div>
-                    <div className="text-[13px] opacity-70 truncate">
-                      {result.context?.workspace?.name && `${result.context.workspace.name} • `}
-                      {result.context?.project?.name && `${result.context.project.name} • `}
-                      {result.type}
-                    </div>
-                  </div>
-                  <div className="text-xs opacity-50 ml-2 cursor-pointer">
-                    {index === selectedIndex ? "↵" : `⌘${index + 1}`}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {/* Empty state */}
-          {searchTerm === "" && !loading && !error && (
-            <div className="flex flex-col items-center justify-center flex-1 px-4 py-8 text-center text-[var(--muted-foreground)]">
-              <div className="text-5xl mb-2 opacity-60">✨</div>
-              <div className="text-base font-medium mb-1 text-[var(--foreground)]">
-                Spotlight Search
-              </div>
-              <div className="text-xs mb-2">Start typing to search across your workspace</div>
-              <div className="text-xs opacity-50 flex items-center gap-2 mt-2">
-                <span className="inline-flex items-center gap-1 bg-[var(--muted)]/30 px-1 py-0.5 rounded">
-                  <span>⌘K to open</span>
-                </span>
-                <span className="mx-1">•</span>
-                <span className="inline-flex items-center gap-1 bg-[var(--muted)]/30 px-1 py-0.5 rounded">
-                  <span>ESC to close</span>
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
+  const handleToggleTheme = () => {
+    closeSearch();
+    setTheme(resolvedTheme === "dark" ? "light" : "dark");
+  };
 
-        {/* Footer */}
-        <div
-          className="px-4 py-2 border-t border-[var(--border)]/30 bg-[var(--muted)]/20 rounded-b-xl flex items-center justify-between text-xs text-[var(--muted-foreground)]"
-          style={{ minHeight: "48px", maxHeight: "48px", height: "48px" }}
-        >
-          {totalPages > 1 ? (
-            <div className="flex items-center gap-4">
-              <button
-                className="px-2 py-1 text-xs rounded bg-[var(--muted)]/30 hover:bg-[var(--muted)]/50 disabled:opacity-50"
-                onClick={() => setPage(page - 1)}
-                disabled={page === 1 || loading}
-                aria-label="Previous page"
-              >
-                ←
-              </button>
+  const handleToggleLanguage = async () => {
+    closeSearch();
+    const nextLang = i18n.language === "vi" ? "en" : "vi";
+    await i18n.changeLanguage(nextLang);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("i18nextLng", nextLang);
+    }
+    if (currentUser?.id) {
+      try {
+        await updateUser(currentUser.id, { language: nextLang });
+      } catch {}
+    }
+  };
 
-              <span className="text-xs">
-                {page} / {totalPages}
-              </span>
+  const navigateTo = (url: string) => {
+    closeSearch();
+    router.push(url);
+  };
 
-              <button
-                className="px-2 py-1 text-xs rounded bg-[var(--muted)]/30 hover:bg-[var(--muted)]/50 disabled:opacity-50"
-                onClick={() => setPage(page + 1)}
-                disabled={page === totalPages || loading}
-                aria-label="Next page"
-              >
-                →
-              </button>
-            </div>
-          ) : (
-            <div style={{ width: "96px" }} />
-          )}
+  // Group search results
+  const groupedResults = useMemo(() => {
+    const tasks = results.filter((r) => r.type === "task");
+    const projects = results.filter((r) => r.type === "project");
+    const workspaces = results.filter((r) => r.type === "workspace");
+    const sprints = results.filter((r) => r.type === "sprint");
+    const users = results.filter((r) => r.type === "user");
+    return { tasks, projects, workspaces, sprints, users };
+  }, [results]);
 
-          <span className="flex items-center gap-1">
-            <span className="bg-[var(--muted)]/30 px-1 py-0.5 rounded">ESC</span>
-            close
-          </span>
-        </div>
-      </div>
-    </div>
-  );
+  const hasSearchResults = results.length > 0;
+  const isSearchActive = searchTerm.trim().length >= 2;
 
   return (
     <>
-      <Tooltip content="Search" position="bottom" color="primary">
+      <Tooltip
+        content={isMac ? "Tìm kiếm (⌘K)" : "Tìm kiếm (Ctrl + K)"}
+        position="bottom"
+        color="primary"
+      >
         <Button
           onClick={openSearch}
-          variant="ghost"
-          size="icon"
-          aria-label="Search"
-          className="header-mode-toggle"
+          variant="outline"
+          size="sm"
+          className={cn(
+            "h-8 w-8 p-0 sm:w-44 lg:w-56 sm:justify-between sm:px-2.5 rounded-lg border-border/60 bg-muted/30 hover:bg-muted/70 text-muted-foreground hover:text-foreground text-xs shadow-none transition-all",
+            className
+          )}
+          aria-label={isMac ? "Tìm kiếm (⌘K)" : "Tìm kiếm (Ctrl + K)"}
         >
-          <HiMagnifyingGlass className="header-mode-toggle-icon" />
-          <span className="hidden max-[530px]:inline-block text-sm font-medium">Search</span>
+          <div className="flex items-center gap-1.5 truncate">
+            <Search className="h-3.5 w-3.5 shrink-0 opacity-70" />
+            <span className="hidden sm:inline-block truncate font-normal">
+              {t("search_placeholder", "Tìm kiếm...")}
+            </span>
+          </div>
+          <kbd className="pointer-events-none hidden sm:inline-flex h-4 select-none items-center gap-0.5 rounded border border-border/70 bg-background/80 px-1 font-mono text-[9px] font-semibold text-muted-foreground">
+            <span className="text-[10px]">{isMac ? "⌘" : "Ctrl"}</span>K
+          </kbd>
         </Button>
       </Tooltip>
-      {isOpen && createPortal(searchOverlay, document.body)}
+
+      <CommandDialog
+        open={isOpen}
+        onOpenChange={setIsOpen}
+        title={t("command_palette_title", "Command Palette")}
+        description={t("command_palette_desc", "Tìm kiếm và thực thi tác vụ nhanh")}
+        shouldFilter={!hasSearchResults}
+        className="max-w-2xl border-border/80 bg-card/95 backdrop-blur-xl shadow-2xl rounded-xl"
+      >
+        <CommandInput
+          placeholder={t("command_input_placeholder", "Nhập tên việc, dự án, hoặc gõ hành động...")}
+          value={searchTerm}
+          onValueChange={setSearchTerm}
+        />
+
+        <CommandList className="max-h-[380px] p-2">
+          {loading && (
+            <div className="flex items-center justify-center py-6 text-xs text-muted-foreground gap-2">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <span>{t("searching", "Đang tìm kiếm...")}</span>
+            </div>
+          )}
+
+          {!loading && isSearchActive && results.length === 0 && (
+            <CommandEmpty className="py-8 text-center text-xs text-muted-foreground space-y-1">
+              <p className="font-medium text-foreground">
+                {t("no_results_found", "Không tìm thấy kết quả phù hợp")}
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                {t("try_different_search", "Thử tìm kiếm với từ khóa khác hoặc sử dụng thao tác nhanh bên dưới")}
+              </p>
+            </CommandEmpty>
+          )}
+
+          {/* 1. KẾT QUẢ TÌM KIẾM ĐA NĂNG (UNIVERSAL SEARCH RESULTS) */}
+          {hasSearchResults && (
+            <>
+              {groupedResults.projects.length > 0 && (
+                <CommandGroup heading={t("projects", "Dự án")}>
+                  {groupedResults.projects.map((proj) => (
+                    <CommandItem
+                      key={proj.id || proj.slug}
+                      onSelect={() => handleResultSelect(proj)}
+                      className="cursor-pointer py-2 px-2.5"
+                    >
+                      <div className="p-1 rounded-md bg-blue-500/10 text-blue-500 shrink-0 mr-2">
+                        <FolderKanban className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-xs truncate text-foreground">
+                          {proj.title}
+                        </div>
+                        {proj.context?.workspace?.name && (
+                          <div className="text-[11px] text-muted-foreground truncate">
+                            {proj.context.workspace.name}
+                          </div>
+                        )}
+                      </div>
+                      <Badge variant="outline" className="text-[10px] text-blue-500 border-blue-500/30 font-normal">
+                        Project
+                      </Badge>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+
+              {groupedResults.tasks.length > 0 && (
+                <CommandGroup heading={t("tasks", "Công việc")}>
+                  {groupedResults.tasks.map((task) => (
+                    <CommandItem
+                      key={task.id || task.slug}
+                      onSelect={() => handleResultSelect(task)}
+                      className="cursor-pointer py-2 px-2.5"
+                    >
+                      <div className="p-1 rounded-md bg-emerald-500/10 text-emerald-500 shrink-0 mr-2">
+                        <CheckSquare className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-xs truncate text-foreground">
+                          {task.title}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground truncate">
+                          {task.context?.workspace?.name && `${task.context.workspace.name} • `}
+                          {task.context?.project?.name && `${task.context.project.name}`}
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] text-emerald-500 border-emerald-500/30 font-normal">
+                        Task
+                      </Badge>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+
+              {groupedResults.sprints.length > 0 && (
+                <CommandGroup heading="Sprints">
+                  {groupedResults.sprints.map((sprint) => (
+                    <CommandItem
+                      key={sprint.id || sprint.slug}
+                      onSelect={() => handleResultSelect(sprint)}
+                      className="cursor-pointer py-2 px-2.5"
+                    >
+                      <div className="p-1 rounded-md bg-amber-500/10 text-amber-500 shrink-0 mr-2">
+                        <TrendingUp className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-xs truncate text-foreground">
+                          {sprint.title}
+                        </div>
+                        {sprint.context?.project?.name && (
+                          <div className="text-[11px] text-muted-foreground truncate">
+                            {sprint.context.project.name}
+                          </div>
+                        )}
+                      </div>
+                      <Badge variant="outline" className="text-[10px] text-amber-500 border-amber-500/30 font-normal">
+                        Sprint
+                      </Badge>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+
+              {groupedResults.workspaces.length > 0 && (
+                <CommandGroup heading={t("workspaces", "Không gian làm việc")}>
+                  {groupedResults.workspaces.map((ws) => (
+                    <CommandItem
+                      key={ws.id || ws.slug}
+                      onSelect={() => handleResultSelect(ws)}
+                      className="cursor-pointer py-2 px-2.5"
+                    >
+                      <div className="p-1 rounded-md bg-purple-500/10 text-purple-500 shrink-0 mr-2">
+                        <Building2 className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-xs truncate text-foreground">
+                          {ws.title}
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] text-purple-500 border-purple-500/30 font-normal">
+                        Workspace
+                      </Badge>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+
+              {groupedResults.users.length > 0 && (
+                <CommandGroup heading={t("members", "Thành viên")}>
+                  {groupedResults.users.map((user) => (
+                    <CommandItem
+                      key={user.id}
+                      onSelect={() => handleResultSelect(user)}
+                      className="cursor-pointer py-2 px-2.5"
+                    >
+                      <div className="p-1 rounded-md bg-sky-500/10 text-sky-500 shrink-0 mr-2">
+                        <User className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-xs truncate text-foreground">
+                          {user.title}
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] text-sky-500 border-sky-500/30 font-normal">
+                        User
+                      </Badge>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              <CommandSeparator className="my-2" />
+            </>
+          )}
+
+          {/* 2. THAO TÁC NHANH (QUICK ACTIONS) */}
+          <CommandGroup heading={t("quick_actions", "Thao tác nhanh")}>
+            <CommandItem
+              onSelect={handleCreateTask}
+              value="tạo công việc mới new task create task add task"
+              className="cursor-pointer py-2 px-2.5"
+            >
+              <div className="p-1 rounded-md bg-primary/10 text-primary shrink-0 mr-2">
+                <PlusCircle className="h-4 w-4" />
+              </div>
+              <span className="flex-1 text-xs text-foreground font-medium">
+                {t("new_task", "Tạo công việc mới")}
+              </span>
+              <CommandShortcut className="font-mono text-[10px] bg-muted/80 px-1.5 py-0.5 rounded border border-border/60">
+                C
+              </CommandShortcut>
+            </CommandItem>
+
+            <CommandItem
+              onSelect={handleCreateProject}
+              value="tạo dự án mới new project create project"
+              className="cursor-pointer py-2 px-2.5"
+            >
+              <div className="p-1 rounded-md bg-blue-500/10 text-blue-500 shrink-0 mr-2">
+                <FolderPlus className="h-4 w-4" />
+              </div>
+              <span className="flex-1 text-xs text-foreground font-medium">
+                {t("new_project", "Tạo dự án mới")}
+              </span>
+              <CommandShortcut className="font-mono text-[10px] bg-muted/80 px-1.5 py-0.5 rounded border border-border/60">
+                P
+              </CommandShortcut>
+            </CommandItem>
+
+            <CommandItem
+              onSelect={handleOpenAI}
+              value="mở trợ lý ai chat taskosaur ai assistant"
+              className="cursor-pointer py-2 px-2.5"
+            >
+              <div className="p-1 rounded-md bg-violet-500/10 text-violet-500 shrink-0 mr-2">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <span className="flex-1 text-xs text-foreground font-medium">
+                {t("open_ai_assistant", "Mở Trợ lý AI Taskosaur")}
+              </span>
+              <CommandShortcut className="font-mono text-[10px] bg-muted/80 px-1.5 py-0.5 rounded border border-border/60">
+                A
+              </CommandShortcut>
+            </CommandItem>
+
+            <CommandItem
+              onSelect={handleToggleTheme}
+              value="đổi giao diện theme dark light tối sáng"
+              className="cursor-pointer py-2 px-2.5"
+            >
+              <div className="p-1 rounded-md bg-amber-500/10 text-amber-500 shrink-0 mr-2">
+                {resolvedTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </div>
+              <span className="flex-1 text-xs text-foreground font-medium">
+                {resolvedTheme === "dark"
+                  ? t("switch_to_light", "Chuyển sang giao diện Sáng")
+                  : t("switch_to_dark", "Chuyển sang giao diện Tối")}
+              </span>
+              <CommandShortcut className="font-mono text-[10px] bg-muted/80 px-1.5 py-0.5 rounded border border-border/60">
+                T
+              </CommandShortcut>
+            </CommandItem>
+
+            <CommandItem
+              onSelect={handleToggleLanguage}
+              value="đổi ngôn ngữ language tiếng việt english tieng viet"
+              className="cursor-pointer py-2 px-2.5"
+            >
+              <div className="p-1 rounded-md bg-emerald-500/10 text-emerald-500 shrink-0 mr-2">
+                <Languages className="h-4 w-4" />
+              </div>
+              <span className="flex-1 text-xs text-foreground font-medium">
+                {i18n.language === "vi"
+                  ? "Chuyển ngôn ngữ sang English"
+                  : "Chuyển ngôn ngữ sang Tiếng Việt"}
+              </span>
+              <CommandShortcut className="font-mono text-[10px] bg-muted/80 px-1.5 py-0.5 rounded border border-border/60">
+                L
+              </CommandShortcut>
+            </CommandItem>
+          </CommandGroup>
+
+          <CommandSeparator className="my-2" />
+
+          {/* 3. ĐIỀU HƯỚNG NHANH (NAVIGATION) */}
+          <CommandGroup heading={t("navigation", "Điều hướng nhanh")}>
+            <CommandItem
+              onSelect={() => navigateTo("/dashboard")}
+              value="bảng điều khiển dashboard tổng quan"
+              className="cursor-pointer py-2 px-2.5"
+            >
+              <div className="p-1 rounded-md bg-muted text-muted-foreground shrink-0 mr-2">
+                <LayoutDashboard className="h-4 w-4" />
+              </div>
+              <span className="flex-1 text-xs text-foreground">
+                {t("dashboard", "Bảng điều khiển")}
+              </span>
+              <ArrowRight className="h-3 w-3 text-muted-foreground opacity-50" />
+            </CommandItem>
+
+            <CommandItem
+              onSelect={() => navigateTo(activeWorkspaceSlug ? `/${activeWorkspaceSlug}` : "/workspaces")}
+              value="không gian làm việc workspace tong quan"
+              className="cursor-pointer py-2 px-2.5"
+            >
+              <div className="p-1 rounded-md bg-muted text-muted-foreground shrink-0 mr-2">
+                <Building2 className="h-4 w-4" />
+              </div>
+              <span className="flex-1 text-xs text-foreground">
+                {t("workspace_overview", "Tổng quan Không gian làm việc")}
+              </span>
+              <ArrowRight className="h-3 w-3 text-muted-foreground opacity-50" />
+            </CommandItem>
+
+            <CommandItem
+              onSelect={() =>
+                navigateTo(activeWorkspaceSlug ? `/${activeWorkspaceSlug}/projects` : "/projects")
+              }
+              value="danh sách dự án projects"
+              className="cursor-pointer py-2 px-2.5"
+            >
+              <div className="p-1 rounded-md bg-muted text-muted-foreground shrink-0 mr-2">
+                <FolderKanban className="h-4 w-4" />
+              </div>
+              <span className="flex-1 text-xs text-foreground">
+                {t("projects", "Dự án")}
+              </span>
+              <ArrowRight className="h-3 w-3 text-muted-foreground opacity-50" />
+            </CommandItem>
+
+            <CommandItem
+              onSelect={() =>
+                navigateTo(activeWorkspaceSlug ? `/${activeWorkspaceSlug}/tasks` : "/tasks")
+              }
+              value="danh sách công việc tasks viec can lam"
+              className="cursor-pointer py-2 px-2.5"
+            >
+              <div className="p-1 rounded-md bg-muted text-muted-foreground shrink-0 mr-2">
+                <CheckSquare className="h-4 w-4" />
+              </div>
+              <span className="flex-1 text-xs text-foreground">
+                {t("tasks", "Công việc")}
+              </span>
+              <ArrowRight className="h-3 w-3 text-muted-foreground opacity-50" />
+            </CommandItem>
+
+            <CommandItem
+              onSelect={() =>
+                navigateTo(activeWorkspaceSlug ? `/${activeWorkspaceSlug}/activities` : "/activities")
+              }
+              value="nhật ký hoạt động activities lịch sử"
+              className="cursor-pointer py-2 px-2.5"
+            >
+              <div className="p-1 rounded-md bg-muted text-muted-foreground shrink-0 mr-2">
+                <Activity className="h-4 w-4" />
+              </div>
+              <span className="flex-1 text-xs text-foreground">
+                {t("activities", "Nhật ký hoạt động")}
+              </span>
+              <ArrowRight className="h-3 w-3 text-muted-foreground opacity-50" />
+            </CommandItem>
+
+            <CommandItem
+              onSelect={() => navigateTo("/settings/profile")}
+              value="hồ sơ cá nhân profile user account"
+              className="cursor-pointer py-2 px-2.5"
+            >
+              <div className="p-1 rounded-md bg-muted text-muted-foreground shrink-0 mr-2">
+                <User className="h-4 w-4" />
+              </div>
+              <span className="flex-1 text-xs text-foreground">
+                {t("profile", "Hồ sơ cá nhân")}
+              </span>
+              <ArrowRight className="h-3 w-3 text-muted-foreground opacity-50" />
+            </CommandItem>
+
+            <CommandItem
+              onSelect={() => navigateTo("/settings")}
+              value="cài đặt tổ chức organization settings"
+              className="cursor-pointer py-2 px-2.5"
+            >
+              <div className="p-1 rounded-md bg-muted text-muted-foreground shrink-0 mr-2">
+                <Settings className="h-4 w-4" />
+              </div>
+              <span className="flex-1 text-xs text-foreground">
+                {t("settings", "Cài đặt tổ chức")}
+              </span>
+              <ArrowRight className="h-3 w-3 text-muted-foreground opacity-50" />
+            </CommandItem>
+
+            {isAdmin && (
+              <CommandItem
+                onSelect={() => navigateTo("/admin")}
+                value="quản trị hệ thống admin panel"
+                className="cursor-pointer py-2 px-2.5"
+              >
+                <div className="p-1 rounded-md bg-muted text-muted-foreground shrink-0 mr-2">
+                  <Shield className="h-4 w-4" />
+                </div>
+                <span className="flex-1 text-xs text-foreground">
+                  {t("admin_panel", "Quản trị hệ thống")}
+                </span>
+                <ArrowRight className="h-3 w-3 text-muted-foreground opacity-50" />
+              </CommandItem>
+            )}
+          </CommandGroup>
+        </CommandList>
+
+        {/* FOOTER STATUS BAR WITH KEYBOARD SHORTCUTS */}
+        <div className="flex items-center justify-between border-t border-border/50 px-4 py-2 text-[11px] text-muted-foreground bg-muted/20">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1">
+              <kbd className="rounded border border-border/70 bg-muted px-1 py-0.5 font-mono text-[9px]">↑</kbd>
+              <kbd className="rounded border border-border/70 bg-muted px-1 py-0.5 font-mono text-[9px]">↓</kbd>
+              <span className="ml-0.5">{t("navigate", "Di chuyển")}</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className="rounded border border-border/70 bg-muted px-1.5 py-0.5 font-mono text-[9px]">↵</kbd>
+              <span className="ml-0.5">{t("select", "Chọn")}</span>
+            </span>
+          </div>
+          <span className="flex items-center gap-1">
+            <kbd className="rounded border border-border/70 bg-muted px-1.5 py-0.5 font-mono text-[9px]">ESC</kbd>
+            <span className="ml-0.5">{t("close", "Đóng")}</span>
+          </span>
+        </div>
+      </CommandDialog>
     </>
   );
 };

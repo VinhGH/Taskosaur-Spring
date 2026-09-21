@@ -126,6 +126,19 @@ export default function Header() {
     };
   }, [currentUser]);
 
+  // Listen for global command palette action events
+  useEffect(() => {
+    const handleOpenNewTask = () => setShowNewTaskModal(true);
+    const handleOpenNewProject = () => setShowNewProjectModal(true);
+    window.addEventListener("taskosaur:open-new-task", handleOpenNewTask);
+    window.addEventListener("taskosaur:open-new-project", handleOpenNewProject);
+
+    return () => {
+      window.removeEventListener("taskosaur:open-new-task", handleOpenNewTask);
+      window.removeEventListener("taskosaur:open-new-project", handleOpenNewProject);
+    };
+  }, []);
+
   const pathname = router.pathname;
   const pathParts = pathname?.split("/").filter(Boolean);
 
@@ -244,7 +257,10 @@ export default function Header() {
     {
       component: (
         <div className="search-manager-header">
-          <SearchManager />
+          <SearchManager
+            onOpenNewTask={() => setShowNewTaskModal(true)}
+            onOpenNewProject={() => setShowNewProjectModal(true)}
+          />
         </div>
       ),
     },
