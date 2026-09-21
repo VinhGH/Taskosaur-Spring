@@ -432,28 +432,68 @@ public class OrganizationService {
         );
     }
 
+    private String removeDiacritics(String text) {
+        if (text == null) return "";
+        String nfd = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD);
+        return nfd.replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+                .replace("đ", "d")
+                .replace("Đ", "D")
+                .toLowerCase()
+                .trim();
+    }
+
     public Map<String, Object> universalSearch(String query, String organizationId) {
         if (query == null || query.isBlank()) {
-            return Map.of("tasks", List.of(), "projects", List.of(), "workspaces", List.of());
+            return Map.of("results", List.of(), "total", 0, "tasks", List.of(), "projects", List.of(), "workspaces", List.of());
         }
         String lower = query.toLowerCase().trim();
+        String normalizedQuery = removeDiacritics(lower);
+
         List<Workspace> workspaces = workspaceRepository.findAll().stream()
                 .filter(w -> (organizationId == null || organizationId.isBlank() || organizationId.equals(w.getOrganizationId()))
-                        && w.getName() != null && w.getName().toLowerCase().contains(lower))
+                        && w.getName() != null && (w.getName().toLowerCase().contains(lower) || removeDiacritics(w.getName()).contains(normalizedQuery)))
                 .limit(10)
                 .toList();
 
         List<Project> projects = projectRepository.findAll().stream()
-                .filter(p -> p.getName() != null && p.getName().toLowerCase().contains(lower))
+                .filter(p -> p.getName() != null && (p.getName().toLowerCase().contains(lower) || removeDiacritics(p.getName()).contains(normalizedQuery)))
                 .limit(10)
                 .toList();
 
         List<Task> tasks = taskRepository.findAll().stream()
-                .filter(t -> t.getTitle() != null && t.getTitle().toLowerCase().contains(lower))
+                .filter(t -> t.getTitle() != null && (t.getTitle().toLowerCase().contains(lower) || removeDiacritics(t.getTitle()).contains(normalizedQuery)))
                 .limit(10)
                 .toList();
 
+        List<Map<String, Object>> unifiedResults = new java.util.ArrayList<>();
+        for (Project p : projects) {
+            unifiedResults.add(Map.of(
+                    "id", p.getId(),
+                    "slug", p.getSlug() != null ? p.getSlug() : p.getId(),
+                    "title", p.getName(),
+                    "type", "project"
+            ));
+        }
+        for (Task t : tasks) {
+            unifiedResults.add(Map.of(
+                    "id", t.getId(),
+                    "slug", t.getSlug() != null ? t.getSlug() : t.getId(),
+                    "title", t.getTitle(),
+                    "type", "task"
+            ));
+        }
+        for (Workspace w : workspaces) {
+            unifiedResults.add(Map.of(
+                    "id", w.getId(),
+                    "slug", w.getSlug() != null ? w.getSlug() : w.getId(),
+                    "title", w.getName(),
+                    "type", "workspace"
+            ));
+        }
+
         return Map.of(
+                "results", unifiedResults,
+                "total", unifiedResults.size(),
                 "workspaces", workspaces,
                 "projects", projects,
                 "tasks", tasks
