@@ -259,11 +259,30 @@ const safeRedirect = (url: string): void => {
   try {
     if (typeof window !== "undefined") {
       const currentPath = window.location.pathname;
-      const publicPaths = ["/login", "/register", "/forgot-password", "/reset-password", "/404", "/public", "/setup"];
+      const publicPaths = [
+        "/",
+        "/login",
+        "/register",
+        "/forgot-password",
+        "/reset-password",
+        "/terms-of-service",
+        "/privacy-policy",
+        "/404",
+        "/public",
+        "/setup",
+        "/invite",
+      ];
 
       // Don't redirect if already on a public page or 404
       // Use some() with startsWith to catch sub-routes like /public/task/...
-      if (!publicPaths.some((path) => currentPath === path || currentPath.startsWith(path + "/") || currentPath.startsWith(path))) {
+      const isPublicPath = publicPaths.some((path) => {
+        if (path === "/") {
+          return currentPath === "/";
+        }
+        return currentPath === path || currentPath.startsWith(path + "/");
+      });
+
+      if (!isPublicPath) {
         // Use replace to avoid back button issues
         window.location.replace(url);
       }
@@ -644,7 +663,9 @@ export const apiUtils = {
       console.warn("Logout API call failed:", error);
     } finally {
       TokenManager.clearTokens();
-      safeRedirect("/login");
+      if (typeof window !== "undefined") {
+        window.location.replace("/");
+      }
     }
   },
 

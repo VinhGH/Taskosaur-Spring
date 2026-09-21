@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import api from "@/lib/api";
+import api, { TokenManager } from "@/lib/api";
 import { socketService } from "@/lib/socket";
 import { SocketEvents } from "@/types/socket";
 
@@ -25,6 +25,9 @@ export const PresenceProvider: React.FC<PresenceProviderProps> = ({ children }) 
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
 
   const fetchOnlineUsers = useCallback(async () => {
+    if (typeof window !== "undefined" && !TokenManager.getAccessToken()) {
+      return;
+    }
     try {
       const response = await api.get<{ onlineUserIds: string[]; count: number }>("/presence/online");
       if (response.data && Array.isArray(response.data.onlineUserIds)) {
@@ -36,7 +39,9 @@ export const PresenceProvider: React.FC<PresenceProviderProps> = ({ children }) 
   }, []);
 
   useEffect(() => {
-    fetchOnlineUsers();
+    if (typeof window !== "undefined" && TokenManager.getAccessToken()) {
+      fetchOnlineUsers();
+    }
 
     const handleUserOnline = (data: any) => {
       if (data?.userId) {
