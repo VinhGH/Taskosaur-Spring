@@ -19,9 +19,9 @@ import com.taskosaur.taskosaur.repositories.ProjectRepository;
 import com.taskosaur.taskosaur.repositories.TaskAssigneeRepository;
 import com.taskosaur.taskosaur.repositories.UserRepository;
 import com.taskosaur.taskosaur.repositories.WorkspaceRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,7 +34,6 @@ import java.util.Set;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class NotificationService {
 
@@ -46,6 +45,26 @@ public class NotificationService {
     private final WorkspaceRepository workspaceRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
     private final AiChatService aiChatService;
+
+    public NotificationService(
+            NotificationRepository notificationRepository,
+            WebSocketEventService webSocketEventService,
+            EmailService emailService,
+            UserRepository userRepository,
+            ProjectRepository projectRepository,
+            WorkspaceRepository workspaceRepository,
+            TaskAssigneeRepository taskAssigneeRepository,
+            @Lazy AiChatService aiChatService
+    ) {
+        this.notificationRepository = notificationRepository;
+        this.webSocketEventService = webSocketEventService;
+        this.emailService = emailService;
+        this.userRepository = userRepository;
+        this.projectRepository = projectRepository;
+        this.workspaceRepository = workspaceRepository;
+        this.taskAssigneeRepository = taskAssigneeRepository;
+        this.aiChatService = aiChatService;
+    }
 
     @Value("${app.frontend-url:http://localhost:3001}")
     private String frontendUrl;

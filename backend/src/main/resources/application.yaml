@@ -3,6 +3,8 @@ server:
   forward-headers-strategy: framework
 
 spring:
+  main:
+    allow-circular-references: true
   datasource:
     url: ${SPRING_DATABASE_URL:jdbc:postgresql://localhost:5435/taskosaur?stringtype=unspecified&options=-c%20timezone%3DUTC}
     username: ${POSTGRES_USER:taskosaur}
