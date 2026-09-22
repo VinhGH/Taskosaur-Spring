@@ -1054,6 +1054,23 @@ public class AiChatService {
         }
     }
 
+    public String generateCatchupSummary(String prompt, String userId) {
+        try {
+            String apiKey = getEffectiveApiKey(userId);
+            if (apiKey == null || apiKey.isBlank()) {
+                return null;
+            }
+            List<ChatMessageDto> messages = List.of(
+                    ChatMessageDto.builder().role("system").content("You are an executive notification digest assistant for Taskosaur. Provide crisp, professional, friendly Vietnamese summaries with bullet highlights.").build(),
+                    ChatMessageDto.builder().role("user").content(prompt).build()
+            );
+            return callLlmDirect(messages, apiKey, getEffectiveApiUrl(userId), getEffectiveModel(userId), 600);
+        } catch (Exception e) {
+            log.warn("Failed to generate AI catchup summary with LLM: {}", e.getMessage());
+            return null;
+        }
+    }
+
     public BreakdownTaskResponseDto breakdownTask(BreakdownTaskDto dto, String userId) {
         try {
             String apiKey = getEffectiveApiKey(userId);

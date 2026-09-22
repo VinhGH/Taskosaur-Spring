@@ -1,5 +1,6 @@
 import api from "@/lib/api";
 import {
+  AiCatchupResponse,
   Notification,
   NotificationFilters,
   NotificationPriority,
@@ -32,6 +33,10 @@ export const notificationApi = {
 
       if (filters.type) {
         params.append("type", filters.type);
+      }
+
+      if (filters.category) {
+        params.append("category", filters.category);
       }
 
       if (filters.organizationId) {
@@ -437,6 +442,10 @@ export const notificationApi = {
         params.append("type", filters.type);
       }
 
+      if (filters.category) {
+        params.append("category", filters.category);
+      }
+
       if (filters.priority) {
         params.append("priority", filters.priority);
       }
@@ -462,6 +471,40 @@ export const notificationApi = {
       return response.data;
     } catch (error) {
       console.error("Failed to fetch user-organization notifications:", error);
+      throw error;
+    }
+  },
+
+  // Get AI Catchup / Smart Digest for notifications
+  getAiCatchup: async (organizationId?: string): Promise<AiCatchupResponse> => {
+    try {
+      const response = await api.post<AiCatchupResponse>("/notifications/ai-catchup", {
+        organizationId: organizationId || undefined,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to fetch AI catchup:", error);
+      return {
+        success: false,
+        unreadCount: 0,
+        urgentCount: 0,
+        summary: "Không thể kết nối dịch vụ tóm tắt AI. Vui lòng kiểm tra lại sau.",
+        highlights: [],
+        suggestedActions: [],
+      };
+    }
+  },
+
+  // Quick reply comment on task from notification
+  quickReplyComment: async (taskId: string, content: string): Promise<any> => {
+    try {
+      const response = await api.post("/task-comments", {
+        taskId,
+        content,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Failed to post quick reply comment:", error);
       throw error;
     }
   },

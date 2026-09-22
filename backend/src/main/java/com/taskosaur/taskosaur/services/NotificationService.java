@@ -1,5 +1,6 @@
 package com.taskosaur.taskosaur.services;
 
+import com.taskosaur.taskosaur.dto.notification.AiCatchupResponseDto;
 import com.taskosaur.taskosaur.dto.notification.CreateNotificationParams;
 import com.taskosaur.taskosaur.dto.notification.NotificationResponse;
 import com.taskosaur.taskosaur.enums.NotificationPriority;
@@ -26,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -43,6 +45,7 @@ public class NotificationService {
     private final ProjectRepository projectRepository;
     private final WorkspaceRepository workspaceRepository;
     private final TaskAssigneeRepository taskAssigneeRepository;
+    private final AiChatService aiChatService;
 
     @Value("${app.frontend-url:http://localhost:3001}")
     private String frontendUrl;
@@ -65,9 +68,47 @@ public class NotificationService {
     }
 
     public List<NotificationResponse> getUserNotifications(String userId) {
-        return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
-                .map(this::buildResponse)
-                .toList();
+        return getUserNotifications(userId, null, null, null);
+    }
+
+    public List<NotificationResponse> getUserNotifications(String userId, String organizationId, String category, Boolean isRead) {
+        List<Notification> all;
+        if (organizationId != null && !organizationId.isBlank()) {
+            if (Boolean.FALSE.equals(isRead)) {
+                all = notificationRepository.findByUserIdAndOrganizationIdAndIsReadFalseOrderByCreatedAtDesc(userId, organizationId);
+            } else {
+                all = notificationRepository.findByUserIdAndOrganizationIdOrderByCreatedAtDesc(userId, organizationId);
+            }
+        } else {
+            if (Boolean.FALSE.equals(isRead)) {
+                all = notificationRepository.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(userId);
+            } else {
+                all = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
+            }
+        }
+
+        if (isRead != null) {
+            all = all.stream().filter(n -> Boolean.valueOf(n.getIsRead()).equals(isRead)).toList();
+        }
+
+        if (category != null && !category.isBlank() && !"all".equalsIgnoreCase(category)) {
+            all = all.stream().filter(n -> matchesCategory(n, category)).toList();
+        }
+
+        return all.stream().map(this::buildResponse).toList();
+    }
+
+    private boolean matchesCategory(Notification n, String category) {
+        if (n == null) return false;
+        String cat = category.toLowerCase().trim();
+        return switch (cat) {
+            case "unread" -> Boolean.FALSE.equals(n.getIsRead());
+            case "assigned" -> n.getType() == NotificationType.TASK_ASSIGNED || n.getType() == NotificationType.WORKSPACE_INVITED;
+            case "urgent" -> n.getPriority() == NotificationPriority.URGENT || n.getPriority() == NotificationPriority.HIGH || n.getType() == NotificationType.TASK_DUE_SOON;
+            case "discussions", "comments" -> n.getType() == NotificationType.TASK_COMMENTED || n.getType() == NotificationType.MENTION;
+            case "system" -> n.getType() == NotificationType.PROJECT_CREATED || n.getType() == NotificationType.PROJECT_UPDATED || n.getType() == NotificationType.SYSTEM;
+            default -> true;
+        };
     }
 
     public List<NotificationResponse> getUnreadNotifications(String userId) {
@@ -78,6 +119,129 @@ public class NotificationService {
 
     public long getUnreadCount(String userId) {
         return notificationRepository.countByUserIdAndIsReadFalse(userId);
+    }
+
+    public long getUnreadCount(String userId, String organizationId) {
+        if (organizationId != null && !organizationId.isBlank()) {
+            return notificationRepository.countByUserIdAndOrganizationIdAndIsReadFalse(userId, organizationId);
+        }
+        return getUnreadCount(userId);
+    }
+
+    public AiCatchupResponseDto generateAiCatchup(String userId, String organizationId) {
+        List<Notification> unreadList;
+        if (organizationId != null && !organizationId.isBlank()) {
+            unreadList = notificationRepository.findByUserIdAndOrganizationIdAndIsReadFalseOrderByCreatedAtDesc(userId, organizationId);
+        } else {
+            unreadList = notificationRepository.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(userId);
+        }
+
+        if (unreadList.isEmpty()) {
+            if (organizationId != null && !organizationId.isBlank()) {
+                unreadList = notificationRepository.findByUserIdAndOrganizationIdOrderByCreatedAtDesc(userId, organizationId)
+                        .stream().limit(10).toList();
+            } else {
+                unreadList = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId)
+                        .stream().limit(10).toList();
+            }
+        }
+
+        if (unreadList.isEmpty()) {
+            return AiCatchupResponseDto.builder()
+                    .success(true)
+                    .unreadCount(0)
+                    .urgentCount(0)
+                    .summary("Tuyệt vời! Bạn không có thông báo nào chưa đọc lúc này. Tất cả công việc đang trong tầm kiểm soát!")
+                    .highlights(List.of("Mọi thông báo đã được xử lý gọn gàng.", "Sẵn sàng cho các đầu việc mới!"))
+                    .suggestedActions(List.of())
+                    .build();
+        }
+
+        int urgentCount = 0;
+        List<String> highlights = new ArrayList<>();
+        List<AiCatchupResponseDto.SuggestedActionDto> suggestedActions = new ArrayList<>();
+
+        StringBuilder digestContext = new StringBuilder();
+        for (int i = 0; i < Math.min(unreadList.size(), 15); i++) {
+            Notification n = unreadList.get(i);
+            boolean isUrgent = n.getPriority() == NotificationPriority.URGENT || n.getPriority() == NotificationPriority.HIGH || n.getType() == NotificationType.TASK_DUE_SOON;
+            if (isUrgent) {
+                urgentCount++;
+            }
+            digestContext.append(String.format("- [%s] %s: %s (Priority: %s)\n",
+                    n.getType(), n.getTitle(), n.getMessage(), n.getPriority()));
+
+            if (isUrgent && suggestedActions.stream().noneMatch(a -> "VIEW_URGENT".equals(a.getActionType()))) {
+                highlights.add(String.format("⚡ Khẩn cấp: %s", n.getTitle()));
+                suggestedActions.add(AiCatchupResponseDto.SuggestedActionDto.builder()
+                        .id("act_urgent")
+                        .label("Xem việc khẩn cấp")
+                        .actionType("VIEW_URGENT")
+                        .targetUrl(n.getActionUrl())
+                        .entityId(n.getEntityId())
+                        .entityType(n.getEntityType())
+                        .build());
+            } else if (n.getType() == NotificationType.WORKSPACE_INVITED && suggestedActions.stream().noneMatch(a -> "ACCEPT_INVITE".equals(a.getActionType()))) {
+                highlights.add(String.format("🚀 Lời mời: %s", n.getTitle()));
+                suggestedActions.add(AiCatchupResponseDto.SuggestedActionDto.builder()
+                        .id("act_invite")
+                        .label("Xử lý lời mời")
+                        .actionType("ACCEPT_INVITE")
+                        .targetUrl(n.getActionUrl())
+                        .entityId(n.getEntityId())
+                        .entityType("workspace")
+                        .build());
+            } else if ((n.getType() == NotificationType.TASK_COMMENTED || n.getType() == NotificationType.MENTION) && highlights.size() < 3) {
+                highlights.add(String.format("💬 Thảo luận: %s", n.getTitle()));
+            } else if (n.getType() == NotificationType.TASK_ASSIGNED && highlights.size() < 3) {
+                highlights.add(String.format("📌 Giao việc: %s", n.getTitle()));
+            }
+        }
+
+        if (suggestedActions.stream().noneMatch(a -> "MARK_ALL_READ".equals(a.getActionType()))) {
+            suggestedActions.add(AiCatchupResponseDto.SuggestedActionDto.builder()
+                    .id("act_mark_all")
+                    .label("Đánh dấu tất cả đã đọc")
+                    .actionType("MARK_ALL_READ")
+                    .build());
+        }
+
+        String summary = null;
+        try {
+            String prompt = String.format("""
+                Dưới đây là danh sách các thông báo công việc gần đây của người dùng trong hệ thống Taskosaur:
+                %s
+                
+                Hãy viết một tóm tắt siêu ngắn gọn (khoảng 2 câu, tối đa 50 từ) bằng tiếng Việt thật tự nhiên, phong cách chuyên nghiệp, giúp người dùng nắm được ngay điều cần làm nhất hôm nay. Không dùng markdown rườm rà.
+                """, digestContext.toString());
+
+            summary = aiChatService.generateCatchupSummary(prompt, userId);
+        } catch (Exception e) {
+            log.warn("AI generation failed for catchup: {}", e.getMessage());
+        }
+
+        if (summary == null || summary.isBlank()) {
+            if (urgentCount > 0) {
+                summary = String.format("Bạn có %d thông báo chưa đọc, trong đó có %d việc quan trọng cần ưu tiên giải quyết.",
+                        unreadList.size(), urgentCount);
+            } else {
+                summary = String.format("Bạn có %d thông báo mới từ đồng nghiệp và hệ thống. Các công việc đang tiến triển bình thường.",
+                        unreadList.size());
+            }
+        }
+
+        if (highlights.isEmpty()) {
+            highlights.add(String.format("Đang có %d cập nhật mới cần bạn xem qua.", unreadList.size()));
+        }
+
+        return AiCatchupResponseDto.builder()
+                .success(true)
+                .unreadCount(unreadList.size())
+                .urgentCount(urgentCount)
+                .summary(summary.trim())
+                .highlights(highlights)
+                .suggestedActions(suggestedActions)
+                .build();
     }
 
     public void markAsRead(String id, String userId) {

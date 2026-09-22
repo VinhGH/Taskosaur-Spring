@@ -53,6 +53,10 @@ export interface NotificationFilters {
   isRead?: boolean;
   type?: NotificationType;
   organizationId?: string;
+  category?: string;
+  priority?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface NotificationResponse {
@@ -83,4 +87,30 @@ export interface NotificationStats {
 export interface RecentNotificationsResponse {
   notifications: Notification[];
   count: number;
+}
+
+export type NotificationCategory =
+  | "all"
+  | "unread"
+  | "assigned"
+  | "urgent"
+  | "discussions"
+  | "starred";
+
+export interface AiCatchupAction {
+  id: string;
+  label: string;
+  actionType: string;
+  targetUrl?: string;
+  entityId?: string;
+  entityType?: string;
+}
+
+export interface AiCatchupResponse {
+  success: boolean;
+  unreadCount: number;
+  urgentCount: number;
+  summary: string;
+  highlights: string[];
+  suggestedActions: AiCatchupAction[];
 }

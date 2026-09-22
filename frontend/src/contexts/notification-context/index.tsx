@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { notificationApi } from "@/utils/api/notificationApi";
-import { Notification } from "@/types";
+import { AiCatchupResponse, Notification } from "@/types";
 import { useOrganization } from "@/contexts/organization-context";
 import { useAuth } from "@/contexts/auth-context";
 import { socketService } from "@/lib/socket";
@@ -25,6 +25,16 @@ interface NotificationContextType extends NotificationState {
   deleteNotification: (notificationId: string) => Promise<void>;
   // For syncing when other components change state
   refreshNotifications: () => Promise<void>;
+  // Modern Smart Features
+  isDnd: boolean;
+  toggleDnd: () => void;
+  starredIds: string[];
+  toggleStar: (id: string) => void;
+  isStarred: (id: string) => boolean;
+  aiCatchup: AiCatchupResponse | null;
+  isCatchupLoading: boolean;
+  fetchAiCatchup: () => Promise<AiCatchupResponse | null>;
+  playNotificationSound: (isUrgent?: boolean) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -37,25 +47,39 @@ export const useNotification = () => {
   return context;
 };
 
-function playEmergencyChime() {
+// Modern, pleasant harmonic chime using Web Audio API
+function playHarmonicChime(isUrgent = false) {
   if (typeof window === "undefined") return;
   try {
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.35);
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.35);
+
+    // Harmonic triad: C5 (523.25Hz), E5 (659.25Hz), G5 (783.99Hz)
+    // Urgent: D5 (587.33Hz), G5 (783.99Hz), C6 (1046.5Hz)
+    const notes = isUrgent ? [587.33, 783.99, 1046.5] : [523.25, 659.25, 783.99];
+
+    notes.forEach((freq, index) => {
+      const startTime = ctx.currentTime + index * 0.07;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = isUrgent ? "triangle" : "sine";
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      const maxGain = isUrgent ? 0.16 : 0.12;
+      gain.gain.setValueAtTime(0.001, startTime);
+      gain.gain.exponentialRampToValueAtTime(maxGain, startTime + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.35);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(startTime);
+      osc.stop(startTime + 0.36);
+    });
   } catch (e) {
-    // Audio context may be restricted by browser policy before first interaction
+    // Audio context may be restricted by browser policy before first user interaction
   }
 }
 
@@ -100,6 +124,82 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     notification: null,
   });
 
+  // Do Not Disturb mode
+  const [isDnd, setIsDnd] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("taskosaur_dnd_enabled") === "true";
+    }
+    return false;
+  });
+
+  const toggleDnd = useCallback(() => {
+    setIsDnd((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("taskosaur_dnd_enabled", String(next));
+      }
+      if (next) {
+        toast.info("Đã bật chế độ Không làm phiền (DND)");
+      } else {
+        toast.success("Đã tắt chế độ Không làm phiền");
+      }
+      return next;
+    });
+  }, []);
+
+  // Starred notifications state
+  const [starredIds, setStarredIds] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("taskosaur_starred_notifications");
+        return saved ? JSON.parse(saved) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  });
+
+  const toggleStar = useCallback((id: string) => {
+    setStarredIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id];
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("taskosaur_starred_notifications", JSON.stringify(next));
+        } catch (e) {}
+      }
+      return next;
+    });
+  }, []);
+
+  const isStarred = useCallback((id: string) => starredIds.includes(id), [starredIds]);
+
+  // AI Catchup state
+  const [aiCatchup, setAiCatchup] = useState<AiCatchupResponse | null>(null);
+  const [isCatchupLoading, setIsCatchupLoading] = useState(false);
+
+  const { currentOrganization } = useOrganization();
+  const organizationId = currentOrganization?.id;
+
+  const fetchAiCatchup = useCallback(async () => {
+    try {
+      setIsCatchupLoading(true);
+      const res = await notificationApi.getAiCatchup(organizationId);
+      setAiCatchup(res);
+      return res;
+    } catch (e) {
+      console.error("Failed to fetch AI catchup", e);
+      return null;
+    } finally {
+      setIsCatchupLoading(false);
+    }
+  }, [organizationId]);
+
+  const playNotificationSound = useCallback((isUrgent = false) => {
+    if (isDnd) return;
+    playHarmonicChime(isUrgent);
+  }, [isDnd]);
+
   const dismissUrgentAlert = useCallback(() => {
     if (urgentAlert.notification?.id && typeof window !== "undefined") {
       try {
@@ -109,11 +209,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setUrgentAlert({ isOpen: false, notification: null });
   }, [urgentAlert.notification]);
 
-  const { currentOrganization } = useOrganization();
   const { user } = useAuth();
-  
   const userId = user?.id;
-  const organizationId = currentOrganization?.id;
 
   const fetchUnreadCount = useCallback(async () => {
     if (!userId || !organizationId) return;
@@ -311,31 +408,34 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         };
       });
 
-      // 2. Bật Toast popup nổi bật ở góc màn hình
-      const actionUrl = notification.actionUrl;
-      toast(notification.title || "Thông báo mới", {
-        description: notification.message || "",
-        duration: 6000,
-        action: actionUrl
-          ? {
-              label: "Xem ngay",
-              onClick: () => {
-                const targetUrl = actionUrl.startsWith("http")
-                  ? new URL(actionUrl).pathname
-                  : actionUrl;
-                router.push(targetUrl);
-              },
-            }
-          : undefined,
-      });
+      // 2. Bật Toast và âm thanh nhẹ nhàng (nếu không bật DND)
+      const isUrgent = isNotificationUrgent(notification);
+      if (!isDnd) {
+        playHarmonicChime(isUrgent);
+        const actionUrl = notification.actionUrl;
+        toast(notification.title || "Thông báo mới", {
+          description: notification.message || "",
+          duration: 6000,
+          action: actionUrl
+            ? {
+                label: "Xem ngay",
+                onClick: () => {
+                  const targetUrl = actionUrl.startsWith("http")
+                    ? new URL(actionUrl).pathname
+                    : actionUrl;
+                  router.push(targetUrl);
+                },
+              }
+            : undefined,
+        });
+      }
 
-      // 3. Nếu là thông báo KHẨN CẤP / ƯU TIÊN CAO NHẤT (HIGHEST) -> Bật Popup Modal đập thẳng vào màn hình
-      if (isNotificationUrgent(notification)) {
+      // 3. Nếu là thông báo KHẨN CẤP / ƯU TIÊN CAO NHẤT (HIGHEST) -> Bật Popup Modal
+      if (isUrgent && !isDnd) {
         setUrgentAlert({
           isOpen: true,
           notification,
         });
-        playEmergencyChime();
       }
 
       // 4. Cập nhật số lượng thông báo chưa đọc theo từng tổ chức
@@ -348,7 +448,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       socketService.off("notification", handleRealtimeNotification);
       socketService.leaveRoom("user", userId);
     };
-  }, [userId, router, fetchUnreadCountsByOrg]);
+  }, [userId, router, fetchUnreadCountsByOrg, isDnd]);
 
   const value = useMemo(() => ({
     ...state,
@@ -358,8 +458,35 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     markAsRead,
     markAllAsRead,
     deleteNotification,
-    refreshNotifications
-  }), [state, fetchUnreadCount, fetchUnreadCountsByOrg, fetchRecentNotifications, markAsRead, markAllAsRead, deleteNotification, refreshNotifications]);
+    refreshNotifications,
+    isDnd,
+    toggleDnd,
+    starredIds,
+    toggleStar,
+    isStarred,
+    aiCatchup,
+    isCatchupLoading,
+    fetchAiCatchup,
+    playNotificationSound,
+  }), [
+    state,
+    fetchUnreadCount,
+    fetchUnreadCountsByOrg,
+    fetchRecentNotifications,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    refreshNotifications,
+    isDnd,
+    toggleDnd,
+    starredIds,
+    toggleStar,
+    isStarred,
+    aiCatchup,
+    isCatchupLoading,
+    fetchAiCatchup,
+    playNotificationSound,
+  ]);
 
   return (
     <NotificationContext.Provider value={value}>

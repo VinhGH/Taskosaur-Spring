@@ -1,5 +1,7 @@
 package com.taskosaur.taskosaur.controllers;
 
+import com.taskosaur.taskosaur.dto.notification.AiCatchupRequestDto;
+import com.taskosaur.taskosaur.dto.notification.AiCatchupResponseDto;
 import com.taskosaur.taskosaur.dto.notification.NotificationResponse;
 import com.taskosaur.taskosaur.exceptions.UnauthorizedException;
 import com.taskosaur.taskosaur.services.NotificationService;
@@ -18,17 +20,42 @@ public class NotificationController {
 
     private final NotificationService notificationService;
 
+    @PostMapping("/ai-catchup")
+    public ResponseEntity<AiCatchupResponseDto> getAiCatchupPost(
+            Authentication authentication,
+            @RequestBody(required = false) AiCatchupRequestDto requestDto
+    ) {
+        String userId = getUserId(authentication);
+        String orgId = requestDto != null ? requestDto.getOrganizationId() : null;
+        return ResponseEntity.ok(notificationService.generateAiCatchup(userId, orgId));
+    }
+
+    @GetMapping("/ai-catchup")
+    public ResponseEntity<AiCatchupResponseDto> getAiCatchupGet(
+            Authentication authentication,
+            @RequestParam(required = false) String organizationId
+    ) {
+        String userId = getUserId(authentication);
+        return ResponseEntity.ok(notificationService.generateAiCatchup(userId, organizationId));
+    }
+
     @GetMapping
     public ResponseEntity<Map<String, Object>> getUserNotifications(
             Authentication authentication,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int limit
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Boolean isRead
     ) {
         String userId = getUserId(authentication);
-        List<NotificationResponse> list = notificationService.getUserNotifications(userId);
+        List<NotificationResponse> all = notificationService.getUserNotifications(userId, null, category, isRead);
         long unread = notificationService.getUnreadCount(userId);
-        int total = list.size();
+        int total = all.size();
         int totalPages = Math.max(1, (int) Math.ceil((double) total / limit));
+
+        int fromIndex = Math.min((page - 1) * limit, total);
+        int toIndex = Math.min(fromIndex + limit, total);
+        List<NotificationResponse> pagedList = fromIndex <= toIndex ? all.subList(fromIndex, toIndex) : List.of();
 
         Map<String, Object> pagination = Map.of(
                 "currentPage", page,
@@ -46,7 +73,7 @@ public class NotificationController {
         );
 
         return ResponseEntity.ok(Map.of(
-                "notifications", list,
+                "notifications", pagedList,
                 "pagination", pagination,
                 "summary", summary,
                 "total", total,
@@ -66,12 +93,18 @@ public class NotificationController {
             @PathVariable String userId,
             @PathVariable String organizationId,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int limit
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Boolean isRead
     ) {
-        List<NotificationResponse> list = notificationService.getUserNotifications(userId);
-        long unread = notificationService.getUnreadCount(userId);
-        int total = list.size();
+        List<NotificationResponse> all = notificationService.getUserNotifications(userId, organizationId, category, isRead);
+        long unread = notificationService.getUnreadCount(userId, organizationId);
+        int total = all.size();
         int totalPages = Math.max(1, (int) Math.ceil((double) total / limit));
+
+        int fromIndex = Math.min((page - 1) * limit, total);
+        int toIndex = Math.min(fromIndex + limit, total);
+        List<NotificationResponse> pagedList = fromIndex <= toIndex ? all.subList(fromIndex, toIndex) : List.of();
 
         Map<String, Object> pagination = Map.of(
                 "currentPage", page,
@@ -89,7 +122,7 @@ public class NotificationController {
         );
 
         return ResponseEntity.ok(Map.of(
-                "notifications", list,
+                "notifications", pagedList,
                 "pagination", pagination,
                 "summary", summary,
                 "total", total,
