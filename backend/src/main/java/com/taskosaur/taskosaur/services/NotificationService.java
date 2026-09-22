@@ -38,7 +38,7 @@ import java.util.Set;
 public class NotificationService {
 
     private static final String NOTIFICATION_NOT_FOUND_MSG = "Notification not found with id: ";
-    private static final String TASKS_PATH = "/tasks/";
+    private static final String TASKS_RESOURCE = "tasks";
     private static final String DEFAULT_SLUG = "default";
     private static final String PROJECT_MEMBER_DEFAULT = "Thành viên dự án";
 
@@ -108,7 +108,7 @@ public class NotificationService {
         List<Notification> all = fetchNotifications(userId, organizationId, isRead);
 
         if (isRead != null) {
-            all = all.stream().filter(n -> Boolean.valueOf(n.getIsRead()).equals(isRead)).toList();
+            all = all.stream().filter(n -> isRead.equals(n.getIsRead())).toList();
         }
 
         if (category != null && !category.isBlank() && !"all".equalsIgnoreCase(category)) {
@@ -409,9 +409,9 @@ public class NotificationService {
                             .orElse("Một thành viên");
                 }
 
-                String baseUrl = frontendUrl != null ? frontendUrl : "http://localhost:3001";
+                String baseUrl = (frontendUrl != null && !frontendUrl.isBlank()) ? frontendUrl : "";
                 String actionUrl = params.getActionUrl() != null ? params.getActionUrl() : "";
-                if (!actionUrl.startsWith("http")) {
+                if (!actionUrl.startsWith("http") && !baseUrl.isEmpty()) {
                     actionUrl = baseUrl + (actionUrl.startsWith("/") ? "" : "/") + actionUrl;
                 }
 
@@ -443,7 +443,7 @@ public class NotificationService {
     private String buildTaskActionUrl(Workspace workspace, Project project, String taskId) {
         String wsSlug = workspace != null ? workspace.getSlug() : DEFAULT_SLUG;
         String prjSlug = project != null ? project.getSlug() : DEFAULT_SLUG;
-        return "/" + wsSlug + "/" + prjSlug + TASKS_PATH + taskId;
+        return String.join("/", "", wsSlug, prjSlug, TASKS_RESOURCE, taskId);
     }
 
     private String getActorDisplayName(String actorId, String fallback) {
