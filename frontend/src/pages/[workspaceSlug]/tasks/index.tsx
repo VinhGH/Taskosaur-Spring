@@ -26,19 +26,22 @@ import SortingManager, { SortField, SortOrder } from "@/components/tasks/SortIng
 import { FilterDropdown, useGenericFilters } from "@/components/common/FilterDropdown";
 import GroupByManager, { GROUP_BY_STORAGE_KEY } from "@/components/tasks/GroupByManager";
 import type { GroupByField } from "@/types/tasks";
-import { CheckSquare, Flame, Folder, User, Users, Download, Upload, Shapes } from "lucide-react";
+import { CheckSquare, Flame, Folder, User, Users, Download, Upload, Shapes, FileSpreadsheet, FileText, Settings2 } from "lucide-react";
 
 import { TaskPriorities, TaskTypeIcon } from "@/utils/data/taskData";
 import Tooltip from "@/components/common/ToolTip";
 import TaskTableSkeleton from "@/components/skeletons/TaskTableSkeleton";
-import { exportTasksToCSV, exportTasksToPDF, exportTasksToXLSX, exportTasksToJSON } from "@/utils/exportUtils";
+import { useTaskExport } from "@/hooks/useTaskExport";
+import { ExportTasksModal } from "@/components/tasks/ExportTasksModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
 import { useSlugRedirect, cacheSlugId } from "@/hooks/useSlugRedirect";
+import { TokenManager } from "@/lib/api";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState<T>(value);
@@ -1121,26 +1124,22 @@ function WorkspaceTasksContent() {
   // Tasks are already sorted by the backend, so we use tasks directly
   const sortedTasks = tasks;
 
-  const handleExport = useCallback((format: "csv" | "pdf" | "xlsx" | "json" = "csv") => {
-    const dateStr = new Date().toISOString().split("T")[0];
-    if (format === "csv") {
-      exportTasksToCSV(sortedTasks, columns, `tasks_export_${dateStr}.csv`, {
-        showProject: true,
-      });
-    } else if (format === "xlsx") {
-      exportTasksToXLSX(sortedTasks, columns, `tasks_export_${dateStr}.xlsx`, {
-        showProject: true,
-      });
-    } else if (format === "json") {
-      exportTasksToJSON(sortedTasks, columns, `tasks_export_${dateStr}.json`, {
-        showProject: true,
-      });
-    } else {
-      exportTasksToPDF(sortedTasks, columns, `tasks_export_${dateStr}.pdf`, {
-        showProject: true,
-      });
-    }
-  }, [columns, sortedTasks]);
+  const { handleExport, isExporting, isExportModalOpen, setIsExportModalOpen } = useTaskExport({
+    tasks: sortedTasks,
+    columns,
+    projectName: workspace?.name,
+    workspaceId: workspace?.id,
+    organizationId: TokenManager.getCurrentOrgId() || (workspace as any)?.organizationId || undefined,
+    filters: {
+      statuses: selectedStatuses?.join(","),
+      priorities: selectedPriorities?.join(","),
+      types: selectedTaskTypes?.join(","),
+      search: debouncedSearchQuery,
+      assignees: selectedAssignees?.join(","),
+      reporters: selectedReporters?.join(","),
+    },
+    selectedTaskIds: selectedTasks,
+  });
 
   const renderContent = () => {
     if ((isInitialLoad || isLoading) && groupBy === "none") return <TaskTableSkeleton />;
@@ -1321,6 +1320,16 @@ function WorkspaceTasksContent() {
                   workspaceId={workspace?.id}
                   workspaceName={workspace?.name}
                 />
+                <ExportTasksModal
+                  isOpen={isExportModalOpen}
+                  onClose={() => setIsExportModalOpen(false)}
+                  onExport={handleExport}
+                  isExporting={isExporting}
+                  totalTasksCount={pagination.totalCount || tasks.length}
+                  currentPageTasksCount={sortedTasks.length}
+                  selectedCount={selectedTasks.length}
+                  projectName={workspace?.name}
+                />
               </div>
             }
           />
@@ -1401,22 +1410,24 @@ function WorkspaceTasksContent() {
                         <ActionButton
                           leftIcon={<Download className="w-4 h-4" />}
                           variant="outline"
+                          disabled={isExporting}
                         >
-                          {t("export")}
+                          {isExporting ? t("exportModal.exporting", "Đang xuất...") : t("export")}
                         </ActionButton>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-[var(--popover)] border-[var(--border)]">
-                        <DropdownMenuItem onClick={() => handleExport("csv")}>
-                          Export as CSV
+                      <DropdownMenuContent align="end" className="w-56 bg-[var(--popover)] border-[var(--border)]">
+                        <DropdownMenuItem onClick={() => handleExport("xlsx")} className="cursor-pointer gap-2">
+                          <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                          <span>{t("exportModal.quickExcel", "Xuất nhanh Excel (.xlsx)")}</span>
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleExport("xlsx")}>
-                          Export as Excel (.xlsx)
+                        <DropdownMenuItem onClick={() => handleExport("csv")} className="cursor-pointer gap-2">
+                          <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span>{t("exportModal.quickCsv", "Xuất nhanh CSV")}</span>
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleExport("json")}>
-                          Export as JSON
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleExport("pdf")}>
-                          Export as PDF
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => setIsExportModalOpen(true)} className="cursor-pointer gap-2 font-medium text-primary">
+                          <Settings2 className="w-4 h-4" />
+                          <span>{t("exportModal.customExport", "Tùy chỉnh xuất báo cáo...")}</span>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

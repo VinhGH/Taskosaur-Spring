@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { PriorityBadge } from "@/components/badges/PriorityBadge";
 import { Badge } from "@/components/ui/badge";
 import { BulkActionBar } from "@/components/ui/tables/BulkActionBar";
+import { exportTasksToCSV, exportTasksToXLSX } from "@/utils/exportUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
@@ -1373,6 +1374,32 @@ const TaskTable: React.FC<TaskTableProps> = ({
     setExcludedTaskIds([]);
   };
 
+  const handleExportSelected = (format: "csv" | "xlsx") => {
+    const selectedTaskObjects = tasks.filter((t) => selectedTasks.includes(t.id));
+    if (selectedTaskObjects.length === 0) {
+      toast.warning("No tasks selected for export");
+      return;
+    }
+    const dateStr = dayjs().format("YYYY-MM-DD");
+    const filename = `selected_tasks_${dateStr}.${format}`;
+    try {
+      if (format === "csv") {
+        exportTasksToCSV(selectedTaskObjects, columns, filename, { showProject });
+      } else {
+        exportTasksToXLSX(selectedTaskObjects, columns, filename, {
+          showProject,
+          projectName: currentProject?.name,
+        });
+      }
+      toast.success(
+        `Đã xuất ${selectedTaskObjects.length} công việc (${format.toUpperCase()}) thành công!`
+      );
+    } catch (err) {
+      console.error("Export selected tasks error:", err);
+      toast.error("Xuất dữ liệu thất bại");
+    }
+  };
+
   // Helper function to render multiple assignees
   const renderMultipleAssignees = (assignees: any[], maxVisible = 3) => {
     if (!assignees || assignees.length === 0) {
@@ -2628,6 +2655,7 @@ const TaskTable: React.FC<TaskTableProps> = ({
           availableStatuses={localAddTaskStatuses}
           onAssign={handleBulkAssign}
           onClearAssignment={handleClearAssignment}
+          onExport={handleExportSelected}
           availableMembers={
             projectSlug && projectMembers && projectMembers.length > 0
               ? projectMembers

@@ -17,7 +17,7 @@ import { TokenManager } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { useWorkspaceContext } from "@/contexts/workspace-context";
 import { FilterDropdown, useGenericFilters } from "@/components/common/FilterDropdown";
-import { CheckSquare, Flame, User, Users, Download, Upload } from "lucide-react";
+import { CheckSquare, Flame, User, Users, Download, Upload, FileSpreadsheet, FileText, Settings2 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import SortingManager, { SortOrder, SortField } from "@/components/tasks/SortIngManager";
 import { useProjectContext } from "@/contexts/project-context";
@@ -32,10 +32,13 @@ import { useSlugRedirect, cacheSlugId } from "@/hooks/useSlugRedirect";
 import ActionButton from "@/components/common/ActionButton";
 import { sprintApi } from "@/utils/api/sprintApi";
 import { exportTasksToCSV, exportTasksToPDF, exportTasksToXLSX, exportTasksToJSON } from "@/utils/exportUtils";
+import { useTaskExport } from "@/hooks/useTaskExport";
+import { ExportTasksModal } from "@/components/tasks/ExportTasksModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
 import { CsvImportModal } from "@/components/tasks/CsvImportModal";
@@ -844,26 +847,23 @@ const sprintId = resolvedSprintId;
 
   // Tasks are already sorted by the backend, so we use tasks directly
   const sortedTasks = tasks;
-  const handleExport = useCallback((format: "csv" | "pdf" | "xlsx" | "json" = "csv") => {
-    const dateStr = new Date().toISOString().split("T")[0];
-    if (format === "csv") {
-      exportTasksToCSV(sortedTasks, columns, `sprint_tasks_export_${dateStr}.csv`, {
-        showProject: true,
-      });
-    } else if (format === "xlsx") {
-      exportTasksToXLSX(sortedTasks, columns, `sprint_tasks_export_${dateStr}.xlsx`, {
-        showProject: true,
-      });
-    } else if (format === "json") {
-      exportTasksToJSON(sortedTasks, columns, `sprint_tasks_export_${dateStr}.json`, {
-        showProject: true,
-      });
-    } else {
-      exportTasksToPDF(sortedTasks, columns, `sprint_tasks_export_${dateStr}.pdf`, {
-        showProject: true,
-      });
-    }
-  }, [columns, sortedTasks]);
+  const { handleExport, isExporting, isExportModalOpen, setIsExportModalOpen } = useTaskExport({
+    tasks: sortedTasks,
+    columns,
+    projectName: project?.name,
+    projectId: project?.id,
+    workspaceId: (project as any)?.workspaceId || (workspace as any)?.id,
+    organizationId: currentOrganizationId || undefined,
+    sprintId: (sprintId as string) || undefined,
+    filters: {
+      statuses: selectedStatuses?.join(","),
+      priorities: selectedPriorities?.join(","),
+      search: debouncedSearchQuery,
+      assignees: selectedAssignees?.join(","),
+      reporters: selectedReporters?.join(","),
+    },
+    selectedTaskIds: selectedTasks,
+  });
 
   const renderContent = () => {
     if (isInitialLoad || isLoading) {
@@ -1085,25 +1085,38 @@ const sprintId = resolvedSprintId;
                         <ActionButton
                           leftIcon={<Download className="w-4 h-4" />}
                           variant="outline"
+                          disabled={isExporting}
                         >
-                          {t("common:export")}
+                          {isExporting ? t("tasks:exportModal.exporting", "Đang xuất...") : t("common:export")}
                         </ActionButton>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-[var(--popover)] border-[var(--border)]">
-                        <DropdownMenuItem onClick={() => handleExport("csv")}>
-                          Export as CSV
+                      <DropdownMenuContent align="end" className="w-56 bg-[var(--popover)] border-[var(--border)]">
+                        <DropdownMenuItem onClick={() => handleExport("xlsx")} className="cursor-pointer gap-2">
+                          <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                          <span>{t("tasks:exportModal.quickExcel", "Xuất nhanh Excel (.xlsx)")}</span>
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleExport("xlsx")}>
-                          Export as Excel (.xlsx)
+                        <DropdownMenuItem onClick={() => handleExport("csv")} className="cursor-pointer gap-2">
+                          <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span>{t("tasks:exportModal.quickCsv", "Xuất nhanh CSV")}</span>
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleExport("json")}>
-                          Export as JSON
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleExport("pdf")}>
-                          Export as PDF
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => setIsExportModalOpen(true)} className="cursor-pointer gap-2 font-medium text-primary">
+                          <Settings2 className="w-4 h-4" />
+                          <span>{t("tasks:exportModal.customExport", "Tùy chỉnh xuất báo cáo...")}</span>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+
+                    <ExportTasksModal
+                      isOpen={isExportModalOpen}
+                      onClose={() => setIsExportModalOpen(false)}
+                      onExport={handleExport}
+                      isExporting={isExporting}
+                      totalTasksCount={pagination.totalCount || tasks.length}
+                      currentPageTasksCount={sortedTasks.length}
+                      selectedCount={selectedTasks.length}
+                      projectName={project?.name}
+                    />
                     {hasAccess && (
                       <>
                         <ActionButton

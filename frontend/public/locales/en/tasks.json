@@ -348,5 +348,30 @@
     "toastCopied": "Link copied to clipboard",
     "toastRevoked": "Link revoked successfully",
     "toastError": "Operation failed, please try again"
+  },
+  "exportModal": {
+    "title": "Export Task Report",
+    "subtitle": "Export detailed data and summary dashboard for real-world reporting",
+    "chooseFormat": "1. Choose File Format",
+    "excelDesc": "Includes Executive KPI Dashboard • Recommended",
+    "recommendedBadge": "Recommended",
+    "csvDesc": "UTF-8 BOM Encoded • Perfectly opens in Excel",
+    "pdfDesc": "Printable tabular report in A4 landscape",
+    "jsonDesc": "Structured JSON data for developer integrations",
+    "chooseScope": "2. Data Scope",
+    "scopeAll": "All tasks in project",
+    "scopePage": "Current page only",
+    "scopeSelected": "Selected tasks",
+    "includeSummarySheet": "Include Executive KPI Summary Dashboard Sheet",
+    "summaryNote": "Generates completion rates, total Story Points, and breakdown by status, priority, and assignees.",
+    "customizeColumns": "Customize export columns",
+    "selectAll": "Select All",
+    "resetDefault": "Reset to Default",
+    "cancel": "Cancel",
+    "submit": "Export File",
+    "exporting": "Exporting report...",
+    "quickExcel": "Quick Export Excel (.xlsx)",
+    "quickCsv": "Quick Export CSV",
+    "customExport": "Custom export report..."
   }
 }

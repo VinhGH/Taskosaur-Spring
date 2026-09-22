@@ -1,4 +1,4 @@
-import { Trash2, X, CheckCircle, ChevronDown, Check, UserPlus } from "lucide-react";
+import { Trash2, X, CheckCircle, ChevronDown, Check, UserPlus, Download, FileSpreadsheet, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import ConfirmationModal from "@/components/modals/ConfirmationModal";
@@ -26,6 +26,7 @@ interface BulkActionBarProps {
   onStatusUpdate?: (statusId: string) => void;
   onAssign?: (assigneeIds: string[]) => void;
   onClearAssignment?: () => void;
+  onExport?: (format: "csv" | "xlsx") => void;
   availableMembers?: any[];
   userRole?: string | null;
 }
@@ -43,6 +44,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
   onStatusUpdate,
   onAssign,
   onClearAssignment,
+  onExport,
   availableMembers = [],
   userRole,
 }) => {
@@ -293,6 +295,32 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
                   </Button>
                 )}
               </>
+            )}
+
+            {onExport && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 px-3 gap-2 text-foreground hover:bg-muted font-medium transition-all group"
+                  >
+                    <Download className="size-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                    <span className="text-xs">Export</span>
+                    <ChevronDown className="size-3 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => onExport("xlsx")} className="gap-2 text-xs cursor-pointer">
+                    <FileSpreadsheet className="size-4 text-emerald-600" />
+                    <span>Export as Excel (.xlsx)</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onExport("csv")} className="gap-2 text-xs cursor-pointer">
+                    <FileText className="size-4 text-blue-600" />
+                    <span>Export as CSV</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
 
             {canDelete && (

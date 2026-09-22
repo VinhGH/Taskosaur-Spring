@@ -28,16 +28,18 @@ import SortingManager, { SortField, SortOrder } from "@/components/tasks/SortIng
 import { FilterDropdown } from "@/components/common/FilterDropdown";
 import GroupByManager, { GROUP_BY_STORAGE_KEY } from "@/components/tasks/GroupByManager";
 import type { GroupByField } from "@/types/tasks";
-import { Download, Upload } from "lucide-react";
+import { Download, Upload, FileSpreadsheet, FileText, Settings2 } from "lucide-react";
 
 import Tooltip from "@/components/common/ToolTip";
 import TaskTableSkeleton from "@/components/skeletons/TaskTableSkeleton";
 import { useTaskFilters } from "@/hooks/useTaskFilters";
 import { useTaskExport } from "@/hooks/useTaskExport";
+import { ExportTasksModal } from "@/components/tasks/ExportTasksModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
 import { useSlugRedirect, cacheSlugId } from "@/hooks/useSlugRedirect";
@@ -748,10 +750,23 @@ function ProjectTasksContent() {
   // Tasks are already sorted by the backend, so we use tasks directly
   const sortedTasks = tasks;
 
-  const { handleExport } = useTaskExport({
+  const { handleExport, isExporting, isExportModalOpen, setIsExportModalOpen } = useTaskExport({
     tasks: sortedTasks,
     columns,
     projectName: project?.name,
+    projectId: project?.id,
+    workspaceId: (project as any)?.workspaceId || (workspace as any)?.id,
+    organizationId: currentOrganizationId || undefined,
+    sprintId: selectedSprints?.join(","),
+    filters: {
+      statuses: selectedStatuses?.join(","),
+      priorities: selectedPriorities?.join(","),
+      types: selectedTaskTypes?.join(","),
+      search: debouncedSearchQuery,
+      assignees: selectedAssignees?.join(","),
+      reporters: selectedReporters?.join(","),
+    },
+    selectedTaskIds: selectedTasks,
   });
 
   const renderContent = () => {
@@ -954,6 +969,16 @@ function ProjectTasksContent() {
                   projectId={project?.id}
                   projectName={project?.name}
                 />
+                <ExportTasksModal
+                  isOpen={isExportModalOpen}
+                  onClose={() => setIsExportModalOpen(false)}
+                  onExport={handleExport}
+                  isExporting={isExporting}
+                  totalTasksCount={pagination.totalCount || tasks.length}
+                  currentPageTasksCount={sortedTasks.length}
+                  selectedCount={selectedTasks.length}
+                  projectName={project?.name}
+                />
               </div>
             }
           />
@@ -1036,22 +1061,24 @@ function ProjectTasksContent() {
                         <ActionButton
                           leftIcon={<Download className="w-4 h-4" />}
                           variant="outline"
+                          disabled={isExporting}
                         >
-                          {t("export")}
+                          {isExporting ? t("exportModal.exporting", "Đang xuất...") : t("export")}
                         </ActionButton>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-[var(--popover)] border-[var(--border)]">
-                        <DropdownMenuItem onClick={() => handleExport("csv")}>
-                          Export as CSV
+                      <DropdownMenuContent align="end" className="w-56 bg-[var(--popover)] border-[var(--border)]">
+                        <DropdownMenuItem onClick={() => handleExport("xlsx")} className="cursor-pointer gap-2">
+                          <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                          <span>{t("exportModal.quickExcel", "Xuất nhanh Excel (.xlsx)")}</span>
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleExport("xlsx")}>
-                          Export as Excel (.xlsx)
+                        <DropdownMenuItem onClick={() => handleExport("csv")} className="cursor-pointer gap-2">
+                          <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span>{t("exportModal.quickCsv", "Xuất nhanh CSV")}</span>
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleExport("json")}>
-                          Export as JSON
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleExport("pdf")}>
-                          Export as PDF
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => setIsExportModalOpen(true)} className="cursor-pointer gap-2 font-medium text-primary">
+                          <Settings2 className="w-4 h-4" />
+                          <span>{t("exportModal.customExport", "Tùy chỉnh xuất báo cáo...")}</span>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

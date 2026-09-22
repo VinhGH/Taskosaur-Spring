@@ -348,5 +348,30 @@
     "toastCopied": "Đã sao chép liên kết vào bộ nhớ tạm",
     "toastRevoked": "Đã thu hồi liên kết thành công",
     "toastError": "Thao tác thất bại, vui lòng thử lại"
+  },
+  "exportModal": {
+    "title": "Xuất báo cáo công việc",
+    "subtitle": "Xuất dữ liệu chi tiết và bảng tổng hợp phục vụ báo cáo",
+    "chooseFormat": "1. Chọn định dạng tệp",
+    "excelDesc": "Kèm Dashboard tổng hợp KPI • Khuyên dùng",
+    "recommendedBadge": "Khuyên dùng",
+    "csvDesc": "Chuẩn UTF-8 BOM • Mở hoàn hảo trên Excel",
+    "pdfDesc": "Tài liệu bảng biểu định dạng A4 ngang",
+    "jsonDesc": "Dữ liệu cấu trúc dành cho lập trình viên",
+    "chooseScope": "2. Phạm vi dữ liệu",
+    "scopeAll": "Tất cả công việc",
+    "scopePage": "Trang hiện tại",
+    "scopeSelected": "Đang chọn",
+    "includeSummarySheet": "Thêm trang Báo cáo tổng hợp KPI (Summary Dashboard Sheet)",
+    "summaryNote": "Bao gồm bảng tổng hợp tỷ lệ hoàn thành, tổng Story Points, phân bổ theo trạng thái và thành viên.",
+    "customizeColumns": "Tùy chỉnh cột xuất dữ liệu",
+    "selectAll": "Chọn tất cả",
+    "resetDefault": "Mặc định",
+    "cancel": "Hủy",
+    "submit": "Xuất file",
+    "exporting": "Đang xuất báo cáo...",
+    "quickExcel": "Xuất nhanh Excel (.xlsx)",
+    "quickCsv": "Xuất nhanh CSV",
+    "customExport": "Tùy chỉnh xuất báo cáo..."
   }
 }
