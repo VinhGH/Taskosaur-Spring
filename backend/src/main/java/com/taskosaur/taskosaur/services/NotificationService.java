@@ -37,6 +37,11 @@ import java.util.Set;
 @Transactional
 public class NotificationService {
 
+    private static final String NOTIFICATION_NOT_FOUND_MSG = "Notification not found with id: ";
+    private static final String TASKS_PATH = "/tasks/";
+    private static final String DEFAULT_SLUG = "default";
+    private static final String PROJECT_MEMBER_DEFAULT = "Thành viên dự án";
+
     private final NotificationRepository notificationRepository;
     private final WebSocketEventService webSocketEventService;
     private final EmailService emailService;
@@ -69,6 +74,15 @@ public class NotificationService {
     @Value("${app.frontend-url:http://localhost:3001}")
     private String frontendUrl;
 
+    private record ProjectContext(Project project, Workspace workspace) {}
+
+    private record CatchupDigestData(
+            String digestContext,
+            int urgentCount,
+            List<String> highlights,
+            List<AiCatchupResponseDto.SuggestedActionDto> suggestedActions
+    ) {}
+
     public Notification createNotification(CreateNotificationParams params) {
         Notification notification = Notification.builder()
                 .type(params.getType())
@@ -91,20 +105,7 @@ public class NotificationService {
     }
 
     public List<NotificationResponse> getUserNotifications(String userId, String organizationId, String category, Boolean isRead) {
-        List<Notification> all;
-        if (organizationId != null && !organizationId.isBlank()) {
-            if (Boolean.FALSE.equals(isRead)) {
-                all = notificationRepository.findByUserIdAndOrganizationIdAndIsReadFalseOrderByCreatedAtDesc(userId, organizationId);
-            } else {
-                all = notificationRepository.findByUserIdAndOrganizationIdOrderByCreatedAtDesc(userId, organizationId);
-            }
-        } else {
-            if (Boolean.FALSE.equals(isRead)) {
-                all = notificationRepository.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(userId);
-            } else {
-                all = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
-            }
-        }
+        List<Notification> all = fetchNotifications(userId, organizationId, isRead);
 
         if (isRead != null) {
             all = all.stream().filter(n -> Boolean.valueOf(n.getIsRead()).equals(isRead)).toList();
@@ -115,6 +116,20 @@ public class NotificationService {
         }
 
         return all.stream().map(this::buildResponse).toList();
+    }
+
+    private List<Notification> fetchNotifications(String userId, String organizationId, Boolean isRead) {
+        boolean unreadOnly = Boolean.FALSE.equals(isRead);
+        boolean hasOrg = organizationId != null && !organizationId.isBlank();
+
+        if (hasOrg) {
+            return unreadOnly
+                    ? notificationRepository.findByUserIdAndOrganizationIdAndIsReadFalseOrderByCreatedAtDesc(userId, organizationId)
+                    : notificationRepository.findByUserIdAndOrganizationIdOrderByCreatedAtDesc(userId, organizationId);
+        }
+        return unreadOnly
+                ? notificationRepository.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(userId)
+                : notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
     }
 
     private boolean matchesCategory(Notification n, String category) {
@@ -148,73 +163,67 @@ public class NotificationService {
     }
 
     public AiCatchupResponseDto generateAiCatchup(String userId, String organizationId) {
-        List<Notification> unreadList;
-        if (organizationId != null && !organizationId.isBlank()) {
-            unreadList = notificationRepository.findByUserIdAndOrganizationIdAndIsReadFalseOrderByCreatedAtDesc(userId, organizationId);
-        } else {
-            unreadList = notificationRepository.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(userId);
-        }
-
+        List<Notification> unreadList = getNotificationsForCatchup(userId, organizationId);
         if (unreadList.isEmpty()) {
-            if (organizationId != null && !organizationId.isBlank()) {
-                unreadList = notificationRepository.findByUserIdAndOrganizationIdOrderByCreatedAtDesc(userId, organizationId)
-                        .stream().limit(10).toList();
-            } else {
-                unreadList = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId)
-                        .stream().limit(10).toList();
-            }
+            return buildEmptyCatchupResponse();
         }
 
-        if (unreadList.isEmpty()) {
-            return AiCatchupResponseDto.builder()
-                    .success(true)
-                    .unreadCount(0)
-                    .urgentCount(0)
-                    .summary("Tuyệt vời! Bạn không có thông báo nào chưa đọc lúc này. Tất cả công việc đang trong tầm kiểm soát!")
-                    .highlights(List.of("Mọi thông báo đã được xử lý gọn gàng.", "Sẵn sàng cho các đầu việc mới!"))
-                    .suggestedActions(List.of())
-                    .build();
+        CatchupDigestData data = extractCatchupDigestData(unreadList);
+        String summary = resolveCatchupSummary(data.digestContext(), data.urgentCount(), unreadList.size(), userId);
+
+        return AiCatchupResponseDto.builder()
+                .success(true)
+                .unreadCount(unreadList.size())
+                .urgentCount(data.urgentCount())
+                .summary(summary)
+                .highlights(data.highlights())
+                .suggestedActions(data.suggestedActions())
+                .build();
+    }
+
+    private List<Notification> getNotificationsForCatchup(String userId, String organizationId) {
+        boolean hasOrg = organizationId != null && !organizationId.isBlank();
+        List<Notification> list = hasOrg
+                ? notificationRepository.findByUserIdAndOrganizationIdAndIsReadFalseOrderByCreatedAtDesc(userId, organizationId)
+                : notificationRepository.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(userId);
+
+        if (!list.isEmpty()) {
+            return list;
         }
 
+        return hasOrg
+                ? notificationRepository.findByUserIdAndOrganizationIdOrderByCreatedAtDesc(userId, organizationId).stream().limit(10).toList()
+                : notificationRepository.findByUserIdOrderByCreatedAtDesc(userId).stream().limit(10).toList();
+    }
+
+    private AiCatchupResponseDto buildEmptyCatchupResponse() {
+        return AiCatchupResponseDto.builder()
+                .success(true)
+                .unreadCount(0)
+                .urgentCount(0)
+                .summary("Tuyệt vời! Bạn không có thông báo nào chưa đọc lúc này. Tất cả công việc đang trong tầm kiểm soát!")
+                .highlights(List.of("Mọi thông báo đã được xử lý gọn gàng.", "Sẵn sàng cho các đầu việc mới!"))
+                .suggestedActions(List.of())
+                .build();
+    }
+
+    private CatchupDigestData extractCatchupDigestData(List<Notification> unreadList) {
         int urgentCount = 0;
         List<String> highlights = new ArrayList<>();
         List<AiCatchupResponseDto.SuggestedActionDto> suggestedActions = new ArrayList<>();
-
         StringBuilder digestContext = new StringBuilder();
-        for (int i = 0; i < Math.min(unreadList.size(), 15); i++) {
+
+        int limit = Math.min(unreadList.size(), 15);
+        for (int i = 0; i < limit; i++) {
             Notification n = unreadList.get(i);
-            boolean isUrgent = n.getPriority() == NotificationPriority.URGENT || n.getPriority() == NotificationPriority.HIGH || n.getType() == NotificationType.TASK_DUE_SOON;
+            boolean isUrgent = isUrgentNotification(n);
             if (isUrgent) {
                 urgentCount++;
             }
-            digestContext.append(String.format("- [%s] %s: %s (Priority: %s)\n",
+            digestContext.append(String.format("- [%s] %s: %s (Priority: %s)%n",
                     n.getType(), n.getTitle(), n.getMessage(), n.getPriority()));
 
-            if (isUrgent && suggestedActions.stream().noneMatch(a -> "VIEW_URGENT".equals(a.getActionType()))) {
-                highlights.add(String.format("⚡ Khẩn cấp: %s", n.getTitle()));
-                suggestedActions.add(AiCatchupResponseDto.SuggestedActionDto.builder()
-                        .id("act_urgent")
-                        .label("Xem việc khẩn cấp")
-                        .actionType("VIEW_URGENT")
-                        .targetUrl(n.getActionUrl())
-                        .entityId(n.getEntityId())
-                        .entityType(n.getEntityType())
-                        .build());
-            } else if (n.getType() == NotificationType.WORKSPACE_INVITED && suggestedActions.stream().noneMatch(a -> "ACCEPT_INVITE".equals(a.getActionType()))) {
-                highlights.add(String.format("🚀 Lời mời: %s", n.getTitle()));
-                suggestedActions.add(AiCatchupResponseDto.SuggestedActionDto.builder()
-                        .id("act_invite")
-                        .label("Xử lý lời mời")
-                        .actionType("ACCEPT_INVITE")
-                        .targetUrl(n.getActionUrl())
-                        .entityId(n.getEntityId())
-                        .entityType("workspace")
-                        .build());
-            } else if ((n.getType() == NotificationType.TASK_COMMENTED || n.getType() == NotificationType.MENTION) && highlights.size() < 3) {
-                highlights.add(String.format("💬 Thảo luận: %s", n.getTitle()));
-            } else if (n.getType() == NotificationType.TASK_ASSIGNED && highlights.size() < 3) {
-                highlights.add(String.format("📌 Giao việc: %s", n.getTitle()));
-            }
+            collectHighlightAndAction(n, isUrgent, highlights, suggestedActions);
         }
 
         if (suggestedActions.stream().noneMatch(a -> "MARK_ALL_READ".equals(a.getActionType()))) {
@@ -225,6 +234,53 @@ public class NotificationService {
                     .build());
         }
 
+        if (highlights.isEmpty()) {
+            highlights.add(String.format("Đang có %d cập nhật mới cần bạn xem qua.", unreadList.size()));
+        }
+
+        return new CatchupDigestData(digestContext.toString(), urgentCount, highlights, suggestedActions);
+    }
+
+    private boolean isUrgentNotification(Notification n) {
+        return n.getPriority() == NotificationPriority.URGENT
+                || n.getPriority() == NotificationPriority.HIGH
+                || n.getType() == NotificationType.TASK_DUE_SOON;
+    }
+
+    private void collectHighlightAndAction(
+            Notification n,
+            boolean isUrgent,
+            List<String> highlights,
+            List<AiCatchupResponseDto.SuggestedActionDto> suggestedActions
+    ) {
+        if (isUrgent && suggestedActions.stream().noneMatch(a -> "VIEW_URGENT".equals(a.getActionType()))) {
+            highlights.add(String.format("⚡ Khẩn cấp: %s", n.getTitle()));
+            suggestedActions.add(AiCatchupResponseDto.SuggestedActionDto.builder()
+                    .id("act_urgent")
+                    .label("Xem việc khẩn cấp")
+                    .actionType("VIEW_URGENT")
+                    .targetUrl(n.getActionUrl())
+                    .entityId(n.getEntityId())
+                    .entityType(n.getEntityType())
+                    .build());
+        } else if (n.getType() == NotificationType.WORKSPACE_INVITED && suggestedActions.stream().noneMatch(a -> "ACCEPT_INVITE".equals(a.getActionType()))) {
+            highlights.add(String.format("🚀 Lời mời: %s", n.getTitle()));
+            suggestedActions.add(AiCatchupResponseDto.SuggestedActionDto.builder()
+                    .id("act_invite")
+                    .label("Xử lý lời mời")
+                    .actionType("ACCEPT_INVITE")
+                    .targetUrl(n.getActionUrl())
+                    .entityId(n.getEntityId())
+                    .entityType("workspace")
+                    .build());
+        } else if ((n.getType() == NotificationType.TASK_COMMENTED || n.getType() == NotificationType.MENTION) && highlights.size() < 3) {
+            highlights.add(String.format("💬 Thảo luận: %s", n.getTitle()));
+        } else if (n.getType() == NotificationType.TASK_ASSIGNED && highlights.size() < 3) {
+            highlights.add(String.format("📌 Giao việc: %s", n.getTitle()));
+        }
+    }
+
+    private String resolveCatchupSummary(String digestContext, int urgentCount, int totalCount, String userId) {
         String summary = null;
         try {
             String prompt = String.format("""
@@ -232,7 +288,7 @@ public class NotificationService {
                 %s
                 
                 Hãy viết một tóm tắt siêu ngắn gọn (khoảng 2 câu, tối đa 50 từ) bằng tiếng Việt thật tự nhiên, phong cách chuyên nghiệp, giúp người dùng nắm được ngay điều cần làm nhất hôm nay. Không dùng markdown rườm rà.
-                """, digestContext.toString());
+                """, digestContext);
 
             summary = aiChatService.generateCatchupSummary(prompt, userId);
         } catch (Exception e) {
@@ -240,32 +296,16 @@ public class NotificationService {
         }
 
         if (summary == null || summary.isBlank()) {
-            if (urgentCount > 0) {
-                summary = String.format("Bạn có %d thông báo chưa đọc, trong đó có %d việc quan trọng cần ưu tiên giải quyết.",
-                        unreadList.size(), urgentCount);
-            } else {
-                summary = String.format("Bạn có %d thông báo mới từ đồng nghiệp và hệ thống. Các công việc đang tiến triển bình thường.",
-                        unreadList.size());
-            }
+            return urgentCount > 0
+                    ? String.format("Bạn có %d thông báo chưa đọc, trong đó có %d việc quan trọng cần ưu tiên giải quyết.", totalCount, urgentCount)
+                    : String.format("Bạn có %d thông báo mới từ đồng nghiệp và hệ thống. Các công việc đang tiến triển bình thường.", totalCount);
         }
-
-        if (highlights.isEmpty()) {
-            highlights.add(String.format("Đang có %d cập nhật mới cần bạn xem qua.", unreadList.size()));
-        }
-
-        return AiCatchupResponseDto.builder()
-                .success(true)
-                .unreadCount(unreadList.size())
-                .urgentCount(urgentCount)
-                .summary(summary.trim())
-                .highlights(highlights)
-                .suggestedActions(suggestedActions)
-                .build();
+        return summary.trim();
     }
 
     public void markAsRead(String id, String userId) {
         Notification notification = notificationRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Notification not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(NOTIFICATION_NOT_FOUND_MSG + id));
 
         if (!notification.getUserId().equals(userId)) {
             throw new UnauthorizedException("Cannot mark another user's notification as read");
@@ -288,7 +328,7 @@ public class NotificationService {
 
     public NotificationResponse getNotificationById(String id, String userId) {
         Notification n = notificationRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Notification not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(NOTIFICATION_NOT_FOUND_MSG + id));
         if (userId != null && !n.getUserId().equals(userId)) {
             throw new UnauthorizedException("Cannot view another user's notification");
         }
@@ -297,7 +337,7 @@ public class NotificationService {
 
     public void deleteNotification(String id, String userId) {
         Notification n = notificationRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Notification not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(NOTIFICATION_NOT_FOUND_MSG + id));
         if (userId != null && !n.getUserId().equals(userId)) {
             throw new UnauthorizedException("Cannot delete another user's notification");
         }
@@ -392,27 +432,37 @@ public class NotificationService {
         return response;
     }
 
+    private ProjectContext resolveProjectContext(String projectId) {
+        Project project = projectId != null ? projectRepository.findById(projectId).orElse(null) : null;
+        Workspace workspace = (project != null && project.getWorkspaceId() != null)
+                ? workspaceRepository.findById(project.getWorkspaceId()).orElse(null)
+                : null;
+        return new ProjectContext(project, workspace);
+    }
+
+    private String buildTaskActionUrl(Workspace workspace, Project project, String taskId) {
+        String wsSlug = workspace != null ? workspace.getSlug() : DEFAULT_SLUG;
+        String prjSlug = project != null ? project.getSlug() : DEFAULT_SLUG;
+        return "/" + wsSlug + "/" + prjSlug + TASKS_PATH + taskId;
+    }
+
+    private String getActorDisplayName(String actorId, String fallback) {
+        if (actorId == null || actorId.isBlank()) {
+            return fallback;
+        }
+        return userRepository.findById(actorId).map(this::getUserDisplayName).orElse(fallback);
+    }
+
     public void notifyTaskAssigned(Task task, String assigneeId, String actorId) {
         if (assigneeId == null || assigneeId.isBlank() || assigneeId.equals(actorId)) {
             return;
         }
 
-        Project project = task.getProjectId() != null
-                ? projectRepository.findById(task.getProjectId()).orElse(null)
-                : null;
-        Workspace workspace = project != null && project.getWorkspaceId() != null
-                ? workspaceRepository.findById(project.getWorkspaceId()).orElse(null)
-                : null;
+        ProjectContext ctx = resolveProjectContext(task.getProjectId());
+        String actionUrl = buildTaskActionUrl(ctx.workspace(), ctx.project(), task.getId());
+        String actorName = getActorDisplayName(actorId, PROJECT_MEMBER_DEFAULT);
 
-        String wsSlug = workspace != null ? workspace.getSlug() : "default";
-        String prjSlug = project != null ? project.getSlug() : "default";
-        String actionUrl = "/" + wsSlug + "/" + prjSlug + "/tasks/" + task.getId();
-
-        String actorName = actorId != null
-                ? userRepository.findById(actorId).map(this::getUserDisplayName).orElse("Thành viên dự án")
-                : "Thành viên dự án";
-
-        String projectName = project != null ? project.getName() : "Dự án";
+        String projectName = ctx.project() != null ? ctx.project().getName() : "Dự án";
         String title = "Bạn được giao công việc: " + task.getTitle();
         String message = actorName + " đã giao công việc \"" + task.getTitle() + "\" cho bạn trong dự án \"" + projectName + "\".";
 
@@ -426,17 +476,13 @@ public class NotificationService {
                 .entityType("task")
                 .entityId(task.getId())
                 .actionUrl(actionUrl)
-                .organizationId(workspace != null ? workspace.getOrganizationId() : null)
+                .organizationId(ctx.workspace() != null ? ctx.workspace().getOrganizationId() : null)
                 .build();
 
         sendAndBroadcastNotification(params);
     }
 
-    public void notifyTaskUrgentPriority(Task task, String actorId) {
-        if (task == null || task.getId() == null) {
-            return;
-        }
-
+    private Set<String> resolveUrgentRecipients(Task task, String actorId) {
         List<TaskAssignee> assignees = taskAssigneeRepository.findByTaskId(task.getId());
         Set<String> recipientUserIds = new LinkedHashSet<>();
         if (assignees != null && !assignees.isEmpty()) {
@@ -445,35 +491,29 @@ public class NotificationService {
                     recipientUserIds.add(assignee.getUserId());
                 }
             }
-        } else {
-            // Fallback: Nếu công việc chưa phân công ai, thông báo trực tiếp cho người kích hoạt / người tạo
-            if (actorId != null && !actorId.isBlank()) {
-                recipientUserIds.add(actorId);
-            } else if (task.getCreatedBy() != null && !task.getCreatedBy().isBlank()) {
-                recipientUserIds.add(task.getCreatedBy());
-            }
+        } else if (actorId != null && !actorId.isBlank()) {
+            recipientUserIds.add(actorId);
+        } else if (task.getCreatedBy() != null && !task.getCreatedBy().isBlank()) {
+            recipientUserIds.add(task.getCreatedBy());
+        }
+        return recipientUserIds;
+    }
+
+    public void notifyTaskUrgentPriority(Task task, String actorId) {
+        if (task == null || task.getId() == null) {
+            return;
         }
 
+        Set<String> recipientUserIds = resolveUrgentRecipients(task, actorId);
         if (recipientUserIds.isEmpty()) {
             return;
         }
 
-        Project project = task.getProjectId() != null
-                ? projectRepository.findById(task.getProjectId()).orElse(null)
-                : null;
-        Workspace workspace = project != null && project.getWorkspaceId() != null
-                ? workspaceRepository.findById(project.getWorkspaceId()).orElse(null)
-                : null;
+        ProjectContext ctx = resolveProjectContext(task.getProjectId());
+        String actionUrl = buildTaskActionUrl(ctx.workspace(), ctx.project(), task.getId());
+        String actorName = getActorDisplayName(actorId, "Hệ thống");
 
-        String wsSlug = workspace != null ? workspace.getSlug() : "default";
-        String prjSlug = project != null ? project.getSlug() : "default";
-        String actionUrl = "/" + wsSlug + "/" + prjSlug + "/tasks/" + task.getId();
-
-        String actorName = actorId != null
-                ? userRepository.findById(actorId).map(this::getUserDisplayName).orElse("Thành viên dự án")
-                : "Hệ thống";
-
-        String projectName = project != null ? project.getName() : "Dự án";
+        String projectName = ctx.project() != null ? ctx.project().getName() : "Dự án";
         String taskTitle = (task.getTitle() != null && !task.getTitle().isBlank()) ? task.getTitle() : "Công việc";
         String title = "🚨 [KHẨN CẤP] Công việc ưu tiên CAO NHẤT: " + taskTitle;
         String message = actorName + " đã đặt mức độ ưu tiên CAO NHẤT cho công việc \"" + taskTitle + "\" thuộc dự án \"" + projectName + "\". Bạn được phân công thực hiện và cần xử lý ngay lập tức!";
@@ -489,7 +529,7 @@ public class NotificationService {
                     .entityType("task")
                     .entityId(task.getId())
                     .actionUrl(actionUrl)
-                    .organizationId(workspace != null ? workspace.getOrganizationId() : null)
+                    .organizationId(ctx.workspace() != null ? ctx.workspace().getOrganizationId() : null)
                     .build();
 
             try {
@@ -505,20 +545,9 @@ public class NotificationService {
             return;
         }
 
-        Project project = task.getProjectId() != null
-                ? projectRepository.findById(task.getProjectId()).orElse(null)
-                : null;
-        Workspace workspace = project != null && project.getWorkspaceId() != null
-                ? workspaceRepository.findById(project.getWorkspaceId()).orElse(null)
-                : null;
-
-        String wsSlug = workspace != null ? workspace.getSlug() : "default";
-        String prjSlug = project != null ? project.getSlug() : "default";
-        String actionUrl = "/" + wsSlug + "/" + prjSlug + "/tasks/" + task.getId();
-
-        String actorName = actorId != null
-                ? userRepository.findById(actorId).map(this::getUserDisplayName).orElse("Thành viên dự án")
-                : "Thành viên dự án";
+        ProjectContext ctx = resolveProjectContext(task.getProjectId());
+        String actionUrl = buildTaskActionUrl(ctx.workspace(), ctx.project(), task.getId());
+        String actorName = getActorDisplayName(actorId, PROJECT_MEMBER_DEFAULT);
 
         String contentSnippet = truncateContent(comment.getContent(), 120);
         String title = actorName + " đã nhắc tên bạn trong một bình luận";
@@ -534,7 +563,7 @@ public class NotificationService {
                 .entityType("task")
                 .entityId(task.getId())
                 .actionUrl(actionUrl)
-                .organizationId(workspace != null ? workspace.getOrganizationId() : null)
+                .organizationId(ctx.workspace() != null ? ctx.workspace().getOrganizationId() : null)
                 .build();
 
         sendAndBroadcastNotification(params);
@@ -545,20 +574,9 @@ public class NotificationService {
             return;
         }
 
-        Project project = task.getProjectId() != null
-                ? projectRepository.findById(task.getProjectId()).orElse(null)
-                : null;
-        Workspace workspace = project != null && project.getWorkspaceId() != null
-                ? workspaceRepository.findById(project.getWorkspaceId()).orElse(null)
-                : null;
-
-        String wsSlug = workspace != null ? workspace.getSlug() : "default";
-        String prjSlug = project != null ? project.getSlug() : "default";
-        String actionUrl = "/" + wsSlug + "/" + prjSlug + "/tasks/" + task.getId();
-
-        String actorName = actorId != null
-                ? userRepository.findById(actorId).map(this::getUserDisplayName).orElse("Thành viên dự án")
-                : "Thành viên dự án";
+        ProjectContext ctx = resolveProjectContext(task.getProjectId());
+        String actionUrl = buildTaskActionUrl(ctx.workspace(), ctx.project(), task.getId());
+        String actorName = getActorDisplayName(actorId, PROJECT_MEMBER_DEFAULT);
 
         String contentSnippet = truncateContent(comment.getContent(), 120);
         String title = "Bình luận mới trong: " + task.getTitle();
@@ -574,58 +592,37 @@ public class NotificationService {
                 .entityType("task")
                 .entityId(task.getId())
                 .actionUrl(actionUrl)
-                .organizationId(workspace != null ? workspace.getOrganizationId() : null)
+                .organizationId(ctx.workspace() != null ? ctx.workspace().getOrganizationId() : null)
                 .build();
 
         sendAndBroadcastNotification(params);
     }
 
     public void notifyTaskStatusChanged(Task task, String oldStatusName, String newStatusName, String actorId) {
-        Project project = task.getProjectId() != null
-                ? projectRepository.findById(task.getProjectId()).orElse(null)
-                : null;
-        Workspace workspace = project != null && project.getWorkspaceId() != null
-                ? workspaceRepository.findById(project.getWorkspaceId()).orElse(null)
-                : null;
-
-        String wsSlug = workspace != null ? workspace.getSlug() : "default";
-        String prjSlug = project != null ? project.getSlug() : "default";
-        String actionUrl = "/" + wsSlug + "/" + prjSlug + "/tasks/" + task.getId();
-
-        String actorName = actorId != null
-                ? userRepository.findById(actorId).map(this::getUserDisplayName).orElse("Thành viên dự án")
-                : "Thành viên dự án";
+        ProjectContext ctx = resolveProjectContext(task.getProjectId());
+        String actionUrl = buildTaskActionUrl(ctx.workspace(), ctx.project(), task.getId());
+        String actorName = getActorDisplayName(actorId, PROJECT_MEMBER_DEFAULT);
 
         String title = "Cập nhật trạng thái: " + task.getTitle();
         String message = actorName + " đã chuyển công việc \"" + task.getTitle() + "\" từ [" + oldStatusName + "] sang [" + newStatusName + "].";
 
-        // 1. Notify Assignees if not actor
         List<String> assigneeIds = taskAssigneeRepository.findByTaskId(task.getId()).stream()
                 .map(TaskAssignee::getUserId)
                 .toList();
 
+        Set<String> recipientIds = new LinkedHashSet<>();
         for (String aId : assigneeIds) {
             if (!aId.equals(actorId)) {
-                CreateNotificationParams params = CreateNotificationParams.builder()
-                        .userId(aId)
-                        .creatorId(actorId)
-                        .type(NotificationType.TASK_STATUS_CHANGED)
-                        .priority(NotificationPriority.MEDIUM)
-                        .title(title)
-                        .message(message)
-                        .entityType("task")
-                        .entityId(task.getId())
-                        .actionUrl(actionUrl)
-                        .organizationId(workspace != null ? workspace.getOrganizationId() : null)
-                        .build();
-                sendAndBroadcastNotification(params);
+                recipientIds.add(aId);
             }
         }
+        if (task.getCreatedBy() != null && !task.getCreatedBy().equals(actorId)) {
+            recipientIds.add(task.getCreatedBy());
+        }
 
-        // 2. Notify Creator if not actor and not assignee
-        if (task.getCreatedBy() != null && !task.getCreatedBy().equals(actorId) && !assigneeIds.contains(task.getCreatedBy())) {
+        for (String recipientId : recipientIds) {
             CreateNotificationParams params = CreateNotificationParams.builder()
-                    .userId(task.getCreatedBy())
+                    .userId(recipientId)
                     .creatorId(actorId)
                     .type(NotificationType.TASK_STATUS_CHANGED)
                     .priority(NotificationPriority.MEDIUM)
@@ -634,7 +631,7 @@ public class NotificationService {
                     .entityType("task")
                     .entityId(task.getId())
                     .actionUrl(actionUrl)
-                    .organizationId(workspace != null ? workspace.getOrganizationId() : null)
+                    .organizationId(ctx.workspace() != null ? ctx.workspace().getOrganizationId() : null)
                     .build();
             sendAndBroadcastNotification(params);
         }
