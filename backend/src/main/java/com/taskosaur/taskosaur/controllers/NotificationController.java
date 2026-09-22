@@ -199,7 +199,7 @@ public class NotificationController {
             Authentication authentication
     ) {
         String userId = getUserId(authentication);
-        List<String> ids = request != null ? request.getIds() : List.of();
+        List<String> ids = request != null ? request.getResolvedIds() : List.of();
         notificationService.bulkDeleteNotifications(ids, userId);
         return ResponseEntity.ok(Map.of("success", true, "message", "Notifications deleted successfully"));
     }

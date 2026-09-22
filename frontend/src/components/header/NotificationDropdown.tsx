@@ -24,6 +24,7 @@ import {
   HiArrowRight,
   HiChevronDown,
   HiChevronUp,
+  HiTrash,
 } from "react-icons/hi2";
 import { notificationApi } from "@/utils/api/notificationApi";
 import { invitationApi } from "@/utils/api/invitationsApi";
@@ -51,6 +52,7 @@ export default function NotificationDropdown({
     refreshNotifications,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
     isDnd,
     toggleDnd,
     starredIds,
@@ -200,6 +202,19 @@ export default function NotificationDropdown({
       console.error("Failed to mark as read", err);
     } finally {
       setMarkingAsRead(null);
+    }
+  };
+
+  const handleDeleteItem = async (e: React.MouseEvent, notificationId: string) => {
+    e.stopPropagation();
+    try {
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+      await deleteNotification(notificationId);
+      toast.success("Đã xóa thông báo");
+    } catch (err) {
+      console.error("Failed to delete notification", err);
+      toast.error("Không thể xóa thông báo");
+      refreshNotifications();
     }
   };
 
@@ -382,38 +397,38 @@ export default function NotificationDropdown({
           </div>
         </div>
 
-        {/* ✨ AI Catch-up Hero Card */}
-        <div className="px-4 py-2.5 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-indigo-500/5 border-b border-[var(--border)]/40">
+        {/* AI Catch-up Card */}
+        <div className="px-4 py-2 bg-[var(--muted)]/20 border-b border-[var(--border)]">
           {!isCatchupExpanded ? (
             <button
               type="button"
               onClick={handleTriggerCatchup}
-              className="w-full flex items-center justify-between p-2 rounded-xl bg-[var(--card)] border border-blue-500/25 hover:border-blue-500/50 shadow-sm transition-all group"
+              className="w-full flex items-center justify-between p-2 rounded-xl bg-[var(--card)] border border-[var(--border)] hover:border-[var(--primary)]/40 shadow-xs transition-all group"
             >
-              <div className="flex items-center gap-2 text-left">
-                <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-xs">
-                  <HiSparkles className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform" />
+              <div className="flex items-center gap-2.5 text-left">
+                <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20">
+                  <HiSparkles className="w-3.5 h-3.5" />
                 </span>
                 <div>
-                  <span className="text-xs font-bold text-[var(--foreground)] flex items-center gap-1.5">
-                    ✨ AI Catch-up
-                    <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400 bg-blue-500/10 px-1.5 py-0.2 rounded">
-                      Tóm tắt nhanh
+                  <span className="text-xs font-semibold text-[var(--foreground)] flex items-center gap-1.5">
+                    Tóm tắt thông minh
+                    <span className="text-[10px] font-medium text-[var(--primary)] bg-[var(--primary)]/10 px-1.5 py-0.2 rounded">
+                      Catch-up
                     </span>
                   </span>
                   <p className="text-[11px] text-[var(--muted-foreground)] line-clamp-1">
-                    Nắm bắt tình hình công việc trong 10 giây
+                    Nắm bắt tình hình công việc trong ngày
                   </p>
                 </div>
               </div>
               <HiChevronDown className="w-4 h-4 text-[var(--muted-foreground)] group-hover:text-[var(--foreground)] transition-colors" />
             </button>
           ) : (
-            <div className="p-3 rounded-xl bg-[var(--card)] border border-blue-500/30 shadow-md space-y-2.5 animate-in fade-in-50">
+            <div className="p-3 rounded-xl bg-[var(--card)] border border-[var(--border)] shadow-xs space-y-2.5 animate-in fade-in-50">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <HiSparkles className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  <span className="text-xs font-bold text-[var(--foreground)]">Bản tin thông minh AI</span>
+                  <HiSparkles className="w-4 h-4 text-[var(--primary)]" />
+                  <span className="text-xs font-semibold text-[var(--foreground)]">Bản tin thông minh</span>
                 </div>
                 <button
                   type="button"
@@ -604,6 +619,16 @@ export default function NotificationDropdown({
                           <HiCheck className="w-3.5 h-3.5" />
                         </button>
                       )}
+
+                      {/* Delete Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteItem(e, notification.id)}
+                        className="p-1 rounded-md text-[var(--muted-foreground)] hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+                        title="Xóa thông báo"
+                      >
+                        <HiTrash className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 </div>

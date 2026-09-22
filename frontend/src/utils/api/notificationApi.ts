@@ -259,7 +259,7 @@ export const notificationApi = {
       }
 
       await api.delete("/notifications/bulk", {
-        data: { notificationIds },
+        data: { ids: notificationIds, notificationIds },
       });
     } catch (error) {
       console.error("Failed to delete multiple notifications:", error);

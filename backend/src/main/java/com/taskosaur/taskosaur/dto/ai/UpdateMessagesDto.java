@@ -11,7 +11,6 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class UpdateMessagesDto {
-    @NotEmpty(message = "Messages list cannot be empty")
     @Valid
     private List<ChatMessageDto> messages;
 }

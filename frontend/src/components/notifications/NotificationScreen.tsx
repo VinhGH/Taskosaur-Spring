@@ -10,7 +10,6 @@ import {
   HiCheckCircle,
   HiClock,
   HiFolder,
-  HiCog6Tooth,
   HiSparkles,
   HiChatBubbleLeftEllipsis,
   HiClipboardDocumentCheck,
@@ -22,12 +21,9 @@ import {
   HiXMark,
   HiPaperAirplane,
   HiArrowPath,
-  HiFunnel,
-  HiBookmark,
 } from "react-icons/hi2";
 import { notificationApi } from "@/utils/api/notificationApi";
 import { invitationApi } from "@/utils/api/invitationsApi";
-import { PageHeader } from "@/components/common/PageHeader";
 import Pagination from "@/components/common/Pagination";
 import ErrorState from "@/components/common/ErrorState";
 import { Notification, NotificationPriority, NotificationType, NotificationCategory } from "@/types";
@@ -82,6 +78,11 @@ function formatRelativeTime(dateString: string) {
     month: "numeric",
     year: "numeric",
   });
+}
+
+function cleanNotificationTitle(rawTitle: string): string {
+  if (!rawTitle) return "";
+  return rawTitle.replace(/^[🚨⚡📌💬🚀\s]+/, "").trim();
 }
 
 export default function NotificationScreen({ userId, organizationId }: NotificationScreenProps) {
@@ -195,42 +196,42 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
       case "TASK_ASSIGNED":
         return {
           icon: HiClipboardDocumentCheck,
-          iconBg: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+          iconBg: "bg-blue-500/10 text-blue-500 border-blue-500/20",
           label: "Giao việc",
         };
       case "TASK_COMMENTED":
       case "MENTION":
         return {
           icon: HiChatBubbleLeftEllipsis,
-          iconBg: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
-          label: type === "MENTION" ? "@Nhắc đến" : "Bình luận",
+          iconBg: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
+          label: type === "MENTION" ? "Đề cập" : "Bình luận",
         };
       case "TASK_DUE_SOON":
         return {
           icon: HiClock,
-          iconBg: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
-          label: "Sắp hết hạn",
+          iconBg: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+          label: "Hạn chót",
         };
       case "WORKSPACE_INVITED":
         return {
           icon: HiEnvelope,
-          iconBg: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+          iconBg: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20",
           label: "Lời mời",
         };
       case "PROJECT_CREATED":
       case "PROJECT_UPDATED":
         return {
           icon: HiFolder,
-          iconBg: "bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20",
+          iconBg: "bg-slate-500/10 text-slate-400 border-slate-500/20",
           label: "Dự án",
         };
       default:
         return {
-          icon: isUrgent ? HiClock : HiCog6Tooth,
+          icon: isUrgent ? HiClock : HiBell,
           iconBg: isUrgent
-            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
-            : "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20",
-          label: isUrgent ? "Khẩn cấp" : "Hệ thống",
+            ? "bg-rose-500/10 text-rose-500 border-rose-500/20"
+            : "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",
+          label: isUrgent ? "Khẩn cấp" : "Thông báo",
         };
     }
   };
@@ -278,15 +279,17 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
     const ids = Array.from(selectedNotifications);
     if (ids.length === 0) return;
     try {
-      await Promise.all(ids.map((id) => markAsRead(id)));
       setNotifications((prev) =>
         prev.map((n) => (ids.includes(n.id) ? { ...n, isRead: true } : n))
       );
       setSelectedNotifications(new Set());
       setStats((prev) => ({ ...prev, unread: Math.max(0, prev.unread - ids.length) }));
+      await Promise.all(ids.map((id) => markAsRead(id)));
       toast.success(`Đã đánh dấu ${ids.length} thông báo là đã đọc`);
+      refreshNotifications();
     } catch (err: any) {
       toast.error(err?.message || "Không thể cập nhật trạng thái đã đọc.");
+      fetchNotifications();
     }
   };
 
@@ -294,13 +297,42 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
     const ids = Array.from(selectedNotifications);
     if (ids.length === 0) return;
     try {
-      await notificationApi.deleteMultipleNotifications(ids);
+      // Optimistic update
       setNotifications((prev) => prev.filter((n) => !ids.includes(n.id)));
       setSelectedNotifications(new Set());
+      setStats((prev) => ({
+        ...prev,
+        total: Math.max(0, prev.total - ids.length),
+      }));
+      await notificationApi.deleteMultipleNotifications(ids);
       toast.success(`Đã xoá ${ids.length} thông báo`);
-      fetchNotifications();
+      refreshNotifications();
     } catch (err: any) {
       toast.error(err?.message || "Không thể xoá thông báo.");
+      fetchNotifications();
+    }
+  };
+
+  const handleSingleDelete = async (e: React.MouseEvent, notificationId: string) => {
+    e.stopPropagation();
+    try {
+      // Optimistic update
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+      setSelectedNotifications((prev) => {
+        const next = new Set(prev);
+        next.delete(notificationId);
+        return next;
+      });
+      setStats((prev) => ({
+        ...prev,
+        total: Math.max(0, prev.total - 1),
+      }));
+      await notificationApi.deleteNotification(notificationId);
+      toast.success("Đã xoá thông báo");
+      refreshNotifications();
+    } catch (err: any) {
+      toast.error(err?.message || "Không thể xoá thông báo.");
+      fetchNotifications();
     }
   };
 
@@ -382,20 +414,20 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-[var(--border)]/60">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">
-              Hộp thư Thông báo
+            <h1 className="text-xl font-bold tracking-tight text-[var(--foreground)]">
+              Thông báo
             </h1>
             {stats.unread > 0 && (
               <Badge
-                variant="destructive"
-                className="rounded-full px-2.5 py-0.5 text-xs font-bold shadow-xs"
+                variant="secondary"
+                className="rounded-full px-2 py-0.5 text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
               >
                 {stats.unread} chưa đọc
               </Badge>
             )}
           </div>
-          <p className="text-xs text-[var(--muted-foreground)] mt-1">
-            Trung tâm điều hướng, phân loại và xử lý công việc tức thì của bạn.
+          <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
+            Xem và xử lý các cập nhật trong tổ chức của bạn.
           </p>
         </div>
 
@@ -405,14 +437,14 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
             variant="outline"
             size="sm"
             onClick={toggleDnd}
-            className={`h-9 px-3 text-xs gap-1.5 rounded-xl border ${
+            className={`h-8 px-2.5 text-xs gap-1.5 rounded-lg border ${
               isDnd
                 ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400"
                 : "border-[var(--border)] text-[var(--foreground)]"
             }`}
           >
-            {isDnd ? <HiSpeakerXMark className="w-4 h-4" /> : <HiSpeakerWave className="w-4 h-4" />}
-            <span>{isDnd ? "Đang bật DND" : "Không làm phiền"}</span>
+            {isDnd ? <HiSpeakerXMark className="w-3.5 h-3.5" /> : <HiSpeakerWave className="w-3.5 h-3.5" />}
+            <span>{isDnd ? "Đang tắt chuông" : "Không làm phiền"}</span>
           </Button>
 
           {/* Mark All Read */}
@@ -421,9 +453,9 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
               variant="outline"
               size="sm"
               onClick={() => markAllAsRead()}
-              className="h-9 px-3 text-xs gap-1.5 rounded-xl border-[var(--border)] text-[var(--foreground)] hover:bg-emerald-500/10 hover:text-emerald-600 transition-colors"
+              className="h-8 px-2.5 text-xs gap-1.5 rounded-lg border-[var(--border)] text-[var(--foreground)] hover:bg-emerald-500/10 hover:text-emerald-600 transition-colors"
             >
-              <HiCheckCircle className="w-4 h-4 text-emerald-500" />
+              <HiCheckCircle className="w-3.5 h-3.5 text-emerald-500" />
               <span>Đánh dấu tất cả đã đọc</span>
             </Button>
           )}
@@ -434,57 +466,60 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
               variant="ghost"
               size="icon"
               onClick={fetchNotifications}
-              className="h-9 w-9 rounded-xl hover:bg-[var(--accent)]"
+              className="h-8 w-8 rounded-lg hover:bg-[var(--accent)]"
             >
-              <HiArrowPath className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              <HiArrowPath className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             </Button>
           </Tooltip>
         </div>
       </div>
 
-      {/* ✨ AI Catch-up Banner */}
-      <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-600/10 via-indigo-600/10 to-purple-600/10 border border-blue-500/25 shadow-sm space-y-3">
+      {/* AI Digest Banner - Sleek, understated design */}
+      <div className="p-3.5 rounded-xl bg-[var(--card)] border border-[var(--border)] shadow-xs space-y-2.5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-xl bg-blue-600 text-white shadow-xs">
+            <span className="p-1 rounded-md bg-[var(--primary)]/10 text-[var(--primary)]">
               <HiSparkles className="w-4 h-4" />
             </span>
             <div>
-              <h3 className="text-sm font-bold text-[var(--foreground)] flex items-center gap-2">
-                AI Catch-up Digest
-                <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
-                  Bản tin tóm tắt thông minh
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-[var(--foreground)]">
+                  Tóm tắt thông báo
                 </span>
-              </h3>
-              <p className="text-xs text-[var(--muted-foreground)]">
-                Tự động gom và tổng hợp các việc trọng tâm từ thông báo của bạn.
+                <span className="text-[10px] font-medium text-[var(--muted-foreground)] bg-[var(--muted)] px-1.5 py-0.2 rounded">
+                  AI Digest
+                </span>
+              </div>
+              <p className="text-[11px] text-[var(--muted-foreground)]">
+                Tự động tổng hợp các cập nhật quan trọng từ thông báo gần đây.
               </p>
             </div>
           </div>
 
           <Button
             size="sm"
+            variant="outline"
             disabled={isCatchupLoading}
             onClick={() => fetchAiCatchup()}
-            className="h-8 px-3 text-xs font-semibold rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm flex items-center gap-1.5"
+            className="h-7 px-3 text-xs font-medium rounded-lg border-[var(--border)] hover:bg-[var(--accent)] text-[var(--foreground)] flex items-center gap-1.5"
           >
             {isCatchupLoading ? (
               <>
-                <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Đang phân tích...</span>
+                <span className="w-3 h-3 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
+                <span>Đang xử lý...</span>
               </>
             ) : (
               <>
-                <HiSparkles className="w-3.5 h-3.5" />
-                <span>{aiCatchup ? "Cập nhật tóm tắt" : "Tóm tắt ngay bằng AI"}</span>
+                <HiSparkles className="w-3 h-3 text-[var(--primary)]" />
+                <span>{aiCatchup ? "Cập nhật tóm tắt" : "Tóm tắt thông minh"}</span>
               </>
             )}
           </Button>
         </div>
 
         {aiCatchup && (
-          <div className="pt-2 border-t border-blue-500/20 space-y-2 animate-in fade-in-50">
-            <p className="text-xs text-[var(--foreground)] leading-relaxed font-medium">
+          <div className="pt-2 border-t border-[var(--border)]/50 space-y-2 animate-in fade-in-50">
+            <p className="text-xs text-[var(--foreground)] leading-relaxed">
               {aiCatchup.summary}
             </p>
             {aiCatchup.highlights && aiCatchup.highlights.length > 0 && (
@@ -492,9 +527,9 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
                 {aiCatchup.highlights.map((h, i) => (
                   <div
                     key={i}
-                    className="p-2 rounded-lg bg-[var(--card)]/80 border border-[var(--border)]/40 text-[11px] text-[var(--foreground)] flex items-center gap-2"
+                    className="p-1.5 rounded-md bg-[var(--muted)]/40 border border-[var(--border)]/40 text-[11px] text-[var(--foreground)] flex items-center gap-2"
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] flex-shrink-0" />
                     <span className="line-clamp-1">{h}</span>
                   </div>
                 ))}
@@ -504,16 +539,16 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
         )}
       </div>
 
-      {/* Smart Filter Tabs & Bulk Actions */}
+      {/* Clean Category Tabs (NO EMOJIS) */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
         {/* Category Pills */}
-        <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-2xl bg-[var(--muted)]/50 border border-[var(--border)]/40 w-fit">
+        <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-[var(--muted)]/50 border border-[var(--border)]/40 w-fit">
           {[
             { key: "all", label: "Tất cả" },
-            { key: "assigned", label: "🎯 Giao cho tôi & @Me" },
-            { key: "urgent", label: "⚡ Khẩn cấp & Deadline" },
-            { key: "discussions", label: "💬 Thảo luận" },
-            { key: "starred", label: "⭐ Đã ghim" },
+            { key: "assigned", label: "Giao cho tôi" },
+            { key: "urgent", label: "Khẩn cấp" },
+            { key: "discussions", label: "Thảo luận" },
+            { key: "starred", label: "Đã lưu" },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -522,9 +557,9 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
                 setActiveCategory(tab.key as NotificationCategory);
                 setCurrentPage(1);
               }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
                 activeCategory === tab.key
-                  ? "bg-[var(--card)] text-[var(--foreground)] shadow-xs border border-[var(--border)]/50"
+                  ? "bg-[var(--card)] text-[var(--foreground)] shadow-xs font-semibold border border-[var(--border)]/60"
                   : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
               }`}
             >
@@ -548,14 +583,14 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
             <span className="font-medium">Chỉ hiện chưa đọc</span>
           </label>
 
-          {/* Bulk Actions Floating Toolbar */}
+          {/* Bulk Actions Toolbar */}
           {selectedNotifications.size > 0 && (
             <div className="flex items-center gap-1.5 animate-in fade-in-50">
               <Button
                 size="sm"
                 variant="outline"
                 onClick={handleBulkMarkRead}
-                className="h-8 px-2.5 text-xs rounded-xl text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20"
+                className="h-7 px-2.5 text-xs rounded-lg text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20"
               >
                 <HiCheck className="w-3.5 h-3.5 mr-1" />
                 <span>Đã đọc ({selectedNotifications.size})</span>
@@ -564,7 +599,7 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
                 size="sm"
                 variant="destructive"
                 onClick={handleBulkDelete}
-                className="h-8 px-2.5 text-xs rounded-xl bg-rose-600 hover:bg-rose-700 text-white"
+                className="h-7 px-2.5 text-xs rounded-lg bg-rose-600 hover:bg-rose-700 text-white"
               >
                 <HiTrash className="w-3.5 h-3.5 mr-1" />
                 <span>Xoá ({selectedNotifications.size})</span>
@@ -581,23 +616,23 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
         ) : error ? (
           <ErrorState error={error} onRetry={fetchNotifications} />
         ) : notifications.length === 0 ? (
-          /* Inbox Zero State */
-          <div className="py-20 px-4 text-center space-y-3 bg-[var(--card)]/40 border border-dashed border-[var(--border)] rounded-3xl mt-4">
-            <div className="w-16 h-16 mx-auto rounded-3xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-3xl shadow-sm">
-              <HiCheckCircle className="w-8 h-8" />
+          /* Clean Empty State */
+          <div className="py-20 px-4 text-center space-y-3 bg-[var(--card)]/30 border border-dashed border-[var(--border)] rounded-2xl mt-4">
+            <div className="w-12 h-12 mx-auto rounded-xl bg-[var(--muted)] text-[var(--muted-foreground)] flex items-center justify-center text-xl">
+              <HiBell className="w-6 h-6" />
             </div>
-            <h3 className="text-lg font-bold text-[var(--foreground)]">
-              Inbox Zero! Bạn đã cập nhật tất cả.
+            <h3 className="text-sm font-semibold text-[var(--foreground)]">
+              Không có thông báo nào
             </h3>
-            <p className="text-xs text-[var(--muted-foreground)] max-w-md mx-auto leading-relaxed">
-              Không có thông báo nào cần giải quyết trong danh mục này. Hãy thư giãn hoặc bắt tay vào các mục tiêu lớn tiếp theo!
+            <p className="text-xs text-[var(--muted-foreground)] max-w-sm mx-auto leading-relaxed">
+              Bạn đã xử lý hết các cập nhật trong danh mục này.
             </p>
             {activeCategory !== "all" && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setActiveCategory("all")}
-                className="mt-2 text-xs rounded-xl"
+                className="mt-2 text-xs rounded-lg"
               >
                 Xem tất cả thông báo
               </Button>
@@ -605,22 +640,22 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
           </div>
         ) : (
           /* Timeline-Grouped Notification List */
-          <div className="space-y-6 mt-2">
+          <div className="space-y-5 mt-2">
             {groupedNotifications.map(([groupName, items]) => (
               <div key={groupName} className="space-y-2">
                 {/* Timeline Header */}
                 <div className="flex items-center gap-2 px-1">
-                  <span className="text-xs font-bold text-[var(--muted-foreground)] uppercase tracking-wider">
+                  <span className="text-[11px] font-semibold text-[var(--muted-foreground)] tracking-wide uppercase">
                     {groupName}
                   </span>
-                  <div className="flex-1 h-px bg-[var(--border)]/50" />
-                  <span className="text-[11px] text-[var(--muted-foreground)] font-medium">
+                  <div className="flex-1 h-px bg-[var(--border)]/40" />
+                  <span className="text-[10px] text-[var(--muted-foreground)] font-medium">
                     {items.length}
                   </span>
                 </div>
 
-                {/* Cards */}
-                <div className="space-y-2">
+                {/* Notification Cards */}
+                <div className="space-y-1.5">
                   {items.map((notification) => {
                     const { icon: Icon, iconBg, label } = getVisuals(
                       notification.type,
@@ -630,24 +665,25 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
                     const isSelected = selectedNotifications.has(notification.id);
                     const isStarredItem = isStarred(notification.id);
                     const isReplying = quickReplyId === notification.id;
+                    const cleanTitle = cleanNotificationTitle(notification.title);
 
                     return (
                       <div
                         key={notification.id}
-                        className={`group relative p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
+                        className={`group relative p-3.5 rounded-xl border transition-all duration-150 cursor-pointer ${
                           isSelected
-                            ? "bg-[var(--accent)] border-[var(--primary)]/50"
+                            ? "bg-[var(--accent)] border-[var(--primary)]/40"
                             : isUnread
-                            ? "bg-[var(--card)] border-blue-500/20 shadow-xs hover:border-blue-500/40 hover:shadow-md"
-                            : "bg-[var(--card)]/60 border-[var(--border)]/60 hover:border-[var(--border)] hover:bg-[var(--card)]"
+                            ? "bg-[var(--card)] border-[var(--border)] shadow-xs hover:border-[var(--primary)]/30"
+                            : "bg-[var(--card)]/50 border-[var(--border)]/40 hover:border-[var(--border)] hover:bg-[var(--card)]"
                         }`}
                         onClick={() => handleNotificationClick(notification)}
                       >
-                        <div className="flex items-start gap-3.5">
+                        <div className="flex items-start gap-3">
                           {/* Checkbox */}
                           <div
                             onClick={(e) => e.stopPropagation()}
-                            className="pt-1 flex-shrink-0"
+                            className="pt-0.5 flex-shrink-0"
                           >
                             <input
                               type="checkbox"
@@ -658,55 +694,57 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
                                 else newSet.delete(notification.id);
                                 setSelectedNotifications(newSet);
                               }}
-                              className="w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)] cursor-pointer"
+                              className="w-3.5 h-3.5 rounded border-[var(--border)] accent-[var(--primary)] cursor-pointer"
                             />
                           </div>
 
-                          {/* Visual Icon */}
+                          {/* Visual Icon (Subtle & Clean) */}
                           <div className="relative flex-shrink-0 mt-0.5">
                             <div
-                              className={`w-9 h-9 rounded-xl flex items-center justify-center border ${iconBg}`}
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center border text-xs ${iconBg}`}
                             >
-                              <Icon className="w-5 h-5" />
+                              <Icon className="w-3.5 h-3.5" />
                             </div>
                             {isUnread && (
-                              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-blue-600 ring-2 ring-[var(--card)] animate-pulse" />
+                              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-600 ring-2 ring-[var(--card)]" />
                             )}
                           </div>
 
                           {/* Center Content */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-xs font-semibold text-[var(--muted-foreground)]">
+                              {/* Non-redundant category and priority tags */}
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-[11px] font-medium text-[var(--muted-foreground)]">
                                   {label}
                                 </span>
-                                {(notification.priority === "URGENT" ||
-                                  notification.priority === "HIGH") && (
-                                  <Badge
-                                    variant="destructive"
-                                    className="px-1.5 py-0 text-[10px] font-bold rounded-md"
-                                  >
-                                    {notification.priority === "URGENT" ? "Khẩn cấp" : "Ưu tiên cao"}
-                                  </Badge>
+                                {notification.priority === "URGENT" && label !== "Khẩn cấp" && (
+                                  <span className="px-1.5 py-0.2 text-[10px] font-medium rounded bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                                    Khẩn cấp
+                                  </span>
+                                )}
+                                {notification.priority === "HIGH" && label !== "Khẩn cấp" && (
+                                  <span className="px-1.5 py-0.2 text-[10px] font-medium rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                    Ưu tiên cao
+                                  </span>
                                 )}
                               </div>
-                              <span className="text-xs text-[var(--muted-foreground)] whitespace-nowrap">
+                              <span className="text-[11px] text-[var(--muted-foreground)] whitespace-nowrap">
                                 {formatRelativeTime(notification.createdAt)}
                               </span>
                             </div>
 
                             <h4
-                              className={`text-sm mt-1 leading-snug ${
+                              className={`text-xs mt-0.5 leading-snug ${
                                 isUnread
                                   ? "font-bold text-[var(--foreground)]"
                                   : "font-medium text-[var(--muted-foreground)]"
                               }`}
                             >
-                              {notification.title}
+                              {cleanTitle}
                             </h4>
 
-                            <p className="text-xs text-[var(--muted-foreground)] mt-1 line-clamp-2 leading-relaxed">
+                            <p className="text-[11px] text-[var(--muted-foreground)] mt-0.5 line-clamp-2 leading-relaxed">
                               {notification.message}
                             </p>
 
@@ -714,13 +752,13 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
                             {notification.type === "WORKSPACE_INVITED" && (
                               <div
                                 onClick={(e) => e.stopPropagation()}
-                                className="flex items-center gap-2 mt-3 pt-2 border-t border-[var(--border)]/40"
+                                className="flex items-center gap-2 mt-2 pt-2 border-t border-[var(--border)]/40"
                               >
                                 <Button
                                   size="sm"
                                   disabled={processingInviteId === notification.id}
                                   onClick={(e) => handleRespondInvite(e, notification, true)}
-                                  className="h-7 px-3 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                                  className="h-6 px-2.5 text-[10px] rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
                                 >
                                   Chấp nhận lời mời
                                 </Button>
@@ -729,7 +767,7 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
                                   variant="ghost"
                                   disabled={processingInviteId === notification.id}
                                   onClick={(e) => handleRespondInvite(e, notification, false)}
-                                  className="h-7 px-3 text-xs rounded-lg text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                                  className="h-6 px-2.5 text-[10px] rounded-md text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
                                 >
                                   Từ chối
                                 </Button>
@@ -741,7 +779,7 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
                               notification.type === "MENTION") && (
                               <div
                                 onClick={(e) => e.stopPropagation()}
-                                className="mt-2.5"
+                                className="mt-2"
                               >
                                 {!isReplying ? (
                                   <button
@@ -750,22 +788,22 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
                                       setQuickReplyId(notification.id);
                                       setQuickReplyText("");
                                     }}
-                                    className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1.5"
+                                    className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
                                   >
-                                    <HiChatBubbleLeftEllipsis className="w-3.5 h-3.5" />
-                                    <span>Trả lời nhanh tại đây...</span>
+                                    <HiChatBubbleLeftEllipsis className="w-3 h-3" />
+                                    <span>Trả lời nhanh...</span>
                                   </button>
                                 ) : (
                                   <form
                                     onSubmit={(e) => handleQuickReplySubmit(e, notification)}
-                                    className="p-3 rounded-xl bg-[var(--muted)]/40 border border-[var(--border)]/60 space-y-2 mt-1"
+                                    className="p-2.5 rounded-lg bg-[var(--muted)]/40 border border-[var(--border)]/60 space-y-2 mt-1"
                                   >
                                     <textarea
                                       value={quickReplyText}
                                       onChange={(e) => setQuickReplyText(e.target.value)}
-                                      placeholder="Nhập nội dung phản hồi của bạn..."
+                                      placeholder="Nhập nội dung phản hồi..."
                                       rows={2}
-                                      className="w-full text-xs p-2 rounded-lg bg-[var(--background)] border border-[var(--border)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] resize-none"
+                                      className="w-full text-xs p-2 rounded-md bg-[var(--background)] border border-[var(--border)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] resize-none"
                                     />
                                     <div className="flex items-center justify-end gap-2">
                                       <Button
@@ -773,7 +811,7 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
                                         size="sm"
                                         variant="ghost"
                                         onClick={() => setQuickReplyId(null)}
-                                        className="h-7 px-2.5 text-xs text-[var(--muted-foreground)]"
+                                        className="h-6 px-2 text-xs text-[var(--muted-foreground)]"
                                       >
                                         Hủy
                                       </Button>
@@ -781,7 +819,7 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
                                         type="submit"
                                         size="sm"
                                         disabled={isSubmittingReply || !quickReplyText.trim()}
-                                        className="h-7 px-3 text-xs rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1"
+                                        className="h-6 px-2.5 text-xs rounded-md bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1"
                                       >
                                         <HiPaperAirplane className="w-3 h-3" />
                                         <span>Gửi</span>
@@ -793,34 +831,34 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
                             )}
                           </div>
 
-                          {/* Hover Action Cluster */}
+                          {/* Hover Action Cluster (Star, Open, Mark Read, Delete) */}
                           <div
                             onClick={(e) => e.stopPropagation()}
                             className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
                           >
                             {/* Star Button */}
-                            <Tooltip content={isStarredItem ? "Bỏ ghim" : "Ghim thông báo"}>
+                            <Tooltip content={isStarredItem ? "Bỏ lưu" : "Lưu lại"}>
                               <button
                                 type="button"
                                 onClick={() => toggleStar(notification.id)}
-                                className={`p-1.5 rounded-lg transition-colors ${
+                                className={`p-1 rounded-md transition-colors ${
                                   isStarredItem
                                     ? "text-amber-500 bg-amber-500/10"
                                     : "text-[var(--muted-foreground)] hover:text-amber-500 hover:bg-amber-500/10"
                                 }`}
                               >
-                                <HiStar className="w-4 h-4" />
+                                <HiStar className="w-3.5 h-3.5" />
                               </button>
                             </Tooltip>
 
                             {/* Direct Open */}
-                            <Tooltip content="Mở trang đầy đủ">
+                            <Tooltip content="Mở trang chi tiết">
                               <button
                                 type="button"
                                 onClick={() => handleNavigateDirect(notification)}
-                                className="p-1.5 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors"
+                                className="p-1 rounded-md text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors"
                               >
-                                <HiArrowTopRightOnSquare className="w-4 h-4" />
+                                <HiArrowTopRightOnSquare className="w-3.5 h-3.5" />
                               </button>
                             </Tooltip>
 
@@ -837,12 +875,23 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
                                       )
                                     );
                                   }}
-                                  className="p-1.5 rounded-lg text-[var(--muted-foreground)] hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors"
+                                  className="p-1 rounded-md text-[var(--muted-foreground)] hover:text-emerald-500 hover:bg-emerald-500/10 transition-colors"
                                 >
-                                  <HiCheck className="w-4 h-4" />
+                                  <HiCheck className="w-3.5 h-3.5" />
                                 </button>
                               </Tooltip>
                             )}
+
+                            {/* Delete Button */}
+                            <Tooltip content="Xoá thông báo">
+                              <button
+                                type="button"
+                                onClick={(e) => handleSingleDelete(e, notification.id)}
+                                className="p-1 rounded-md text-[var(--muted-foreground)] hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+                              >
+                                <HiTrash className="w-3.5 h-3.5" />
+                              </button>
+                            </Tooltip>
                           </div>
                         </div>
                       </div>
@@ -874,7 +923,7 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
 
       {/* Slide-over Quick Preview Drawer */}
       {previewNotification && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs animate-in fade-in-20">
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/30 backdrop-blur-xs animate-in fade-in-20">
           <div
             className="w-full max-w-lg h-full bg-[var(--card)] border-l border-[var(--border)] shadow-2xl p-6 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right-10 duration-200"
             onClick={(e) => e.stopPropagation()}
@@ -883,11 +932,11 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
               {/* Drawer Header */}
               <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]/60">
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">
+                  <span className="text-xs font-semibold text-[var(--foreground)]">
                     Chi tiết thông báo
-                  </Badge>
+                  </span>
                   {previewNotification.priority === "URGENT" && (
-                    <Badge variant="destructive" className="text-xs">
+                    <Badge variant="destructive" className="text-[10px] font-medium">
                       Khẩn cấp
                     </Badge>
                   )}
@@ -895,31 +944,31 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
                 <button
                   type="button"
                   onClick={() => setPreviewNotification(null)}
-                  className="p-1.5 rounded-xl text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors"
+                  className="p-1 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors"
                 >
-                  <HiXMark className="w-5 h-5" />
+                  <HiXMark className="w-4 h-4" />
                 </button>
               </div>
 
               {/* Drawer Body */}
               <div className="space-y-3">
-                <h2 className="text-lg font-bold text-[var(--foreground)] leading-snug">
-                  {previewNotification.title}
+                <h2 className="text-base font-bold text-[var(--foreground)] leading-snug">
+                  {cleanNotificationTitle(previewNotification.title)}
                 </h2>
 
                 <div className="flex items-center gap-2 text-xs text-[var(--muted-foreground)]">
                   <span>{formatRelativeTime(previewNotification.createdAt)}</span>
                   <span>•</span>
-                  <span>Loại: {previewNotification.type}</span>
+                  <span>{getVisuals(previewNotification.type, previewNotification.priority).label}</span>
                 </div>
 
-                <div className="p-4 rounded-xl bg-[var(--muted)]/40 border border-[var(--border)]/50 text-sm text-[var(--foreground)] leading-relaxed whitespace-pre-wrap">
+                <div className="p-3.5 rounded-lg bg-[var(--muted)]/30 border border-[var(--border)]/40 text-xs text-[var(--foreground)] leading-relaxed whitespace-pre-wrap">
                   {previewNotification.message}
                 </div>
 
                 {previewNotification.createdByUser && (
-                  <div className="flex items-center gap-2.5 p-3 rounded-xl bg-[var(--card)] border border-[var(--border)]/60">
-                    <div className="w-8 h-8 rounded-full bg-[var(--primary)] text-white flex items-center justify-center font-bold text-xs">
+                  <div className="flex items-center gap-2.5 p-3 rounded-lg bg-[var(--card)] border border-[var(--border)]/60">
+                    <div className="w-7 h-7 rounded-full bg-[var(--primary)] text-white flex items-center justify-center font-bold text-xs">
                       {previewNotification.createdByUser.firstName?.[0] || "U"}
                     </div>
                     <div>
@@ -927,7 +976,7 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
                         {previewNotification.createdByUser.firstName}{" "}
                         {previewNotification.createdByUser.lastName}
                       </p>
-                      <p className="text-[11px] text-[var(--muted-foreground)]">Người khởi tạo</p>
+                      <p className="text-[10px] text-[var(--muted-foreground)]">Người gửi</p>
                     </div>
                   </div>
                 )}
@@ -940,23 +989,38 @@ export default function NotificationScreen({ userId, organizationId }: Notificat
                 variant="outline"
                 size="sm"
                 onClick={() => setPreviewNotification(null)}
-                className="h-9 px-4 text-xs rounded-xl"
+                className="h-8 px-3 text-xs rounded-lg"
               >
                 Đóng
               </Button>
 
-              <Button
-                size="sm"
-                onClick={() => {
-                  const target = previewNotification;
-                  setPreviewNotification(null);
-                  handleNavigateDirect(target);
-                }}
-                className="h-9 px-4 text-xs rounded-xl bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white flex items-center gap-1.5"
-              >
-                <span>Mở trang chi tiết</span>
-                <HiArrowTopRightOnSquare className="w-4 h-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={(e) => {
+                    handleSingleDelete(e, previewNotification.id);
+                    setPreviewNotification(null);
+                  }}
+                  className="h-8 px-2.5 text-xs rounded-lg text-rose-500 hover:bg-rose-500/10 hover:border-rose-500/30"
+                >
+                  <HiTrash className="w-3.5 h-3.5 mr-1" />
+                  <span>Xoá</span>
+                </Button>
+
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    const target = previewNotification;
+                    setPreviewNotification(null);
+                    handleNavigateDirect(target);
+                  }}
+                  className="h-8 px-3 text-xs rounded-lg bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white flex items-center gap-1.5"
+                >
+                  <span>Mở trang chi tiết</span>
+                  <HiArrowTopRightOnSquare className="w-3.5 h-3.5" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
