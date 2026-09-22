@@ -122,13 +122,20 @@ public class SecurityConfig {
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
         configuration.setAllowedHeaders(Arrays.asList(
+                "*",
                 "Authorization",
                 "Content-Type",
                 "X-Requested-With",
                 "Accept",
                 "Origin",
                 "Access-Control-Request-Method",
-                "Access-Control-Request-Headers"
+                "Access-Control-Request-Headers",
+                "X-Organization-ID",
+                "X-Organization-Id",
+                "x-organization-id",
+                "X-Workspace-ID",
+                "X-Workspace-Id",
+                "x-workspace-id"
         ));
         configuration.setExposedHeaders(Arrays.asList("Authorization", "Set-Cookie"));
         configuration.setAllowCredentials(true);

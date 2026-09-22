@@ -7,13 +7,14 @@ import { mcpServer, extractContextFromPath, Conversation } from "@/lib/mcp-serve
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { BrowserAgent } from "@/lib/browser-automation/browser-agent";
-import api from "@/lib/api";
+import api, { TokenManager } from "@/lib/api";
 import { useChatVoice } from "@/hooks/useChatVoice";
 import { useTranslation } from "react-i18next";
 import {
   ThoughtStep,
   Message,
   ChatMessage,
+  MessageAction,
   sanitizeErrorMessage,
   formatUserDisplayMessage,
 } from "./types";
@@ -56,6 +57,7 @@ export default function ChatPanel() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const liveTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const liveIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const clearLiveThinkingTimers = useCallback(() => {
     liveTimersRef.current.forEach((t) => clearTimeout(t));
@@ -65,6 +67,27 @@ export default function ChatPanel() {
       liveIntervalRef.current = null;
     }
   }, []);
+
+  const handleStopStreaming = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsLoading(false);
+    clearLiveThinkingTimers();
+    setMessages((prev) => {
+      const copy = [...prev];
+      const lastIdx = copy.length - 1;
+      if (lastIdx >= 0 && copy[lastIdx].role === "assistant") {
+        copy[lastIdx] = {
+          ...copy[lastIdx],
+          isStreaming: false,
+        };
+      }
+      return copy;
+    });
+    toast.info("Đã dừng tạo phản hồi.");
+  }, [clearLiveThinkingTimers]);
 
   const formatSeconds = useCallback((sec: number) => {
     const m = Math.floor(sec / 60);
@@ -219,7 +242,7 @@ export default function ChatPanel() {
     };
   }, []);
 
-  // Conversational Task Handler
+  // Conversational Task Handler with SSE Streaming
   const handleConversationalTask = useCallback(
     async (taskText: string) => {
       setIsLoading(true);
@@ -301,71 +324,202 @@ export default function ChatPanel() {
 
       liveTimersRef.current.push(t1, t2, t3);
 
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
+      // Add placeholder assistant message that will be updated as tokens stream in
+      const placeholderAssistantMessage: Message = {
+        role: "assistant",
+        content: "",
+        timestamp: new Date(),
+        isStreaming: true,
+        actions: [],
+        steps: initialSteps,
+        logs: [],
+        isThoughtExpanded: false,
+      };
+
+      setMessages((prev) => [...prev, placeholderAssistantMessage]);
+
       try {
         const pathContext = extractContextFromPath(pathname);
-        const response = await api.post("/ai-chat/chat", {
-          message: taskText,
-          workspaceId: pathContext.currentWorkspace,
-          projectId: pathContext.currentProject,
-          sessionId: mcpServer.sessionId,
-          currentOrganizationId: localStorage.getItem("currentOrganizationId"),
-        });
+        const token = TokenManager.getAccessToken();
+        const orgId =
+          TokenManager.getCurrentOrgId() ||
+          (typeof window !== "undefined"
+            ? localStorage.getItem("currentOrganizationId")
+            : "") ||
+          "";
+        const apiBaseUrl =
+          process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000/api";
 
-        const data = response.data;
-        if (data?.success === false && !data?.message) {
-          throw new Error(data?.error || "Chat request failed");
-        }
+        let streamSucceeded = false;
+        let accumulatedContent = "";
+        let accumulatedActions: MessageAction[] = [];
+        let accumulatedSteps: ThoughtStep[] = [...initialSteps];
+        let accumulatedLogs: string[] = [...liveLogs];
 
-        let finalSteps: ThoughtStep[] = [];
-        if (data?.steps && Array.isArray(data.steps) && data.steps.length > 0) {
-          finalSteps = data.steps.map((s: any) => ({
-            title: s.title || s.name || "Xử lý tác vụ",
-            status: (s.status === "failed" ? "failed" : "completed") as ThoughtStep["status"],
-            detail: s.detail,
-          }));
-        } else {
-          finalSteps = initialSteps.map((s) => ({
-            ...s,
-            status: "completed" as const,
-            detail: s.detail?.replace("Chờ ", "Đã ").replace("...", ""),
-          }));
-        }
+        try {
+          const streamResponse = await fetch(`${apiBaseUrl}/ai-chat/chat/stream`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              ...(orgId ? { "X-Organization-ID": orgId } : {}),
+            },
+            body: JSON.stringify({
+              message: taskText,
+              workspaceId: pathContext.currentWorkspace,
+              projectId: pathContext.currentProject,
+              sessionId: mcpServer.sessionId,
+              currentOrganizationId: orgId,
+            }),
+            signal: abortController.signal,
+          });
 
-        let finalLogs: string[] = [];
-        if (data?.logs && Array.isArray(data.logs) && data.logs.length > 0) {
-          finalLogs = data.logs.map((l: string) => (l.startsWith("›") ? l : `› ${l}`));
-        } else {
-          finalLogs = [
-            ...liveLogs,
-            "› [Result] Hoàn tất quá trình giải quyết vấn đề (Exit code 0)",
-          ];
-        }
+          if (streamResponse.ok && streamResponse.body) {
+            clearLiveThinkingTimers();
+            const reader = streamResponse.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+            let buffer = "";
 
-        const assistantMessage: Message = {
-          role: "assistant",
-          content: data?.message || "Đã thực hiện xong yêu cầu.",
-          timestamp: new Date(),
-          actions: data?.actions || [],
-          steps: finalSteps,
-          logs: finalLogs,
-          isThoughtExpanded: false,
-        };
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
 
-        setMessages((prev) => {
-          const updated = [...prev, assistantMessage];
-          const activeConv = mcpServer.getCurrentConversation();
-          if (typeof window !== "undefined" && activeConv?.id) {
-            try {
-              localStorage.setItem(
-                `taskosaur_chat_rich_messages_${activeConv.id}`,
-                JSON.stringify(updated)
-              );
-            } catch (e) {}
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() || "";
+
+              for (const rawLine of lines) {
+                const line = rawLine.trim();
+                if (!line || !line.startsWith("data:")) continue;
+
+                const dataStr = line.substring(5).trim();
+                if (!dataStr || dataStr === "[DONE]") continue;
+
+                try {
+                  const event = JSON.parse(dataStr);
+
+                  if (event.type === "chunk" && event.content) {
+                    accumulatedContent += event.content;
+                    setMessages((prev) => {
+                      const copy = [...prev];
+                      const lastIdx = copy.length - 1;
+                      if (lastIdx >= 0 && copy[lastIdx].role === "assistant") {
+                        copy[lastIdx] = {
+                          ...copy[lastIdx],
+                          content: accumulatedContent,
+                          isStreaming: true,
+                        };
+                      }
+                      return copy;
+                    });
+                  } else if (event.type === "step" && event.step) {
+                    const st = event.step;
+                    setLiveSteps((prev) => {
+                      const idx = prev.findIndex((s) => s.title === st.title);
+                      if (idx >= 0) {
+                        const copy = [...prev];
+                        copy[idx] = { ...copy[idx], ...st };
+                        return copy;
+                      }
+                      return [...prev, st];
+                    });
+                  } else if (event.type === "log" && event.log) {
+                    const logLine = event.log.startsWith("›") ? event.log : `› ${event.log}`;
+                    setLiveLogs((prev) => [...prev, logLine]);
+                  } else if (event.type === "action" && event.action) {
+                    accumulatedActions.push(event.action);
+                  } else if (event.type === "done") {
+                    if (event.message) accumulatedContent = event.message;
+                    if (event.actions) accumulatedActions = event.actions;
+                    if (event.steps && Array.isArray(event.steps)) accumulatedSteps = event.steps;
+                    if (event.logs && Array.isArray(event.logs)) accumulatedLogs = event.logs;
+                    streamSucceeded = true;
+                  } else if (event.type === "error") {
+                    throw new Error(event.error || "Lỗi xử lý luồng AI");
+                  }
+                } catch (parseErr: any) {
+                  if (parseErr.message && !parseErr.message.includes("JSON")) {
+                    throw parseErr;
+                  }
+                }
+              }
+            }
+            streamSucceeded = true;
           }
-          return updated;
+        } catch (streamErr: any) {
+          if (streamErr?.name === "AbortError") {
+            return;
+          }
+          console.warn("SSE stream failed or unavailable, falling back to standard POST /chat:", streamErr);
+        }
+
+        // If streaming failed or didn't produce content, fallback to standard api.post
+        if (!streamSucceeded || !accumulatedContent) {
+          const response = await api.post("/ai-chat/chat", {
+            message: taskText,
+            workspaceId: pathContext.currentWorkspace,
+            projectId: pathContext.currentProject,
+            sessionId: mcpServer.sessionId,
+            currentOrganizationId: orgId,
+          });
+
+          const data = response.data;
+          if (data?.success === false && !data?.message) {
+            throw new Error(data?.error || "Chat request failed");
+          }
+
+          accumulatedContent = data?.message || "Đã thực hiện xong yêu cầu.";
+          accumulatedActions = data?.actions || [];
+          if (data?.steps && Array.isArray(data.steps) && data.steps.length > 0) {
+            accumulatedSteps = data.steps.map((s: any) => ({
+              title: s.title || s.name || "Xử lý tác vụ",
+              status: (s.status === "failed" ? "failed" : "completed") as ThoughtStep["status"],
+              detail: s.detail,
+            }));
+          }
+          if (data?.logs && Array.isArray(data.logs) && data.logs.length > 0) {
+            accumulatedLogs = data.logs.map((l: string) => (l.startsWith("›") ? l : `› ${l}`));
+          }
+        }
+
+        // Finalize assistant message
+        setMessages((prev) => {
+          const next = [...prev];
+          const lastIdx = next.length - 1;
+          if (lastIdx >= 0 && next[lastIdx].role === "assistant") {
+            next[lastIdx] = {
+              ...next[lastIdx],
+              content: accumulatedContent,
+              isStreaming: false,
+              actions: accumulatedActions,
+              steps:
+                accumulatedSteps.length > 0
+                  ? accumulatedSteps
+                  : initialSteps.map((s) => ({ ...s, status: "completed" })),
+              logs: accumulatedLogs.length > 0 ? accumulatedLogs : liveLogs,
+              isThoughtExpanded: false,
+            };
+            const activeConv = mcpServer.getCurrentConversation();
+            if (typeof window !== "undefined" && activeConv?.id) {
+              try {
+                localStorage.setItem(
+                  `taskosaur_chat_rich_messages_${activeConv.id}`,
+                  JSON.stringify(next)
+                );
+              } catch (e) {}
+            }
+          }
+          return next;
         });
+
         await refreshConversations();
       } catch (err: any) {
+        if (err?.name === "AbortError") {
+          return;
+        }
         console.error("AI execution error:", err);
         const errMsg =
           err?.response?.data?.message ||
@@ -379,31 +533,29 @@ export default function ChatPanel() {
           detail: idx === 2 ? "Gặp sự cố khi thực thi" : s.detail,
         }));
 
-        const errAssistantMessage: Message = {
-          role: "assistant",
-          content: sanitizeErrorMessage(errMsg),
-          timestamp: new Date(),
-          steps: failedSteps,
-          logs: [...liveLogs, `› [Error] ${errMsg}`],
-          isThoughtExpanded: true,
-        };
-
         setMessages((prev) => {
-          const updated = [...prev, errAssistantMessage];
-          const activeConv = mcpServer.getCurrentConversation();
-          if (typeof window !== "undefined" && activeConv?.id) {
-            try {
-              localStorage.setItem(
-                `taskosaur_chat_rich_messages_${activeConv.id}`,
-                JSON.stringify(updated)
-              );
-            } catch (e) {}
+          const copy = [...prev];
+          const lastIdx = copy.length - 1;
+          const errAssistantMessage: Message = {
+            role: "assistant",
+            content: sanitizeErrorMessage(errMsg),
+            timestamp: new Date(),
+            isStreaming: false,
+            steps: failedSteps,
+            logs: [...liveLogs, `› [Error] ${errMsg}`],
+            isThoughtExpanded: true,
+          };
+          if (lastIdx >= 0 && copy[lastIdx].role === "assistant") {
+            copy[lastIdx] = errAssistantMessage;
+          } else {
+            copy.push(errAssistantMessage);
           }
-          return updated;
+          return copy;
         });
       } finally {
         clearLiveThinkingTimers();
         setIsLoading(false);
+        abortControllerRef.current = null;
         handleAgentStatus("");
       }
     },
@@ -1077,6 +1229,7 @@ export default function ChatPanel() {
           onToggleVoice={handleToggleVoice}
           onStopListening={stopListening}
           onStopAgent={handleStopAgent}
+          onStopStreaming={handleStopStreaming}
           isListening={isListening}
           interimTranscript={interimTranscript}
           voiceError={voiceError}

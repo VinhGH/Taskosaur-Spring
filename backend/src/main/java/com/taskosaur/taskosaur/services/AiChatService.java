@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -30,6 +31,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -485,6 +487,502 @@ public class AiChatService {
                 return fallback;
             }
             return ChatResponseDto.ofError("Lỗi xử lý yêu cầu AI: " + e.getMessage());
+        }
+    }
+
+    public void chatStream(ChatRequestDto request, String userId, SseEmitter emitter) {
+        emitter.onCompletion(() -> log.debug("SSE stream completed for user {}", userId));
+        emitter.onTimeout(() -> {
+            log.debug("SSE stream timeout for user {}", userId);
+            emitter.complete();
+        });
+        emitter.onError(e -> log.debug("SSE stream error for user {}: {}", userId, e.getMessage()));
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                Project authorizedProject = resolveAndAuthorizeProject(request.getProjectId(), request.getWorkspaceId(), userId);
+                String cleanUserText = extractCleanUserMessage(request.getMessage());
+
+                // Initial steps and logs
+                sendSseEvent(emitter, "step", Map.of(
+                        "step", Map.of(
+                                "title", "Phân tích câu lệnh & trích xuất ý định",
+                                "status", "completed",
+                                "detail", "Đã nhận yêu cầu: \"" + cleanUserText + "\""
+                        )
+                ));
+                sendSseEvent(emitter, "log", String.format("[Context] Nhận prompt: \"%s\"", cleanUserText));
+
+                if (authorizedProject != null) {
+                    sendSseEvent(emitter, "step", Map.of(
+                            "step", Map.of(
+                                    "title", "Xác thực phân quyền (RBAC)",
+                                    "status", "completed",
+                                    "detail", "Đã xác minh tư cách thành viên dự án " + authorizedProject.getName()
+                            )
+                    ));
+                    sendSseEvent(emitter, "log", String.format("[RBAC] Đã xác thực quyền hạn người dùng trên dự án '%s' (%s)", authorizedProject.getName(), authorizedProject.getTaskPrefix()));
+                } else {
+                    sendSseEvent(emitter, "step", Map.of(
+                            "step", Map.of(
+                                    "title", "Kiểm tra ngữ cảnh",
+                                    "status", "completed",
+                                    "detail", "Chế độ hội thoại toàn cục"
+                            )
+                    ));
+                    sendSseEvent(emitter, "log", "[RBAC] Hoạt động ở chế độ hội thoại toàn cục.");
+                }
+
+                String sessionId = request.getSessionId() != null && !request.getSessionId().isBlank()
+                        ? request.getSessionId()
+                        : UUID.randomUUID().toString();
+
+                AiConversation conversation = conversationRepository.findBySessionId(sessionId)
+                        .orElseGet(() -> conversationRepository.save(AiConversation.builder()
+                                .sessionId(sessionId)
+                                .userId(userId != null ? userId : "anonymous")
+                                .title(generateDefaultTitle(request.getMessage()))
+                                .build()));
+
+                List<ChatMessageDto> fullHistory = new ArrayList<>();
+                fullHistory.add(ChatMessageDto.builder()
+                        .role("system")
+                        .content(buildSystemPrompt(authorizedProject, userId))
+                        .build());
+
+                if (request.getHistory() != null && !request.getHistory().isEmpty()) {
+                    fullHistory.addAll(request.getHistory());
+                } else {
+                    List<AiMessage> dbMessages = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversation.getId());
+                    for (AiMessage dbMsg : dbMessages) {
+                        String cleanContent = stripMetaComment(dbMsg.getContent());
+                        fullHistory.add(ChatMessageDto.builder()
+                                .role(dbMsg.getRole().name().toLowerCase())
+                                .content(cleanContent)
+                                .build());
+                    }
+                }
+
+                fullHistory.add(ChatMessageDto.builder()
+                        .role("user")
+                        .content(cleanUserText)
+                        .build());
+
+                List<ChatMessageDto> normalized = normalizeMessages(fullHistory);
+                List<Map<String, Object>> tools = (authorizedProject != null) ? buildToolsSchema() : List.of();
+                List<Map<String, Object>> executedActions = new ArrayList<>();
+                List<String> executionLogs = new ArrayList<>();
+                List<Map<String, String>> steps = new ArrayList<>();
+
+                sendSseEvent(emitter, "step", Map.of(
+                        "step", Map.of(
+                                "title", "Định tuyến công cụ thực thi (Tool Calling Engine)",
+                                "status", "completed",
+                                "detail", "Khai báo " + tools.size() + " công cụ hệ thống"
+                        )
+                ));
+
+                String apiKey = getEffectiveApiKey(userId);
+                String apiUrl = getEffectiveApiUrl(userId);
+                String model = getEffectiveModel(userId);
+
+                StringBuilder fullResponseText = new StringBuilder();
+
+                if (apiKey != null && !apiKey.isBlank() && !apiKey.contains("your-key-here")) {
+                    sendSseEvent(emitter, "log", "[LLM] Kết nối AI Agent Engine và bắt đầu luồng phản hồi...");
+                    sendSseEvent(emitter, "step", Map.of(
+                            "step", Map.of(
+                                    "title", "Khởi tạo phản hồi AI thời gian thực",
+                                    "status", "running",
+                                    "detail", "Đang nhận từng token phản hồi từ model " + model + "..."
+                            )
+                    ));
+
+                    streamLlmWithTools(
+                            normalized,
+                            tools,
+                            authorizedProject,
+                            userId,
+                            executedActions,
+                            executionLogs,
+                            steps,
+                            apiKey,
+                            apiUrl,
+                            model,
+                            configuredMaxTokens,
+                            emitter,
+                            fullResponseText
+                    );
+                } else {
+                    sendSseEvent(emitter, "log", "[Engine] Chạy chế độ phân tích ý định chuyên biệt (Deterministic Engine)");
+                    ChatResponseDto fallback = handleFallbackIntent(cleanUserText, authorizedProject, userId);
+                    String answer;
+                    if (fallback != null) {
+                        answer = fallback.getMessage();
+                        executedActions.addAll(fallback.getActions());
+                        if (fallback.getLogs() != null) executionLogs.addAll(fallback.getLogs());
+                        if (fallback.getSteps() != null) steps.addAll(fallback.getSteps());
+                    } else {
+                        answer = (authorizedProject != null)
+                                ? String.format("Dự án **%s** (%s) đã sẵn sàng. Vui lòng thiết lập AI API key trong phần Cài đặt để trò chuyện nâng cao với Taskosaur AI Agent.",
+                                authorizedProject.getName(), authorizedProject.getTaskPrefix())
+                                : "Vui lòng truy cập vào một dự án mà bạn là thành viên để kích hoạt Taskosaur AI Agent.";
+                    }
+
+                    simulateStreamingChunks(emitter, answer, fullResponseText);
+                }
+
+                if (!executedActions.isEmpty()) {
+                    sendSseEvent(emitter, "step", Map.of(
+                            "step", Map.of(
+                                    "title", "Thực thi công cụ hệ thống",
+                                    "status", "completed",
+                                    "detail", "Đã thực hiện " + executedActions.size() + " hành động trên cơ sở dữ liệu"
+                            )
+                    ));
+                    sendSseEvent(emitter, "step", Map.of(
+                            "step", Map.of(
+                                    "title", "Đồng bộ Kanban thời gian thực",
+                                    "status", "completed",
+                                    "detail", "Phát sóng WebSocket STOMP tới bảng Kanban"
+                            )
+                    ));
+                } else {
+                    sendSseEvent(emitter, "step", Map.of(
+                            "step", Map.of(
+                                    "title", "Tổng hợp phản hồi AI",
+                                    "status", "completed",
+                                    "detail", "Phản hồi hoàn tất"
+                            )
+                    ));
+                }
+
+                sendSseEvent(emitter, "log", "[Result] Hoàn tất quá trình giải quyết vấn đề (Exit code 0)");
+
+                // Persist messages to DB
+                AiMessage userMsg = AiMessage.builder()
+                        .conversationId(conversation.getId())
+                        .role(MessageRole.USER)
+                        .content(cleanUserText)
+                        .build();
+                messageRepository.save(userMsg);
+
+                String contentToSave = embedMetadata(fullResponseText.toString(), executedActions, steps, executionLogs);
+                AiMessage assistantMsg = AiMessage.builder()
+                        .conversationId(conversation.getId())
+                        .role(MessageRole.ASSISTANT)
+                        .content(contentToSave)
+                        .build();
+                messageRepository.save(assistantMsg);
+
+                if ("New Chat".equals(conversation.getTitle())) {
+                    conversation.setTitle(generateDefaultTitle(cleanUserText));
+                    conversationRepository.save(conversation);
+                }
+
+                // Final DONE event with complete payload
+                Map<String, Object> donePayload = new HashMap<>();
+                donePayload.put("message", fullResponseText.toString());
+                donePayload.put("actions", executedActions);
+                donePayload.put("steps", steps);
+                donePayload.put("logs", executionLogs);
+                sendSseEvent(emitter, "done", donePayload);
+
+                emitter.complete();
+            } catch (Exception e) {
+                log.error("AI Chat stream failed", e);
+                try {
+                    sendSseEvent(emitter, "error", Map.of("error", e.getMessage() != null ? e.getMessage() : "Lỗi xử lý luồng AI"));
+                    emitter.complete();
+                } catch (Exception ignored) {}
+            }
+        });
+    }
+
+    private void streamLlmWithTools(
+            List<ChatMessageDto> messages,
+            List<Map<String, Object>> tools,
+            Project authorizedProject,
+            String userId,
+            List<Map<String, Object>> executedActions,
+            List<String> executionLogs,
+            List<Map<String, String>> steps,
+            String apiKey,
+            String rawUrl,
+            String model,
+            int maxTokens,
+            SseEmitter emitter,
+            StringBuilder fullResponseText
+    ) throws Exception {
+        String endpointUrl = normalizeEndpointUrl(rawUrl);
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("model", model);
+        payload.put("messages", messages);
+        payload.put("max_tokens", maxTokens);
+        payload.put("temperature", 0.2);
+        payload.put("stream", true);
+
+        if (authorizedProject != null && tools != null && !tools.isEmpty()) {
+            payload.put("tools", tools);
+            payload.put("tool_choice", "auto");
+        }
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(endpointUrl))
+                .timeout(Duration.ofMillis(configuredTimeoutMs))
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + apiKey)
+                .header("HTTP-Referer", "http://localhost:3000")
+                .header("X-Title", "Taskosaur AI Assistant")
+                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
+                .build();
+
+        HttpResponse<java.io.InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            String errBody = new String(response.body().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            throw new RuntimeException(extractErrorMessage(errBody, response.statusCode()));
+        }
+
+        Map<Integer, Map<String, Object>> streamedToolCalls = new LinkedHashMap<>();
+        boolean hasToolCalls = false;
+
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(response.body(), java.nio.charset.StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty() || line.startsWith(":")) continue;
+                if (!line.startsWith("data:")) continue;
+
+                String dataContent = line.substring(5).trim();
+                if ("[DONE]".equals(dataContent)) break;
+
+                try {
+                    JsonNode node = objectMapper.readTree(dataContent);
+                    JsonNode choices = node.get("choices");
+                    if (choices != null && choices.isArray() && !choices.isEmpty()) {
+                        JsonNode choice = choices.get(0);
+                        JsonNode delta = choice.get("delta");
+
+                        if (delta != null) {
+                            // 1. Text token
+                            if (delta.has("content") && !delta.get("content").isNull()) {
+                                String token = delta.get("content").asText();
+                                if (!token.isEmpty()) {
+                                    fullResponseText.append(token);
+                                    sendSseEvent(emitter, "chunk", Map.of("content", token));
+                                }
+                            }
+
+                            // 2. Tool calls delta
+                            if (delta.has("tool_calls") && delta.get("tool_calls").isArray()) {
+                                hasToolCalls = true;
+                                for (JsonNode tc : delta.get("tool_calls")) {
+                                    int index = tc.has("index") ? tc.get("index").asInt() : 0;
+                                    Map<String, Object> toolCall = streamedToolCalls.computeIfAbsent(index, k -> new HashMap<>());
+
+                                    if (tc.has("id")) toolCall.put("id", tc.get("id").asText());
+                                    if (tc.has("type")) toolCall.put("type", tc.get("type").asText());
+
+                                    JsonNode func = tc.get("function");
+                                    if (func != null) {
+                                        if (func.has("name")) {
+                                            toolCall.put("name", func.get("name").asText());
+                                        }
+                                        if (func.has("arguments")) {
+                                            String existingArgs = (String) toolCall.getOrDefault("arguments", "");
+                                            toolCall.put("arguments", existingArgs + func.get("arguments").asText());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception parseEx) {
+                    log.debug("Skipping SSE parse error for line: {}", line);
+                }
+            }
+        }
+
+        // If tool calls were accumulated, execute them and stream explanation
+        if (hasToolCalls && !streamedToolCalls.isEmpty()) {
+            sendSseEvent(emitter, "step", Map.of(
+                    "step", Map.of(
+                            "title", "Thực thi công cụ hệ thống",
+                            "status", "running",
+                            "detail", "Đang xử lý " + streamedToolCalls.size() + " công cụ..."
+                    )
+            ));
+
+            List<Map<String, Object>> turn2Messages = new ArrayList<>();
+            for (ChatMessageDto m : messages) {
+                Map<String, Object> msgMap = new LinkedHashMap<>();
+                msgMap.put("role", m.getRole());
+                msgMap.put("content", m.getContent() != null ? m.getContent() : "");
+                turn2Messages.add(msgMap);
+            }
+
+            List<Map<String, Object>> formattedToolCalls = new ArrayList<>();
+            for (Map.Entry<Integer, Map<String, Object>> entry : streamedToolCalls.entrySet()) {
+                Map<String, Object> tc = entry.getValue();
+                String callId = (String) tc.getOrDefault("id", "call_" + UUID.randomUUID());
+                String funcName = (String) tc.getOrDefault("name", "");
+                String funcArgs = (String) tc.getOrDefault("arguments", "{}");
+
+                Map<String, Object> funcObj = new LinkedHashMap<>();
+                funcObj.put("name", funcName);
+                funcObj.put("arguments", funcArgs);
+
+                Map<String, Object> tcObj = new LinkedHashMap<>();
+                tcObj.put("id", callId);
+                tcObj.put("type", "function");
+                tcObj.put("function", funcObj);
+                formattedToolCalls.add(tcObj);
+            }
+
+            Map<String, Object> assistantToolMsg = new LinkedHashMap<>();
+            assistantToolMsg.put("role", "assistant");
+            assistantToolMsg.put("content", fullResponseText.length() > 0 ? fullResponseText.toString() : "");
+            assistantToolMsg.put("tool_calls", formattedToolCalls);
+            turn2Messages.add(assistantToolMsg);
+
+            for (Map<String, Object> tcObj : formattedToolCalls) {
+                String callId = (String) tcObj.get("id");
+                Map<String, Object> func = (Map<String, Object>) tcObj.get("function");
+                String funcName = (String) func.get("name");
+                String funcArgsRaw = (String) func.get("arguments");
+                JsonNode funcArgs = objectMapper.readTree(funcArgsRaw);
+
+                sendSseEvent(emitter, "log", String.format("[Tools] Thực thi công cụ '%s'...", funcName));
+
+                String toolResult = executeToolCall(funcName, funcArgs, authorizedProject, userId, executedActions);
+
+                Map<String, Object> toolRespMsg = new LinkedHashMap<>();
+                toolRespMsg.put("role", "tool");
+                toolRespMsg.put("tool_call_id", callId);
+                toolRespMsg.put("name", funcName);
+                toolRespMsg.put("content", toolResult);
+                turn2Messages.add(toolRespMsg);
+
+                sendSseEvent(emitter, "log", String.format("[Tool Executed] %s hoàn tất", funcName));
+            }
+
+            sendSseEvent(emitter, "step", Map.of(
+                    "step", Map.of(
+                            "title", "Tổng hợp phản hồi AI",
+                            "status", "running",
+                            "detail", "Đang phân tích và giải thích kết quả..."
+                    )
+            ));
+
+            streamTurn2(turn2Messages, model, apiKey, endpointUrl, emitter, fullResponseText, executedActions);
+        }
+    }
+
+    private void streamTurn2(
+            List<Map<String, Object>> turn2Messages,
+            String model,
+            String apiKey,
+            String endpointUrl,
+            SseEmitter emitter,
+            StringBuilder fullResponseText,
+            List<Map<String, Object>> executedActions
+    ) {
+        try {
+            Map<String, Object> payloadTurn2 = new HashMap<>();
+            payloadTurn2.put("model", model);
+            payloadTurn2.put("messages", turn2Messages);
+            payloadTurn2.put("max_tokens", 1000);
+            payloadTurn2.put("temperature", 0.3);
+            payloadTurn2.put("stream", true);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(endpointUrl))
+                    .timeout(Duration.ofMillis(configuredTimeoutMs))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("HTTP-Referer", "http://localhost:3000")
+                    .header("X-Title", "Taskosaur AI Assistant")
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payloadTurn2)))
+                    .build();
+
+            HttpResponse<java.io.InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(response.body(), java.nio.charset.StandardCharsets.UTF_8))) {
+                    String line;
+                    boolean streamedAny = false;
+                    while ((line = reader.readLine()) != null) {
+                        line = line.trim();
+                        if (line.isEmpty() || !line.startsWith("data:")) continue;
+                        String data = line.substring(5).trim();
+                        if ("[DONE]".equals(data)) break;
+
+                        JsonNode node = objectMapper.readTree(data);
+                        JsonNode choices = node.get("choices");
+                        if (choices != null && choices.isArray() && !choices.isEmpty()) {
+                            JsonNode delta = choices.get(0).get("delta");
+                            if (delta != null && delta.has("content") && !delta.get("content").isNull()) {
+                                String token = delta.get("content").asText();
+                                if (!token.isEmpty()) {
+                                    fullResponseText.append(token);
+                                    sendSseEvent(emitter, "chunk", Map.of("content", token));
+                                    streamedAny = true;
+                                }
+                            }
+                        }
+                    }
+                    if (streamedAny) return;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Turn 2 streaming failed, falling back to executive summary", e);
+        }
+
+        String summary = buildExecutiveSummaryFromActions(executedActions);
+        fullResponseText.append(summary);
+        simulateStreamingChunks(emitter, summary, new StringBuilder());
+    }
+
+    private void simulateStreamingChunks(SseEmitter emitter, String text, StringBuilder fullResponseText) {
+        if (text == null || text.isEmpty()) return;
+        fullResponseText.append(text);
+
+        String[] tokens = text.split("(?<=\\s)|(?=\\n)");
+        for (String token : tokens) {
+            sendSseEvent(emitter, "chunk", Map.of("content", token));
+            try {
+                Thread.sleep(12);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+    }
+
+    private void sendSseEvent(SseEmitter emitter, String eventType, Object data) {
+        try {
+            Map<String, Object> wrapper = new HashMap<>();
+            wrapper.put("type", eventType);
+            if (data instanceof Map<?, ?> mapData) {
+                for (Map.Entry<?, ?> entry : mapData.entrySet()) {
+                    wrapper.put(String.valueOf(entry.getKey()), entry.getValue());
+                }
+            } else if (data instanceof String strData) {
+                if ("log".equals(eventType)) {
+                    wrapper.put("log", strData);
+                } else if ("chunk".equals(eventType)) {
+                    wrapper.put("content", strData);
+                } else {
+                    wrapper.put("message", strData);
+                }
+            } else {
+                wrapper.put("data", data);
+            }
+            emitter.send(SseEmitter.event()
+                    .data(objectMapper.writeValueAsString(wrapper), org.springframework.http.MediaType.APPLICATION_JSON));
+        } catch (Exception e) {
+            log.debug("SSE client disconnected or send failed: {}", e.getMessage());
         }
     }
 

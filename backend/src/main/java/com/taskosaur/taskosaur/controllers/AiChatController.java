@@ -6,9 +6,11 @@ import com.taskosaur.taskosaur.services.AiChatService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.Map;
@@ -84,6 +86,18 @@ public class AiChatController {
     ) {
         String userId = authentication != null ? authentication.getName() : "anonymous";
         return ResponseEntity.ok(aiChatService.chat(chatRequest, userId));
+    }
+
+    @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @com.taskosaur.taskosaur.annotations.RateLimit(limit = 15, period = 60, keyPrefix = "ai_chat_stream", strategy = com.taskosaur.taskosaur.enums.RateLimitStrategy.BY_USER)
+    public SseEmitter chatStream(
+            Authentication authentication,
+            @Valid @RequestBody ChatRequestDto chatRequest
+    ) {
+        String userId = authentication != null ? authentication.getName() : "anonymous";
+        SseEmitter emitter = new SseEmitter(180_000L);
+        aiChatService.chatStream(chatRequest, userId, emitter);
+        return emitter;
     }
 
     @PostMapping("/test-connection")

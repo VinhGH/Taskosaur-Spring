@@ -10,6 +10,7 @@ interface ChatInputBarProps {
   onToggleVoice: () => void;
   onStopListening: () => void;
   onStopAgent: () => void;
+  onStopStreaming?: () => void;
   isListening: boolean;
   interimTranscript: string;
   voiceError: string | null;
@@ -28,6 +29,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(
     onToggleVoice,
     onStopListening,
     onStopAgent,
+    onStopStreaming,
     isListening,
     interimTranscript,
     voiceError,
@@ -122,10 +124,18 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(
             >
               <HiStop className="w-4 h-4" />
             </button>
+          ) : isLoading ? (
+            <button
+              onClick={onStopStreaming}
+              className="p-3 bg-red-500 hover:bg-red-600 active:scale-95 text-white rounded-full flex items-center justify-center transition-all duration-200 shadow-xs hover:shadow-sm flex-shrink-0 animate-pulse"
+              title={t("aiAssistant.stopGenerating", "Dừng phản hồi")}
+            >
+              <HiStop className="w-4 h-4" />
+            </button>
           ) : (
             <button
               onClick={onSendMessage}
-              disabled={!inputValue.trim() || isLoading || !user}
+              disabled={!inputValue.trim() || !user}
               className="p-3 bg-blue-600 hover:bg-blue-500 active:scale-95 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-full flex items-center justify-center transition-all duration-200 shadow-xs hover:shadow-sm disabled:shadow-none flex-shrink-0"
             >
               <HiPaperAirplane className="w-4 h-4" />
